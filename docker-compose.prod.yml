@@ -1,0 +1,384 @@
+# Production Docker Compose with MongoDB Replication and Resource Limits
+# This configuration provides:
+# - MongoDB replica set (3 nodes for high availability)
+# - Resource limits for all services
+# - Health checks and auto-restart
+# - Horizontal scaling support
+
+version: '3.8'
+
+services:
+  # =================================
+  # MongoDB Replica Set
+  # =================================
+  mongo1:
+    image: mongo:8.0
+    container_name: nocturnal-mongo1
+    restart: unless-stopped
+    command: mongod --replSet rs0 --bind_ip_all --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-nocturnal_prod}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo1_data:/data/db
+      - mongo1_config:/data/configdb
+    networks:
+      - nocturnal-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  mongo2:
+    image: mongo:8.0
+    container_name: nocturnal-mongo2
+    restart: unless-stopped
+    command: mongod --replSet rs0 --bind_ip_all --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo2_data:/data/db
+      - mongo2_config:/data/configdb
+    networks:
+      - nocturnal-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  mongo3:
+    image: mongo:8.0
+    container_name: nocturnal-mongo3
+    restart: unless-stopped
+    command: mongod --replSet rs0 --bind_ip_all --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongo3_data:/data/db
+      - mongo3_config:/data/configdb
+    networks:
+      - nocturnal-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # MongoDB Replica Set Initialization
+  mongo-init:
+    image: mongo:8.0
+    container_name: nocturnal-mongo-init
+    restart: "no"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
+      MONGO_APP_USER: ${MONGO_APP_USER:-nocturnal_app}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:-changeme}
+    volumes:
+      - ./docker/mongo-replica-init.sh:/mongo-replica-init.sh:ro
+    networks:
+      - nocturnal-network
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    command: bash /mongo-replica-init.sh
+
+  # =================================
+  # Redis with Resource Limits
+  # =================================
+  redis:
+    image: redis:7-alpine
+    container_name: nocturnal-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-changeme}
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    volumes:
+      - redis_data:/data
+    networks:
+      - nocturnal-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  # =================================
+  # Nocturnal API (Scalable with Resource Limits)
+  # =================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nocturnal-api:latest
+    restart: unless-stopped
+    expose:
+      - "5000"
+    environment:
+      NODE_ENV: production
+      # MongoDB replica set connection string
+      MONGODB_URI: mongodb://${MONGO_APP_USER:-nocturnal_app}:${MONGO_APP_PASSWORD:-changeme}@mongo1:27017,mongo2:27017,mongo3:27017/${MONGO_DB:-nocturnal_prod}?replicaSet=rs0&authSource=nocturnal_prod
+      REDIS_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme}
+      USE_S3: ${USE_S3:-false}
+      # Resource monitoring
+      NODE_OPTIONS: --max-old-space-size=384
+    env_file:
+      - .env
+    volumes:
+      - uploads_data:/app/uploads
+      - ./logs:/app/logs
+    networks:
+      - nocturnal-network
+    depends_on:
+      mongo1:
+        condition: service_healthy
+      mongo2:
+        condition: service_healthy
+      mongo3:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/v1/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      mode: replicated
+      replicas: 4
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '1'           # Max 1 CPU core per container
+          memory: 512M        # Max 512MB RAM per container
+          pids: 200          # Max 200 processes
+        reservations:
+          cpus: '0.5'        # Guaranteed 0.5 CPU core
+          memory: 256M       # Guaranteed 256MB RAM
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+        failure_action: pause
+        order: stop-first
+
+  # =================================
+  # Nginx Load Balancer with Resource Limits
+  # =================================
+  nginx:
+    image: nginx:alpine
+    container_name: nocturnal-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./client/dist:/var/www/nocturnal/client:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - nocturnal-network
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # =================================
+  # Monitoring: Prometheus (Optional)
+  # =================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: nocturnal-prometheus
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    networks:
+      - nocturnal-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # =================================
+  # Monitoring: Grafana (Optional)
+  # =================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: nocturnal-grafana
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - nocturnal-network
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+# =================================
+# Networks
+# =================================
+networks:
+  nocturnal-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    driver_opts:
+      com.docker.network.driver.mtu: 1450
+
+# =================================
+# Volumes
+# =================================
+volumes:
+  # MongoDB Replica Set
+  mongo1_data:
+    driver: local
+  mongo1_config:
+    driver: local
+  mongo2_data:
+    driver: local
+  mongo2_config:
+    driver: local
+  mongo3_data:
+    driver: local
+  mongo3_config:
+    driver: local
+  # Redis
+  redis_data:
+    driver: local
+  # Application
+  uploads_data:
+    driver: local
+  nginx_logs:
+    driver: local
+  # Monitoring
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

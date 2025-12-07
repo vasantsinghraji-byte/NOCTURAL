@@ -1,0 +1,74 @@
+# Filebeat Configuration for Nocturnal Healthcare Platform
+
+filebeat.inputs:
+  # Application logs
+  - type: log
+    enabled: true
+    paths:
+      - /logs/*.log
+      - /logs/**/*.log
+    fields:
+      service: nocturnal-api
+      environment: ${ENVIRONMENT:development}
+    fields_under_root: true
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+
+  # Docker container logs
+  - type: container
+    enabled: true
+    paths:
+      - '/var/lib/docker/containers/*/*.log'
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+
+  # System logs
+  - type: syslog
+    enabled: false
+    protocol.udp:
+      host: "localhost:514"
+
+# Filebeat modules
+filebeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+# Processors
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  - add_kubernetes_metadata: ~
+  - drop_fields:
+      fields: ["agent", "ecs", "host.name"]
+      ignore_missing: true
+
+# Output to Logstash
+output.logstash:
+  hosts: ["logstash:5044"]
+  loadbalance: true
+  worker: 2
+
+# Alternative: Direct output to Elasticsearch
+# output.elasticsearch:
+#   hosts: ["elasticsearch:9200"]
+#   indices:
+#     - index: "nocturnal-logs-%{+yyyy.MM.dd}"
+#       when.or:
+#         - equals:
+#             fields.service: "nocturnal-api"
+
+# Logging
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /usr/share/filebeat/logs
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+
+# Monitoring
+monitoring.enabled: false

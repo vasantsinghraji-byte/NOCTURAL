@@ -1,0 +1,92 @@
+name: Deploy to AWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      version:
+        description: 'Version/Tag to deploy (leave empty for latest)'
+        required: false
+        type: string
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: nocturnal-api
+  ECS_SERVICE: nocturnal-service
+  ECS_CLUSTER: nocturnal-cluster
+  ECS_TASK_DEFINITION: .aws/task-definition.json
+
+jobs:
+  deploy:
+    name: Deploy to AWS ECS
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.event.inputs.version || github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION }}
+          container-name: nocturnal-api
+          image: ${{ steps.build-image.outputs.image }}
+          environment-variables: |
+            NODE_ENV=${{ github.event.inputs.environment }}
+            LOG_LEVEL=info
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}-${{ github.event.inputs.environment }}
+          cluster: ${{ env.ECS_CLUSTER }}-${{ github.event.inputs.environment }}
+          wait-for-service-stability: true
+
+      - name: Run database migrations
+        run: |
+          echo "Running database migrations..."
+          # Add migration command here
+          # aws ecs run-task --cluster $ECS_CLUSTER --task-definition migration-task
+
+      - name: Verify deployment
+        run: |
+          echo "Verifying deployment health..."
+          # Add health check commands
+          # curl -f https://${{ github.event.inputs.environment }}.nocturnal.com/api/v1/health
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          echo "Deployment to ${{ github.event.inputs.environment }} completed"
+          # Add notification webhook here (Slack, Discord, etc.)

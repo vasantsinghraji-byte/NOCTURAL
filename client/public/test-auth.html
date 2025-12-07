@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Test - Nocturnal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-panel {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-panel h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            max-width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 2px 0;
+        }
+        .log-time {
+            color: #858585;
+        }
+        .log-success {
+            color: #4ec9b0;
+        }
+        .log-error {
+            color: #f48771;
+        }
+        .log-info {
+            color: #569cd6;
+        }
+    </style>
+    <script src="js/config.js"></script>
+</head>
+<body>
+    <h1>🔍 Nocturnal Authentication Diagnostic Tool</h1>
+
+    <div class="test-panel">
+        <h2>1. Environment Check</h2>
+        <div id="env-status"></div>
+        <button onclick="checkEnvironment()">Check Environment</button>
+    </div>
+
+    <div class="test-panel">
+        <h2>2. Firebase Status</h2>
+        <div id="firebase-status"></div>
+        <button onclick="checkFirebase()">Check Firebase</button>
+    </div>
+
+    <div class="test-panel">
+        <h2>3. Test Login</h2>
+        <input type="email" id="test-email" placeholder="Email" value=""><br>
+        <input type="password" id="test-password" placeholder="Password" value=""><br>
+        <button onclick="testLogin()">Test Login</button>
+        <button onclick="testLogout()">Test Logout</button>
+        <div id="login-status"></div>
+    </div>
+
+    <div class="test-panel">
+        <h2>4. LocalStorage Check</h2>
+        <div id="storage-status"></div>
+        <button onclick="checkLocalStorage()">Check Storage</button>
+        <button onclick="clearStorage()">Clear Storage</button>
+    </div>
+
+    <div class="test-panel">
+        <h2>5. Real-time Log</h2>
+        <button onclick="clearLog()">Clear Log</button>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // Firebase configuration - CORRECT WORKING CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyAqfLJumqjAVp6RLueUhSlORk6x7OTDXUY",
+            authDomain: "nocturnal-49be3.firebaseapp.com",
+            projectId: "nocturnal-49be3",
+            storageBucket: "nocturnal-49be3.firebasestorage.app",
+            messagingSenderId: "936577924059",
+            appId: "1:936577924059:web:384b5e88afbe81b849c5fe",
+            measurementId: "G-PGHXQ52KC4"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Make available globally
+        window.testAuth = auth;
+        window.testDb = db;
+        window.testSignIn = signInWithEmailAndPassword;
+        window.testSignOut = signOut;
+        window.testGetDoc = getDoc;
+        window.testDoc = doc;
+
+        // Logging function
+        const logs = [];
+        window.addLog = function(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            logs.push({ time, message, type });
+            const logDiv = document.getElementById('log');
+            if (logDiv) {
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-${type}">${message}</span>`;
+                logDiv.appendChild(entry);
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+            console.log(`[${time}] ${message}`);
+        };
+
+        window.clearLog = function() {
+            logs.length = 0;
+            document.getElementById('log').innerHTML = '';
+        };
+
+        // Monitor auth state
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                addLog(`✅ Auth state: User logged in (${user.email})`, 'success');
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    addLog(`👤 User data: ${JSON.stringify(userData)}`, 'info');
+                }
+            } else {
+                addLog(`❌ Auth state: No user logged in`, 'error');
+            }
+            checkLocalStorage();
+        });
+
+        // Test functions
+        window.checkEnvironment = function() {
+            const env = {
+                userAgent: navigator.userAgent,
+                location: window.location.href,
+                localStorage: typeof(Storage) !== "undefined",
+                cookies: navigator.cookieEnabled
+            };
+            document.getElementById('env-status').innerHTML = `
+                <div class="status success">
+                    <pre>${JSON.stringify(env, null, 2)}</pre>
+                </div>
+            `;
+            addLog('Environment checked', 'success');
+        };
+
+        window.checkFirebase = function() {
+            const status = {
+                app: !!app,
+                auth: !!auth,
+                db: !!db,
+                currentUser: auth.currentUser ? auth.currentUser.email : 'None'
+            };
+            document.getElementById('firebase-status').innerHTML = `
+                <div class="status ${status.currentUser !== 'None' ? 'success' : 'info'}">
+                    <pre>${JSON.stringify(status, null, 2)}</pre>
+                </div>
+            `;
+            addLog('Firebase checked', 'success');
+        };
+
+        window.testLogin = async function() {
+            const email = document.getElementById('test-email').value;
+            const password = document.getElementById('test-password').value;
+
+            if (!email || !password) {
+                document.getElementById('login-status').innerHTML = '<div class="status error">Please enter email and password</div>';
+                return;
+            }
+
+            try {
+                addLog(`🔐 Attempting login for ${email}...`, 'info');
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                const token = await user.getIdToken();
+
+                addLog(`✅ Login successful!`, 'success');
+                addLog(`📧 Email: ${user.email}`, 'info');
+                addLog(`🔑 Token: ${token.substring(0, 20)}...`, 'info');
+
+                // Get user data
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    addLog(`👤 Role: ${userData.role}`, 'info');
+                    addLog(`📝 Name: ${userData.name}`, 'info');
+
+                    document.getElementById('login-status').innerHTML = `
+                        <div class="status success">
+                            <strong>Login Successful!</strong><br>
+                            Email: ${user.email}<br>
+                            Role: ${userData.role}<br>
+                            Name: ${userData.name}
+                        </div>
+                    `;
+                } else {
+                    addLog(`⚠️ User document not found in Firestore`, 'error');
+                }
+            } catch (error) {
+                addLog(`❌ Login failed: ${error.message}`, 'error');
+                document.getElementById('login-status').innerHTML = `
+                    <div class="status error">
+                        <strong>Login Failed!</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        };
+
+        window.testLogout = async function() {
+            try {
+                addLog(`🚪 Attempting logout...`, 'info');
+                await signOut(auth);
+                addLog(`✅ Logout successful!`, 'success');
+                document.getElementById('login-status').innerHTML = '<div class="status info">Logged out successfully</div>';
+            } catch (error) {
+                addLog(`❌ Logout failed: ${error.message}`, 'error');
+                document.getElementById('login-status').innerHTML = `
+                    <div class="status error">
+                        <strong>Logout Failed!</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        };
+
+        window.checkLocalStorage = function() {
+            const storage = {
+                token: localStorage.getItem('token') ? 'Present (truncated): ' + localStorage.getItem('token').substring(0, 20) + '...' : 'Not set',
+                userId: localStorage.getItem('userId') || 'Not set',
+                userName: localStorage.getItem('userName') || 'Not set',
+                userType: localStorage.getItem('userType') || 'Not set'
+            };
+            document.getElementById('storage-status').innerHTML = `
+                <div class="status info">
+                    <pre>${JSON.stringify(storage, null, 2)}</pre>
+                </div>
+            `;
+            addLog('LocalStorage checked', 'info');
+        };
+
+        window.clearStorage = function() {
+            localStorage.clear();
+            addLog('LocalStorage cleared', 'success');
+            checkLocalStorage();
+        };
+
+        // Auto-check on load
+        window.addEventListener('DOMContentLoaded', () => {
+            addLog('🚀 Diagnostic tool loaded', 'success');
+            checkEnvironment();
+            checkFirebase();
+            checkLocalStorage();
+        });
+    </script>
+</body>
+</html>

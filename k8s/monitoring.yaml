@@ -1,0 +1,72 @@
+# ServiceMonitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nocturnal-metrics
+  namespace: nocturnal
+  labels:
+    app: nocturnal
+spec:
+  selector:
+    matchLabels:
+      app: nocturnal
+  endpoints:
+  - port: http
+    path: /api/admin/metrics
+    interval: 30s
+---
+# PrometheusRule for alerting
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: nocturnal-alerts
+  namespace: nocturnal
+spec:
+  groups:
+  - name: nocturnal
+    interval: 30s
+    rules:
+    - alert: HighErrorRate
+      expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High error rate detected"
+        description: "Error rate is {{ $value }} errors per second"
+
+    - alert: HighResponseTime
+      expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High API response time"
+        description: "95th percentile response time is {{ $value }}s"
+
+    - alert: PodDown
+      expr: up{job="nocturnal-service"} == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Nocturnal pod is down"
+        description: "Pod {{ $labels.pod }} has been down for more than 2 minutes"
+
+    - alert: HighMemoryUsage
+      expr: container_memory_usage_bytes{pod=~"nocturnal-.*"} / container_spec_memory_limit_bytes > 0.9
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage"
+        description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of memory"
+
+    - alert: HighCPUUsage
+      expr: rate(container_cpu_usage_seconds_total{pod=~"nocturnal-.*"}[5m]) > 0.8
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage"
+        description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of CPU"

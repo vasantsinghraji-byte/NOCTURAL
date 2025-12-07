@@ -1,0 +1,271 @@
+# Prometheus Alerting Rules for Resource Constraints
+# Alerts for CPU, memory, disk, and other resource issues
+
+groups:
+- name: resource_constraints
+  interval: 30s
+  rules:
+
+  # =================================
+  # CPU Alerts
+  # =================================
+  - alert: HighCPUUsage
+    expr: rate(process_cpu_seconds_total[5m]) > 0.8
+    for: 5m
+    labels:
+      severity: warning
+      component: api
+    annotations:
+      summary: "High CPU usage on {{ $labels.pod }}"
+      description: "Pod {{ $labels.pod }} has CPU usage above 80% for 5 minutes (current: {{ $value | humanizePercentage }})"
+
+  - alert: CriticalCPUUsage
+    expr: rate(process_cpu_seconds_total[5m]) > 0.95
+    for: 2m
+    labels:
+      severity: critical
+      component: api
+    annotations:
+      summary: "Critical CPU usage on {{ $labels.pod }}"
+      description: "Pod {{ $labels.pod }} has CPU usage above 95% for 2 minutes (current: {{ $value | humanizePercentage }})"
+
+  # =================================
+  # Memory Alerts
+  # =================================
+  - alert: HighMemoryUsage
+    expr: (process_resident_memory_bytes / container_spec_memory_limit_bytes) > 0.8
+    for: 5m
+    labels:
+      severity: warning
+      component: api
+    annotations:
+      summary: "High memory usage on {{ $labels.pod }}"
+      description: "Pod {{ $labels.pod }} is using >80% of memory limit (current: {{ $value | humanizePercentage }})"
+
+  - alert: CriticalMemoryUsage
+    expr: (process_resident_memory_bytes / container_spec_memory_limit_bytes) > 0.95
+    for: 2m
+    labels:
+      severity: critical
+      component: api
+    annotations:
+      summary: "Critical memory usage on {{ $labels.pod }}"
+      description: "Pod {{ $labels.pod }} is using >95% of memory limit (current: {{ $value | humanizePercentage }})"
+
+  - alert: MemoryLeak
+    expr: rate(process_resident_memory_bytes[1h]) > 0
+    for: 6h
+    labels:
+      severity: warning
+      component: api
+    annotations:
+      summary: "Potential memory leak in {{ $labels.pod }}"
+      description: "Pod {{ $labels.pod }} has been continuously increasing memory for 6 hours"
+
+  # =================================
+  # Container Restarts
+  # =================================
+  - alert: FrequentContainerRestarts
+    expr: rate(kube_pod_container_status_restarts_total[15m]) > 0.1
+    for: 5m
+    labels:
+      severity: warning
+      component: api
+    annotations:
+      summary: "Frequent container restarts in {{ $labels.pod }}"
+      description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is restarting frequently (>0.1/min for 5 minutes)"
+
+  - alert: PodCrashLooping
+    expr: rate(kube_pod_container_status_restarts_total[5m]) > 0.5
+    for: 2m
+    labels:
+      severity: critical
+      component: api
+    annotations:
+      summary: "Pod crash looping: {{ $labels.pod }}"
+      description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is crash looping (>0.5 restarts/min)"
+
+  # =================================
+  # Node Resource Alerts
+  # =================================
+  - alert: NodeHighCPU
+    expr: (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) by (instance)) > 0.8
+    for: 10m
+    labels:
+      severity: warning
+      component: infrastructure
+    annotations:
+      summary: "High CPU usage on node {{ $labels.instance }}"
+      description: "Node {{ $labels.instance }} has CPU usage above 80% for 10 minutes"
+
+  - alert: NodeHighMemory
+    expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.9
+    for: 5m
+    labels:
+      severity: critical
+      component: infrastructure
+    annotations:
+      summary: "High memory usage on node {{ $labels.instance }}"
+      description: "Node {{ $labels.instance }} has memory usage above 90%"
+
+  - alert: NodeDiskSpaceLow
+    expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+    for: 5m
+    labels:
+      severity: warning
+      component: infrastructure
+    annotations:
+      summary: "Low disk space on node {{ $labels.instance }}"
+      description: "Node {{ $labels.instance }} has less than 10% disk space available on {{ $labels.mountpoint }}"
+
+  # =================================
+  # Application Performance
+  # =================================
+  - alert: HighResponseTime
+    expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+    for: 5m
+    labels:
+      severity: warning
+      component: api
+    annotations:
+      summary: "High response time on {{ $labels.pod }}"
+      description: "95th percentile response time is above 1 second for 5 minutes (current: {{ $value }}s)"
+
+  - alert: HighErrorRate
+    expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+    for: 5m
+    labels:
+      severity: critical
+      component: api
+    annotations:
+      summary: "High error rate on {{ $labels.pod }}"
+      description: "Error rate is above 5% for 5 minutes (current: {{ $value | humanizePercentage }})"
+
+  # =================================
+  # Database Alerts
+  # =================================
+  - alert: MongoDBHighConnections
+    expr: mongodb_connections{state="current"} / mongodb_connections{state="available"} > 0.8
+    for: 5m
+    labels:
+      severity: warning
+      component: database
+    annotations:
+      summary: "MongoDB high connection usage"
+      description: "MongoDB is using >80% of available connections"
+
+  - alert: MongoDBReplicationLag
+    expr: mongodb_replset_member_optime_date{state="PRIMARY"} - ignoring(state) mongodb_replset_member_optime_date{state="SECONDARY"} > 10
+    for: 5m
+    labels:
+      severity: warning
+      component: database
+    annotations:
+      summary: "MongoDB replication lag detected"
+      description: "Secondary is lagging behind primary by {{ $value }}s"
+
+  # =================================
+  # Redis Alerts
+  # =================================
+  - alert: RedisHighMemory
+    expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+    for: 5m
+    labels:
+      severity: warning
+      component: cache
+    annotations:
+      summary: "Redis high memory usage"
+      description: "Redis is using >90% of max memory"
+
+  - alert: RedisConnectionsHigh
+    expr: redis_connected_clients > 1000
+    for: 5m
+    labels:
+      severity: warning
+      component: cache
+    annotations:
+      summary: "High number of Redis connections"
+      description: "Redis has >1000 active connections (current: {{ $value }})"
+
+  # =================================
+  # HPA Alerts
+  # =================================
+  - alert: HPAMaxedOut
+    expr: kube_horizontalpodautoscaler_status_current_replicas / kube_horizontalpodautoscaler_spec_max_replicas >= 1
+    for: 15m
+    labels:
+      severity: warning
+      component: autoscaling
+    annotations:
+      summary: "HPA {{ $labels.horizontalpodautoscaler }} is at maximum replicas"
+      description: "HPA {{ $labels.horizontalpodautoscaler }} has been running at max replicas ({{ $value }}) for 15 minutes. Consider increasing max replicas."
+
+  - alert: HPAUnableToScale
+    expr: kube_horizontalpodautoscaler_status_condition{condition="AbleToScale",status="false"} == 1
+    for: 5m
+    labels:
+      severity: critical
+      component: autoscaling
+    annotations:
+      summary: "HPA {{ $labels.horizontalpodautoscaler }} unable to scale"
+      description: "HPA {{ $labels.horizontalpodautoscaler }} is unable to scale for 5 minutes"
+
+  # =================================
+  # Service Availability
+  # =================================
+  - alert: ServiceDown
+    expr: up{job="nocturnal-api"} == 0
+    for: 2m
+    labels:
+      severity: critical
+      component: api
+    annotations:
+      summary: "Service {{ $labels.instance }} is down"
+      description: "Service {{ $labels.instance }} has been down for 2 minutes"
+
+  - alert: HighPodPendingTime
+    expr: kube_pod_status_phase{phase="Pending"} == 1
+    for: 10m
+    labels:
+      severity: warning
+      component: infrastructure
+    annotations:
+      summary: "Pod {{ $labels.pod }} stuck in Pending state"
+      description: "Pod {{ $labels.pod }} has been pending for 10 minutes. Check resource availability."
+
+- name: capacity_planning
+  interval: 1h
+  rules:
+
+  # =================================
+  # Capacity Planning Alerts
+  # =================================
+  - alert: ClusterCPUCapacityLow
+    expr: sum(kube_pod_container_resource_requests{resource="cpu"}) / sum(kube_node_status_allocatable{resource="cpu"}) > 0.8
+    for: 1h
+    labels:
+      severity: warning
+      component: capacity
+    annotations:
+      summary: "Cluster CPU capacity low"
+      description: "Cluster is using >80% of total CPU capacity. Consider adding more nodes."
+
+  - alert: ClusterMemoryCapacityLow
+    expr: sum(kube_pod_container_resource_requests{resource="memory"}) / sum(kube_node_status_allocatable{resource="memory"}) > 0.8
+    for: 1h
+    labels:
+      severity: warning
+      component: capacity
+    annotations:
+      summary: "Cluster memory capacity low"
+      description: "Cluster is using >80% of total memory capacity. Consider adding more nodes."
+
+  - alert: PredictedResourceExhaustion
+    expr: predict_linear(node_memory_MemAvailable_bytes[1h], 4*3600) < 0
+    for: 1h
+    labels:
+      severity: warning
+      component: capacity
+    annotations:
+      summary: "Node {{ $labels.instance }} predicted to run out of memory"
+      description: "Based on current trend, node {{ $labels.instance }} will run out of memory in 4 hours"

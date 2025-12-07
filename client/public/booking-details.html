@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Details - Nocturnal Healthcare</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .btn-back {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .status-tracker {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .status-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin: 30px 0;
+        }
+
+        .status-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+
+        .status-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .status-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-size: 18px;
+            transition: all 0.3s;
+        }
+
+        .status-step.active .status-icon {
+            background: #667eea;
+            transform: scale(1.2);
+        }
+
+        .status-step.completed .status-icon {
+            background: #4caf50;
+        }
+
+        .status-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .status-step.active .status-label {
+            color: #667eea;
+        }
+
+        .booking-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .detail-value {
+            color: #333;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.requested { background: #fff3cd; color: #856404; }
+        .status-badge.searching { background: #cfe2ff; color: #084298; }
+        .status-badge.assigned { background: #d1ecf1; color: #0c5460; }
+        .status-badge.confirmed { background: #d1e7dd; color: #0f5132; }
+        .status-badge.en_route { background: #e7d1f7; color: #6f42c1; }
+        .status-badge.in_progress { background: #cff4fc; color: #055160; }
+        .status-badge.completed { background: #d1e7dd; color: #0a3622; }
+        .status-badge.cancelled { background: #f8d7da; color: #842029; }
+
+        .provider-card {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .provider-name {
+            font-size: 18px;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .provider-role {
+            color: #667eea;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .provider-detail {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .rating-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .stars {
+            display: flex;
+            gap: 5px;
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+
+        .star {
+            cursor: pointer;
+            color: #ddd;
+            transition: color 0.2s;
+        }
+
+        .star.filled {
+            color: #ffc107;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .message.success {
+            background: #d1e7dd;
+            color: #0a3622;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        @media (max-width: 768px) {
+            .booking-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .status-steps {
+                flex-wrap: wrap;
+            }
+
+            .status-step {
+                flex: 0 0 33.33%;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+    <script src="js/config.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <button class="btn-back" onclick="window.location.href='patient-dashboard.html'">← Back to Dashboard</button>
+            <h1>Booking Details</h1>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="loadingDiv" class="loading">Loading booking details...</div>
+
+        <div id="bookingContent" style="display: none;">
+            <!-- Status Tracker -->
+            <div class="status-tracker">
+                <h2 class="card-title">Booking Status</h2>
+                <div class="status-steps" id="statusSteps">
+                    <div class="status-step" data-status="REQUESTED">
+                        <div class="status-icon">📝</div>
+                        <div class="status-label">Requested</div>
+                    </div>
+                    <div class="status-step" data-status="SEARCHING">
+                        <div class="status-icon">🔍</div>
+                        <div class="status-label">Searching</div>
+                    </div>
+                    <div class="status-step" data-status="ASSIGNED">
+                        <div class="status-icon">👨‍⚕️</div>
+                        <div class="status-label">Assigned</div>
+                    </div>
+                    <div class="status-step" data-status="CONFIRMED">
+                        <div class="status-icon">✅</div>
+                        <div class="status-label">Confirmed</div>
+                    </div>
+                    <div class="status-step" data-status="EN_ROUTE">
+                        <div class="status-icon">🚗</div>
+                        <div class="status-label">En Route</div>
+                    </div>
+                    <div class="status-step" data-status="IN_PROGRESS">
+                        <div class="status-icon">🩺</div>
+                        <div class="status-label">In Progress</div>
+                    </div>
+                    <div class="status-step" data-status="COMPLETED">
+                        <div class="status-icon">🎉</div>
+                        <div class="status-label">Completed</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="booking-grid">
+                <div>
+                    <!-- Booking Details Card -->
+                    <div class="card">
+                        <h2 class="card-title">📋 Service Details</h2>
+                        <div class="detail-row">
+                            <span class="detail-label">Service Type</span>
+                            <span class="detail-value" id="serviceType">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Booking ID</span>
+                            <span class="detail-value" id="bookingId">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Status</span>
+                            <span class="detail-value" id="statusBadge">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Scheduled Date</span>
+                            <span class="detail-value" id="scheduledDate">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Scheduled Time</span>
+                            <span class="detail-value" id="scheduledTime">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Service Location</span>
+                            <span class="detail-value" id="serviceLocation">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Provider Details Card -->
+                    <div class="card" id="providerCard" style="display: none;">
+                        <h2 class="card-title">👨‍⚕️ Service Provider</h2>
+                        <div class="provider-card">
+                            <div class="provider-name" id="providerName">-</div>
+                            <div class="provider-role" id="providerRole">-</div>
+                            <div class="provider-detail">
+                                <span>📞</span>
+                                <span id="providerPhone">-</span>
+                            </div>
+                            <div class="provider-detail">
+                                <span>⭐</span>
+                                <span id="providerRating">-</span>
+                            </div>
+                            <div class="provider-detail">
+                                <span>🎓</span>
+                                <span id="providerExperience">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Patient Details Card -->
+                    <div class="card">
+                        <h2 class="card-title">🏥 Patient Details</h2>
+                        <div class="detail-row">
+                            <span class="detail-label">Name</span>
+                            <span class="detail-value" id="patientName">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Age</span>
+                            <span class="detail-value" id="patientAge">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Gender</span>
+                            <span class="detail-value" id="patientGender">-</span>
+                        </div>
+                        <div class="detail-row" id="specialReqRow" style="display: none;">
+                            <span class="detail-label">Special Requirements</span>
+                            <span class="detail-value" id="specialReq">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Rating Section (shown after completion) -->
+                    <div class="card" id="ratingCard" style="display: none;">
+                        <h2 class="card-title">⭐ Rate Your Experience</h2>
+                        <div class="rating-section">
+                            <div class="stars" id="ratingStars">
+                                <span class="star" data-rating="1">★</span>
+                                <span class="star" data-rating="2">★</span>
+                                <span class="star" data-rating="3">★</span>
+                                <span class="star" data-rating="4">★</span>
+                                <span class="star" data-rating="5">★</span>
+                            </div>
+                            <textarea id="reviewText" placeholder="Share your experience (optional)..."></textarea>
+                            <div class="action-buttons">
+                                <button class="btn btn-primary" onclick="submitReview()">Submit Review</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Service Report (shown after completion) -->
+                    <div class="card" id="reportCard" style="display: none;">
+                        <h2 class="card-title">📄 Service Report</h2>
+                        <div id="serviceReport"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <!-- Pricing Card -->
+                    <div class="card">
+                        <h2 class="card-title">💰 Pricing Breakdown</h2>
+                        <div class="detail-row">
+                            <span class="detail-label">Base Price</span>
+                            <span class="detail-value" id="basePrice">₹0</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Platform Fee</span>
+                            <span class="detail-value" id="platformFee">₹0</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">GST</span>
+                            <span class="detail-value" id="gst">₹0</span>
+                        </div>
+                        <div class="detail-row" style="border-top: 2px solid #667eea; padding-top: 15px; margin-top: 10px;">
+                            <span class="detail-label" style="font-size: 16px; font-weight: 600;">Total Paid</span>
+                            <span class="detail-value" style="font-size: 18px; color: #667eea;" id="totalPrice">₹0</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Payment Status</span>
+                            <span class="detail-value" id="paymentStatus">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Actions Card -->
+                    <div class="card">
+                        <h2 class="card-title">⚡ Actions</h2>
+                        <div id="messageDiv"></div>
+                        <div class="action-buttons" style="flex-direction: column;">
+                            <button class="btn btn-outline" onclick="refreshBooking()">🔄 Refresh Status</button>
+                            <button class="btn btn-danger" id="cancelBtn" onclick="cancelBooking()" style="display: none;">❌ Cancel Booking</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api/v1';
+        const token = localStorage.getItem('patientToken');
+        let currentBooking = null;
+        let selectedRating = 0;
+
+        if (!token) {
+            window.location.href = 'patient-login.html';
+        }
+
+        // Get booking ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const bookingId = urlParams.get('id');
+
+        if (!bookingId) {
+            window.location.href = 'patient-dashboard.html';
+        }
+
+        // Load booking details
+        async function loadBooking() {
+            try {
+                const response = await fetch(`${API_URL}/bookings/${bookingId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                if (data.success && (data.data || data.booking)) {
+                    currentBooking = data.data || data.booking;
+                    displayBooking(currentBooking);
+                } else {
+                    throw new Error(data.message || 'Failed to load booking');
+                }
+            } catch (error) {
+                console.error('Error loading booking:', error);
+                document.getElementById('loadingDiv').innerHTML =
+                    '<div class="message error">Failed to load booking. Please try again.</div>';
+            }
+        }
+
+        function displayBooking(booking) {
+            document.getElementById('loadingDiv').style.display = 'none';
+            document.getElementById('bookingContent').style.display = 'block';
+
+            // Update status tracker
+            updateStatusTracker(booking.status);
+
+            // Service details
+            document.getElementById('serviceType').textContent = formatServiceType(booking.serviceType);
+            document.getElementById('bookingId').textContent = booking._id;
+            document.getElementById('statusBadge').innerHTML =
+                `<span class="status-badge ${booking.status.toLowerCase()}">${booking.status}</span>`;
+            document.getElementById('scheduledDate').textContent =
+                new Date(booking.scheduledDate).toLocaleDateString('en-IN', {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                });
+            document.getElementById('scheduledTime').textContent = booking.scheduledTime;
+
+            const location = booking.serviceLocation;
+            document.getElementById('serviceLocation').textContent =
+                `${location.street}, ${location.city}, ${location.state} - ${location.pincode}`;
+
+            // Patient details
+            document.getElementById('patientName').textContent = booking.patientDetails.name;
+            document.getElementById('patientAge').textContent = `${booking.patientDetails.age} years`;
+            document.getElementById('patientGender').textContent = booking.patientDetails.gender;
+
+            if (booking.specialRequirements) {
+                document.getElementById('specialReqRow').style.display = 'flex';
+                document.getElementById('specialReq').textContent = booking.specialRequirements;
+            }
+
+            // Pricing
+            const pricing = booking.pricing;
+            document.getElementById('basePrice').textContent = `₹${pricing.basePrice.toFixed(2)}`;
+            document.getElementById('platformFee').textContent = `₹${pricing.platformFee.toFixed(2)}`;
+            document.getElementById('gst').textContent = `₹${pricing.gst.toFixed(2)}`;
+            document.getElementById('totalPrice').textContent = `₹${pricing.payableAmount.toFixed(2)}`;
+            document.getElementById('paymentStatus').innerHTML =
+                `<span class="status-badge ${booking.paymentStatus.toLowerCase()}">${booking.paymentStatus}</span>`;
+
+            // Provider details (if assigned)
+            if (booking.provider) {
+                document.getElementById('providerCard').style.display = 'block';
+                document.getElementById('providerName').textContent = booking.provider.name || 'Provider';
+                document.getElementById('providerRole').textContent = booking.provider.role || 'Healthcare Professional';
+                document.getElementById('providerPhone').textContent = booking.provider.phone || 'Not available';
+                document.getElementById('providerRating').textContent =
+                    `${booking.provider.rating?.average || 'N/A'} (${booking.provider.rating?.count || 0} reviews)`;
+                document.getElementById('providerExperience').textContent =
+                    booking.provider.experience ? `${booking.provider.experience} years` : 'Not specified';
+            }
+
+            // Show cancel button if booking can be cancelled
+            if (['REQUESTED', 'SEARCHING', 'ASSIGNED', 'CONFIRMED'].includes(booking.status)) {
+                document.getElementById('cancelBtn').style.display = 'block';
+            }
+
+            // Show rating section if completed and not rated
+            if (booking.status === 'COMPLETED' && !booking.rating) {
+                document.getElementById('ratingCard').style.display = 'block';
+            }
+
+            // Show service report if completed
+            if (booking.status === 'COMPLETED' && booking.serviceReport) {
+                displayServiceReport(booking.serviceReport);
+            }
+        }
+
+        function updateStatusTracker(currentStatus) {
+            const statusOrder = ['REQUESTED', 'SEARCHING', 'ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'];
+            const currentIndex = statusOrder.indexOf(currentStatus);
+
+            document.querySelectorAll('.status-step').forEach((step, index) => {
+                if (index < currentIndex) {
+                    step.classList.add('completed');
+                } else if (index === currentIndex) {
+                    step.classList.add('active');
+                } else {
+                    step.classList.remove('completed', 'active');
+                }
+            });
+        }
+
+        function formatServiceType(type) {
+            return type.split('_').map(word =>
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
+        }
+
+        function displayServiceReport(report) {
+            document.getElementById('reportCard').style.display = 'block';
+            let html = '';
+
+            if (report.vitals) {
+                html += '<div class="detail-row"><span class="detail-label">Vitals</span><span class="detail-value">' +
+                    JSON.stringify(report.vitals) + '</span></div>';
+            }
+
+            if (report.proceduresPerformed && report.proceduresPerformed.length > 0) {
+                html += '<div class="detail-row"><span class="detail-label">Procedures</span><span class="detail-value">' +
+                    report.proceduresPerformed.join(', ') + '</span></div>';
+            }
+
+            if (report.medicinesAdministered && report.medicinesAdministered.length > 0) {
+                html += '<div class="detail-row"><span class="detail-label">Medicines</span><span class="detail-value">' +
+                    report.medicinesAdministered.join(', ') + '</span></div>';
+            }
+
+            if (report.observations) {
+                html += '<div class="detail-row"><span class="detail-label">Observations</span><span class="detail-value">' +
+                    report.observations + '</span></div>';
+            }
+
+            if (report.recommendations) {
+                html += '<div class="detail-row"><span class="detail-label">Recommendations</span><span class="detail-value">' +
+                    report.recommendations + '</span></div>';
+            }
+
+            document.getElementById('serviceReport').innerHTML = html;
+        }
+
+        // Rating stars interaction
+        document.querySelectorAll('.star').forEach(star => {
+            star.addEventListener('click', function() {
+                selectedRating = parseInt(this.dataset.rating);
+                updateStars(selectedRating);
+            });
+        });
+
+        function updateStars(rating) {
+            document.querySelectorAll('.star').forEach(star => {
+                const starRating = parseInt(star.dataset.rating);
+                if (starRating <= rating) {
+                    star.classList.add('filled');
+                } else {
+                    star.classList.remove('filled');
+                }
+            });
+        }
+
+        async function submitReview() {
+            if (selectedRating === 0) {
+                showMessage('Please select a rating', 'error');
+                return;
+            }
+
+            const comment = document.getElementById('reviewText').value.trim();
+
+            try {
+                const response = await fetch(`${API_URL}/bookings/${bookingId}/review`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ stars: selectedRating, comment })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('Thank you for your review!', 'success');
+                    document.getElementById('ratingCard').style.display = 'none';
+                } else {
+                    throw new Error(data.message || 'Failed to submit review');
+                }
+            } catch (error) {
+                console.error('Error submitting review:', error);
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function cancelBooking() {
+            if (!confirm('Are you sure you want to cancel this booking?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/bookings/${bookingId}/cancel`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ reason: 'Cancelled by patient' })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('Booking cancelled successfully', 'success');
+                    setTimeout(() => refreshBooking(), 1500);
+                } else {
+                    throw new Error(data.message || 'Failed to cancel booking');
+                }
+            } catch (error) {
+                console.error('Error cancelling booking:', error);
+                showMessage(error.message, 'error');
+            }
+        }
+
+        function refreshBooking() {
+            document.getElementById('loadingDiv').style.display = 'block';
+            document.getElementById('bookingContent').style.display = 'none';
+            loadBooking();
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('messageDiv');
+            messageDiv.innerHTML = `<div class="message ${type}">${text}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            if (currentBooking && !['COMPLETED', 'CANCELLED'].includes(currentBooking.status)) {
+                loadBooking();
+            }
+        }, 30000);
+
+        // Initialize
+        loadBooking();
+    </script>
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

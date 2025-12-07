@@ -1,0 +1,167 @@
+# Promtail Configuration for Nocturnal Healthcare Platform
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Application logs
+  - job_name: nocturnal-api
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nocturnal-api
+          environment: ${ENVIRONMENT:-development}
+          __path__: /logs/*.log
+
+    pipeline_stages:
+      # Parse JSON logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            message: message
+            service: service
+            userId: user.id
+            requestId: requestId
+
+      # Extract timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+
+      # Set log level as label
+      - labels:
+          level:
+          service:
+
+      # Add additional metadata
+      - static_labels:
+          application: nocturnal
+
+  # Docker container logs
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'logstream'
+      - source_labels: ['__meta_docker_container_label_logging']
+        target_label: 'logging'
+
+    pipeline_stages:
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            time: time
+      - labels:
+          stream:
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+      - output:
+          source: output
+
+  # System logs
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/**/*.log
+
+  # Error logs (filtered)
+  - job_name: errors
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: errors
+          __path__: /logs/*.log
+
+    pipeline_stages:
+      - json:
+          expressions:
+            level: level
+            message: message
+            error: error
+
+      # Filter only ERROR and CRITICAL logs
+      - match:
+          selector: '{level=~"ERROR|CRITICAL"}'
+          stages:
+            - labels:
+                severity: level
+            - static_labels:
+                alert: "true"
+
+  # Authentication logs
+  - job_name: authentication
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: authentication
+          __path__: /logs/*.log
+
+    pipeline_stages:
+      - json:
+          expressions:
+            action: action
+            email: email
+            success: success
+
+      # Filter authentication events
+      - match:
+          selector: '{action=~"login|register|logout"}'
+          stages:
+            - labels:
+                action:
+                success:
+            - static_labels:
+                event_type: authentication
+
+  # Payment logs (sensitive)
+  - job_name: payments
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: payments
+          __path__: /logs/*.log
+
+    pipeline_stages:
+      - json:
+          expressions:
+            service: service
+            amount: pricing.payableAmount
+            status: paymentStatus
+
+      # Filter payment events
+      - match:
+          selector: '{service="payment"}'
+          stages:
+            - labels:
+                payment_status: status
+            - static_labels:
+                sensitive: "true"
+                event_type: payment
+
+limits_config:
+  readline_rate_enabled: true
+  readline_rate: 10000
+  readline_burst: 10000

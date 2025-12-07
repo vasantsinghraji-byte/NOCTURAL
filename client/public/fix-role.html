@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Role - Nocturnal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            background: white;
+            padding: 3rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #1e40af;
+            margin-bottom: 1rem;
+        }
+
+        .status {
+            background: #f1f5f9;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin: 2rem 0;
+            text-align: left;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .label {
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .value {
+            color: #1e293b;
+            font-weight: 500;
+        }
+
+        .value.good {
+            color: #22c55e;
+        }
+
+        .value.bad {
+            color: #ef4444;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: transform 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .message.success {
+            background: #dcfce7;
+            color: #166534;
+            border: 2px solid #22c55e;
+            display: block;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 2px solid #ef4444;
+            display: block;
+        }
+
+        .message.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 2px solid #f59e0b;
+            display: block;
+        }
+
+        .instructions {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 1rem;
+            margin: 1rem 0;
+            text-align: left;
+        }
+
+        .instructions h3 {
+            color: #1e40af;
+            margin-bottom: 0.5rem;
+        }
+
+        .instructions p {
+            color: #475569;
+            line-height: 1.6;
+        }
+    </style>
+    <script src="js/config.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Your Account Role</h1>
+        <p style="color: #64748b; margin-bottom: 2rem;">
+            Your account is set as "admin" but you need "doctor" to access the new pages
+        </p>
+
+        <div id="messageBox" class="message"></div>
+
+        <div class="status" id="statusBox">
+            <div style="text-align: center; color: #64748b;">
+                Checking your account...
+            </div>
+        </div>
+
+        <div id="actionButtons" style="display: none;">
+            <button id="changeToDoctor" onclick="changeRoleToDoctor()">
+                ✅ Change My Role to Doctor
+            </button>
+            <button class="secondary" onclick="goToDashboard()">
+                📊 Go to Dashboard
+            </button>
+            <button class="secondary" onclick="goToLanding()">
+                🏠 Go to Landing Page
+            </button>
+        </div>
+
+        <div class="instructions">
+            <h3>What This Does:</h3>
+            <p>
+                This will update your account from "admin/hospital" to "doctor" so you can access 
+                the new doctor dashboard pages. Your account data will be preserved.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let currentUserData = null;
+
+        // Check current status
+        async function checkStatus() {
+            const messageBox = document.getElementById('messageBox');
+            const statusBox = document.getElementById('statusBox');
+            const actionButtons = document.getElementById('actionButtons');
+
+            if (!window.firebase) {
+                messageBox.className = 'message error';
+                messageBox.textContent = '❌ Firebase not loaded. Make sure you opened this from your project.';
+                return;
+            }
+
+            // Get Firebase functions (v9 modular SDK)
+            const { auth, db, doc, getDoc } = window.firebase;
+            const user = auth.currentUser;
+            
+            if (!user) {
+                messageBox.className = 'message warning';
+                messageBox.textContent = '⚠️ No user logged in. Please login first from the landing page.';
+                statusBox.innerHTML = `
+                    <div style="text-align: center; color: #64748b;">
+                        <p>Not logged in</p>
+                        <button onclick="goToLanding()" style="margin-top: 1rem;">Go to Landing Page</button>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                const userDocRef = doc(db, 'users', user.uid);
+                const userDoc = await getDoc(userDocRef);
+                
+                if (!userDoc.exists()) {
+                    messageBox.className = 'message error';
+                    messageBox.textContent = '❌ User document not found in database.';
+                    return;
+                }
+
+                currentUserData = userDoc.data();
+                
+                statusBox.innerHTML = `
+                    <div class="status-item">
+                        <span class="label">Email:</span>
+                        <span class="value">${user.email}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Current Role:</span>
+                        <span class="value ${currentUserData.role === 'doctor' || currentUserData.role === 'nurse' ? 'good' : 'bad'}">
+                            ${currentUserData.role || 'Not set'}
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Name:</span>
+                        <span class="value">${currentUserData.name || 'Not set'}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Specialty:</span>
+                        <span class="value">${currentUserData.specialty || 'Not set'}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Hospital:</span>
+                        <span class="value">${currentUserData.hospital || 'Not set'}</span>
+                    </div>
+                `;
+
+                if (currentUserData.role === 'doctor' || currentUserData.role === 'nurse') {
+                    messageBox.className = 'message success';
+                    messageBox.textContent = '✅ Your role is already set to doctor/nurse! You can access the doctor dashboard.';
+                } else {
+                    messageBox.className = 'message warning';
+                    messageBox.textContent = `⚠️ Your role is "${currentUserData.role}". Click the button below to change it to "doctor".`;
+                    actionButtons.style.display = 'block';
+                }
+
+            } catch (error) {
+                messageBox.className = 'message error';
+                messageBox.textContent = '❌ Error: ' + error.message;
+            }
+        }
+
+        // Change role to doctor
+        async function changeRoleToDoctor() {
+            const messageBox = document.getElementById('messageBox');
+            const button = document.getElementById('changeToDoctor');
+
+            button.disabled = true;
+            button.textContent = 'Updating...';
+
+            try {
+                // Get Firebase functions (v9 modular SDK)
+                const { auth, db, doc, updateDoc } = window.firebase;
+                const user = auth.currentUser;
+                
+                const userRef = doc(db, 'users', user.uid);
+                await updateDoc(userRef, {
+                    role: 'doctor',
+                    specialty: currentUserData.specialty || 'General Medicine'
+                });
+
+                messageBox.className = 'message success';
+                messageBox.textContent = '✅ Success! Your role has been changed to doctor. Redirecting to dashboard...';
+
+                // Update localStorage
+                const token = await user.getIdToken();
+                localStorage.setItem('token', token);
+                localStorage.setItem('userType', 'doctor');
+                localStorage.setItem('userId', user.uid);
+                localStorage.setItem('userName', currentUserData.name || 'Doctor');
+
+                // Redirect after 2 seconds
+                setTimeout(() => {
+                    window.location.href = 'doctor-dashboard.html';
+                }, 2000);
+
+            } catch (error) {
+                messageBox.className = 'message error';
+                messageBox.textContent = '❌ Error updating role: ' + error.message;
+                button.disabled = false;
+                button.textContent = '✅ Change My Role to Doctor';
+            }
+        }
+
+        function goToDashboard() {
+            if (currentUserData && (currentUserData.role === 'doctor' || currentUserData.role === 'nurse')) {
+                window.location.href = 'doctor-dashboard.html';
+            } else {
+                alert('Please change your role to doctor first!');
+            }
+        }
+
+        function goToLanding() {
+            window.location.href = 'index.html';
+        }
+
+        // Check status on page load
+        window.addEventListener('DOMContentLoaded', checkStatus);
+    </script>
+</body>
+</html>

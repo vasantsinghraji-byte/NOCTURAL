@@ -1,0 +1,141 @@
+groups:
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # MongoDB down
+      - alert: MongoDBDown
+        expr: mongodb_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "MongoDB instance is down"
+          description: "MongoDB instance {{ $labels.instance }} is unreachable"
+          runbook: "https://runbooks.nocturnal.com/mongodb-down"
+
+      # MongoDB replica lag
+      - alert: MongoDBReplicationLag
+        expr: |
+          mongodb_replset_member_replication_lag > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "MongoDB replication lag detected"
+          description: "Replica {{ $labels.member }} is lagging by {{ $value }}s"
+          runbook: "https://runbooks.nocturnal.com/replication-lag"
+
+      # MongoDB high connections
+      - alert: MongoDBHighConnections
+        expr: |
+          (
+            mongodb_connections{state="current"}
+            /
+            mongodb_connections{state="available"}
+          ) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "MongoDB connection usage is high"
+          description: "Using {{ $value | humanizePercentage }} of available connections"
+          runbook: "https://runbooks.nocturnal.com/mongodb-connections"
+
+      # MongoDB high query time
+      - alert: MongoDBSlowQueries
+        expr: |
+          rate(mongodb_op_latencies_ops_total{type="command"}[5m])
+          /
+          rate(mongodb_op_latencies_latency_total{type="command"}[5m])
+          > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "MongoDB queries are slow"
+          description: "Average query time is {{ $value }}ms"
+          runbook: "https://runbooks.nocturnal.com/slow-queries"
+
+      # MongoDB disk space
+      - alert: MongoDBLowDiskSpace
+        expr: |
+          (
+            mongodb_storage_filesystem_used_bytes
+            /
+            mongodb_storage_filesystem_total_bytes
+          ) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "MongoDB disk space running low"
+          description: "Disk usage is {{ $value | humanizePercentage }}"
+          runbook: "https://runbooks.nocturnal.com/disk-space"
+
+      # Redis down
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Redis instance is down"
+          description: "Redis instance {{ $labels.instance }} is unreachable (cache degradation expected)"
+          runbook: "https://runbooks.nocturnal.com/redis-down"
+
+      # Redis high memory
+      - alert: RedisHighMemory
+        expr: |
+          (
+            redis_memory_used_bytes
+            /
+            redis_memory_max_bytes
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+          runbook: "https://runbooks.nocturnal.com/redis-memory"
+
+      # Redis eviction rate
+      - alert: RedisHighEvictionRate
+        expr: |
+          rate(redis_evicted_keys_total[5m]) > 10
+        for: 10m
+        labels:
+          severity: info
+          component: cache
+        annotations:
+          summary: "Redis is evicting keys frequently"
+          description: "Evicting {{ $value }} keys per second"
+          runbook: "https://runbooks.nocturnal.com/redis-eviction"
+
+      # Low cache hit rate
+      - alert: LowCacheHitRate
+        expr: |
+          (
+            rate(redis_keyspace_hits_total[5m])
+            /
+            (
+              rate(redis_keyspace_hits_total[5m])
+              +
+              rate(redis_keyspace_misses_total[5m])
+            )
+          ) < 0.7
+        for: 15m
+        labels:
+          severity: info
+          component: cache
+        annotations:
+          summary: "Cache hit rate is low"
+          description: "Hit rate is {{ $value | humanizePercentage }} (target: 70%)"
+          runbook: "https://runbooks.nocturnal.com/cache-hit-rate"

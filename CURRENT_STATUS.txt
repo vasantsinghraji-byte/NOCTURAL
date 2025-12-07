@@ -1,0 +1,16 @@
+WORKING:
+- Backend API running on localhost:5000
+- MongoDB database
+- Frontend on localhost:8080
+- Registration, login, duty posting, applications
+- Search/filter for duties
+- Admin can accept/reject applications
+
+FILES LOCATIONS:
+- Backend: C:\Users\wgshx\Documents\nocturnal\
+- Frontend: C:\Users\wgshx\Documents\nocturnal\client\public\
+
+NEXT PRIORITIES:
+1. Deploy online
+2. Add email notifications
+3. Legal documents (privacy policy, terms)

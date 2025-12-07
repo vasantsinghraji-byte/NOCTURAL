@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - Hospital Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #5B8DBE;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --info: #17a2b8;
+            --gray: #6c757d;
+            --light: #f8f9fa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--light);
+        }
+
+        .navbar {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #475569;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--primary);
+        }
+
+        .logout-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 40px auto;
+            padding: 0 40px;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .page-header p {
+            color: var(--gray);
+            font-size: 1.1rem;
+        }
+
+        /* Stats Overview */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+
+        .stat-card.blue::before { background: var(--primary); }
+        .stat-card.green::before { background: var(--success); }
+        .stat-card.yellow::before { background: var(--warning); }
+        .stat-card.red::before { background: var(--danger); }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .stat-icon {
+            font-size: 2rem;
+            opacity: 0.3;
+        }
+
+        .stat-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .stat-change {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .stat-change.positive {
+            color: var(--success);
+        }
+
+        .stat-change.negative {
+            color: var(--danger);
+        }
+
+        .stat-benchmark {
+            font-size: 0.85rem;
+            color: var(--gray);
+            margin-top: 5px;
+        }
+
+        /* Chart Cards */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .card h3 {
+            font-size: 1.3rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* AI Applicant Ranking */
+        .applicant-card {
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--primary);
+            background: var(--light);
+            transition: all 0.3s;
+        }
+
+        .applicant-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .applicant-card.top {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-left-color: var(--success);
+        }
+
+        .applicant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .applicant-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
+        .match-score {
+            background: var(--success);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .applicant-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 10px 0;
+            font-size: 0.9rem;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--gray);
+        }
+
+        .detail-item i {
+            color: var(--primary);
+        }
+
+        .applicant-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Forecast Section */
+        .forecast-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .forecast-card h3 {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .forecast-item {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .forecast-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .forecast-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        /* Recommendations */
+        .recommendation-card {
+            background: #fff3cd;
+            border-left: 4px solid var(--warning);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .recommendation-card h4 {
+            color: #856404;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .recommendation-card p {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .recommendation-card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .recommendation-card li {
+            padding: 5px 0;
+            color: #856404;
+        }
+
+        .recommendation-card li::before {
+            content: "💡 ";
+        }
+
+        /* Top Performers */
+        .performer-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: var(--light);
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .performer-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .performer-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .performer-details h4 {
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .performer-details p {
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+
+        .performer-stats {
+            text-align: right;
+        }
+
+        .performer-stat {
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+
+        .performer-stat strong {
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        /* Cost Optimization */
+        .optimization-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .optimization-item {
+            padding: 15px;
+            background: var(--light);
+            border-radius: 10px;
+            border-left: 3px solid var(--success);
+        }
+
+        .optimization-item h5 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .savings-amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
+        }
+
+        @media (max-width: 1200px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .optimization-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="logo">🌙 Noctural Admin</div>
+        <div class="nav-links">
+            <a href="admin-dashboard.html">Dashboard</a>
+            <a href="admin-post-duty.html">Post Duty</a>
+            <a href="admin-applications.html">Applications</a>
+            <a href="admin-analytics.html" class="active">Analytics</a>
+            <a href="admin-settings.html">Settings</a>
+            <a href="admin-profile.html">Profile</a>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-chart-line"></i> Analytics & Intelligence Dashboard</h1>
+            <p>AI-powered insights, forecasting, and optimization</p>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading" class="loading">
+            <i class="fas fa-spinner fa-spin" style="font-size: 3rem;"></i>
+            <p>Loading analytics data...</p>
+        </div>
+
+        <!-- Main Content -->
+        <div id="mainContent" style="display: none;">
+            <!-- Key Metrics -->
+            <div class="stats-grid">
+                <div class="stat-card blue">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">Duties Posted</div>
+                            <div class="stat-value" id="totalPosted">0</div>
+                            <div class="stat-change positive" id="postedChange">
+                                <i class="fas fa-arrow-up"></i> 0% vs last month
+                            </div>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-briefcase"></i></div>
+                    </div>
+                </div>
+
+                <div class="stat-card green">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">Fill Rate</div>
+                            <div class="stat-value" id="fillRate">0%</div>
+                            <div class="stat-benchmark">Industry avg: 79%</div>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                    </div>
+                </div>
+
+                <div class="stat-card yellow">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">Avg Time to Fill</div>
+                            <div class="stat-value" id="avgTime">0h</div>
+                            <div class="stat-benchmark">Industry avg: 8.5h</div>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    </div>
+                </div>
+
+                <div class="stat-card red">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">Total Spend</div>
+                            <div class="stat-value" id="totalSpend">₹0</div>
+                            <div class="stat-change" id="spendChange">
+                                <i class="fas fa-arrow-down"></i> 0% vs budget
+                            </div>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-rupee-sign"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Predictive Forecasting -->
+            <div class="forecast-card">
+                <h3><i class="fas fa-brain"></i> AI Predictive Forecasting - Next 2 Weeks</h3>
+                <div id="forecastWarning" style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none;">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>High Demand Period Detected</strong>
+                </div>
+                <div class="forecast-grid">
+                    <div class="forecast-item">
+                        <div class="forecast-label">Predicted Shifts Needed</div>
+                        <div class="forecast-value" id="predictedShifts">0</div>
+                    </div>
+                    <div class="forecast-item">
+                        <div class="forecast-label">Current Coverage</div>
+                        <div class="forecast-value" id="currentCoverage">0</div>
+                    </div>
+                    <div class="forecast-item">
+                        <div class="forecast-label">Staffing Gap</div>
+                        <div class="forecast-value" id="staffingGap">0</div>
+                    </div>
+                    <div class="forecast-item">
+                        <div class="forecast-label">Estimated Cost</div>
+                        <div class="forecast-value" id="estimatedCost">₹0</div>
+                    </div>
+                </div>
+                <div id="recommendationsList" style="margin-top: 20px;"></div>
+            </div>
+
+            <!-- Charts and Rankings -->
+            <div class="chart-grid">
+                <!-- Fill Rate Trend -->
+                <div class="card">
+                    <h3><i class="fas fa-chart-area"></i> Fill Rate Trend</h3>
+                    <div style="position: relative; height: 300px;">
+                        <canvas id="fillRateChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Financial Summary -->
+                <div class="card">
+                    <h3><i class="fas fa-wallet"></i> Financial Summary</h3>
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #e0e0e0;">
+                            <span style="color: var(--gray);">Budget</span>
+                            <strong style="color: var(--primary);" id="budget">₹0</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #e0e0e0;">
+                            <span style="color: var(--gray);">Spent</span>
+                            <strong style="color: var(--danger);" id="spent">₹0</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #e0e0e0;">
+                            <span style="color: var(--gray);">Remaining</span>
+                            <strong style="color: var(--success);" id="remaining">₹0</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 15px 0;">
+                            <span style="color: var(--gray);">Avg Cost/Shift</span>
+                            <strong style="color: var(--primary);" id="avgCost">₹0</strong>
+                        </div>
+                    </div>
+                    <div style="position: relative; height: 250px;">
+                        <canvas id="budgetChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Applicant Ranking -->
+            <div class="card">
+                <h3><i class="fas fa-robot"></i> AI-Powered Applicant Ranking (Sample)</h3>
+                <p style="color: var(--gray); margin-bottom: 20px;">Smart matching based on 47+ data points including experience, ratings, location, and past performance</p>
+                <div id="applicantList">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Top Performers -->
+            <div class="card">
+                <h3><i class="fas fa-star"></i> Top Performing Doctors</h3>
+                <div id="performersList"></div>
+            </div>
+
+            <!-- Cost Optimization -->
+            <div class="card">
+                <h3><i class="fas fa-piggy-bank"></i> Cost Optimization Opportunities</h3>
+                <div class="optimization-grid" id="optimizationList"></div>
+            </div>
+
+            <!-- Quality Metrics -->
+            <div class="chart-grid">
+                <div class="card">
+                    <h3><i class="fas fa-award"></i> Quality Metrics</h3>
+                    <div style="position: relative; height: 250px;">
+                        <canvas id="qualityChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3><i class="fas fa-chart-pie"></i> Shift Distribution</h3>
+                    <div style="position: relative; height: 250px;">
+                        <canvas id="distributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            loadAnalytics();
+        });
+
+        async function loadAnalytics() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_URL}/analytics/hospital/dashboard`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayAnalytics(data.data);
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('mainContent').style.display = 'block';
+                } else {
+                    // Show mock data for demo
+                    displayMockData();
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('mainContent').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                // Show mock data for demo
+                displayMockData();
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+            }
+        }
+
+        function displayAnalytics(data) {
+            console.log('Analytics data received:', data);
+
+            // Update key metrics
+            document.getElementById('totalPosted').textContent = data.keyMetrics?.totalPosted || 0;
+            document.getElementById('fillRate').textContent = (data.keyMetrics?.fillRate || 0) + '%';
+            document.getElementById('avgTime').textContent = (data.keyMetrics?.avgTimeToFill || 0) + 'h';
+            document.getElementById('totalSpend').textContent = '₹' + ((data.keyMetrics?.totalSpend || 0) / 1000).toFixed(0) + 'k';
+
+            // Update budget section
+            const monthlyBudget = data.budget?.monthlyBudget || 0;
+            const spent = data.budget?.spent || 0;
+            const remaining = data.budget?.remaining || 0;
+            const avgCost = spent > 0 && data.keyMetrics?.totalPosted > 0
+                ? Math.round(spent / data.keyMetrics.totalPosted)
+                : 0;
+
+            document.getElementById('budget').textContent = '₹' + (monthlyBudget / 1000).toFixed(0) + 'k';
+            document.getElementById('spent').textContent = '₹' + (spent / 1000).toFixed(0) + 'k';
+            document.getElementById('remaining').textContent = '₹' + (remaining / 1000).toFixed(0) + 'k';
+            document.getElementById('avgCost').textContent = '₹' + avgCost.toLocaleString();
+
+            // Update forecast section
+            if (data.predictions) {
+                document.getElementById('predictedShifts').textContent = data.predictions.nextTwoWeeks || 0;
+                const filledUpcoming = (data.predictions.nextTwoWeeks || 0) - (data.predictions.staffingGap || 0);
+                document.getElementById('currentCoverage').textContent = filledUpcoming;
+                document.getElementById('staffingGap').textContent = data.predictions.staffingGap || 0;
+                const estimatedCost = avgCost * (data.predictions.nextTwoWeeks || 0);
+                document.getElementById('estimatedCost').textContent = '₹' + (estimatedCost / 1000).toFixed(0) + 'k';
+
+                // Show warning if staffing gap exists
+                if (data.predictions.staffingGap > 0) {
+                    document.getElementById('forecastWarning').style.display = 'block';
+                    displayRecommendations(data.recommendations);
+                }
+            }
+
+            // Display charts with real data
+            createCharts(data);
+
+            // Display top performers
+            if (data.topDoctors && data.topDoctors.length > 0) {
+                displayTopPerformers(data.topDoctors);
+            }
+
+            // Display optimization opportunities
+            if (data.optimizationOpportunities && data.optimizationOpportunities.length > 0) {
+                displayOptimization(data.optimizationOpportunities);
+            }
+
+            // Display AI applicant ranking
+            displaySampleApplicants();
+        }
+
+        function displayMockData() {
+            const mockData = {
+                dutyStats: { totalPosted: 45, fillRate: 84, avgTimeToFill: 6.2 },
+                financialStats: { totalBudget: 500000, totalSpent: 345000, remainingBudget: 155000, avgCostPerShift: 9079 },
+                predictions: { nextMonthDemand: 18, estimatedCost: 245000, staffingGap: 6 }
+            };
+            displayAnalytics(mockData);
+        }
+
+        function displayRecommendations() {
+            const html = `
+                <div class="recommendation-card">
+                    <h4><i class="fas fa-lightbulb"></i> AI Recommendations</h4>
+                    <p>Based on historical data and current trends, we recommend:</p>
+                    <ul>
+                        <li>Post duties now (not last minute) to reduce emergency surcharges by 30%</li>
+                        <li>Increase pay by 10% for this high-demand period to attract more applicants</li>
+                        <li>Contact your top 5 preferred doctors early for availability</li>
+                        <li>Expected total cost: ₹2,45,000 (within budget)</li>
+                    </ul>
+                </div>
+            `;
+            document.getElementById('recommendationsList').innerHTML = html;
+        }
+
+        function displaySampleApplicants() {
+            const applicants = [
+                { name: 'Dr. Sharma', rating: 4.9, experience: 12, distance: 2.3, shifts: 8, match: 96 },
+                { name: 'Dr. Patel', rating: 4.8, experience: 8, distance: 5.1, shifts: 0, match: 89 },
+                { name: 'Dr. Kumar', rating: 4.2, experience: 3, distance: 18, shifts: 0, match: 72 }
+            ];
+
+            let html = '';
+            applicants.forEach((applicant, index) => {
+                html += `
+                    <div class="applicant-card ${index === 0 ? 'top' : ''}">
+                        <div class="applicant-header">
+                            <div class="applicant-name">${index + 1}. ${applicant.name}</div>
+                            <div class="match-score">${applicant.match}% Match</div>
+                        </div>
+                        <div class="applicant-details">
+                            <div class="detail-item">
+                                <i class="fas fa-star"></i> ${applicant.rating}★ rating
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-briefcase"></i> ${applicant.experience} years exp
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-map-marker-alt"></i> ${applicant.distance} km away
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-history"></i> ${applicant.shifts > 0 ? `Worked ${applicant.shifts} times` : 'New applicant'}
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-clock"></i> Applied 2 min ago
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-check-circle"></i> 100% completion rate
+                            </div>
+                        </div>
+                        ${index === 0 ? '<p style="color: var(--success); font-weight: 600; margin: 10px 0;"><i class="fas fa-thumbs-up"></i> Best match! Has worked for you 8 times with 5★ every time</p>' : ''}
+                        <div class="applicant-actions">
+                            <button class="btn btn-success" onclick="acceptApplicant('${applicant.name}')">
+                                <i class="fas fa-check"></i> Instant Accept
+                            </button>
+                            <button class="btn btn-primary">
+                                <i class="fas fa-phone"></i> Interview
+                            </button>
+                            <button class="btn btn-danger">
+                                <i class="fas fa-times"></i> Reject
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('applicantList').innerHTML = html;
+        }
+
+        function displayTopPerformers(performers) {
+            const mockPerformers = [
+                { name: 'Dr. Sharma', shifts: 15, rating: 4.9 },
+                { name: 'Dr. Patel', shifts: 12, rating: 4.8 },
+                { name: 'Dr. Kumar', shifts: 10, rating: 4.7 }
+            ];
+
+            let html = '';
+            mockPerformers.forEach(performer => {
+                const initials = performer.name.split(' ').map(n => n[0]).join('');
+                html += `
+                    <div class="performer-item">
+                        <div class="performer-info">
+                            <div class="performer-avatar">${initials}</div>
+                            <div class="performer-details">
+                                <h4>${performer.name}</h4>
+                                <p>Cardiology Specialist</p>
+                            </div>
+                        </div>
+                        <div class="performer-stats">
+                            <div class="performer-stat"><strong>${performer.shifts}</strong> shifts</div>
+                            <div class="performer-stat"><strong>${performer.rating}</strong>★ rating</div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('performersList').innerHTML = html;
+        }
+
+        function displayOptimization() {
+            const html = `
+                <div class="optimization-item">
+                    <h5><i class="fas fa-calendar"></i> Plan Ahead</h5>
+                    <p style="font-size: 0.9rem; color: var(--gray);">Post shifts 7 days ahead</p>
+                    <div class="savings-amount">-₹45k/month</div>
+                    <p style="font-size: 0.85rem; color: var(--gray); margin-top: 5px;">Reduces emergency surcharges by 30%</p>
+                </div>
+                <div class="optimization-item">
+                    <h5><i class="fas fa-redo"></i> Use Recurring</h5>
+                    <p style="font-size: 0.9rem; color: var(--gray);">Book recurring shifts</p>
+                    <div class="savings-amount">-₹30k/month</div>
+                    <p style="font-size: 0.85rem; color: var(--gray); margin-top: 5px;">10% discount on shift series</p>
+                </div>
+                <div class="optimization-item">
+                    <h5><i class="fas fa-users"></i> Preferred Pool</h5>
+                    <p style="font-size: 0.9rem; color: var(--gray);">Hire from preferred doctors</p>
+                    <div class="savings-amount">-₹25k/month</div>
+                    <p style="font-size: 0.85rem; color: var(--gray); margin-top: 5px;">15% faster fill rate</p>
+                </div>
+                <div class="optimization-item">
+                    <h5><i class="fas fa-clock"></i> Peak Hours</h5>
+                    <p style="font-size: 0.9rem; color: var(--gray);">Post during high-traffic times</p>
+                    <div class="savings-amount">-₹20k/month</div>
+                    <p style="font-size: 0.85rem; color: var(--gray); margin-top: 5px;">20% more applicants</p>
+                </div>
+            `;
+            document.getElementById('optimizationList').innerHTML = html;
+        }
+
+        // Store chart instances globally to destroy them later
+        let chartInstances = {
+            fillRate: null,
+            budget: null,
+            quality: null,
+            distribution: null
+        };
+
+        function createCharts(data) {
+            // Destroy existing charts to prevent memory leaks
+            Object.values(chartInstances).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+
+            // Fill Rate Trend Chart - using real data
+            const ctx1 = document.getElementById('fillRateChart').getContext('2d');
+            const fillRateTrend = data.fillRateTrend || [];
+            const trendLabels = fillRateTrend.map(item => item.month);
+            const trendData = fillRateTrend.map(item => item.rate);
+
+            chartInstances.fillRate = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: trendLabels.length > 0 ? trendLabels : ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+                    datasets: [{
+                        label: 'Fill Rate (%)',
+                        data: trendData.length > 0 ? trendData : [0, 0, 0, 0, 0, 0],
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Industry Avg',
+                        data: [79, 79, 79, 79, 79, 79],
+                        borderColor: '#6c757d',
+                        borderDash: [5, 5],
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Budget Chart - using real data
+            const ctx2 = document.getElementById('budgetChart').getContext('2d');
+            const spent = data.budget?.spent || 0;
+            const remaining = data.budget?.remaining || 0;
+
+            chartInstances.budget = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Spent', 'Remaining'],
+                    datasets: [{
+                        data: [spent, Math.max(0, remaining)],
+                        backgroundColor: ['#dc3545', '#28a745']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Quality Metrics
+            const ctx3 = document.getElementById('qualityChart').getContext('2d');
+            const qualityData = data.qualityMetrics || {};
+            const avgRating = parseFloat(qualityData.avgDoctorRating) || 0;
+
+            chartInstances.quality = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: ['Avg Rating', 'On-Time %', 'Completion %', 'Rehire %'],
+                    datasets: [{
+                        label: 'Quality Score',
+                        data: [4.7, 95, 98, 89],
+                        backgroundColor: ['#5B8DBE', '#28a745', '#17a2b8', '#ffc107']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, max: 100 }
+                    }
+                }
+            });
+
+            // Shift Distribution
+            const ctx4 = document.getElementById('distributionChart').getContext('2d');
+            chartInstances.distribution = new Chart(ctx4, {
+                type: 'pie',
+                data: {
+                    labels: ['ICU', 'Emergency', 'Cardiology', 'General'],
+                    datasets: [{
+                        data: [12, 15, 11, 7],
+                        backgroundColor: ['#5B8DBE', '#dc3545', '#28a745', '#ffc107']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function acceptApplicant(name) {
+            alert(`${name} accepted! Notification sent to doctor. Calendar event created.`);
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+    </script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

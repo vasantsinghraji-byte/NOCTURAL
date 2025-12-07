@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)",
+      "Bash(node server.js:*)",
+      "Bash(npm install:*)",
+      "Bash(npm start)",
+      "Bash(if [ -f \"models/User.js\" ])",
+      "Bash(then echo \"User.js exists\")",
+      "Bash(else echo \"User.js does NOT exist\")",
+      "Bash(fi)",
+      "Bash(mongosh --version:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

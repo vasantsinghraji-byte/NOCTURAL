@@ -1,0 +1,82 @@
+# Render Blueprint - Infrastructure as Code
+# Deploy with: Connect repo to Render, it will auto-detect this file
+# Custom Domain: Add in Render Dashboard > Settings > Custom Domains
+
+services:
+  # Backend API Service
+  - type: web
+    name: nocturnal-api
+    runtime: node
+    region: singapore  # Change to your preferred region
+    plan: free  # Use 'starter' for production
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      # MongoDB Atlas with Authentication
+      - key: MONGODB_URI
+        sync: false  # Set manually in Render dashboard
+      - key: MONGODB_AUTH_SOURCE
+        value: admin
+      - key: MONGODB_AUTH_MECHANISM
+        value: SCRAM-SHA-256
+      - key: MONGODB_READ_PREFERENCE
+        value: primaryPreferred
+      - key: MONGODB_WRITE_CONCERN_W
+        value: majority
+      - key: MONGODB_READ_CONCERN
+        value: majority
+      # Security
+      - key: JWT_SECRET
+        sync: false  # Set manually in Render dashboard
+      - key: JWT_EXPIRE
+        value: 7d
+      - key: ENCRYPTION_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: ALLOWED_ORIGINS
+        sync: false  # Set manually: https://yourdomain.com,https://nocturnal-frontend.onrender.com
+      # Optional Services
+      - key: REDIS_ENABLED
+        value: false
+      - key: FIREBASE_AUTH_ENABLED
+        value: false
+      - key: LOG_LEVEL
+        value: warn
+    autoDeploy: true
+
+  # Frontend Static Site
+  - type: web
+    name: nocturnal-frontend
+    runtime: static
+    buildCommand: cd client && npm install && npm run build:optimize
+    staticPublishPath: client/dist
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains; preload
+      - path: /js/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /css/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /*.html
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://nocturnal-api.onrender.com/api/*
+    envVars:
+      - key: NODE_VERSION
+        value: 22

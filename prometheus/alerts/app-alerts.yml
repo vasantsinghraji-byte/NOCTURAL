@@ -1,0 +1,164 @@
+groups:
+  - name: nocturnal_app_alerts
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job="nocturnal-app",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="nocturnal-app"}[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+          runbook: "https://runbooks.nocturnal.com/high-error-rate"
+
+      # Critical error rate
+      - alert: CriticalErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job="nocturnal-app",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="nocturnal-app"}[5m]))
+          ) > 0.10
+        for: 2m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "Critical error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 10%)"
+          runbook: "https://runbooks.nocturnal.com/high-error-rate"
+
+      # Slow API responses
+      - alert: SlowAPIResponses
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="nocturnal-app"}[5m])) by (le, endpoint)
+          ) > 1
+        for: 10m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "API response time degradation"
+          description: "95th percentile response time for {{ $labels.endpoint }} is {{ $value }}s (threshold: 1s)"
+          runbook: "https://runbooks.nocturnal.com/slow-api"
+
+      # Application down
+      - alert: ApplicationDown
+        expr: up{job="nocturnal-app"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: availability
+        annotations:
+          summary: "Application instance is down"
+          description: "Instance {{ $labels.instance }} has been down for more than 2 minutes"
+          runbook: "https://runbooks.nocturnal.com/app-down"
+
+      # Low pod count
+      - alert: LowPodCount
+        expr: |
+          sum(up{job="nocturnal-app"}) < 2
+        for: 5m
+        labels:
+          severity: warning
+          component: availability
+        annotations:
+          summary: "Running pod count is low"
+          description: "Only {{ $value }} pods are running (minimum: 2)"
+          runbook: "https://runbooks.nocturnal.com/scaling"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            container_memory_usage_bytes{pod=~"nocturnal-app-.*"}
+            /
+            container_spec_memory_limit_bytes{pod=~"nocturnal-app-.*"}
+          ) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          component: resources
+        annotations:
+          summary: "High memory usage detected"
+          description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of memory limit"
+          runbook: "https://runbooks.nocturnal.com/memory"
+
+      # Memory leak detection
+      - alert: PossibleMemoryLeak
+        expr: |
+          rate(container_memory_usage_bytes{pod=~"nocturnal-app-.*"}[1h]) > 10485760
+        for: 2h
+        labels:
+          severity: warning
+          component: resources
+        annotations:
+          summary: "Possible memory leak detected"
+          description: "Pod {{ $labels.pod }} memory usage increasing by {{ $value | humanize }}B/s"
+          runbook: "https://runbooks.nocturnal.com/memory-leak"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: |
+          (
+            rate(container_cpu_usage_seconds_total{pod=~"nocturnal-app-.*"}[5m])
+            /
+            container_spec_cpu_quota{pod=~"nocturnal-app-.*"}
+            * 100000
+          ) > 80
+        for: 15m
+        labels:
+          severity: warning
+          component: resources
+        annotations:
+          summary: "High CPU usage detected"
+          description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of CPU limit"
+          runbook: "https://runbooks.nocturnal.com/cpu"
+
+      # Restart loop
+      - alert: PodRestartLoop
+        expr: |
+          rate(kube_pod_container_status_restarts_total{pod=~"nocturnal-app-.*"}[15m]) > 0.5
+        for: 5m
+        labels:
+          severity: critical
+          component: stability
+        annotations:
+          summary: "Pod is in restart loop"
+          description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last 15 minutes"
+          runbook: "https://runbooks.nocturnal.com/restart-loop"
+
+      # Authentication failures
+      - alert: HighAuthFailureRate
+        expr: |
+          rate(auth_failures_total{job="nocturnal-app"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "{{ $value }} authentication failures per second from {{ $labels.ip }}"
+          runbook: "https://runbooks.nocturnal.com/auth-failures"
+
+      # Rate limit triggered
+      - alert: RateLimitExceeded
+        expr: |
+          rate(rate_limit_exceeded_total{job="nocturnal-app"}[5m]) > 5
+        for: 10m
+        labels:
+          severity: info
+          component: security
+        annotations:
+          summary: "Rate limits being triggered frequently"
+          description: "{{ $value }} rate limit violations per second"
+          runbook: "https://runbooks.nocturnal.com/rate-limits"

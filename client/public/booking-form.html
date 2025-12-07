@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Service - Nocturnal Healthcare</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .btn-back {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .booking-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .form-section, .summary-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-title {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+
+        .summary-item.total {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            border-top: 2px solid #667eea;
+            padding-top: 15px;
+            margin-top: 10px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 20px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .success-message {
+            background: #efe;
+            color: #3c3;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .service-info {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .service-info h3 {
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .service-info p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .booking-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <script src="js/config.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <button class="btn-back" onclick="history.back()">← Back</button>
+            <h1>Book Your Service</h1>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="booking-layout">
+            <div class="form-section">
+                <h2 class="section-title">📝 Booking Details</h2>
+
+                <div class="service-info" id="serviceInfo">
+                    <h3 id="serviceName">Loading...</h3>
+                    <p id="servicePrice">₹0</p>
+                </div>
+
+                <form id="bookingForm">
+                    <div id="errorDiv"></div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="date">Preferred Date *</label>
+                            <input type="date" id="date" name="date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="time">Preferred Time *</label>
+                            <input type="time" id="time" name="time" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="address">Service Address *</label>
+                        <input type="text" id="address" name="address" required
+                               placeholder="House/Flat No, Building Name">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="city">City *</label>
+                            <input type="text" id="city" name="city" required value="Bangalore">
+                        </div>
+                        <div class="form-group">
+                            <label for="pincode">Pincode *</label>
+                            <input type="text" id="pincode" name="pincode" required
+                                   pattern="[0-9]{6}" maxlength="6" placeholder="560001">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="patientAge">Patient Age *</label>
+                            <input type="number" id="patientAge" name="patientAge" required
+                                   min="1" max="120" placeholder="30">
+                        </div>
+                        <div class="form-group">
+                            <label for="patientGender">Patient Gender *</label>
+                            <select id="patientGender" name="patientGender" required>
+                                <option value="">Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="specialRequirements">Special Requirements (Optional)</label>
+                        <textarea id="specialRequirements" name="specialRequirements"
+                                  placeholder="Any specific instructions or requirements..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="prescriptionUrl">Prescription URL (if applicable)</label>
+                        <input type="url" id="prescriptionUrl" name="prescriptionUrl"
+                               placeholder="https://example.com/prescription.pdf">
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="submitBtn">
+                        Proceed to Payment
+                    </button>
+                </form>
+            </div>
+
+            <div class="summary-section">
+                <h2 class="section-title">💰 Price Summary</h2>
+
+                <div class="summary-item">
+                    <span>Base Price</span>
+                    <span id="summaryBasePrice">₹0</span>
+                </div>
+                <div class="summary-item">
+                    <span>Platform Fee (15%)</span>
+                    <span id="summaryPlatformFee">₹0</span>
+                </div>
+                <div class="summary-item">
+                    <span>GST (18%)</span>
+                    <span id="summaryGST">₹0</span>
+                </div>
+                <div class="summary-item total">
+                    <span>Total Amount</span>
+                    <span id="summaryTotal">₹0</span>
+                </div>
+
+                <div style="margin-top: 20px; padding: 15px; background: #f8f9ff; border-radius: 10px;">
+                    <p style="font-size: 13px; color: #666; text-align: center;">
+                        💳 Secure payment powered by Razorpay
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api/v1';
+        const token = localStorage.getItem('patientToken');
+
+        if (!token) {
+            window.location.href = 'patient-login.html';
+        }
+
+        const patient = JSON.parse(localStorage.getItem('patient') || '{}');
+        const selectedService = JSON.parse(localStorage.getItem('selectedService') || '{}');
+
+        // Set minimum date to tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('date').min = tomorrow.toISOString().split('T')[0];
+
+        // Display service info
+        if (selectedService.serviceName) {
+            document.getElementById('serviceName').textContent = selectedService.serviceName;
+            document.getElementById('servicePrice').textContent = `Base Price: ₹${selectedService.price}`;
+            updatePriceSummary(selectedService.price);
+        } else {
+            window.location.href = 'patient-dashboard.html';
+        }
+
+        function updatePriceSummary(basePrice) {
+            const platformFee = basePrice * 0.15;
+            const gst = (basePrice + platformFee) * 0.18;
+            const total = basePrice + platformFee + gst;
+
+            document.getElementById('summaryBasePrice').textContent = `₹${basePrice}`;
+            document.getElementById('summaryPlatformFee').textContent = `₹${platformFee.toFixed(2)}`;
+            document.getElementById('summaryGST').textContent = `₹${gst.toFixed(2)}`;
+            document.getElementById('summaryTotal').textContent = `₹${total.toFixed(2)}`;
+        }
+
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const errorDiv = document.getElementById('errorDiv');
+            const btn = document.getElementById('submitBtn');
+            errorDiv.innerHTML = '';
+
+            const bookingData = {
+                serviceType: selectedService.serviceType,
+                scheduledDate: document.getElementById('date').value,
+                scheduledTime: document.getElementById('time').value,
+                serviceLocation: {
+                    street: document.getElementById('address').value,
+                    city: document.getElementById('city').value,
+                    state: 'Karnataka',
+                    pincode: document.getElementById('pincode').value,
+                    coordinates: {
+                        lat: 12.9716,
+                        lng: 77.5946
+                    }
+                },
+                patientDetails: {
+                    name: patient.name || 'Patient',
+                    age: parseInt(document.getElementById('patientAge').value),
+                    gender: document.getElementById('patientGender').value
+                },
+                specialRequirements: document.getElementById('specialRequirements').value,
+                prescriptionUrl: document.getElementById('prescriptionUrl').value || 'https://example.com/prescription.pdf'
+            };
+
+            btn.disabled = true;
+            btn.textContent = 'Creating booking...';
+
+            try {
+                const response = await fetch(`${API_URL}/bookings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(bookingData)
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.booking) {
+                    // Initiate Razorpay payment
+                    initiatePayment(data.booking);
+                } else {
+                    throw new Error(data.message || 'Booking failed');
+                }
+            } catch (error) {
+                console.error('Booking error:', error);
+                errorDiv.innerHTML = `<div class="error-message">${error.message}</div>`;
+                btn.disabled = false;
+                btn.textContent = 'Proceed to Payment';
+            }
+        });
+
+        async function initiatePayment(booking) {
+            try {
+                // Create Razorpay order
+                const orderResponse = await fetch(`${API_URL}/payments-b2c/create-order`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ bookingId: booking._id })
+                });
+
+                const orderData = await orderResponse.json();
+
+                if (!orderData.success) {
+                    throw new Error(orderData.message || 'Failed to create payment order');
+                }
+
+                const options = {
+                    key: orderData.razorpayKey,
+                    amount: orderData.order.amount,
+                    currency: orderData.order.currency,
+                    name: 'Nocturnal Healthcare',
+                    description: `${selectedService.serviceName}`,
+                    order_id: orderData.order.id,
+                    handler: async function (response) {
+                        // Payment successful - verify on backend
+                        await handlePaymentSuccess(response, booking._id);
+                    },
+                    prefill: {
+                        name: patient.name,
+                        email: patient.email,
+                        contact: patient.phone
+                    },
+                    theme: {
+                        color: '#667eea'
+                    },
+                    modal: {
+                        ondismiss: function() {
+                            document.getElementById('submitBtn').disabled = false;
+                            document.getElementById('submitBtn').textContent = 'Proceed to Payment';
+                        }
+                    }
+                };
+
+                const rzp = new Razorpay(options);
+                rzp.on('payment.failed', function (response) {
+                    handlePaymentFailure(response, booking._id);
+                });
+                rzp.open();
+            } catch (error) {
+                console.error('Payment initiation error:', error);
+                document.getElementById('errorDiv').innerHTML =
+                    `<div class="error-message">${error.message}</div>`;
+                document.getElementById('submitBtn').disabled = false;
+                document.getElementById('submitBtn').textContent = 'Proceed to Payment';
+            }
+        }
+
+        async function handlePaymentSuccess(paymentResponse, bookingId) {
+            try {
+                // Verify payment on backend
+                const verifyResponse = await fetch(`${API_URL}/payments-b2c/verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        razorpay_order_id: paymentResponse.razorpay_order_id,
+                        razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                        razorpay_signature: paymentResponse.razorpay_signature,
+                        bookingId: bookingId
+                    })
+                });
+
+                const verifyData = await verifyResponse.json();
+
+                if (verifyData.success) {
+                    document.getElementById('errorDiv').innerHTML =
+                        '<div class="success-message">Payment successful! Redirecting to your booking...</div>';
+
+                    setTimeout(() => {
+                        window.location.href = `booking-details.html?id=${bookingId}`;
+                    }, 2000);
+                } else {
+                    throw new Error('Payment verification failed');
+                }
+            } catch (error) {
+                console.error('Payment verification error:', error);
+                document.getElementById('errorDiv').innerHTML =
+                    '<div class="error-message">Payment verification failed. Please contact support.</div>';
+            }
+        }
+
+        async function handlePaymentFailure(response, bookingId) {
+            try {
+                // Report failure to backend
+                await fetch(`${API_URL}/payments-b2c/failure`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        bookingId: bookingId,
+                        error: response.error
+                    })
+                });
+            } catch (error) {
+                console.error('Error reporting payment failure:', error);
+            }
+
+            document.getElementById('errorDiv').innerHTML =
+                '<div class="error-message">Payment failed. Please try again.</div>';
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('submitBtn').textContent = 'Proceed to Payment';
+        }
+    </script>
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

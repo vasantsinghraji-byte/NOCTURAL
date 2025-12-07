@@ -1,0 +1,143 @@
+# Horizontal Pod Autoscaler for Nocturnal API
+# Automatically scales based on CPU, memory, and custom metrics
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nocturnal-api-hpa
+  namespace: nocturnal
+  labels:
+    app: nocturnal
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nocturnal-app
+
+  # Min and max replicas
+  minReplicas: 4
+  maxReplicas: 20
+
+  # Scaling behavior
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      policies:
+      - type: Percent
+        value: 50  # Scale down max 50% of current pods at once
+        periodSeconds: 60
+      - type: Pods
+        value: 2  # Or scale down max 2 pods at once
+        periodSeconds: 60
+      selectPolicy: Min  # Use the policy that results in fewer pods being removed
+    scaleUp:
+      stabilizationWindowSeconds: 60  # Wait 1 minute before scaling up
+      policies:
+      - type: Percent
+        value: 100  # Scale up max 100% (double) at once
+        periodSeconds: 30
+      - type: Pods
+        value: 4  # Or scale up max 4 pods at once
+        periodSeconds: 30
+      selectPolicy: Max  # Use the policy that results in more pods being added
+
+  # Metrics for auto-scaling
+  metrics:
+
+  # CPU utilization
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70  # Scale up if CPU > 70%
+
+  # Memory utilization
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80  # Scale up if memory > 80%
+
+  # Custom metrics (requires metrics server and custom metrics API)
+  # Uncomment if you have Prometheus adapter installed
+
+  # Request rate (requests per second)
+  # - type: Pods
+  #   pods:
+  #     metric:
+  #       name: http_requests_per_second
+  #     target:
+  #       type: AverageValue
+  #       averageValue: "1000"  # Scale up if avg > 1000 req/sec per pod
+
+  # Response time (P95 latency)
+  # - type: Pods
+  #   pods:
+  #     metric:
+  #       name: http_request_duration_p95
+  #     target:
+  #       type: AverageValue
+  #       averageValue: "500m"  # Scale up if P95 latency > 500ms
+
+  # Queue depth (if using message queue)
+  # - type: External
+  #   external:
+  #     metric:
+  #       name: rabbitmq_queue_messages_ready
+  #       selector:
+  #         matchLabels:
+  #           queue_name: "nocturnal-tasks"
+  #     target:
+  #       type: AverageValue
+  #       averageValue: "30"  # Scale up if > 30 messages per pod
+
+---
+# Vertical Pod Autoscaler (Optional)
+# Automatically adjusts resource requests/limits
+# Requires VPA to be installed in cluster
+
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: nocturnal-api-vpa
+  namespace: nocturnal
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nocturnal-app
+
+  # Update policy
+  updatePolicy:
+    updateMode: "Auto"  # Options: Off, Initial, Recreate, Auto
+
+  # Resource policy
+  resourcePolicy:
+    containerPolicies:
+    - containerName: app
+      minAllowed:
+        cpu: 250m
+        memory: 256Mi
+      maxAllowed:
+        cpu: 2000m
+        memory: 2Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits  # Update both requests and limits
+
+---
+# Pod Disruption Budget
+# Ensures minimum availability during voluntary disruptions
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: nocturnal-api-pdb
+  namespace: nocturnal
+spec:
+  minAvailable: 2  # Always keep at least 2 pods running
+  selector:
+    matchLabels:
+      app: nocturnal
+      tier: backend

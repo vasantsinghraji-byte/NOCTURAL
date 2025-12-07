@@ -1,0 +1,464 @@
+/**
+ * Pagination Styles for Noctural Frontend
+ *
+ * Comprehensive styles for pagination controls,
+ * infinite scroll, and related UI components
+ */
+
+/* ============================================
+   Pagination Container
+   ============================================ */
+
+.pagination-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 2rem 0;
+  align-items: center;
+}
+
+.pagination-info {
+  font-size: 0.875rem;
+  color: #64748b;
+  text-align: center;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ============================================
+   Pagination Buttons
+   ============================================ */
+
+.pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #e2e8f0;
+  background: white;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 2.5rem;
+  justify-content: center;
+}
+
+.pagination-btn:hover:not(.disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.pagination-btn:active:not(.disabled) {
+  background: #f1f5f9;
+  transform: scale(0.98);
+}
+
+.pagination-btn.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.pagination-btn.active:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.pagination-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f8fafc;
+}
+
+.pagination-btn svg {
+  flex-shrink: 0;
+}
+
+/* ============================================
+   Pagination Ellipsis
+   ============================================ */
+
+.pagination-ellipsis {
+  padding: 0.5rem;
+  color: #94a3b8;
+  font-weight: 500;
+  user-select: none;
+}
+
+/* ============================================
+   Limit Selector
+   ============================================ */
+
+.limit-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.limit-select {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  background: white;
+  color: #1e293b;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.limit-select:hover {
+  border-color: #cbd5e1;
+}
+
+.limit-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* ============================================
+   Loading State
+   ============================================ */
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  gap: 1rem;
+}
+
+.loading-state p {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/* Spinner */
+.spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   Error State
+   ============================================ */
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+.error-state p {
+  color: #dc2626;
+  margin: 0;
+}
+
+.error-state button {
+  padding: 0.5rem 1rem;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.error-state button:hover {
+  background: #b91c1c;
+}
+
+/* ============================================
+   No Results State
+   ============================================ */
+
+.no-results {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/* ============================================
+   Infinite Scroll Loader
+   ============================================ */
+
+.infinite-scroll-loader {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+              0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 1000;
+}
+
+.infinite-scroll-loader .spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-width: 2px;
+}
+
+.infinite-scroll-loader p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #475569;
+  font-weight: 500;
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+
+@media (max-width: 768px) {
+  .pagination-container {
+    margin: 1.5rem 0;
+  }
+
+  .pagination-controls {
+    gap: 0.25rem;
+  }
+
+  .pagination-btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+    min-width: 2rem;
+  }
+
+  /* Hide page numbers on mobile, keep prev/next */
+  .pagination-btn:not(:first-child):not(:last-child) {
+    display: none;
+  }
+
+  .pagination-ellipsis {
+    display: none;
+  }
+
+  .pagination-info {
+    font-size: 0.8125rem;
+  }
+
+  .limit-selector {
+    font-size: 0.8125rem;
+  }
+
+  .limit-select {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8125rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pagination-btn svg {
+    display: none;
+  }
+
+  .pagination-btn {
+    min-width: auto;
+  }
+
+  .infinite-scroll-loader {
+    bottom: 1rem;
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* ============================================
+   Compact Pagination Variant
+   ============================================ */
+
+.pagination-container.compact {
+  margin: 1rem 0;
+}
+
+.pagination-container.compact .pagination-btn {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.pagination-container.compact .pagination-info {
+  font-size: 0.8125rem;
+}
+
+/* ============================================
+   Minimal Pagination Variant
+   ============================================ */
+
+.pagination-container.minimal .pagination-controls {
+  gap: 0;
+}
+
+.pagination-container.minimal .pagination-btn {
+  border-radius: 0;
+  border-right: none;
+}
+
+.pagination-container.minimal .pagination-btn:first-child {
+  border-top-left-radius: 0.375rem;
+  border-bottom-left-radius: 0.375rem;
+}
+
+.pagination-container.minimal .pagination-btn:last-child {
+  border-top-right-radius: 0.375rem;
+  border-bottom-right-radius: 0.375rem;
+  border-right: 1px solid #e2e8f0;
+}
+
+.pagination-container.minimal .pagination-ellipsis {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-right: none;
+  background: white;
+}
+
+/* ============================================
+   Pills Pagination Variant
+   ============================================ */
+
+.pagination-container.pills .pagination-controls {
+  gap: 0.75rem;
+}
+
+.pagination-container.pills .pagination-btn {
+  border-radius: 2rem;
+  padding: 0.5rem 1.25rem;
+}
+
+/* ============================================
+   Dark Mode Support
+   ============================================ */
+
+@media (prefers-color-scheme: dark) {
+  .pagination-btn {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+  }
+
+  .pagination-btn:hover:not(.disabled) {
+    background: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+  }
+
+  .pagination-btn:active:not(.disabled) {
+    background: #475569;
+  }
+
+  .pagination-btn.disabled {
+    background: #0f172a;
+  }
+
+  .pagination-info {
+    color: #94a3b8;
+  }
+
+  .pagination-ellipsis {
+    color: #64748b;
+  }
+
+  .limit-selector {
+    color: #cbd5e1;
+  }
+
+  .limit-select {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+  }
+
+  .limit-select:hover {
+    border-color: #475569;
+  }
+
+  .loading-state p,
+  .no-results {
+    color: #94a3b8;
+  }
+
+  .spinner {
+    border-color: #334155;
+    border-top-color: #3b82f6;
+  }
+
+  .infinite-scroll-loader {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .infinite-scroll-loader p {
+    color: #cbd5e1;
+  }
+}
+
+/* ============================================
+   Accessibility
+   ============================================ */
+
+.pagination-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.pagination-btn:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ============================================
+   Print Styles
+   ============================================ */
+
+@media print {
+  .pagination-container,
+  .infinite-scroll-loader {
+    display: none;
+  }
+}

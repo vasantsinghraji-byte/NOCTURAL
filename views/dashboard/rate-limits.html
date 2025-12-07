@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Limit Dashboard - Nocturnal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card {
+            margin-bottom: 1rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .status-normal { background-color: #28a745; }
+        .status-warning { background-color: #ffc107; }
+        .status-danger { background-color: #dc3545; }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .metric-label {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+        .refresh-timer {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h2>Rate Limit Dashboard</h2>
+                <p class="text-muted">
+                    Real-time monitoring of rate limits and suspicious activity
+                    <span class="refresh-timer ms-2">
+                        Next refresh in <span id="refreshTimer">30</span>s
+                    </span>
+                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="fetchData()">
+                        Refresh Now
+                    </button>
+                </p>
+            </div>
+        </div>
+
+        <!-- Overview Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Auth Rate Limits</h6>
+                        <div class="metric-value" id="authBlockRate">-</div>
+                        <div class="metric-label">Block Rate</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">API Requests</h6>
+                        <div class="metric-value" id="apiTotal">-</div>
+                        <div class="metric-label">Total Requests</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Blocked Entities</h6>
+                        <div class="metric-value" id="blockedCount">-</div>
+                        <div class="metric-label">Currently Blocked</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">System Status</h6>
+                        <div class="metric-value">
+                            <span class="status-indicator" id="systemStatus"></span>
+                            <span id="systemStatusText">-</span>
+                        </div>
+                        <div class="metric-label">Current Status</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Request Distribution</h6>
+                        <canvas id="requestChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Block Rate Trend</h6>
+                        <canvas id="blockRateChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Tables -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Most Affected Endpoints</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Endpoint</th>
+                                        <th>Hits</th>
+                                        <th>Block Rate</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="endpointTable">
+                                    <tr><td colspan="4">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Currently Blocked IPs</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>IP/Entity</th>
+                                        <th>Blocked Until</th>
+                                        <th>Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="blockedTable">
+                                    <tr><td colspan="3">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let requestChart, blockRateChart;
+        let refreshInterval = 30;
+        let timer;
+
+        // Initialize charts
+        function initCharts() {
+            // Request Distribution Chart
+            const requestCtx = document.getElementById('requestChart').getContext('2d');
+            requestChart = new Chart(requestCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Successful', 'Blocked', 'Rate Limited'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#28a745', '#dc3545', '#ffc107']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Block Rate Trend Chart
+            const blockRateCtx = document.getElementById('blockRateChart').getContext('2d');
+            blockRateChart = new Chart(blockRateCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Block Rate',
+                        data: [],
+                        borderColor: '#dc3545',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update timer display
+        function updateTimer() {
+            document.getElementById('refreshTimer').textContent = refreshInterval;
+            refreshInterval--;
+            if (refreshInterval < 0) {
+                refreshInterval = 30;
+                fetchData();
+            }
+        }
+
+        // Fetch and update dashboard data
+        async function fetchData() {
+            try {
+                const response = await fetch('/api/admin/metrics/rate-limits');
+                const data = await response.json();
+
+                // Update overview metrics
+                document.getElementById('authBlockRate').textContent = 
+                    `${(data.metrics.auth.blockRate * 100).toFixed(1)}%`;
+                document.getElementById('apiTotal').textContent = 
+                    data.metrics.api.total.toLocaleString();
+                document.getElementById('blockedCount').textContent = 
+                    data.blocked.length;
+
+                // Update system status
+                const statusIndicator = document.getElementById('systemStatus');
+                const statusText = document.getElementById('systemStatusText');
+                if (data.metrics.auth.blockRate > 0.2) {
+                    statusIndicator.className = 'status-indicator status-danger';
+                    statusText.textContent = 'High Block Rate';
+                } else if (data.blocked.length > 5) {
+                    statusIndicator.className = 'status-indicator status-warning';
+                    statusText.textContent = 'Multiple Blocks';
+                } else {
+                    statusIndicator.className = 'status-indicator status-normal';
+                    statusText.textContent = 'Normal';
+                }
+
+                // Update request distribution chart
+                requestChart.data.datasets[0].data = [
+                    data.metrics.api.total - data.metrics.api.blocked,
+                    data.metrics.api.blocked,
+                    data.metrics.auth.blocked
+                ];
+                requestChart.update();
+
+                // Update block rate trend
+                if (data.metrics.blockRateHistory) {
+                    blockRateChart.data.labels = data.metrics.blockRateHistory.map(h => h.time);
+                    blockRateChart.data.datasets[0].data = data.metrics.blockRateHistory.map(h => h.rate);
+                    blockRateChart.update();
+                }
+
+                // Update endpoints table
+                const endpointTable = document.getElementById('endpointTable');
+                endpointTable.innerHTML = data.metrics.api.endpoints
+                    .sort((a, b) => b.hits - a.hits)
+                    .slice(0, 10)
+                    .map(endpoint => `
+                        <tr>
+                            <td>${endpoint.path}</td>
+                            <td>${endpoint.hits}</td>
+                            <td>${(endpoint.blockRate * 100).toFixed(1)}%</td>
+                            <td>
+                                <span class="status-indicator ${
+                                    endpoint.blockRate > 0.2 ? 'status-danger' :
+                                    endpoint.blockRate > 0.1 ? 'status-warning' :
+                                    'status-normal'
+                                }"></span>
+                            </td>
+                        </tr>
+                    `).join('');
+
+                // Update blocked entities table
+                const blockedTable = document.getElementById('blockedTable');
+                blockedTable.innerHTML = data.blocked
+                    .map(entity => `
+                        <tr>
+                            <td>${entity.id}</td>
+                            <td>${new Date(entity.until).toLocaleString()}</td>
+                            <td>${entity.reason}</td>
+                        </tr>
+                    `).join('') || '<tr><td colspan="3">No blocked entities</td></tr>';
+
+            } catch (error) {
+                console.error('Error fetching metrics:', error);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            fetchData();
+            setInterval(updateTimer, 1000);
+        });
+    </script>
+</body>
+</html>

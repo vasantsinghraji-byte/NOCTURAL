@@ -1,0 +1,84 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables (CRITICAL - NEVER COMMIT!)
+.env
+.env.*
+*.env
+.env.local
+.env.production
+.env.development
+.env.staging
+.env.test
+.env.backup.*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Uploads
+uploads/
+*.tmp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Build files
+dist/
+build/
+
+# Backups
+*_backup_*.tar.gz
+backend_backup_*.tar.gz
+
+# Secrets and credentials (CRITICAL - NEVER COMMIT!)
+serviceAccountKey.json
+**/serviceAccountKey.json
+credentials.json
+**/credentials.json
+config/secrets.js
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.jks
+*.keystore
+aws-credentials.json
+firebase-credentials.json
+gcp-credentials.json
+azure-credentials.json
+
+# MongoDB credentials (CRITICAL - NEVER COMMIT!)
+mongodb-credentials.json
+**/mongodb-credentials.json
+mongod.key
+*.keyfile

@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nocturnal - Healthcare Platform</title>
+    <link rel="stylesheet" href="css/index-backup.css">
+    <script src="js/config.js"></script>
+</head>
+<body>
+
+<!-- LANDING PAGE -->
+<div id="landing-page" class="landing-container">
+    <div class="landing-content">
+        <div class="landing-hero">
+            <div class="hero-left">
+                <div class="landing-logo">
+                    <div class="logo-icon">🏥</div>
+                    <h1>Nocturnal</h1>
+                </div>
+                <p class="landing-tagline">Finding Healthcare Shifts Has Never Been So Easy</p>
+                <p class="landing-description">
+                    Nocturnal matches healthcare professionals with their perfect shifts. Take back control 
+                    and work where you want, when you want, and how you want.
+                </p>
+                <p class="landing-description" style="font-size: 1.2rem; font-weight: 600;">
+                    No more agencies.
+                </p>
+            </div>
+            
+            <div class="hero-right">
+                <button id="show-login-btn" class="btn-large btn-primary">Login to Your Account</button>
+                <button id="show-register-btn" class="btn-large btn-secondary">Create New Account</button>
+                <p style="color: #64748b; font-size: 0.9rem; text-align: center; margin-top: 10px;">
+                    Join thousands of healthcare professionals
+                </p>
+            </div>
+        </div>
+        
+        <div class="landing-features">
+            <div class="feature">
+                <div class="feature-icon">💪</div>
+                <h3>Be Your Own Boss</h3>
+                <p>Set your rates, choose your shifts, and take back control of your career</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔒</div>
+                <h3>Secure & Verified</h3>
+                <p>All users verified and authenticated for your safety</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">💰</div>
+                <h3>Transparent Pricing</h3>
+                <p>Clear compensation with no hidden fees - earn up to 20% more</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📱</div>
+                <h3>Simple Platform</h3>
+                <p>Easy to use on any device. Apply to shifts with just one click</p>
+            </div>
+        </div>
+
+        <div style="background: white; padding: 40px; border-radius: 16px; margin-bottom: 60px; border: 2px solid #dbeafe; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: center;">
+            <h2 style="color: #1e40af; font-size: 1.8rem; margin-bottom: 20px;">To Get Started, You Need:</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; text-align: left; margin-top: 25px;">
+                <div style="display: flex; align-items: start; gap: 10px;">
+                    <span style="color: #10b981; font-size: 1.5rem;">✓</span>
+                    <span style="color: #334155; font-size: 1rem;">Right to work in the UK/India</span>
+                </div>
+                <div style="display: flex; align-items: start; gap: 10px;">
+                    <span style="color: #10b981; font-size: 1.5rem;">✓</span>
+                    <span style="color: #334155; font-size: 1rem;">GP or RGN/RMN registration</span>
+                </div>
+                <div style="display: flex; align-items: start; gap: 10px;">
+                    <span style="color: #10b981; font-size: 1.5rem;">✓</span>
+                    <span style="color: #334155; font-size: 1rem;">At least 1 year experience</span>
+                </div>
+                <div style="display: flex; align-items: start; gap: 10px;">
+                    <span style="color: #10b981; font-size: 1.5rem;">✓</span>
+                    <span style="color: #334155; font-size: 1rem;">Up-to-date documentation</span>
+                </div>
+            </div>
+            <p style="color: #1e40af; font-size: 1.3rem; font-weight: 600; margin-top: 25px;">That's it!</p>
+        </div>
+        
+        <div style="margin-top: 60px;">
+            <h2 style="color: #1e40af; font-size: 2.2rem; margin-bottom: 40px; text-align: center;">How It Works</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px;">
+                <div style="text-align: center;">
+                    <div style="background: #3b82f6; width: 60px; height: 60px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: white; margin: 0 auto 15px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">1</div>
+                    <h3 style="color: #1e40af; margin-bottom: 10px;">Create Profile</h3>
+                    <p style="color: #475569; font-size: 0.95rem;">Sign up and upload your credentials</p>
+                </div>
+                <div style="text-align: center;">
+                    <div style="background: #3b82f6; width: 60px; height: 60px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: white; margin: 0 auto 15px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">2</div>
+                    <h3 style="color: #1e40af; margin-bottom: 10px;">Browse Shifts</h3>
+                    <p style="color: #475569; font-size: 0.95rem;">Find shifts that match your skills</p>
+                </div>
+                <div style="text-align: center;">
+                    <div style="background: #3b82f6; width: 60px; height: 60px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: white; margin: 0 auto 15px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">3</div>
+                    <h3 style="color: #1e40af; margin-bottom: 10px;">Apply & Work</h3>
+                    <p style="color: #475569; font-size: 0.95rem;">One-click apply and get matched</p>
+                </div>
+                <div style="text-align: center;">
+                    <div style="background: #3b82f6; width: 60px; height: 60px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: white; margin: 0 auto 15px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">4</div>
+                    <h3 style="color: #1e40af; margin-bottom: 10px;">Get Paid</h3>
+                    <p style="color: #475569; font-size: 0.95rem;">Automatic timesheet approval</p>
+                </div>
+            </div>
+        </div>
+        
+        <p class="landing-footer" style="margin-top: 50px; text-align: center; color: #475569;">Trusted by hospitals and healthcare professionals across the country</p>
+        <div style="margin-top: 30px; padding-top: 30px; border-top: 2px solid #dbeafe;">
+            <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; font-size: 0.9rem;">
+                <a href="#" style="color: #3b82f6; text-decoration: none; font-weight: 500;">Help Center</a>
+                <a href="#" style="color: #3b82f6; text-decoration: none; font-weight: 500;">Privacy Policy</a>
+                <a href="#" style="color: #3b82f6; text-decoration: none; font-weight: 500;">Terms of Use</a>
+                <a href="#" style="color: #3b82f6; text-decoration: none; font-weight: 500;">Contact</a>
+            </div>
+            <p style="color: #64748b; margin-top: 20px; font-size: 0.85rem; text-align: center;">© 2025 Nocturnal. All rights reserved.</p>
+        </div>
+    </div>
+</div>
+
+<!-- LOGIN PAGE -->
+<div id="login-page" class="page" style="display: none;">
+    <button id="back-from-login" class="back-btn">← Back</button>
+    <h1>Login to Nocturnal</h1>
+    <div id="login-error" class="message error" style="display:none;"></div>
+    <form id="login-form">
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="login-email" required placeholder="your.email@example.com">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="login-password" required placeholder="Enter your password">
+        </div>
+        <button type="submit">Login</button>
+    </form>
+    <p style="margin-top: 20px;">Don't have an account? <span id="go-to-register" class="link">Register here</span></p>
+</div>
+
+<!-- REGISTER PAGE -->
+<div id="register-page" class="page" style="display: none;">
+    <button id="back-from-register" class="back-btn">← Back</button>
+    <h1>Create Account</h1>
+    <div id="register-error" class="message error" style="display:none;"></div>
+    <form id="register-form">
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="register-name" required placeholder="Dr. John Doe">
+        </div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="register-email" required placeholder="your.email@example.com">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="register-password" required minlength="6" placeholder="Minimum 6 characters">
+        </div>
+        <div class="form-group">
+            <label>I am a...</label>
+            <select id="register-role" required>
+                <option value="">Select your role</option>
+                <option value="doctor">Doctor</option>
+                <option value="nurse">Nurse</option>
+                <option value="admin">Hospital Administrator</option>
+            </select>
+        </div>
+        <div class="form-group" id="specialty-field">
+            <label>Specialty</label>
+            <input type="text" id="register-specialty" placeholder="e.g., Emergency Medicine">
+        </div>
+        <div class="form-group" id="hospital-field">
+            <label>Hospital Name</label>
+            <input type="text" id="register-hospital" placeholder="e.g., City General Hospital">
+        </div>
+        <div class="form-group">
+            <label>Location</label>
+            <input type="text" id="register-location" required placeholder="e.g., Mumbai, India">
+        </div>
+        <button type="submit">Create Account</button>
+    </form>
+    <p style="margin-top: 20px;">Already have an account? <span id="go-to-login" class="link">Login here</span></p>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="page" style="display: none;">
+    <div class="header">
+        <div>
+            <h1>Welcome, <span id="user-name"></span></h1>
+            <p id="user-info" style="color: #666;"></p>
+        </div>
+        <button id="logout-btn">Logout</button>
+    </div>
+
+    <!-- ADMIN SECTION -->
+    <div id="admin-section" style="display: none;">
+        <h2>Post New Duty</h2>
+        <form id="post-duty-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="duty-title" required placeholder="Night Shift ER Doctor">
+                </div>
+                <div class="form-group">
+                    <label>Specialty</label>
+                    <input type="text" id="duty-specialty" required placeholder="Emergency Medicine">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="duty-description" rows="3" required placeholder="Describe the duty requirements..."></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="duty-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Start Time</label>
+                    <input type="time" id="duty-start-time" required value="20:00">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>End Time</label>
+                    <input type="time" id="duty-end-time" required value="06:00">
+                </div>
+                <div class="form-group">
+                    <label>Hourly Rate (₹)</label>
+                    <input type="number" id="duty-rate" required min="1000" placeholder="2000">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Urgency</label>
+                <select id="duty-urgency" required>
+                    <option value="NORMAL">Normal</option>
+                    <option value="URGENT">Urgent</option>
+                </select>
+            </div>
+            <button type="submit">Post Duty</button>
+        </form>
+
+        <hr>
+        
+        <h2>Applications Received</h2>
+        <div id="applications-received-list"></div>
+    </div>
+
+    <!-- DOCTOR/NURSE SECTION -->
+    <div id="doctor-nurse-section" style="display: none;">
+        <h2>Available Duties</h2>
+        
+        <div class="filters-container">
+            <input type="text" id="search-duties" placeholder="Search by title, hospital, or specialty..." class="search-input">
+            <div class="filter-row">
+                <select id="filter-specialty" class="filter-select">
+                    <option value="">All Specialties</option>
+                    <option value="Emergency Medicine">Emergency Medicine</option>
+                    <option value="Internal Medicine">Internal Medicine</option>
+                    <option value="Pediatrics">Pediatrics</option>
+                    <option value="Surgery">Surgery</option>
+                    <option value="ICU">ICU</option>
+                </select>
+                <select id="filter-urgency" class="filter-select">
+                    <option value="">All Urgency Levels</option>
+                    <option value="NORMAL">Normal</option>
+                    <option value="URGENT">Urgent</option>
+                </select>
+                <input type="date" id="filter-date" class="filter-select" placeholder="Filter by date">
+            </div>
+        </div>
+        
+        <div id="duties-list"></div>
+
+        <hr>
+
+        <h2>My Applications</h2>
+        <div id="my-applications-list"></div>
+    </div>
+</div>
+
+<!-- Hospital Profile Page -->
+<div id="hospital-profile-page" class="page" style="display: none;">
+    <button class="back-to-dashboard-btn back-btn">← Back to Dashboard</button>
+    
+    <div class="hospital-header">
+        <div class="hospital-icon">🏥</div>
+        <div>
+            <h1 id="hospital-name"></h1>
+            <p id="hospital-location" style="color: #666; font-size: 1.1rem;"></p>
+        </div>
+    </div>
+    
+    <div class="hospital-stats">
+        <div class="stat-card">
+            <div class="stat-number" id="hospital-open-duties">0</div>
+            <div class="stat-label">Open Duties</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="hospital-total-posted">0</div>
+            <div class="stat-label">Total Posted</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">⭐ 4.8</div>
+            <div class="stat-label">Rating</div>
+        </div>
+    </div>
+    
+    <h2 style="margin-top: 40px;">Available Duties at This Hospital</h2>
+    <div id="hospital-duties-list"></div>
+</div>
+
+<!-- APPLY MODAL (outside dashboard is fine) -->
+<div id="apply-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" id="close-apply-modal">&times;</span>
+        <h2>Apply for Duty</h2>
+        <form id="apply-form">
+            <div class="form-group">
+                <label>Cover Letter</label>
+                <textarea id="cover-letter" rows="6" required placeholder="Tell the hospital why you're the right fit for this duty..."></textarea>
+            </div>
+            <button type="submit">Submit Application</button>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- CLEAN FIREBASE & SCRIPTS SECTION -->
+<!-- REPLACE YOUR BROKEN SCRIPTS WITH THIS -->
+<!-- ============================================ -->
+
+<script type="module">
+    // Import Firebase modules
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, onSnapshot, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // Firebase configuration (MUST MATCH firebase-config.js)
+    const firebaseConfig = {
+        apiKey: "AIzaSyCd46DqN40OBl1QHx0mYiAGCo8s6A_CHLI",
+        authDomain: "nocturnal-49be3.firebaseapp.com",
+        projectId: "nocturnal-49be3",
+        storageBucket: "nocturnal-49be3.firebasestorage.app",
+        messagingSenderId: "1056329690624",
+        appId: "1:1056329690624:web:a0e2b5a8c1da86c3f1e06a"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Export to global window object for app.js to use
+    window.firebase = {
+        auth,
+        db,
+        onAuthStateChanged,
+        createUserWithEmailAndPassword,
+        signInWithEmailAndPassword,
+        signOut,
+        doc,
+        setDoc,
+        getDoc,
+        collection,
+        addDoc,
+        query,
+        where,
+        onSnapshot,
+        updateDoc,
+        getDocs
+    };
+
+    console.log('✅ Firebase initialized successfully');
+
+    // Simple page navigation functions
+    function showPage(pageId) {
+        const pages = ['landing-page', 'login-page', 'register-page', 'dashboard'];
+        pages.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.style.display = 'none';
+            }
+        });
+        
+        const targetPage = document.getElementById(pageId);
+        if (targetPage) {
+            targetPage.style.display = (pageId === 'landing-page') ? 'flex' : 'block';
+        }
+    }
+
+    // Wait for DOM to load
+    window.addEventListener('DOMContentLoaded', () => {
+        // Navigation event listeners
+        const showLoginBtn = document.getElementById('show-login-btn');
+        const showRegisterBtn = document.getElementById('show-register-btn');
+        const backFromLogin = document.getElementById('back-from-login');
+        const backFromRegister = document.getElementById('back-from-register');
+        const goToRegister = document.getElementById('go-to-register');
+        const goToLogin = document.getElementById('go-to-login');
+        const registerRole = document.getElementById('register-role');
+
+        if (showLoginBtn) showLoginBtn.addEventListener('click', () => showPage('login-page'));
+        if (showRegisterBtn) showRegisterBtn.addEventListener('click', () => showPage('register-page'));
+        if (backFromLogin) backFromLogin.addEventListener('click', () => showPage('landing-page'));
+        if (backFromRegister) backFromRegister.addEventListener('click', () => showPage('landing-page'));
+        if (goToRegister) goToRegister.addEventListener('click', () => showPage('register-page'));
+        if (goToLogin) goToLogin.addEventListener('click', () => showPage('login-page'));
+
+        // Role selection handler
+        if (registerRole) {
+            registerRole.addEventListener('change', (e) => {
+                const hospitalField = document.getElementById('hospital-field');
+                const specialtyField = document.getElementById('specialty-field');
+                
+                if (e.target.value === 'admin') {
+                    if (hospitalField) hospitalField.style.display = 'block';
+                    if (specialtyField) specialtyField.style.display = 'none';
+                } else if (e.target.value === 'doctor' || e.target.value === 'nurse') {
+                    if (hospitalField) hospitalField.style.display = 'none';
+                    if (specialtyField) specialtyField.style.display = 'block';
+                } else {
+                    if (hospitalField) hospitalField.style.display = 'none';
+                    if (specialtyField) specialtyField.style.display = 'none';
+                }
+            });
+        }
+
+        // Login form handler
+        const loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = loginForm['login-email'].value;
+                const password = loginForm['login-password'].value;
+                const errorEl = document.getElementById('login-error');
+
+                try {
+                    console.log('🔐 Attempting login...');
+                    await signInWithEmailAndPassword(auth, email, password);
+                    // onAuthStateChanged will handle the redirect
+                } catch (error) {
+                    console.error('❌ Login error:', error);
+                    if (errorEl) {
+                        errorEl.textContent = error.message;
+                        errorEl.style.display = 'block';
+                    }
+                }
+            });
+        }
+
+        // Register form handler
+        const registerForm = document.getElementById('register-form');
+        if (registerForm) {
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = registerForm['register-name'].value;
+                const email = registerForm['register-email'].value;
+                const password = registerForm['register-password'].value;
+                const role = registerForm['register-role'].value;
+                const specialty = registerForm['register-specialty']?.value;
+                const hospital = registerForm['register-hospital']?.value;
+                const location = registerForm['register-location'].value;
+                const errorEl = document.getElementById('register-error');
+
+                try {
+                    console.log('📝 Attempting registration...');
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
+
+                    const userProfile = { name, email, role, location, createdAt: new Date() };
+                    if (role === 'admin') userProfile.hospital = hospital;
+                    else userProfile.specialty = specialty;
+
+                    await setDoc(doc(db, "users", user.uid), userProfile);
+                    console.log('✅ Registration successful');
+                    // onAuthStateChanged will handle the redirect
+                } catch (error) {
+                    console.error('❌ Registration error:', error);
+                    if (errorEl) {
+                        errorEl.textContent = error.message;
+                        errorEl.style.display = 'block';
+                    }
+                }
+            });
+        }
+
+        // Authentication state listener
+        onAuthStateChanged(auth, async (user) => {
+            console.log('🔄 Auth state changed:', user ? user.email : 'No user');
+
+            if (user) {
+                const userDocRef = doc(db, 'users', user.uid);
+                const userDoc = await getDoc(userDocRef);
+
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    const token = await user.getIdToken();
+
+                    // Save to localStorage
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('userId', user.uid);
+                    localStorage.setItem('userName', userData.name || 'User');
+
+                    console.log('👤 User role:', userData.role);
+
+                    // Redirect based on role
+                    if (userData.role === 'doctor' || userData.role === 'nurse') {
+                        localStorage.setItem('userType', 'doctor');
+                        console.log('🏥 Redirecting to doctor dashboard...');
+                        window.location.href = 'doctor-dashboard.html';
+                    } else if (userData.role === 'admin') {
+                        localStorage.setItem('userType', 'hospital');
+                        console.log('🏥 Showing admin dashboard...');
+                        // TODO: Show admin dashboard (currently not implemented in index.html)
+                        alert('Admin login successful! Admin dashboard coming soon.');
+                    }
+                }
+            } else {
+                // User logged out
+                localStorage.clear();
+                showPage('landing-page');
+            }
+        });
+
+        console.log('✅ Event listeners attached');
+    });
+</script>
+
+</body>
+</html>

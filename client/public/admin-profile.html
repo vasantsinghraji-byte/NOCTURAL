@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Profile - Admin - Nocturnal</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo { font-size: 1.5rem; font-weight: bold; color: #3b82f6; }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #475569;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover, .nav-links a.active { color: #3b82f6; }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #3b82f6;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover { background: #dc2626; }
+
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .page-header {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 { color: #1e40af; margin-bottom: 0.5rem; }
+        .page-header p { color: #64748b; }
+
+        .profile-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .section-header h2 {
+            color: #1e40af;
+            font-size: 1.3rem;
+        }
+
+        .edit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .edit-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .cancel-btn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+            margin-left: 0.5rem;
+        }
+
+        .cancel-btn:hover {
+            background: #4b5563;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            color: #1e293b;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .form-group input:disabled,
+        .form-group textarea:disabled {
+            background: #f8fafc;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+
+        .info-display {
+            padding: 0.8rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            color: #1e293b;
+            font-size: 1rem;
+        }
+
+        .info-display.empty {
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        .save-btn {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background 0.3s;
+            width: 100%;
+        }
+
+        .save-btn:hover {
+            background: #16a34a;
+        }
+
+        .save-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .message.success {
+            background: #dcfce7;
+            color: #16a34a;
+            border: 1px solid #22c55e;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #ef4444;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .profile-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .account-info {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .account-info p {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .account-info strong {
+            color: #1e293b;
+        }
+    </style>
+    <script src="js/config.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🏥 Nocturnal Admin</div>
+        <div class="nav-links">
+            <a href="admin-dashboard.html">Dashboard</a>
+            <a href="admin-post-duty.html">Post Duty</a>
+            <a href="admin-applications.html">Applications</a>
+            <a href="admin-analytics.html">Analytics</a>
+            <a href="admin-settings.html">Settings</a>
+            <a href="admin-profile.html" class="active">Profile</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <span id="userName">Loading...</span>
+            <button id="logout-btn" class="logout-btn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>Hospital Profile</h1>
+            <p>Manage your hospital information and contact details</p>
+        </div>
+
+        <div id="messageContainer"></div>
+
+        <div class="profile-section">
+            <div class="section-header">
+                <h2>Hospital Information</h2>
+                <div>
+                    <button id="editBtn" class="edit-btn">Edit Profile</button>
+                    <button id="cancelBtn" class="cancel-btn" style="display: none;">Cancel</button>
+                </div>
+            </div>
+
+            <form id="profileForm">
+                <div class="profile-grid">
+                    <div class="form-group">
+                        <label for="hospitalName">Hospital Name</label>
+                        <input type="text" id="hospitalName" name="hospital" disabled required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="location">Location</label>
+                        <input type="text" id="location" name="location" disabled required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="adminName">Administrator Name</label>
+                        <input type="text" id="adminName" name="name" disabled required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Contact Phone</label>
+                        <input type="tel" id="phone" name="phone" disabled placeholder="Enter phone number">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="address">Full Address</label>
+                    <textarea id="address" name="address" rows="3" disabled placeholder="Enter complete hospital address"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Hospital Description</label>
+                    <textarea id="description" name="description" rows="4" disabled placeholder="Brief description of your hospital, facilities, and services"></textarea>
+                </div>
+
+                <button type="submit" id="saveBtn" class="save-btn" style="display: none;">Save Changes</button>
+            </form>
+
+            <div class="account-info">
+                <p><strong>Account Email:</strong> <span id="emailDisplay">-</span></p>
+                <p><strong>Account Type:</strong> Hospital Administrator</p>
+                <p><strong>User ID:</strong> <span id="userIdDisplay">-</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, signOut, onAuthStateChanged } from './firebase-config.js';
+
+        window.firebaseAuth = auth;
+        window.firebaseSignOut = signOut;
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    localStorage.clear();
+                    window.location.href = 'index.html';
+                }
+            } else {
+                user.getIdToken().then(token => {
+                    localStorage.setItem('token', token);
+                });
+            }
+        });
+    </script>
+
+    <script>
+        let isEditing = false;
+        let originalData = {};
+
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            const userType = localStorage.getItem('userType');
+
+            if (!token || userType !== 'hospital') {
+                window.location.href = 'index.html';
+                return false;
+            }
+            return token;
+        }
+
+        async function logout() {
+            try {
+                localStorage.clear();
+                if (window.firebaseAuth && window.firebaseSignOut) {
+                    await window.firebaseSignOut(window.firebaseAuth);
+                }
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = 'index.html';
+            }
+        }
+
+        function loadUserInfo() {
+            const userName = localStorage.getItem('userName') || 'Administrator';
+            document.getElementById('userName').textContent = userName;
+            document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
+        }
+
+        async function loadProfile() {
+            const token = checkAuth();
+            if (!token) return;
+
+            const userId = localStorage.getItem('userId');
+            const userEmail = localStorage.getItem('userEmail');
+
+            try {
+                const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    const user = data.user;
+                    originalData = { ...user };
+
+                    // Populate form fields
+                    document.getElementById('hospitalName').value = user.hospital || '';
+                    document.getElementById('location').value = user.location || '';
+                    document.getElementById('adminName').value = user.name || '';
+                    document.getElementById('phone').value = user.phone || '';
+                    document.getElementById('address').value = user.address || '';
+                    document.getElementById('description').value = user.description || '';
+
+                    // Display account info
+                    document.getElementById('emailDisplay').textContent = userEmail || user.email || '-';
+                    document.getElementById('userIdDisplay').textContent = userId || '-';
+                } else {
+                    showMessage('Failed to load profile information', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                showMessage('Unable to connect to server. Please try again later.', 'error');
+            }
+        }
+
+        function toggleEditMode(editing) {
+            isEditing = editing;
+
+            const formInputs = document.querySelectorAll('#profileForm input, #profileForm textarea');
+            formInputs.forEach(input => {
+                input.disabled = !editing;
+            });
+
+            document.getElementById('editBtn').style.display = editing ? 'none' : 'inline-block';
+            document.getElementById('cancelBtn').style.display = editing ? 'inline-block' : 'none';
+            document.getElementById('saveBtn').style.display = editing ? 'block' : 'none';
+        }
+
+        function cancelEdit() {
+            // Restore original data
+            document.getElementById('hospitalName').value = originalData.hospital || '';
+            document.getElementById('location').value = originalData.location || '';
+            document.getElementById('adminName').value = originalData.name || '';
+            document.getElementById('phone').value = originalData.phone || '';
+            document.getElementById('address').value = originalData.address || '';
+            document.getElementById('description').value = originalData.description || '';
+
+            toggleEditMode(false);
+            clearMessage();
+        }
+
+        async function saveProfile(event) {
+            event.preventDefault();
+
+            const token = checkAuth();
+            if (!token) return;
+
+            const userId = localStorage.getItem('userId');
+            const formData = {
+                hospital: document.getElementById('hospitalName').value.trim(),
+                location: document.getElementById('location').value.trim(),
+                name: document.getElementById('adminName').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                address: document.getElementById('address').value.trim(),
+                description: document.getElementById('description').value.trim()
+            };
+
+            // Validation
+            if (!formData.hospital || !formData.location || !formData.name) {
+                showMessage('Please fill in all required fields (Hospital Name, Location, Administrator Name)', 'error');
+                return;
+            }
+
+            // Disable save button during update
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    originalData = { ...formData };
+
+                    // Update localStorage
+                    localStorage.setItem('userName', formData.name);
+                    loadUserInfo();
+
+                    showMessage('Profile updated successfully!', 'success');
+                    toggleEditMode(false);
+                } else {
+                    showMessage(data.message || 'Failed to update profile', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                showMessage('Unable to update profile. Please try again.', 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Changes';
+            }
+        }
+
+        function showMessage(text, type) {
+            const container = document.getElementById('messageContainer');
+            container.innerHTML = `<div class="message ${type}">${text}</div>`;
+
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(clearMessage, 5000);
+            }
+        }
+
+        function clearMessage() {
+            document.getElementById('messageContainer').innerHTML = '';
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            loadUserInfo();
+            loadProfile();
+
+            // Event listeners
+            document.getElementById('logout-btn').addEventListener('click', logout);
+            document.getElementById('editBtn').addEventListener('click', () => {
+                toggleEditMode(true);
+                clearMessage();
+            });
+            document.getElementById('cancelBtn').addEventListener('click', cancelEdit);
+            document.getElementById('profileForm').addEventListener('submit', saveProfile);
+        });
+    </script>
+</body>
+</html>

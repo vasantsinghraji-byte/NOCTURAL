@@ -1,0 +1,145 @@
+========================================================================================
+MANUAL STEPS TO ENABLE MONGODB AUTHENTICATION
+========================================================================================
+
+If the PowerShell script doesn't work, follow these manual steps:
+
+STEP 1: OPEN MONGODB CONFIG FILE
+---------------------------------
+1. Open Notepad as Administrator:
+   - Press Windows key
+   - Type "notepad"
+   - Right-click on Notepad
+   - Select "Run as administrator"
+
+2. In Notepad, click File -> Open
+3. Navigate to: C:\Program Files\MongoDB\Server\8.2\bin\
+4. Change file filter to "All Files (*.*)"
+5. Open: mongod.cfg
+
+
+STEP 2: EDIT THE FILE
+---------------------------------
+Find this line (around line 22):
+    #security:
+
+Replace it with (remove the # and add the authorization line):
+    security:
+      authorization: enabled
+
+IMPORTANT: Make sure the indentation is correct! Use 2 spaces for "authorization"
+
+
+STEP 3: SAVE THE FILE
+---------------------------------
+1. Click File -> Save
+2. Close Notepad
+
+
+STEP 4: RESTART MONGODB SERVICE
+---------------------------------
+Option A: Using Command Prompt (as Administrator)
+1. Press Windows key
+2. Type "cmd"
+3. Right-click "Command Prompt"
+4. Select "Run as administrator"
+5. Run these commands:
+   net stop MongoDB
+   net start MongoDB
+
+Option B: Using Services
+1. Press Windows + R
+2. Type "services.msc" and press Enter
+3. Find "MongoDB" in the list
+4. Right-click -> Restart
+
+
+STEP 5: VERIFY SERVICE IS RUNNING
+---------------------------------
+In Command Prompt, run:
+   netstat -an | findstr :27017
+
+You should see:
+   TCP    127.0.0.1:27017        0.0.0.0:0              LISTENING
+
+
+STEP 6: UPDATE .ENV FILES
+---------------------------------
+Edit these files and replace "CHANGE_THIS_PASSWORD" with actual passwords:
+
+File: .env
+Replace: mongodb://nocturnaldev:CHANGE_THIS_PASSWORD@localhost:27017/nocturnal_dev?authSource=admin
+With:    mongodb://nocturnaldev:DevPass2025!ChangeMe@localhost:27017/nocturnal_dev?authSource=admin
+
+File: .env.development
+Replace: mongodb://nocturnaldev:CHANGE_THIS_PASSWORD@localhost:27017/nocturnal_dev?authSource=admin
+With:    mongodb://nocturnaldev:DevPass2025!ChangeMe@localhost:27017/nocturnal_dev?authSource=admin
+
+File: backend/.env
+Replace: mongodb://nocturnaldev:CHANGE_THIS_PASSWORD@localhost:27017/nocturnal_dev?authSource=admin
+With:    mongodb://nocturnaldev:DevPass2025!ChangeMe@localhost:27017/nocturnal_dev?authSource=admin
+
+
+STEP 7: TEST CONNECTION
+---------------------------------
+Run: node test-mongo-connection.js
+
+You should see: "✓ Successfully connected to MongoDB with authentication!"
+
+
+========================================================================================
+CREATED USER CREDENTIALS
+========================================================================================
+
+Admin User:
+  Username: admin
+  Password: NocturnalAdmin2025!Secure
+  Database: admin
+  Use for: Database administration
+
+Development User:
+  Username: nocturnaldev
+  Password: DevPass2025!ChangeMe
+  Database: nocturnal_dev
+  Use for: Development environment
+
+Production User:
+  Username: nocturnalprod
+  Password: ProdPass2025!VeryStrong
+  Database: nocturnal_prod
+  Use for: Production environment
+
+
+========================================================================================
+TROUBLESHOOTING
+========================================================================================
+
+Problem: MongoDB service won't start
+Solution: Check the log file at: C:\Program Files\MongoDB\Server\8.2\log\mongod.log
+          Look for syntax errors in mongod.cfg
+
+Problem: "Authentication failed" error
+Solution: - Verify username/password are correct
+          - Check the database name matches
+          - Ensure authSource=admin is in connection string
+
+Problem: Can't edit mongod.cfg
+Solution: Make sure you're running Notepad as Administrator
+
+Problem: Connection timeout
+Solution: - Verify MongoDB service is running
+          - Check: netstat -an | findstr :27017
+          - Make sure localhost/127.0.0.1 is accessible
+
+
+========================================================================================
+SECURITY REMINDERS
+========================================================================================
+
+⚠ CHANGE DEFAULT PASSWORDS - These are example passwords!
+⚠ STORE PASSWORDS SECURELY - Use a password manager
+⚠ USE DIFFERENT PASSWORDS - Dev and prod should be different
+⚠ ROTATE REGULARLY - Change passwords periodically
+⚠ DON'T COMMIT .ENV - Already in .gitignore
+
+========================================================================================

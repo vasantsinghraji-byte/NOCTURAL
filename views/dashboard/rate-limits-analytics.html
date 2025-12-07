@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Limit Analytics - Nocturnal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment"></script>
+    <style>
+        .nav-tabs .nav-link.active {
+            font-weight: bold;
+            border-bottom: 3px solid #0d6efd;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 1rem;
+        }
+        .metric-card {
+            border-radius: 8px;
+            border: 1px solid rgba(0,0,0,.125);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: white;
+        }
+        .metric-title {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        .metric-trend {
+            font-size: 0.8rem;
+        }
+        .trend-up { color: #dc3545; }
+        .trend-down { color: #198754; }
+        .heat-map {
+            display: grid;
+            grid-template-columns: repeat(24, 1fr);
+            gap: 1px;
+            margin: 1rem 0;
+        }
+        .heat-cell {
+            aspect-ratio: 1;
+            border-radius: 2px;
+        }
+        .time-label {
+            font-size: 0.7rem;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row align-items-center mb-4">
+            <div class="col">
+                <h2>Rate Limit Analytics</h2>
+                <p class="text-muted mb-0">
+                    Detailed analysis and trends
+                    <span class="ms-2">
+                        Last updated: <span id="lastUpdate">-</span>
+                    </span>
+                </p>
+            </div>
+            <div class="col-auto">
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary" onclick="setTimeRange('24h')">24h</button>
+                    <button class="btn btn-outline-primary" onclick="setTimeRange('7d')">7d</button>
+                    <button class="btn btn-outline-primary" onclick="setTimeRange('30d')">30d</button>
+                </div>
+                <button class="btn btn-primary ms-2" onclick="refreshData()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Key Metrics Row -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-title">Average Block Rate</div>
+                    <div class="metric-value" id="avgBlockRate">-%</div>
+                    <div class="metric-trend">
+                        <span id="blockRateTrend"></span> vs previous period
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-title">Unique Blocked IPs</div>
+                    <div class="metric-value" id="uniqueBlockedIPs">-</div>
+                    <div class="metric-trend">
+                        <span id="blockedIPsTrend"></span> new in last 24h
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-title">Most Affected Endpoint</div>
+                    <div class="metric-value" id="topEndpoint">-</div>
+                    <div class="metric-trend" id="topEndpointRate"></div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-title">Peak Request Rate</div>
+                    <div class="metric-value" id="peakRate">-</div>
+                    <div class="metric-trend" id="peakTime"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-tabs mb-4" id="analyticsTabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="trends-tab" data-bs-toggle="tab" href="#trends">Trends & Patterns</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="endpoints-tab" data-bs-toggle="tab" href="#endpoints">Endpoint Analysis</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="geo-tab" data-bs-toggle="tab" href="#geo">Geographic Distribution</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="anomalies-tab" data-bs-toggle="tab" href="#anomalies">Anomaly Detection</a>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="analyticsContent">
+            <!-- Trends & Patterns Tab -->
+            <div class="tab-pane fade show active" id="trends">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Request Rate Over Time</h5>
+                                <div class="chart-container">
+                                    <canvas id="requestTrendChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Daily Traffic Pattern</h5>
+                                <div class="heat-map" id="trafficHeatmap"></div>
+                                <div class="time-labels d-flex justify-content-between">
+                                    <span class="time-label">00:00</span>
+                                    <span class="time-label">06:00</span>
+                                    <span class="time-label">12:00</span>
+                                    <span class="time-label">18:00</span>
+                                    <span class="time-label">23:59</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Rate Limit Distribution</h5>
+                                <div class="chart-container">
+                                    <canvas id="distributionChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Block Rate Correlation</h5>
+                                <div class="chart-container">
+                                    <canvas id="correlationChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Endpoint Analysis Tab -->
+            <div class="tab-pane fade" id="endpoints">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Endpoint Performance Overview</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Endpoint</th>
+                                                <th>Total Requests</th>
+                                                <th>Block Rate</th>
+                                                <th>Avg Response Time</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="endpointTable">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Endpoint Block Rate Timeline</h5>
+                                <div class="chart-container">
+                                    <canvas id="endpointTimelineChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Top Blocked Endpoints</h5>
+                                <div class="chart-container">
+                                    <canvas id="topBlockedChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Endpoint Health Scores</h5>
+                                <div id="endpointScores">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Geographic Distribution Tab -->
+            <div class="tab-pane fade" id="geo">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Global Request Distribution</h5>
+                                <div id="worldMap" style="height: 400px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Top Countries</h5>
+                                <div id="countryList"></div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Regional Block Rates</h5>
+                                <div class="chart-container">
+                                    <canvas id="regionalBlockChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Anomaly Detection Tab -->
+            <div class="tab-pane fade" id="anomalies">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Anomaly Timeline</h5>
+                                <div class="chart-container">
+                                    <canvas id="anomalyChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Recent Anomalies</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Time</th>
+                                                <th>Type</th>
+                                                <th>Description</th>
+                                                <th>Severity</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="anomalyTable">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Anomaly Distribution</h5>
+                                <div class="chart-container">
+                                    <canvas id="anomalyTypeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Detection Settings</h5>
+                                <form id="anomalySettings">
+                                    <div class="mb-3">
+                                        <label class="form-label">Sensitivity</label>
+                                        <select class="form-select" id="sensitivity">
+                                            <option value="low">Low</option>
+                                            <option value="medium" selected>Medium</option>
+                                            <option value="high">High</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Analysis Window</label>
+                                        <select class="form-select" id="window">
+                                            <option value="1h">1 Hour</option>
+                                            <option value="6h" selected>6 Hours</option>
+                                            <option value="24h">24 Hours</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Update Settings</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentTimeRange = '24h';
+        let charts = {};
+
+        // Initialize all charts
+        function initCharts() {
+            // Request Trend Chart
+            charts.requestTrend = new Chart(
+                document.getElementById('requestTrendChart').getContext('2d'),
+                {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Total Requests',
+                            borderColor: '#0d6efd',
+                            data: []
+                        }, {
+                            label: 'Blocked Requests',
+                            borderColor: '#dc3545',
+                            data: []
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        }
+                    }
+                }
+            );
+
+            // Distribution Chart
+            charts.distribution = new Chart(
+                document.getElementById('distributionChart').getContext('2d'),
+                {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Allowed', 'Rate Limited', 'Blocked'],
+                        datasets: [{
+                            data: [0, 0, 0],
+                            backgroundColor: ['#198754', '#ffc107', '#dc3545']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                }
+            );
+
+            // Initialize other charts similarly...
+        }
+
+        // Fetch and update data
+        async function fetchData() {
+            try {
+                const response = await fetch(`/api/admin/metrics/rate-limits/detailed?timeRange=${currentTimeRange}`);
+                const data = await response.json();
+                updateDashboard(data);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        // Update dashboard with new data
+        function updateDashboard(data) {
+            // Update metrics
+            document.getElementById('avgBlockRate').textContent = 
+                `${(data.metrics.avgBlockRate * 100).toFixed(1)}%`;
+            document.getElementById('uniqueBlockedIPs').textContent = 
+                data.metrics.uniqueBlockedIPs;
+            
+            // Update charts
+            updateCharts(data);
+            
+            // Update tables
+            updateTables(data);
+            
+            // Update last update time
+            document.getElementById('lastUpdate').textContent = 
+                new Date().toLocaleString();
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            fetchData();
+            // Refresh every 5 minutes
+            setInterval(fetchData, 300000);
+        });
+
+        // Time range selector
+        function setTimeRange(range) {
+            currentTimeRange = range;
+            fetchData();
+        }
+
+        // Manual refresh
+        function refreshData() {
+            fetchData();
+        }
+    </script>
+</body>
+</html>

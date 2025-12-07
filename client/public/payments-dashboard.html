@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earnings & Payments - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #5B8DBE;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --light: #f8f9fa;
+            --dark: #2C3E50;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #E8EAF6 0%, #C5CAE9 50%, #D1C4E9 100%);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #475569;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .page-header {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .page-header p {
+            color: #666;
+            font-size: 1.05rem;
+        }
+
+        /* Summary Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .summary-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), #764ba2);
+        }
+
+        .summary-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .icon-green {
+            background: #d4edda;
+            color: var(--success);
+        }
+
+        .icon-blue {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .icon-orange {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .icon-purple {
+            background: #e8d5f5;
+            color: #6f42c1;
+        }
+
+        .summary-label {
+            font-size: 0.95rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .summary-detail {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: white;
+            padding: 1rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .tab {
+            padding: 1rem 2rem;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Content Cards */
+        .content-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-select {
+            padding: 0.5rem 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+
+        /* Payment History Table */
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .payment-table thead {
+            background: #f8f9fa;
+        }
+
+        .payment-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--dark);
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .payment-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .payment-table tbody tr {
+            transition: background 0.3s;
+        }
+
+        .payment-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.75rem;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: inline-block;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-processing {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .amount-paid {
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .amount-pending {
+            font-weight: 700;
+            color: var(--warning);
+        }
+
+        .btn-view {
+            padding: 0.5rem 1rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-view:hover {
+            background: #4A7099;
+            transform: translateY(-2px);
+        }
+
+        /* Bank Details Card */
+        .bank-info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .bank-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bank-label {
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .bank-value {
+            font-size: 1.05rem;
+            color: var(--dark);
+            padding: 0.75rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .verification-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: #d4edda;
+            border: 2px solid var(--success);
+            color: var(--success);
+            border-radius: 10px;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        /* Earnings Chart */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 1.5rem 0;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+
+        .no-data i {
+            font-size: 3rem;
+            color: #ccc;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .bank-info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .payment-table {
+                font-size: 0.85rem;
+            }
+
+            .payment-table th,
+            .payment-table td {
+                padding: 0.75rem 0.5rem;
+            }
+        }
+    </style>
+    <script src="js/config.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🌙 Nocturnal</div>
+        <div class="nav-links">
+            <a href="doctor-dashboard.html">Dashboard</a>
+            <a href="browse-duties.html">Browse Shifts</a>
+            <a href="calendar.html">Calendar</a>
+            <a href="payments-dashboard.html" class="active">Earnings</a>
+            <a href="doctor-profile.html">Profile</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-wallet"></i> Earnings & Payments</h1>
+            <p>Track your income, payment history, and manage bank details</p>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-icon icon-green">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <div class="summary-label">THIS MONTH</div>
+                <div class="summary-value" id="thisMonthEarnings">₹0</div>
+                <div class="summary-detail"><span id="thisMonthShifts">0</span> shifts completed</div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-icon icon-blue">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="summary-label">TOTAL EARNED</div>
+                <div class="summary-value" id="totalEarnings">₹0</div>
+                <div class="summary-detail">All time earnings</div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-icon icon-orange">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="summary-label">PENDING PAYMENTS</div>
+                <div class="summary-value" id="pendingPayments">₹0</div>
+                <div class="summary-detail"><span id="pendingCount">0</span> pending</div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-icon icon-purple">
+                    <i class="fas fa-calculator"></i>
+                </div>
+                <div class="summary-label">AVERAGE PER SHIFT</div>
+                <div class="summary-value" id="avgPerShift">₹0</div>
+                <div class="summary-detail">Based on completed shifts</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('history')">
+                <i class="fas fa-history"></i> Payment History
+            </button>
+            <button class="tab" onclick="switchTab('bank')">
+                <i class="fas fa-university"></i> Bank Details
+            </button>
+            <button class="tab" onclick="switchTab('summary')">
+                <i class="fas fa-file-invoice"></i> Tax Summary
+            </button>
+        </div>
+
+        <!-- Payment History Tab -->
+        <div id="historyTab" class="tab-content">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-list"></i>
+                        Payment History
+                    </h2>
+                    <select class="filter-select" id="monthFilter" onchange="filterPayments()">
+                        <option value="all">All Time</option>
+                        <option value="3">Last 3 Months</option>
+                        <option value="6">Last 6 Months</option>
+                        <option value="12">Last 12 Months</option>
+                    </select>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="payment-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Hospital</th>
+                                <th>Shift Details</th>
+                                <th>Gross Amount</th>
+                                <th>Platform Fee</th>
+                                <th>Net Amount</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentTableBody">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="no-data" id="noPayments" style="display: none;">
+                    <i class="fas fa-receipt"></i>
+                    <h3>No payments yet</h3>
+                    <p>Your payment history will appear here once you complete shifts</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bank Details Tab -->
+        <div id="bankTab" class="tab-content" style="display: none;">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-university"></i>
+                        Bank Account Details
+                    </h2>
+                    <button class="btn-view" onclick="window.location.href='doctor-profile.html'">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                </div>
+
+                <div class="bank-info-grid">
+                    <div class="bank-field">
+                        <div class="bank-label">Account Holder Name</div>
+                        <div class="bank-value" id="bankAccountHolder">-</div>
+                    </div>
+                    <div class="bank-field">
+                        <div class="bank-label">Account Number</div>
+                        <div class="bank-value" id="bankAccountNumber">-</div>
+                    </div>
+                    <div class="bank-field">
+                        <div class="bank-label">IFSC Code</div>
+                        <div class="bank-value" id="bankIfsc">-</div>
+                    </div>
+                    <div class="bank-field">
+                        <div class="bank-label">Bank Name</div>
+                        <div class="bank-value" id="bankName">-</div>
+                    </div>
+                </div>
+
+                <div class="verification-badge" id="bankVerifiedBadge" style="display: none;">
+                    <i class="fas fa-check-circle"></i>
+                    Bank account verified
+                </div>
+            </div>
+        </div>
+
+        <!-- Tax Summary Tab -->
+        <div id="summaryTab" class="tab-content" style="display: none;">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        Tax & Earnings Summary
+                    </h2>
+                    <select class="filter-select" id="taxYearFilter" onchange="loadTaxSummary()">
+                        <option value="2025">FY 2025-26</option>
+                        <option value="2024">FY 2024-25</option>
+                        <option value="2023">FY 2023-24</option>
+                    </select>
+                </div>
+
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="summary-label">TOTAL GROSS INCOME</div>
+                        <div class="summary-value" id="taxGrossIncome">₹0</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">PLATFORM FEES PAID</div>
+                        <div class="summary-value" id="taxPlatformFees">₹0</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">NET INCOME</div>
+                        <div class="summary-value" id="taxNetIncome">₹0</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">TOTAL SHIFTS</div>
+                        <div class="summary-value" id="taxTotalShifts">0</div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="earningsChart"></canvas>
+                </div>
+
+                <div style="text-align: center; margin-top: 2rem;">
+                    <button class="btn-view" onclick="downloadTaxSummary()">
+                        <i class="fas fa-download"></i> Download Tax Summary (PDF)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const API_URL = 'http://localhost:5000/api/v1';
+        let allPayments = [];
+        let currentUser = null;
+        let earningsChart = null;
+
+        // Check authentication
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/index.html';
+                return null;
+            }
+            return token;
+        }
+
+        // Load user data
+        async function loadUser() {
+            const token = checkAuth();
+            try {
+                const response = await fetch(`${API_URL}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    currentUser = data.user;
+                    displayBankDetails();
+                }
+            } catch (error) {
+                console.error('Error loading user:', error);
+            }
+        }
+
+        // Load earnings summary
+        async function loadEarningsSummary() {
+            const token = checkAuth();
+            try {
+                const response = await fetch(`${API_URL}/payments/earnings`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    displayEarningsSummary(data.data);
+                }
+            } catch (error) {
+                console.error('Error loading earnings:', error);
+            }
+        }
+
+        // Load payment history
+        async function loadPaymentHistory() {
+            const token = checkAuth();
+            try {
+                const response = await fetch(`${API_URL}/payments/history`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    allPayments = data.data.payments || [];
+                    filterPayments();
+                }
+            } catch (error) {
+                console.error('Error loading payments:', error);
+            }
+        }
+
+        // Display earnings summary
+        function displayEarningsSummary(summary) {
+            document.getElementById('totalEarnings').textContent = `₹${(summary.totalNet || 0).toLocaleString()}`;
+            document.getElementById('pendingPayments').textContent = `₹${(summary.pendingAmount || 0).toLocaleString()}`;
+            document.getElementById('pendingCount').textContent = summary.pendingCount || 0;
+
+            const avgPerShift = summary.totalShifts > 0 ? Math.round(summary.totalNet / summary.totalShifts) : 0;
+            document.getElementById('avgPerShift').textContent = `₹${avgPerShift.toLocaleString()}`;
+
+            // Calculate this month
+            const now = new Date();
+            const thisMonthPayments = allPayments.filter(p => {
+                const paymentDate = new Date(p.shiftDate);
+                return paymentDate.getMonth() === now.getMonth() &&
+                       paymentDate.getFullYear() === now.getFullYear() &&
+                       p.status === 'COMPLETED';
+            });
+
+            const thisMonthTotal = thisMonthPayments.reduce((sum, p) => sum + (p.netAmount || 0), 0);
+            document.getElementById('thisMonthEarnings').textContent = `₹${thisMonthTotal.toLocaleString()}`;
+            document.getElementById('thisMonthShifts').textContent = thisMonthPayments.length;
+        }
+
+        // Filter and display payments
+        function filterPayments() {
+            const monthFilter = document.getElementById('monthFilter').value;
+            let filtered = [...allPayments];
+
+            if (monthFilter !== 'all') {
+                const months = parseInt(monthFilter);
+                const cutoffDate = new Date();
+                cutoffDate.setMonth(cutoffDate.getMonth() - months);
+
+                filtered = filtered.filter(p => new Date(p.shiftDate) >= cutoffDate);
+            }
+
+            displayPayments(filtered);
+        }
+
+        // Display payments table
+        function displayPayments(payments) {
+            const tbody = document.getElementById('paymentTableBody');
+            const noPayments = document.getElementById('noPayments');
+
+            if (payments.length === 0) {
+                tbody.innerHTML = '';
+                noPayments.style.display = 'block';
+                return;
+            }
+
+            noPayments.style.display = 'none';
+
+            tbody.innerHTML = payments.map(payment => {
+                const date = new Date(payment.shiftDate);
+                const paidDate = payment.paidAt ? new Date(payment.paidAt) : null;
+
+                let statusHTML = '';
+                if (payment.status === 'COMPLETED') {
+                    statusHTML = `<span class="status-badge status-completed">
+                        <i class="fas fa-check-circle"></i> Paid on ${paidDate.toLocaleDateString()}
+                    </span>`;
+                } else if (payment.status === 'PENDING') {
+                    statusHTML = `<span class="status-badge status-pending">
+                        <i class="fas fa-clock"></i> Pending
+                    </span>`;
+                } else if (payment.status === 'PROCESSING') {
+                    statusHTML = `<span class="status-badge status-processing">
+                        <i class="fas fa-sync"></i> Processing
+                    </span>`;
+                }
+
+                return `
+                    <tr>
+                        <td>${date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                        <td>${payment.duty?.hospitalName || 'Hospital'}</td>
+                        <td>
+                            <div>${payment.duty?.specialty || 'Shift'}</div>
+                            <div style="font-size: 0.85rem; color: #666;">${payment.hours || 0} hours</div>
+                        </td>
+                        <td>₹${(payment.grossAmount || 0).toLocaleString()}</td>
+                        <td style="color: var(--danger);">-₹${(payment.platformFee || 0).toLocaleString()}</td>
+                        <td class="${payment.status === 'COMPLETED' ? 'amount-paid' : 'amount-pending'}">
+                            ₹${(payment.netAmount || 0).toLocaleString()}
+                        </td>
+                        <td>${statusHTML}</td>
+                        <td>
+                            <button class="btn-view" onclick="viewPayment('${payment._id}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Display bank details
+        function displayBankDetails() {
+            if (!currentUser || !currentUser.bankDetails) return;
+
+            const bd = currentUser.bankDetails;
+            document.getElementById('bankAccountHolder').textContent = bd.accountHolderName || '-';
+            document.getElementById('bankAccountNumber').textContent = bd.accountNumber ? `****${bd.accountNumber.slice(-4)}` : '-';
+            document.getElementById('bankIfsc').textContent = bd.ifscCode || '-';
+            document.getElementById('bankName').textContent = bd.bankName || '-';
+
+            if (bd.verified) {
+                document.getElementById('bankVerifiedBadge').style.display = 'flex';
+            }
+        }
+
+        // Load tax summary
+        async function loadTaxSummary() {
+            const token = checkAuth();
+            const year = document.getElementById('taxYearFilter').value;
+
+            try {
+                const response = await fetch(`${API_URL}/payments/earnings/monthly/${year}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    displayTaxSummary(data.data);
+                }
+            } catch (error) {
+                console.error('Error loading tax summary:', error);
+            }
+        }
+
+        // Display tax summary
+        function displayTaxSummary(monthlyData) {
+            const totalGross = monthlyData.reduce((sum, m) => sum + m.totalGross, 0);
+            const totalNet = monthlyData.reduce((sum, m) => sum + m.totalNet, 0);
+            const totalFees = totalGross - totalNet;
+            const totalShifts = monthlyData.reduce((sum, m) => sum + m.totalShifts, 0);
+
+            document.getElementById('taxGrossIncome').textContent = `₹${totalGross.toLocaleString()}`;
+            document.getElementById('taxNetIncome').textContent = `₹${totalNet.toLocaleString()}`;
+            document.getElementById('taxPlatformFees').textContent = `₹${totalFees.toLocaleString()}`;
+            document.getElementById('taxTotalShifts').textContent = totalShifts;
+
+            // Create chart
+            createEarningsChart(monthlyData);
+        }
+
+        // Create earnings chart
+        function createEarningsChart(monthlyData) {
+            const ctx = document.getElementById('earningsChart').getContext('2d');
+
+            if (earningsChart) {
+                earningsChart.destroy();
+            }
+
+            const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const earnings = monthlyData.map(m => m.totalNet || 0);
+
+            earningsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Net Earnings (₹)',
+                        data: earnings,
+                        backgroundColor: 'rgba(91, 141, 190, 0.8)',
+                        borderColor: 'rgba(91, 141, 190, 1)',
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₹' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Switch tabs
+        window.switchTab = function(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+            if (tab === 'history') {
+                document.getElementById('historyTab').style.display = 'block';
+            } else if (tab === 'bank') {
+                document.getElementById('bankTab').style.display = 'block';
+            } else if (tab === 'summary') {
+                document.getElementById('summaryTab').style.display = 'block';
+                loadTaxSummary();
+            }
+        };
+
+        // View payment details
+        window.viewPayment = function(paymentId) {
+            alert('Payment details for: ' + paymentId);
+            // You can create a modal or redirect to a details page
+        };
+
+        // Download tax summary
+        window.downloadTaxSummary = function() {
+            alert('Tax summary PDF download feature coming soon!');
+        };
+
+        // Initialize
+        window.filterPayments = filterPayments;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadUser();
+            await loadPaymentHistory();
+            await loadEarningsSummary();
+        });
+    </script>
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

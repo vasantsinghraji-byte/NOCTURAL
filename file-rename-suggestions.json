@@ -1,0 +1,224 @@
+[
+  {
+    "dir": "routes",
+    "old": "achievements.js",
+    "new": "achievements.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "analytics.js",
+    "new": "analytics.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "applications.js",
+    "new": "applications.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "auth.js",
+    "new": "auth.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "calendar.js",
+    "new": "calendar.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "certifications.js",
+    "new": "certifications.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "duties-paginated-example.js",
+    "new": "dutiesPaginatedExample.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "duties.js",
+    "new": "duties.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "earnings.js",
+    "new": "earnings.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "messaging.js",
+    "new": "messaging.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "notifications.js",
+    "new": "notifications.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "payments.js",
+    "new": "payments.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "reviews.js",
+    "new": "reviews.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes",
+    "old": "uploads.js",
+    "new": "uploads.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes\\admin",
+    "old": "metrics.js",
+    "new": "metrics.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "routes\\v1",
+    "old": "index.js",
+    "new": "index.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "models",
+    "old": "achievement.js",
+    "new": "achievement.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "models",
+    "old": "analytics.js",
+    "new": "analytics.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "models",
+    "old": "application.js",
+    "new": "application.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "models",
+    "old": "availability.js",
+    "new": "availability.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "models",
+    "old": "certification.js",
+    "new": "certification.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "models",
+    "old": "duty.js",
+    "new": "duty.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "models",
+    "old": "earning.js",
+    "new": "earning.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "models",
+    "old": "message.js",
+    "new": "message.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "models",
+    "old": "notification.js",
+    "new": "notification.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "models",
+    "old": "payment.js",
+    "new": "payment.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "models",
+    "old": "review.js",
+    "new": "review.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "models",
+    "old": "user.js",
+    "new": "user.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "middleware",
+    "old": "auth.js",
+    "new": "auth.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "middleware",
+    "old": "upload.js",
+    "new": "upload.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "middleware",
+    "old": "validation.js",
+    "new": "validation.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "config",
+    "old": "database.js",
+    "new": "database.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "config",
+    "old": "environments.js",
+    "new": "environments.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "utils",
+    "old": "encryption.js",
+    "new": "encryption.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "utils",
+    "old": "logger.js",
+    "new": "logger.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "utils",
+    "old": "monitoring.js",
+    "new": "monitoring.js",
+    "reason": "Backend files should use camelCase"
+  },
+  {
+    "dir": "utils",
+    "old": "pagination.js",
+    "new": "pagination.js",
+    "reason": "Backend files should use camelCase"
+  }
+]
