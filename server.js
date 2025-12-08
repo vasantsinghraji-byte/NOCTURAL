@@ -52,8 +52,6 @@ try {
   process.exit(1);
 }
 
-console.log('🔍 DEBUG: Passed validation block');
-
 // Catch any unhandled errors
 process.on('uncaughtException', (err) => {
   console.error('💥 UNCAUGHT EXCEPTION:', err.message);
@@ -65,19 +63,14 @@ process.on('unhandledRejection', (reason) => {
   console.error('💥 UNHANDLED REJECTION:', reason);
 });
 
-console.log('🔄 Loading API versioning...');
 // Import API versioning
 const { redirectToLatestVersion, getVersions } = require('./middleware/apiVersion');
-console.log('🔄 Loading v1 routes...');
 const v1Routes = require('./routes/v1');
-console.log('🔄 Loading error handler...');
 
 // Import error handler
 const errorHandler = require('./middleware/errorHandler');
-console.log('🔄 Creating Express app...');
 
 const app = express();
-console.log('✅ Express app created');
 
 // ============================================================================
 // ENHANCED SECURITY MIDDLEWARE - Enterprise-Grade Protection
