@@ -80,63 +80,28 @@ const connectDB = async () => {
       throw new Error('MONGODB_URI environment variable is not set');
     }
 
-    // Calculate optimal pool size based on environment and CPU cores
-    const numCPUs = require('os').cpus().length;
-    const optimalPoolSize = process.env.NODE_ENV === 'production'
-      ? Math.max(10, numCPUs * 2)  // Production: scale with CPUs
-      : 10;                         // Development: keep it simple
+    // Log connection attempt (mask password)
+    const maskedUri = process.env.MONGODB_URI.replace(/:([^@]+)@/, ':****@');
+    console.log('🔌 Attempting MongoDB connection to:', maskedUri);
 
+    // Simplified options for MongoDB Atlas compatibility
     const options = {
-      // Authentication settings
-      authSource: process.env.MONGODB_AUTH_SOURCE || undefined,
-      authMechanism: process.env.MONGODB_AUTH_MECHANISM || undefined, // SCRAM-SHA-1, SCRAM-SHA-256, MONGODB-X509
-
-      // Connection pool settings
-      maxPoolSize: optimalPoolSize,
-      minPoolSize: Math.min(5, optimalPoolSize / 2),
-      serverSelectionTimeoutMS: 5000,
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      serverSelectionTimeoutMS: 30000, // Increased for cloud connections
       socketTimeoutMS: 45000,
-      family: 4,
-      autoIndex: process.env.NODE_ENV !== 'production', // Disable automatic indexing in production
-      connectTimeoutMS: 10000,
-
-      // Read Preference Strategy
-      // For replica sets: use primaryPreferred to distribute reads to secondaries when available
-      // Options: primary, primaryPreferred, secondary, secondaryPreferred, nearest
-      readPreference: process.env.MONGODB_READ_PREFERENCE || 'primaryPreferred',
-
-      // Read Preference Tags (for geo-distributed replica sets)
-      readPreferenceTags: process.env.MONGODB_READ_TAGS ?
-        JSON.parse(process.env.MONGODB_READ_TAGS) : undefined,
-
-      // Max staleness for secondary reads (in seconds)
-      maxStalenessSeconds: parseInt(process.env.MONGODB_MAX_STALENESS) || 90,
-
-      // Write Concern Configuration
-      writeConcern: {
-        w: process.env.MONGODB_WRITE_CONCERN_W || 'majority', // Write to majority of replica set
-        wtimeout: parseInt(process.env.MONGODB_WRITE_CONCERN_TIMEOUT) || 5000, // Wait max 5s for write acknowledgment
-        j: process.env.NODE_ENV === 'production' // Journal writes in production for durability
-      },
-
-      // Read Concern (data consistency)
-      readConcern: {
-        level: process.env.MONGODB_READ_CONCERN || 'majority' // majority, local, available
-      },
-
-      // Retry writes on transient errors
+      connectTimeoutMS: 30000, // Increased for cloud connections
       retryWrites: true,
-      retryReads: true,
-
-      // Compression for network traffic (snappy removed - not installed)
-      compressors: ['zlib']
+      retryReads: true
     };
 
     await mongoose.connect(process.env.MONGODB_URI, options);
 
     isConnected = true;
     reconnectAttempts = 0; // Reset reconnect attempts on successful connection
-    
+
+    console.log('✅ MongoDB Connected successfully to:', process.env.MONGODB_URI.split('@')[1]?.split('/')[0] || 'database');
+
     logger.info('MongoDB Connected', {
       host: process.env.MONGODB_URI.split('@')[1] || 'local',
       poolSize: options.maxPoolSize,
@@ -215,6 +180,7 @@ const connectDB = async () => {
     }, HEALTH_CHECK_INTERVAL);
 
   } catch (error) {
+    console.error('❌ MongoDB connection error:', error.message);
     logger.error('MongoDB connection error', {
       error: error.message,
       stack: error.stack
