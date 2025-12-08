@@ -52,6 +52,19 @@ try {
   process.exit(1);
 }
 
+console.log('🔍 DEBUG: Passed validation block');
+
+// Catch any unhandled errors
+process.on('uncaughtException', (err) => {
+  console.error('💥 UNCAUGHT EXCEPTION:', err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('💥 UNHANDLED REJECTION:', reason);
+});
+
 console.log('🔄 Loading API versioning...');
 // Import API versioning
 const { redirectToLatestVersion, getVersions } = require('./middleware/apiVersion');
