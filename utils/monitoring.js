@@ -1,4 +1,45 @@
+/**
+ * Application Monitoring Utility
+ *
+ * Provides error tracking, alerting, and integration with Sentry.
+ * Automatically tracks error counts and triggers alerts when thresholds are exceeded.
+ *
+ * @module utils/monitoring
+ *
+ * Usage:
+ *   const monitoring = require('./utils/monitoring');
+ *   monitoring.trackError('authentication', error, { userId: '123' });
+ *   const stats = monitoring.getStats();
+ *
+ * Configuration:
+ *   Set SENTRY_DSN environment variable to enable Sentry integration
+ */
+
 const logger = require('./logger');
+
+// Sentry Integration (optional - only if SENTRY_DSN is configured)
+let Sentry = null;
+if (process.env.SENTRY_DSN) {
+  try {
+    Sentry = require('@sentry/node');
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      environment: process.env.NODE_ENV || 'development',
+      tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+      beforeSend(event) {
+        // Filter out sensitive data
+        if (event.request && event.request.headers) {
+          delete event.request.headers.authorization;
+          delete event.request.headers.cookie;
+        }
+        return event;
+      }
+    });
+    console.log('✅ Sentry monitoring initialized');
+  } catch (e) {
+    console.log('ℹ️  Sentry not installed - error tracking disabled');
+  }
+}
 
 // Track error counts for monitoring
 const errorCounts = {
@@ -41,6 +82,16 @@ const monitoring = {
       ...context
     });
 
+    // Send to Sentry if configured
+    if (Sentry) {
+      Sentry.withScope(scope => {
+        scope.setTag('error_type', type);
+        scope.setExtra('context', context);
+        scope.setExtra('count', errorCounts[type]);
+        Sentry.captureException(error);
+      });
+    }
+
     // Check if we've hit the threshold
     if (errorCounts[type] >= ERROR_THRESHOLDS[type]) {
       monitoring.triggerAlert(type, errorCounts[type], context);
@@ -56,8 +107,10 @@ const monitoring = {
       ...context
     });
 
-    // TODO: Implement your alert mechanism (email, SMS, Slack, etc.)
-    // For now, we'll just log it
+    // Send alert to Sentry as critical
+    if (Sentry) {
+      Sentry.captureMessage(`Alert: ${type} errors exceeded threshold (${count}/${ERROR_THRESHOLDS[type]})`, 'fatal');
+    }
   },
 
   // Get current error statistics

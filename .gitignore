@@ -51,6 +51,7 @@ dist/
 build/
 
 # Backups
+backups/
 *_backup_*.tar.gz
 backend_backup_*.tar.gz
 

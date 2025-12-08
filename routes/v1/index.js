@@ -69,14 +69,46 @@ router.use('/patients', patientRoutes);
 router.use('/bookings', bookingRoutes);
 router.use('/payments-b2c', b2cPaymentRoutes);
 
-// Health check (version-specific)
-router.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
+// Health check (version-specific) - Used by Uptime Robot and monitoring services
+router.get('/health', async (req, res) => {
+  const mongoose = require('mongoose');
+  const os = require('os');
+
+  // Check database connection
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+
+  // Memory usage
+  const memUsage = process.memoryUsage();
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+
+  // Uptime
+  const uptime = process.uptime();
+
+  const health = {
+    status: dbStatus === 'connected' ? 'healthy' : 'degraded',
     version: 'v1',
-    message: 'API v1 is running',
-    timestamp: new Date().toISOString()
-  });
+    timestamp: new Date().toISOString(),
+    uptime: {
+      seconds: Math.floor(uptime),
+      formatted: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${Math.floor(uptime % 60)}s`
+    },
+    database: {
+      status: dbStatus,
+      name: mongoose.connection.name || 'unknown'
+    },
+    memory: {
+      heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+      heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
+      systemFree: `${Math.round(freeMem / 1024 / 1024)}MB`,
+      systemTotal: `${Math.round(totalMem / 1024 / 1024)}MB`
+    },
+    environment: process.env.NODE_ENV || 'development'
+  };
+
+  // Return 503 if database is down (for monitoring alerts)
+  const statusCode = health.status === 'healthy' ? 200 : 503;
+  res.status(statusCode).json(health);
 });
 
 module.exports = router;
