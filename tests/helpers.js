@@ -5,9 +5,9 @@
 
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const Duty = require('../models/Duty');
-const Application = require('../models/Application');
+const User = require('../models/user');
+const Duty = require('../models/duty');
+const Application = require('../models/application');
 
 /**
  * Database Helpers

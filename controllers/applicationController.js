@@ -1,5 +1,5 @@
-const Application = require('../models/Application');
-const Duty = require('../models/Duty');
+const Application = require('../models/application');
+const Duty = require('../models/duty');
 const { paginate, sendPaginatedResponse } = require('../utils/pagination');
 
 // Get my applications with pagination
