@@ -25,6 +25,7 @@ const securityHeaders = () => {
           'https://www.google.com',
           'https://www.gstatic.com'
         ],
+        scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc.)
         styleSrc: [
           "'self'",
           "'unsafe-inline'",
