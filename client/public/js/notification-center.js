@@ -282,15 +282,21 @@ class NotificationCenter {
 
     attachEventListeners() {
         // Toggle panel
-        document.getElementById('notificationBell').addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.togglePanel();
-        });
+        const bell = document.getElementById('notificationBell');
+        if (bell) {
+            bell.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.togglePanel();
+            });
+        }
 
         // Mark all as read
-        document.getElementById('markAllReadBtn').addEventListener('click', () => {
-            this.markAllAsRead();
-        });
+        const markAllBtn = document.getElementById('markAllReadBtn');
+        if (markAllBtn) {
+            markAllBtn.addEventListener('click', () => {
+                this.markAllAsRead();
+            });
+        }
 
         // Close panel when clicking outside
         document.addEventListener('click', (e) => {

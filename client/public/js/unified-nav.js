@@ -489,10 +489,14 @@ window.toggleDropdown = function(event) {
 };
 
 window.logout = function(event) {
-    event.preventDefault();
+    if (event && event.preventDefault) {
+        event.preventDefault();
+    }
     if (confirm('Are you sure you want to logout?')) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        localStorage.removeItem('patientToken');
+        localStorage.removeItem('patient');
         window.location.href = '/index.html';
     }
 };
