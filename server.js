@@ -38,14 +38,7 @@ const {
   enforceHTTPS
 } = require('./middleware/security');
 
-// Clear any inherited MONGODB_URI from parent process (VSCode/terminal)
-// This ensures .env files take precedence over inherited environment
-if (process.env.MONGODB_URI && process.env.MONGODB_URI.includes('@')) {
-  console.log('⚠️  Clearing inherited MONGODB_URI (will use .env value instead)');
-  delete process.env.MONGODB_URI;
-}
-
-// Load environment variables
+// Load environment variables (don't override existing env vars in production)
 dotenv.config();
 
 // Validate environment variables at startup (fail fast if misconfigured)
