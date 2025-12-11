@@ -1,20 +1,27 @@
-const Application = require('../models/application');
-const Duty = require('../models/duty');
-const { paginate, sendPaginatedResponse } = require('../utils/pagination');
+/**
+ * Application Controller
+ *
+ * Handles HTTP requests for duty application operations
+ * Delegates business logic to applicationService
+ *
+ * Pattern: Controller → Service → Model
+ */
 
-// Get my applications with pagination
+const applicationService = require('../services/applicationService');
+const { sendPaginatedResponse } = require('../utils/pagination');
+
+/**
+ * @desc    Get my applications with pagination
+ * @route   GET /api/applications/my
+ * @access  Private
+ */
 exports.getMyApplications = async (req, res, next) => {
   try {
-    const result = await paginate(
-      Application,
-      { applicant: req.user.id },
-      {
-        page: parseInt(req.query.page) || 1,
-        limit: parseInt(req.query.limit) || 20,
-        sort: req.query.sort || { appliedAt: -1 },
-        populate: 'duty'
-      }
-    );
+    const result = await applicationService.getMyApplications(req.user.id, {
+      page: parseInt(req.query.page) || 1,
+      limit: parseInt(req.query.limit) || 20,
+      sort: req.query.sort || { appliedAt: -1 }
+    });
 
     sendPaginatedResponse(res, result);
   } catch (error) {
@@ -22,84 +29,43 @@ exports.getMyApplications = async (req, res, next) => {
   }
 };
 
-// Get applications for a duty with pagination (admin only)
+/**
+ * @desc    Get applications for a duty (admin only)
+ * @route   GET /api/applications/duty/:dutyId
+ * @access  Private (Duty poster)
+ */
 exports.getDutyApplications = async (req, res, next) => {
   try {
-    const duty = await Duty.findById(req.params.dutyId);
-
-    if (!duty) {
-      return res.status(404).json({
-        success: false,
-        message: 'Duty not found'
-      });
-    }
-
-    if (duty.postedBy.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized'
-      });
-    }
-
-    const result = await paginate(
-      Application,
-      { duty: req.params.dutyId },
+    const result = await applicationService.getDutyApplications(
+      req.params.dutyId,
+      req.user.id,
       {
         page: parseInt(req.query.page) || 1,
         limit: parseInt(req.query.limit) || 20,
-        sort: req.query.sort || { appliedAt: -1 },
-        populate: 'applicant:name specialty rating completedDuties'
+        sort: req.query.sort || { appliedAt: -1 }
       }
     );
 
     sendPaginatedResponse(res, result);
   } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message
+      });
+    }
     next(error);
   }
 };
 
-// Apply for duty
+/**
+ * @desc    Apply for duty
+ * @route   POST /api/applications
+ * @access  Private
+ */
 exports.applyForDuty = async (req, res, next) => {
   try {
-    const { duty, coverLetter } = req.body;
-
-    const dutyExists = await Duty.findById(duty);
-    
-    if (!dutyExists) {
-      return res.status(404).json({
-        success: false,
-        message: 'Duty not found'
-      });
-    }
-
-    if (dutyExists.status !== 'OPEN') {
-      return res.status(400).json({
-        success: false,
-        message: 'This duty is no longer accepting applications'
-      });
-    }
-
-    const existingApplication = await Application.findOne({
-      duty,
-      applicant: req.user.id
-    });
-
-    if (existingApplication) {
-      return res.status(400).json({
-        success: false,
-        message: 'You have already applied for this duty'
-      });
-    }
-
-    const application = await Application.create({
-      duty,
-      applicant: req.user.id,
-      coverLetter
-    });
-
-    await Duty.findByIdAndUpdate(duty, {
-      $inc: { applicationsCount: 1 }
-    });
+    const application = await applicationService.applyForDuty(req.body, req.user.id);
 
     res.status(201).json({
       success: true,
@@ -107,39 +73,31 @@ exports.applyForDuty = async (req, res, next) => {
       application
     });
   } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message
+      });
+    }
     next(error);
   }
 };
 
-// Update application status (admin only)
+/**
+ * @desc    Update application status (admin only)
+ * @route   PATCH /api/applications/:id/status
+ * @access  Private (Duty poster)
+ */
 exports.updateApplicationStatus = async (req, res, next) => {
   try {
     const { status, notes } = req.body;
 
-    const application = await Application.findById(req.params.id).populate('duty');
-
-    if (!application) {
-      return res.status(404).json({
-        success: false,
-        message: 'Application not found'
-      });
-    }
-
-    if (application.duty.postedBy.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized'
-      });
-    }
-
-    application.status = status;
-    await application.save();
-
-    if (status === 'ACCEPTED') {
-      await Duty.findByIdAndUpdate(application.duty._id, {
-        status: 'FILLED'
-      });
-    }
+    const application = await applicationService.updateApplicationStatus(
+      req.params.id,
+      req.user.id,
+      status,
+      notes
+    );
 
     res.status(200).json({
       success: true,
@@ -147,46 +105,79 @@ exports.updateApplicationStatus = async (req, res, next) => {
       application
     });
   } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message
+      });
+    }
     next(error);
   }
 };
 
-// Withdraw application
+/**
+ * @desc    Withdraw application
+ * @route   DELETE /api/applications/:id
+ * @access  Private (Applicant)
+ */
 exports.withdrawApplication = async (req, res, next) => {
   try {
-    const application = await Application.findById(req.params.id);
-
-    if (!application) {
-      return res.status(404).json({
-        success: false,
-        message: 'Application not found'
-      });
-    }
-
-    if (application.applicant.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized'
-      });
-    }
-
-    if (application.status !== 'PENDING') {
-      return res.status(400).json({
-        success: false,
-        message: 'Can only withdraw pending applications'
-      });
-    }
-
-    application.status = 'WITHDRAWN';
-    await application.save();
-
-    await Duty.findByIdAndUpdate(application.duty, {
-      $inc: { applicationsCount: -1 }
-    });
+    await applicationService.withdrawApplication(req.params.id, req.user.id);
 
     res.status(200).json({
       success: true,
       message: 'Application withdrawn successfully'
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message
+      });
+    }
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get application by ID
+ * @route   GET /api/applications/:id
+ * @access  Private
+ */
+exports.getApplicationById = async (req, res, next) => {
+  try {
+    const application = await applicationService.getApplicationById(
+      req.params.id,
+      req.user.id
+    );
+
+    res.status(200).json({
+      success: true,
+      application
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message
+      });
+    }
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get application statistics
+ * @route   GET /api/applications/stats
+ * @access  Private
+ */
+exports.getApplicationStats = async (req, res, next) => {
+  try {
+    const stats = await applicationService.getApplicationStats(req.user.id);
+
+    res.status(200).json({
+      success: true,
+      stats
     });
   } catch (error) {
     next(error);
