@@ -171,7 +171,7 @@ if (logoutBtn) {
                 localStorage.setItem('userType', 'doctor');
                 // Only redirect if we're on the landing/login page (index.html)
                 if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
-                    window.location.href = 'doctor-dashboard.html';
+                    window.location.href = '/roles/doctor/doctor-dashboard.html';
                 }
                 // If already on a doctor page, don't redirect
             } else {

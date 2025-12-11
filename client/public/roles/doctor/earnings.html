@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earnings Dashboard - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #5B8DBE;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --gray: #6c757d;
+            --light: #f8f9fa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--light);
+        }
+
+        .header {
+            background: white;
+            padding: 20px 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-links a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--success);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 40px auto;
+            padding: 0 40px;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .page-header p {
+            color: var(--gray);
+            font-size: 1.1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary);
+        }
+
+        .stat-card.success::before {
+            background: var(--success);
+        }
+
+        .stat-card.warning::before {
+            background: var(--warning);
+        }
+
+        .stat-card.danger::before {
+            background: var(--danger);
+        }
+
+        .stat-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            opacity: 0.2;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .stat-change {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .stat-change.positive {
+            color: var(--success);
+        }
+
+        .stat-change.negative {
+            color: var(--danger);
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            transition: width 0.3s;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .card h3 {
+            font-size: 1.3rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .breakdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .breakdown-label {
+            color: var(--gray);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .breakdown-value {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .breakdown-value.paid {
+            color: var(--success);
+        }
+
+        .breakdown-value.pending {
+            color: var(--warning);
+        }
+
+        .breakdown-value.overdue {
+            color: var(--danger);
+        }
+
+        .timeline {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .timeline-item {
+            padding: 15px;
+            border-left: 3px solid #e0e0e0;
+            margin-bottom: 15px;
+            position: relative;
+            padding-left: 25px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -7px;
+            top: 15px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--gray);
+        }
+
+        .timeline-item.paid::before {
+            background: var(--success);
+        }
+
+        .timeline-item.pending::before {
+            background: var(--warning);
+        }
+
+        .timeline-item.overdue::before {
+            background: var(--danger);
+        }
+
+        .timeline-date {
+            font-size: 0.85rem;
+            color: var(--gray);
+            margin-bottom: 5px;
+        }
+
+        .timeline-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .timeline-amount {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #4A7099;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .optimizer-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .optimizer-card h3 {
+            color: white;
+        }
+
+        .suggestion-grid {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .suggestion-item {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .suggestion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .suggestion-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .suggestion-pay {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .suggestion-details {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .rate-intelligence {
+            background: #f0f8ff;
+            border: 2px solid var(--primary);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .rate-intelligence h4 {
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+
+        .rate-comparison {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .rate-item {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .rate-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .rate-label {
+            font-size: 0.85rem;
+            color: var(--gray);
+            margin-top: 5px;
+        }
+
+        .suggestion-box {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--success);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
+        }
+
+        @media (max-width: 968px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .rate-comparison {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 0 20px;
+            }
+        }
+    </style>
+    <script src="/js/config.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">🌙 Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/doctor/doctor-dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="/roles/doctor/browse-duties.html"><i class="fas fa-briefcase"></i> Browse</a>
+            <a href="/roles/doctor/calendar.html"><i class="fas fa-calendar"></i> Calendar</a>
+            <a href="/roles/doctor/earnings.html" style="color: var(--success);"><i class="fas fa-dollar-sign"></i> Earnings</a>
+            <a href="/roles/doctor/achievements.html"><i class="fas fa-trophy"></i> Achievements</a>
+            <a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-chart-line"></i> Earnings Dashboard</h1>
+            <p>Track your income, payments, and optimize your earnings</p>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading" class="loading">
+            <i class="fas fa-spinner fa-spin" style="font-size: 3rem;"></i>
+            <p>Loading earnings data...</p>
+        </div>
+
+        <!-- Main Content (Hidden until loaded) -->
+        <div id="mainContent" style="display: none;">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card success">
+                    <div class="stat-icon"><i class="fas fa-rupee-sign"></i></div>
+                    <div class="stat-value" id="totalEarnings">₹0</div>
+                    <div class="stat-label">Total Earnings This Month</div>
+                    <div class="stat-change positive" id="earningsChange">
+                        <i class="fas fa-arrow-up"></i> <span>0%</span> vs last month
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div class="stat-value" id="hoursWorked">0 hrs</div>
+                    <div class="stat-label">Hours Worked</div>
+                    <div class="stat-change" id="shiftsCount">0 shifts completed</div>
+                </div>
+
+                <div class="stat-card warning">
+                    <div class="stat-icon"><i class="fas fa-chart-bar"></i></div>
+                    <div class="stat-value" id="avgRate">₹0/hr</div>
+                    <div class="stat-label">Average Hourly Rate</div>
+                    <div class="stat-change" id="rateComparison">Market average: ₹0/hr</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-bullseye"></i></div>
+                    <div class="stat-value" id="goalProgress">0%</div>
+                    <div class="stat-label">Monthly Goal Progress</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="goalProgressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Earnings Optimizer -->
+            <div class="card optimizer-card" id="optimizerCard" style="display: none;">
+                <h3><i class="fas fa-lightbulb"></i> Earnings Optimizer</h3>
+                <p>Here are the best opportunities to maximize your income this week:</p>
+                <div class="suggestion-grid" id="suggestionsList"></div>
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+                    <strong>Potential Weekly Earnings:</strong> <span id="potentialEarnings" style="font-size: 1.5rem;">₹0</span>
+                    <div id="warningMessage" style="margin-top: 10px; font-size: 0.9rem;"></div>
+                </div>
+            </div>
+
+            <!-- Charts and Breakdown -->
+            <div class="chart-grid">
+                <div class="card">
+                    <h3><i class="fas fa-chart-area"></i> Earnings Trend</h3>
+                    <canvas id="earningsChart" height="100"></canvas>
+                </div>
+
+                <div class="card">
+                    <h3><i class="fas fa-pie-chart"></i> Breakdown</h3>
+                    <div id="breakdownList">
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">
+                                <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                                Paid
+                            </span>
+                            <span class="breakdown-value paid" id="paidAmount">₹0</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">
+                                <i class="fas fa-clock" style="color: var(--warning);"></i>
+                                Pending
+                            </span>
+                            <span class="breakdown-value pending" id="pendingAmount">₹0</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">
+                                <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+                                Overdue
+                            </span>
+                            <span class="breakdown-value overdue" id="overdueAmount">₹0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Timeline -->
+            <div class="card">
+                <h3><i class="fas fa-history"></i> Payment Timeline</h3>
+                <div class="timeline" id="paymentTimeline"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API_URL is provided by config.js
+        let earningsChart;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            loadEarningsDashboard();
+            loadEarningsOptimizer();
+        });
+
+        async function loadEarningsDashboard() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_URL}/earnings/dashboard`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayEarningsData(data.data);
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('mainContent').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading earnings:', error);
+                document.getElementById('loading').innerHTML = '<p style="color: var(--danger);">Error loading earnings data. Please try again.</p>';
+            }
+        }
+
+        function displayEarningsData(data) {
+            // Update stats cards
+            document.getElementById('totalEarnings').textContent = `₹${data.currentMonth.totalEarnings.toLocaleString()}`;
+            document.getElementById('hoursWorked').textContent = `${data.currentMonth.hoursWorked} hrs`;
+            document.getElementById('avgRate').textContent = `₹${data.currentMonth.avgRate.toLocaleString()}/hr`;
+            document.getElementById('goalProgress').textContent = `${data.currentMonth.goalProgress}%`;
+            document.getElementById('goalProgressBar').style.width = `${data.currentMonth.goalProgress}%`;
+            document.getElementById('shiftsCount').textContent = `${data.currentMonth.shiftsCompleted} shifts completed`;
+
+            // Earnings change
+            const change = data.comparison.change;
+            const changeEl = document.getElementById('earningsChange');
+            if (change > 0) {
+                changeEl.className = 'stat-change positive';
+                changeEl.innerHTML = `<i class="fas fa-arrow-up"></i> ${change}% vs last month`;
+            } else if (change < 0) {
+                changeEl.className = 'stat-change negative';
+                changeEl.innerHTML = `<i class="fas fa-arrow-down"></i> ${Math.abs(change)}% vs last month`;
+            } else {
+                changeEl.className = 'stat-change';
+                changeEl.innerHTML = 'No change vs last month';
+            }
+
+            // Breakdown
+            document.getElementById('paidAmount').textContent = `₹${data.breakdown.paid.toLocaleString()}`;
+            document.getElementById('pendingAmount').textContent = `₹${data.breakdown.pending.toLocaleString()}`;
+            document.getElementById('overdueAmount').textContent = `₹${data.breakdown.overdue.toLocaleString()}`;
+
+            // Payment timeline
+            displayPaymentTimeline(data.paymentTimeline);
+
+            // Create chart
+            createEarningsChart(data);
+        }
+
+        function displayPaymentTimeline(timeline) {
+            const timelineEl = document.getElementById('paymentTimeline');
+            let html = '';
+
+            // Overdue payments
+            if (timeline.overdue && timeline.overdue.length > 0) {
+                timeline.overdue.forEach(payment => {
+                    html += `
+                        <div class="timeline-item overdue">
+                            <div class="timeline-date">Due: ${new Date(payment.expectedPaymentDate).toLocaleDateString()}</div>
+                            <div class="timeline-title">${payment.hospital}</div>
+                            <div class="timeline-amount">₹${payment.netAmount.toLocaleString()}</div>
+                            <button class="btn btn-danger" style="margin-top: 10px; font-size: 0.85rem;" onclick="disputePayment('${payment._id}')">
+                                <i class="fas fa-exclamation-circle"></i> Raise Dispute
+                            </button>
+                        </div>
+                    `;
+                });
+            }
+
+            // Upcoming payments
+            if (timeline.upcoming && timeline.upcoming.length > 0) {
+                timeline.upcoming.forEach(payment => {
+                    html += `
+                        <div class="timeline-item pending">
+                            <div class="timeline-date">Expected: ${new Date(payment.expectedPaymentDate).toLocaleDateString()}</div>
+                            <div class="timeline-title">${payment.hospital}</div>
+                            <div class="timeline-amount">₹${payment.netAmount.toLocaleString()}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            if (html === '') {
+                html = '<p style="text-align: center; color: var(--gray); padding: 20px;">No pending payments</p>';
+            }
+
+            timelineEl.innerHTML = html;
+        }
+
+        function createEarningsChart(data) {
+            const ctx = document.getElementById('earningsChart').getContext('2d');
+
+            // Mock data for last 6 months
+            const months = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
+            const earnings = [180000, 195000, 213000, 245000, 213000, data.currentMonth.totalEarnings];
+
+            earningsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Monthly Earnings (₹)',
+                        data: earnings,
+                        borderColor: '#5B8DBE',
+                        backgroundColor: 'rgba(91, 141, 190, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₹' + (value/1000) + 'k';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadEarningsOptimizer() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_URL}/earnings/optimizer`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.data.suggestions.length > 0) {
+                    displayOptimizer(data.data);
+                }
+            } catch (error) {
+                console.error('Error loading optimizer:', error);
+            }
+        }
+
+        function displayOptimizer(data) {
+            const card = document.getElementById('optimizerCard');
+            const list = document.getElementById('suggestionsList');
+
+            let html = '';
+            data.suggestions.forEach(duty => {
+                html += `
+                    <div class="suggestion-item">
+                        <div class="suggestion-header">
+                            <div class="suggestion-title">${duty.title}</div>
+                            <div class="suggestion-pay">₹${duty.totalCompensation.toLocaleString()}</div>
+                        </div>
+                        <div class="suggestion-details">
+                            ${duty.hospital} • ${new Date(duty.date).toLocaleDateString()} • ${duty.startTime} - ${duty.endTime}
+                        </div>
+                        <button class="btn btn-success" style="margin-top: 10px; font-size: 0.85rem;" onclick="location.href='duty-details.html?id=${duty._id}'">
+                            View Details
+                        </button>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = html;
+            document.getElementById('potentialEarnings').textContent = `₹${data.potential.totalEarnings.toLocaleString()}`;
+
+            if (data.potential.exceedsLimit) {
+                document.getElementById('warningMessage').innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i> ${data.potential.warning}
+                `;
+            }
+
+            card.style.display = 'block';
+        }
+
+        async function disputePayment(earningId) {
+            const reason = prompt('Please provide a reason for the dispute:');
+            if (!reason) return;
+
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_URL}/earnings/${earningId}/dispute`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ reason })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Dispute raised successfully. Admin will review shortly.');
+                    loadEarningsDashboard();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error raising dispute:', error);
+                alert('Failed to raise dispute');
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+    </script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

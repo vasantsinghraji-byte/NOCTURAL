@@ -162,10 +162,10 @@
     const currentPath = window.location.pathname;
 
     const prefetchMap = {
-      '/': ['/browse-duties.html', '/doctor-dashboard.html'],
-      '/browse-duties.html': ['/duty-details.html', '/my-applications.html'],
-      '/doctor-dashboard.html': ['/calendar.html', '/earnings.html'],
-      '/admin-dashboard.html': ['/admin-analytics.html', '/admin-post-duty.html']
+      '/': ['/roles/doctor/browse-duties.html', '/roles/doctor/doctor-dashboard.html'],
+      '/roles/doctor/browse-duties.html': ['/roles/doctor/duty-details.html', '/roles/doctor/my-applications.html'],
+      '/roles/doctor/doctor-dashboard.html': ['/roles/doctor/calendar.html', '/roles/doctor/earnings.html'],
+      '/roles/admin/admin-dashboard.html': ['/roles/admin/admin-analytics.html', '/roles/admin/admin-post-duty.html']
     };
 
     const pagesToPrefetch = prefetchMap[currentPath] || [];

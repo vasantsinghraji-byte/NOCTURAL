@@ -289,18 +289,18 @@ class UnifiedNavigation {
 
         if (role === 'doctor') {
             menuItems = [
-                { icon: 'fa-home', text: 'Dashboard', href: 'doctor-dashboard.html' },
-                { icon: 'fa-search', text: 'Browse Shifts', href: 'browse-shifts-enhanced.html' },
-                { icon: 'fa-calendar', text: 'My Calendar', href: 'calendar.html' },
-                { icon: 'fa-file-alt', text: 'Applications', href: 'my-applications.html' },
-                { icon: 'fa-wallet', text: 'Earnings', href: 'payments-dashboard.html' },
+                { icon: 'fa-home', text: 'Dashboard', href: '/roles/doctor/doctor-dashboard.html' },
+                { icon: 'fa-search', text: 'Browse Shifts', href: '/roles/doctor/browse-shifts-enhanced.html' },
+                { icon: 'fa-calendar', text: 'My Calendar', href: '/roles/doctor/calendar.html' },
+                { icon: 'fa-file-alt', text: 'Applications', href: '/roles/doctor/my-applications.html' },
+                { icon: 'fa-wallet', text: 'Earnings', href: '/roles/doctor/earnings.html' },
                 {
                     icon: 'fa-ellipsis-h',
                     text: 'More',
                     dropdown: [
-                        { icon: 'fa-user', text: 'My Profile', href: 'doctor-profile-enhanced.html' },
-                        { icon: 'fa-trophy', text: 'Achievements', href: 'achievements.html' },
-                        { icon: 'fa-clock', text: 'Availability', href: 'availability.html' },
+                        { icon: 'fa-user', text: 'My Profile', href: '/roles/doctor/doctor-profile-enhanced.html' },
+                        { icon: 'fa-trophy', text: 'Achievements', href: '/roles/doctor/achievements.html' },
+                        { icon: 'fa-clock', text: 'Availability', href: '/roles/doctor/availability.html' },
                         { divider: true },
                         { icon: 'fa-cog', text: 'Settings', href: '#' },
                         { icon: 'fa-question-circle', text: 'Help', href: '#' }
@@ -309,16 +309,16 @@ class UnifiedNavigation {
             ];
         } else if (role === 'admin' || role === 'nurse') {
             menuItems = [
-                { icon: 'fa-home', text: 'Dashboard', href: 'admin-dashboard.html' },
-                { icon: 'fa-plus-circle', text: 'Post Shift', href: 'admin-post-duty.html' },
-                { icon: 'fa-users', text: 'Applications', href: 'admin-applications.html' },
-                { icon: 'fa-chart-bar', text: 'Analytics', href: 'admin-analytics.html' },
+                { icon: 'fa-home', text: 'Dashboard', href: '/roles/admin/admin-dashboard.html' },
+                { icon: 'fa-plus-circle', text: 'Post Shift', href: '/roles/admin/admin-post-duty.html' },
+                { icon: 'fa-users', text: 'Applications', href: '/roles/admin/admin-applications.html' },
+                { icon: 'fa-chart-bar', text: 'Analytics', href: '/roles/admin/admin-analytics.html' },
                 {
                     icon: 'fa-ellipsis-h',
                     text: 'More',
                     dropdown: [
-                        { icon: 'fa-user', text: 'Profile', href: 'admin-profile.html' },
-                        { icon: 'fa-cog', text: 'Settings', href: 'admin-settings.html' },
+                        { icon: 'fa-user', text: 'Profile', href: '/roles/admin/admin-profile.html' },
+                        { icon: 'fa-cog', text: 'Settings', href: '/roles/admin/admin-settings.html' },
                         { icon: 'fa-wallet', text: 'Payments', href: '#' },
                         { divider: true },
                         { icon: 'fa-question-circle', text: 'Help', href: '#' }
@@ -327,10 +327,10 @@ class UnifiedNavigation {
             ];
         } else if (role === 'patient') {
             menuItems = [
-                { icon: 'fa-home', text: 'Dashboard', href: 'patient-dashboard.html' },
-                { icon: 'fa-calendar-plus', text: 'Book Service', href: 'booking-form.html' },
-                { icon: 'fa-list-alt', text: 'My Bookings', href: 'booking-details.html' },
-                { icon: 'fa-wallet', text: 'Payments', href: 'payments-dashboard.html' },
+                { icon: 'fa-home', text: 'Dashboard', href: '/roles/patient/patient-dashboard.html' },
+                { icon: 'fa-calendar-plus', text: 'Book Service', href: '/roles/patient/booking-form.html' },
+                { icon: 'fa-list-alt', text: 'My Bookings', href: '/roles/patient/booking-details.html' },
+                { icon: 'fa-wallet', text: 'Payments', href: '/roles/patient/payments-dashboard.html' },
                 {
                     icon: 'fa-ellipsis-h',
                     text: 'More',
@@ -346,10 +346,10 @@ class UnifiedNavigation {
         }
 
         // Determine dashboard URL based on role
-        const dashboardUrl = role === 'doctor' ? 'doctor-dashboard.html'
-            : role === 'patient' ? 'patient-dashboard.html'
-            : role === 'admin' || role === 'nurse' ? 'admin-dashboard.html'
-            : 'index.html';
+        const dashboardUrl = role === 'doctor' ? '/roles/doctor/doctor-dashboard.html'
+            : role === 'patient' ? '/roles/patient/patient-dashboard.html'
+            : role === 'admin' || role === 'nurse' ? '/roles/admin/admin-dashboard.html'
+            : '/index.html';
 
         const nav = document.createElement('nav');
         nav.className = 'unified-navbar';
@@ -419,11 +419,11 @@ class UnifiedNavigation {
                             <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
                         </button>
                         <div class="nav-dropdown-menu">
-                            <a href="${role === 'doctor' ? 'doctor-profile-enhanced.html' : role === 'patient' ? 'patient-dashboard.html' : 'admin-profile.html'}" class="nav-dropdown-item">
+                            <a href="${role === 'doctor' ? '/roles/doctor/doctor-profile-enhanced.html' : role === 'patient' ? '/roles/patient/patient-dashboard.html' : '/roles/admin/admin-profile.html'}" class="nav-dropdown-item">
                                 <i class="fas fa-user"></i>
                                 <span>My Profile</span>
                             </a>
-                            <a href="${role === 'patient' ? 'booking-details.html' : 'payments-dashboard.html'}" class="nav-dropdown-item">
+                            <a href="${role === 'patient' ? '/roles/patient/booking-details.html' : '/roles/doctor/earnings.html'}" class="nav-dropdown-item">
                                 <i class="fas ${role === 'patient' ? 'fa-calendar-check' : 'fa-wallet'}"></i>
                                 <span>${role === 'patient' ? 'My Bookings' : 'Earnings'}</span>
                             </a>

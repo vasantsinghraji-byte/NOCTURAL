@@ -25,12 +25,12 @@
                 <button class="btn btn-outline" onclick="showLoginOptions()" style="position: relative;">
                     Login
                     <div id="loginDropdown" style="display: none; position: absolute; top: 100%; right: 0; background: white; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-top: 10px; min-width: 180px; z-index: 1000;">
-                        <a href="patient-login.html" style="display: block; padding: 12px 20px; color: #333; text-decoration: none; border-bottom: 1px solid #eee;">Patient Login</a>
-                        <a href="provider-login.html" style="display: block; padding: 12px 20px; color: #333; text-decoration: none; border-bottom: 1px solid #eee;">Provider Login</a>
+                        <a href="/roles/patient/patient-login.html" style="display: block; padding: 12px 20px; color: #333; text-decoration: none; border-bottom: 1px solid #eee;">Patient Login</a>
+                        <a href="/roles/provider/provider-login.html" style="display: block; padding: 12px 20px; color: #333; text-decoration: none; border-bottom: 1px solid #eee;">Provider Login</a>
                         <a href="#" onclick="event.preventDefault(); openLoginModal(); hideLoginOptions();" style="display: block; padding: 12px 20px; color: #333; text-decoration: none;">Staff Login</a>
                     </div>
                 </button>
-                <button class="btn btn-primary" onclick="window.location.href='patient-register.html'">Book Service</button>
+                <button class="btn btn-primary" onclick="window.location.href='/roles/patient/patient-register.html'">Book Service</button>
             </div>
         </div>
     </nav>
@@ -48,7 +48,7 @@
                         <li>book services in minutes - from injections to physiotherapy</li>
                         <li>transparent pricing with secure payment - no hidden charges</li>
                     </ul>
-                    <button class="btn btn-primary" onclick="window.location.href='patient-register.html'" style="margin-top: 15px;">Book a Service</button>
+                    <button class="btn btn-primary" onclick="window.location.href='/roles/patient/patient-register.html'" style="margin-top: 15px;">Book a Service</button>
                 </div>
                 <div class="benefits-column">
                     <h3>For Healthcare Professionals</h3>
@@ -111,7 +111,7 @@
             </div>
 
             <div style="text-align: center;">
-                <button class="btn btn-primary" onclick="window.location.href='patient-register.html'" style="background: white; color: #667eea; font-size: 1.1rem; padding: 15px 40px; border: none;">Browse All Services</button>
+                <button class="btn btn-primary" onclick="window.location.href='/roles/patient/patient-register.html'" style="background: white; color: #667eea; font-size: 1.1rem; padding: 15px 40px; border: none;">Browse All Services</button>
             </div>
         </div>
     </section>

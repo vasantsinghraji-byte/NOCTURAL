@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Duties - Nocturnal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        /* Navigation */
+        .navbar {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #475569;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: #3b82f6;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #3b82f6;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .page-header {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            color: #1e40af;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            color: #64748b;
+        }
+
+        /* Search and Filters */
+        .search-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .search-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .search-btn:hover {
+            background: #2563eb;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .filter-group label {
+            display: block;
+            color: #475569;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.3s;
+        }
+
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .clear-filters {
+            background: transparent;
+            color: #ef4444;
+            border: 2px solid #ef4444;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 1rem;
+            transition: all 0.3s;
+        }
+
+        .clear-filters:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+        /* Results Section */
+        .results-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .results-header h2 {
+            color: #1e40af;
+        }
+
+        .results-count {
+            color: #64748b;
+        }
+
+        /* Duty Cards */
+        .duties-grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .duty-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .duty-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .duty-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .duty-title {
+            flex: 1;
+        }
+
+        .duty-title h3 {
+            color: #1e293b;
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .duty-title .hospital-name {
+            color: #64748b;
+            font-size: 0.95rem;
+        }
+
+        .duty-pay {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+
+        .duty-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #475569;
+        }
+
+        .detail-item .icon {
+            font-size: 1.2rem;
+        }
+
+        .duty-description {
+            color: #64748b;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .duty-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .duty-meta {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .badge.specialty {
+            background: #dbeafe;
+            color: #3b82f6;
+        }
+
+        .badge.shift {
+            background: #ede9fe;
+            color: #8b5cf6;
+        }
+
+        .badge.urgent {
+            background: #fee2e2;
+            color: #ef4444;
+        }
+
+        .apply-btn {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .apply-btn:hover {
+            background: #16a34a;
+            transform: scale(1.05);
+        }
+
+        .apply-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+
+        .no-results img {
+            width: 200px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-links {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .container {
+                padding: 0 1rem;
+            }
+
+            .search-bar {
+                flex-direction: column;
+            }
+
+            .duty-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .duty-footer {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
+
+            .duty-meta {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+    <script src="/js/config.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="logo">🌙 Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/doctor/doctor-dashboard.html">Dashboard</a>
+            <a href="/roles/doctor/browse-duties.html" class="active">Browse Duties</a>
+            <a href="/roles/doctor/calendar.html">Calendar</a>
+            <a href="/roles/doctor/earnings.html">Earnings</a>
+            <a href="/roles/doctor/achievements.html">Achievements</a>
+            <a href="/roles/doctor/my-applications.html">My Applications</a>
+            <a href="/roles/doctor/doctor-profile.html">Profile</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">D</div>
+            <span id="userName">Loading...</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>Browse Available Duties 🔍</h1>
+            <p>Find and apply for night shift duties that match your specialty and availability</p>
+        </div>
+
+        <!-- Search and Filters -->
+        <div class="search-section">
+            <div class="search-bar">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    id="searchInput" 
+                    placeholder="Search by hospital name, location, or specialty..."
+                    onkeypress="handleSearchKeyPress(event)"
+                >
+                <button class="search-btn" onclick="searchDuties()">Search</button>
+            </div>
+
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="specialtyFilter">Specialty</label>
+                    <select id="specialtyFilter" onchange="applyFilters()">
+                        <option value="">All Specialties</option>
+                        <option value="General Medicine">General Medicine</option>
+                        <option value="Emergency">Emergency</option>
+                        <option value="Cardiology">Cardiology</option>
+                        <option value="Orthopedics">Orthopedics</option>
+                        <option value="Pediatrics">Pediatrics</option>
+                        <option value="ICU">ICU</option>
+                        <option value="Surgery">Surgery</option>
+                        <option value="Anesthesiology">Anesthesiology</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="shiftFilter">Shift Type</label>
+                    <select id="shiftFilter" onchange="applyFilters()">
+                        <option value="">All Shifts</option>
+                        <option value="Night">Night</option>
+                        <option value="Evening">Evening</option>
+                        <option value="Full Night">Full Night</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="dateFilter">Date</label>
+                    <input type="date" id="dateFilter" onchange="applyFilters()">
+                </div>
+
+                <div class="filter-group">
+                    <label for="locationFilter">Location</label>
+                    <input type="text" id="locationFilter" placeholder="City or area" onkeyup="applyFilters()">
+                </div>
+            </div>
+
+            <button class="clear-filters" onclick="clearFilters()">Clear All Filters</button>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section">
+            <div class="results-header">
+                <h2>Available Duties</h2>
+                <span class="results-count" id="resultsCount">Loading...</span>
+            </div>
+
+            <div class="duties-grid" id="dutiesGrid">
+                <div class="loading">🔄 Loading available duties...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { auth, signOut, onAuthStateChanged } from './firebase-config.js';
+
+        // Make auth available globally
+        window.firebaseAuth = auth;
+        window.firebaseSignOut = signOut;
+
+        // Monitor auth state
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                // Only redirect if there's no token (user actually logged out)
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    localStorage.clear();
+                    window.location.href = 'index.html';
+                }
+            } else {
+                // User is logged in, update token if needed
+                user.getIdToken().then(token => {
+                    localStorage.setItem('token', token);
+                });
+            }
+        });
+    </script>
+
+    <script>
+        // API Base URL
+        // API_URL is provided by config.js
+        let allDuties = [];
+        let appliedDuties = new Set();
+
+        // Check authentication
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            const userType = localStorage.getItem('userType');
+
+            if (!token || userType !== 'doctor') {
+                window.location.href = 'index.html';
+                return false;
+            }
+            return token;
+        }
+
+        // Logout function
+        async function logout() {
+            try {
+                // Clear localStorage
+                localStorage.removeItem('token');
+                localStorage.removeItem('userType');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('userName');
+
+                // Sign out from Firebase if available
+                if (window.firebaseAuth && window.firebaseSignOut) {
+                    await window.firebaseSignOut(window.firebaseAuth);
+                }
+
+                // Redirect to landing page
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+                // Force redirect anyway
+                window.location.href = 'index.html';
+            }
+        }
+
+        // Load user info
+        function loadUserInfo() {
+            const userName = localStorage.getItem('userName') || 'Doctor';
+            document.getElementById('userName').textContent = userName;
+            document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
+        }
+
+        // Fetch all duties
+        async function fetchDuties() {
+            const token = checkAuth();
+            if (!token) return;
+
+            try {
+                const response = await fetch(`${API_URL}/duties`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                allDuties = data || [];
+                
+                // Fetch user's applications to check which duties are already applied
+                await fetchUserApplications();
+                
+                displayDuties(allDuties);
+            } catch (error) {
+                console.error('Error fetching duties:', error);
+                document.getElementById('dutiesGrid').innerHTML = 
+                    '<div class="no-results">Error loading duties. Please try again later.</div>';
+            }
+        }
+
+        // Fetch user's applications
+        async function fetchUserApplications() {
+            const token = checkAuth();
+            if (!token) return;
+
+            try {
+                const response = await fetch(`${API_URL}/applications/my-applications`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success && data.applications) {
+                    appliedDuties = new Set(data.applications.map(app => app.duty?._id || app.dutyId));
+                }
+            } catch (error) {
+                console.error('Error fetching applications:', error);
+            }
+        }
+
+        // Display duties
+        function displayDuties(duties) {
+            const grid = document.getElementById('dutiesGrid');
+            const count = document.getElementById('resultsCount');
+            
+            count.textContent = `${duties.length} ${duties.length === 1 ? 'duty' : 'duties'} found`;
+            
+            if (duties.length === 0) {
+                grid.innerHTML = `
+                    <div class="no-results">
+                        <div style="font-size: 4rem; margin-bottom: 1rem;">🔍</div>
+                        <h3>No duties found</h3>
+                        <p>Try adjusting your filters or check back later for new opportunities</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = duties.map(duty => {
+                const isApplied = appliedDuties.has(duty._id);
+                const date = new Date(duty.date).toLocaleDateString('en-IN', { 
+                    day: 'numeric', 
+                    month: 'short', 
+                    year: 'numeric' 
+                });
+
+                return `
+                    <div class="duty-card" onclick="viewDutyDetails('${duty._id}')">
+                        <div class="duty-header">
+                            <div class="duty-title">
+                                <h3>${duty.specialty || 'General Medicine'}</h3>
+                                <div class="hospital-name">🏥 ${duty.hospitalName || 'Hospital'}</div>
+                            </div>
+                            <div class="duty-pay">₹${duty.pay?.toLocaleString() || '0'}</div>
+                        </div>
+
+                        <div class="duty-details">
+                            <div class="detail-item">
+                                <span class="icon">📅</span>
+                                <span>${date}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="icon">⏰</span>
+                                <span>${duty.shift || 'Night'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="icon">📍</span>
+                                <span>${duty.location || 'Location'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="icon">⏱️</span>
+                                <span>${duty.duration || '8 hours'}</span>
+                            </div>
+                        </div>
+
+                        <div class="duty-description">
+                            ${duty.description || 'No description provided'}
+                        </div>
+
+                        <div class="duty-footer">
+                            <div class="duty-meta">
+                                <span class="badge specialty">${duty.specialty || 'General'}</span>
+                                <span class="badge shift">${duty.shift || 'Night'}</span>
+                                ${duty.urgent ? '<span class="badge urgent">Urgent</span>' : ''}
+                            </div>
+                            <button 
+                                class="apply-btn" 
+                                onclick="applyForDuty(event, '${duty._id}')"
+                                ${isApplied ? 'disabled' : ''}
+                            >
+                                ${isApplied ? '✓ Applied' : 'Apply Now'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const specialty = document.getElementById('specialtyFilter').value.toLowerCase();
+            const shift = document.getElementById('shiftFilter').value.toLowerCase();
+            const date = document.getElementById('dateFilter').value;
+            const location = document.getElementById('locationFilter').value.toLowerCase();
+
+            let filtered = allDuties.filter(duty => {
+                const matchSpecialty = !specialty || (duty.specialty || '').toLowerCase().includes(specialty);
+                const matchShift = !shift || (duty.shift || '').toLowerCase().includes(shift);
+                const matchLocation = !location || (duty.location || '').toLowerCase().includes(location);
+                
+                let matchDate = true;
+                if (date) {
+                    const dutyDate = new Date(duty.date).toISOString().split('T')[0];
+                    matchDate = dutyDate === date;
+                }
+
+                return matchSpecialty && matchShift && matchDate && matchLocation;
+            });
+
+            displayDuties(filtered);
+        }
+
+        // Search duties
+        function searchDuties() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            if (!searchTerm) {
+                displayDuties(allDuties);
+                return;
+            }
+
+            const filtered = allDuties.filter(duty => {
+                const hospitalName = (duty.hospitalName || '').toLowerCase();
+                const specialty = (duty.specialty || '').toLowerCase();
+                const location = (duty.location || '').toLowerCase();
+                const description = (duty.description || '').toLowerCase();
+
+                return hospitalName.includes(searchTerm) || 
+                       specialty.includes(searchTerm) || 
+                       location.includes(searchTerm) ||
+                       description.includes(searchTerm);
+            });
+
+            displayDuties(filtered);
+        }
+
+        // Handle search on Enter key
+        function handleSearchKeyPress(event) {
+            if (event.key === 'Enter') {
+                searchDuties();
+            }
+        }
+
+        // Clear all filters
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('specialtyFilter').value = '';
+            document.getElementById('shiftFilter').value = '';
+            document.getElementById('dateFilter').value = '';
+            document.getElementById('locationFilter').value = '';
+            displayDuties(allDuties);
+        }
+
+        // View duty details
+        function viewDutyDetails(dutyId) {
+            window.location.href = `duty-details.html?id=${dutyId}`;
+        }
+
+        // Apply for duty
+        async function applyForDuty(event, dutyId) {
+            event.stopPropagation(); // Prevent card click
+            
+            const token = checkAuth();
+            if (!token) return;
+
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = 'Applying...';
+
+            try {
+                const response = await fetch(`${API_URL}/applications/apply`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ dutyId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    button.textContent = '✓ Applied';
+                    appliedDuties.add(dutyId);
+                    alert('Application submitted successfully!');
+                } else {
+                    button.disabled = false;
+                    button.textContent = 'Apply Now';
+                    alert(data.message || 'Failed to apply. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error applying for duty:', error);
+                button.disabled = false;
+                button.textContent = 'Apply Now';
+                alert('Error submitting application. Please try again.');
+            }
+        }
+
+        // Initialize page
+        window.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            loadUserInfo();
+            fetchDuties();
+        });
+    </script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

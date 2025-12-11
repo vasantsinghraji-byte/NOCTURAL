@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Admin Dashboard - Nocturnal</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo { font-size: 1.5rem; font-weight: bold; color: #3b82f6; }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #475569;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover, .nav-links a.active { color: #3b82f6; }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #3b82f6;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover { background: #dc2626; }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .welcome-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .welcome-section h1 { color: #1e40af; margin-bottom: 0.5rem; }
+        .welcome-section p { color: #64748b; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover { transform: translateY(-5px); }
+
+        .stat-card .icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card.blue .icon { background: #dbeafe; color: #3b82f6; }
+        .stat-card.green .icon { background: #dcfce7; color: #22c55e; }
+        .stat-card.yellow .icon { background: #fef3c7; color: #f59e0b; }
+        .stat-card.purple .icon { background: #ede9fe; color: #8b5cf6; }
+
+        .stat-card h3 { color: #64748b; font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .stat-card .number { color: #1e293b; font-size: 2rem; font-weight: bold; }
+
+        .section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .section h2 { color: #1e40af; margin-bottom: 1.5rem; }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover { transform: translateY(-2px); }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .action-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.3s;
+            text-decoration: none;
+        }
+
+        .action-card:hover { transform: translateY(-5px); }
+        .action-card .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .action-card h3 { font-size: 1rem; }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+    </style>
+    <script src="/js/config.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🏥 Nocturnal Admin</div>
+        <div class="nav-links">
+            <a href="/roles/admin/admin-dashboard.html" class="active">Dashboard</a>
+            <a href="/roles/admin/admin-post-duty.html">Post Duty</a>
+            <a href="/roles/admin/admin-applications.html">Applications</a>
+            <a href="/roles/admin/admin-analytics.html">Analytics</a>
+            <a href="/roles/admin/admin-settings.html">Settings</a>
+            <a href="/roles/admin/admin-profile.html">Profile</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <span id="userName">Loading...</span>
+            <button id="logout-btn" class="logout-btn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="welcome-section">
+            <h1>Welcome back, <span id="welcomeName">Administrator</span>! 👋</h1>
+            <p id="hospitalInfo">Loading hospital information...</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card blue">
+                <div class="icon">📋</div>
+                <h3>Open Duties</h3>
+                <div class="number" id="openDuties">-</div>
+            </div>
+            <div class="stat-card yellow">
+                <div class="icon">⏳</div>
+                <h3>Pending Applications</h3>
+                <div class="number" id="pendingApps">-</div>
+            </div>
+            <div class="stat-card green">
+                <div class="icon">✓</div>
+                <h3>Total Duties Posted</h3>
+                <div class="number" id="totalDuties">-</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="icon">👥</div>
+                <h3>Total Applications</h3>
+                <div class="number" id="totalApps">-</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Quick Actions</h2>
+            <div class="quick-actions">
+                <a href="/roles/admin/admin-post-duty.html" class="action-card">
+                    <div class="icon">➕</div>
+                    <h3>Post New Duty</h3>
+                </a>
+                <a href="/roles/admin/admin-applications.html" class="action-card">
+                    <div class="icon">📝</div>
+                    <h3>View Applications</h3>
+                </a>
+                <a href="/roles/admin/admin-profile.html" class="action-card">
+                    <div class="icon">⚙️</div>
+                    <h3>Hospital Settings</h3>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, signOut, onAuthStateChanged } from './firebase-config.js';
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const db = getFirestore();
+        window.firebaseAuth = auth;
+        window.firebaseSignOut = signOut;
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    localStorage.clear();
+                    window.location.href = 'index.html';
+                }
+            } else {
+                user.getIdToken().then(token => {
+                    localStorage.setItem('token', token);
+                });
+            }
+        });
+    </script>
+
+    <script>
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            const userType = localStorage.getItem('userType');
+
+            console.log('🔍 Admin dashboard auth check:', { token: !!token, userType });
+
+            if (!token) {
+                console.log('❌ No token found, redirecting to index.html');
+                window.location.href = 'index.html';
+                return false;
+            }
+
+            if (userType !== 'hospital') {
+                console.log('❌ Not a hospital admin, redirecting to index.html');
+                window.location.href = 'index.html';
+                return false;
+            }
+
+            console.log('✅ Auth check passed');
+            return token;
+        }
+
+        async function logout() {
+            try {
+                localStorage.clear();
+                if (window.firebaseAuth && window.firebaseSignOut) {
+                    await window.firebaseSignOut(window.firebaseAuth);
+                }
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = 'index.html';
+            }
+        }
+
+        function loadUserInfo() {
+            const userName = localStorage.getItem('userName') || 'Administrator';
+            const userId = localStorage.getItem('userId');
+
+            document.getElementById('userName').textContent = userName;
+            document.getElementById('welcomeName').textContent = userName;
+            document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
+
+            // Load hospital info from Firestore
+            loadHospitalInfo(userId);
+            loadStats(userId);
+        }
+
+        async function loadHospitalInfo(userId) {
+            try {
+                const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('hospitalInfo').textContent =
+                        `${data.user.hospital} • ${data.user.location}`;
+                }
+            } catch (error) {
+                console.error('Error loading hospital info:', error);
+            }
+        }
+
+        async function loadStats(userId) {
+            const token = checkAuth();
+            if (!token) return;
+
+            try {
+                // Load duties stats
+                const dutiesRes = await fetch('http://localhost:5000/api/duties/my-duties', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const dutiesData = await dutiesRes.json();
+
+                if (dutiesData.success) {
+                    const openDuties = dutiesData.duties.filter(d => d.status === 'OPEN').length;
+                    document.getElementById('openDuties').textContent = openDuties;
+                    document.getElementById('totalDuties').textContent = dutiesData.duties.length;
+                }
+
+                // Load applications stats
+                const appsRes = await fetch('http://localhost:5000/api/applications/received', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const appsData = await appsRes.json();
+
+                if (appsData.success) {
+                    const pending = appsData.applications.filter(a => a.status === 'pending').length;
+                    document.getElementById('pendingApps').textContent = pending;
+                    document.getElementById('totalApps').textContent = appsData.applications.length;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                document.getElementById('openDuties').textContent = '0';
+                document.getElementById('pendingApps').textContent = '0';
+                document.getElementById('totalDuties').textContent = '0';
+                document.getElementById('totalApps').textContent = '0';
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            loadUserInfo();
+
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', logout);
+            }
+        });
+    </script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

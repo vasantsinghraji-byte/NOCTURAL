@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Test - No Firebase</title>
+    <style>
+        body { font-family: Arial; padding: 40px; max-width: 500px; margin: 0 auto; }
+        input, button { display: block; width: 100%; padding: 10px; margin: 10px 0; }
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; }
+        .log { background: #f5f5f5; padding: 20px; margin-top: 20px; border-radius: 5px; }
+    </style>
+    <script src="/js/config.js"></script>
+</head>
+<body>
+    <h1>🧪 Simple Test (No Firebase)</h1>
+    <p>This tests if the basic HTML/JavaScript works</p>
+
+    <input type="email" id="email" placeholder="Email" value="test@example.com">
+    <input type="password" id="password" placeholder="Password" value="password123">
+    <button onclick="testLogin()">Test Login (No Firebase)</button>
+
+    <div class="log" id="log"></div>
+
+    <script>
+        function addLog(message) {
+            const log = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            log.innerHTML += `<div>[${time}] ${message}</div>`;
+            console.log(message);
+        }
+
+        window.testLogin = function() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            addLog('✅ JavaScript is working!');
+            addLog(`📧 Email entered: ${email}`);
+            addLog(`🔑 Password entered: ${password}`);
+            addLog('✅ Form values captured successfully!');
+            addLog('⚠️ Firebase not connected (need valid API key)');
+
+            alert('Test passed! HTML and JavaScript work. Need valid Firebase config.');
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            addLog('🚀 Page loaded successfully');
+            addLog('✅ Event listeners attached');
+        });
+    </script>
+</body>
+</html>

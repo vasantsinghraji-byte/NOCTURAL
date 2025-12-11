@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #5B8DBE;
+            --success: #28a745;
+            --danger: #dc3545;
+            --dark: #2C3E50;
+            --light: #f8f9fa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .registration-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .role-card {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 3px solid transparent;
+        }
+
+        .role-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary);
+            box-shadow: 0 25px 70px rgba(0,0,0,0.4);
+        }
+
+        .role-card.selected {
+            border-color: var(--success);
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+
+        .role-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .role-icon {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 1.5rem;
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+        }
+
+        .role-header h2 {
+            font-size: 2rem;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .role-header p {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .form-group label .required {
+            color: var(--danger);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(91, 141, 190, 0.1);
+        }
+
+        .form-control:disabled {
+            background: #f8f9fa;
+            cursor: not-allowed;
+        }
+
+        .password-requirements {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 0.5rem;
+            padding-left: 1rem;
+        }
+
+        .password-requirements li {
+            margin-bottom: 0.25rem;
+        }
+
+        .password-requirements li.valid {
+            color: var(--success);
+        }
+
+        .password-requirements li.invalid {
+            color: var(--danger);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(91, 141, 190, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.loading {
+            position: relative;
+            color: transparent;
+        }
+
+        .btn.loading::after {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #ffe6e6;
+            color: var(--danger);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+            border-left: 4px solid var(--danger);
+        }
+
+        .success-message {
+            background: #e6ffe6;
+            color: var(--success);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+            border-left: 4px solid var(--success);
+        }
+
+        .footer-text {
+            text-align: center;
+            color: white;
+            margin-top: 2rem;
+            font-size: 1rem;
+        }
+
+        .footer-text a {
+            color: white;
+            text-decoration: underline;
+            font-weight: 600;
+        }
+
+        .footer-text a:hover {
+            opacity: 0.8;
+        }
+
+        @media (max-width: 1024px) {
+            .registration-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .role-card {
+                padding: 2rem;
+            }
+        }
+    </style>
+    <script src="/js/config.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <i class="fas fa-heartbeat"></i>
+                Join Nocturnal
+            </h1>
+            <p>Register as a healthcare professional or hospital</p>
+        </div>
+
+        <div class="registration-cards">
+            <!-- Doctor/Nurse Registration -->
+            <div class="role-card" id="doctorCard">
+                <div class="role-header">
+                    <div class="role-icon">
+                        <i class="fas fa-user-md"></i>
+                    </div>
+                    <h2>Healthcare Professional</h2>
+                    <p>Doctors & Nurses</p>
+                </div>
+
+                <form id="doctorForm">
+                    <div id="doctorError"></div>
+
+                    <div class="form-group">
+                        <label>Full Name <span class="required">*</span></label>
+                        <input type="text" class="form-control" id="doctorName"
+                               placeholder="Dr. John Doe" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email Address <span class="required">*</span></label>
+                        <input type="email" class="form-control" id="doctorEmail"
+                               placeholder="john.doe@example.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Phone Number <span class="required">*</span></label>
+                        <input type="tel" class="form-control" id="doctorPhone"
+                               placeholder="+91 98765 43210" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Role <span class="required">*</span></label>
+                        <select class="form-control" id="doctorRole" required>
+                            <option value="">Select your role</option>
+                            <option value="doctor">Doctor</option>
+                            <option value="nurse">Nurse</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Password <span class="required">*</span></label>
+                        <input type="password" class="form-control" id="doctorPassword"
+                               placeholder="Create a strong password" required>
+                        <ul class="password-requirements" id="doctorPasswordReqs">
+                            <li id="doctorReq1">At least 8 characters</li>
+                            <li id="doctorReq2">One uppercase letter</li>
+                            <li id="doctorReq3">One lowercase letter</li>
+                            <li id="doctorReq4">One number</li>
+                            <li id="doctorReq5">One special character (@$!%*?&)</li>
+                        </ul>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Confirm Password <span class="required">*</span></label>
+                        <input type="password" class="form-control" id="doctorConfirmPassword"
+                               placeholder="Re-enter your password" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="doctorSubmitBtn">
+                        Sign Up as Healthcare Professional
+                    </button>
+                </form>
+            </div>
+
+            <!-- Hospital/Admin Registration -->
+            <div class="role-card" id="hospitalCard">
+                <div class="role-header">
+                    <div class="role-icon">
+                        <i class="fas fa-hospital"></i>
+                    </div>
+                    <h2>Hospital / Healthcare Facility</h2>
+                    <p>Post shifts & manage staff</p>
+                </div>
+
+                <form id="hospitalForm">
+                    <div id="hospitalError"></div>
+
+                    <div class="form-group">
+                        <label>Hospital/Facility Name <span class="required">*</span></label>
+                        <input type="text" class="form-control" id="hospitalName"
+                               placeholder="City General Hospital" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Contact Person Name <span class="required">*</span></label>
+                        <input type="text" class="form-control" id="hospitalContactName"
+                               placeholder="Admin Name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email Address <span class="required">*</span></label>
+                        <input type="email" class="form-control" id="hospitalEmail"
+                               placeholder="admin@hospital.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Phone Number <span class="required">*</span></label>
+                        <input type="tel" class="form-control" id="hospitalPhone"
+                               placeholder="+91 98765 43210" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Location/City <span class="required">*</span></label>
+                        <input type="text" class="form-control" id="hospitalLocation"
+                               placeholder="Mumbai, Maharashtra" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Password <span class="required">*</span></label>
+                        <input type="password" class="form-control" id="hospitalPassword"
+                               placeholder="Create a strong password" required>
+                        <ul class="password-requirements" id="hospitalPasswordReqs">
+                            <li id="hospitalReq1">At least 8 characters</li>
+                            <li id="hospitalReq2">One uppercase letter</li>
+                            <li id="hospitalReq3">One lowercase letter</li>
+                            <li id="hospitalReq4">One number</li>
+                            <li id="hospitalReq5">One special character (@$!%*?&)</li>
+                        </ul>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Confirm Password <span class="required">*</span></label>
+                        <input type="password" class="form-control" id="hospitalConfirmPassword"
+                               placeholder="Re-enter your password" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="hospitalSubmitBtn">
+                        Sign Up as Hospital
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="footer-text">
+            Already have an account? <a href="/index.html">Login here</a>
+        </div>
+    </div>
+
+    <script>
+        // API_URL is provided by config.js
+
+        // Password validation functions
+        function validatePassword(password, prefix) {
+            const requirements = {
+                length: password.length >= 8,
+                uppercase: /[A-Z]/.test(password),
+                lowercase: /[a-z]/.test(password),
+                number: /\d/.test(password),
+                special: /[@$!%*?&]/.test(password)
+            };
+
+            document.getElementById(`${prefix}Req1`).className = requirements.length ? 'valid' : 'invalid';
+            document.getElementById(`${prefix}Req2`).className = requirements.uppercase ? 'valid' : 'invalid';
+            document.getElementById(`${prefix}Req3`).className = requirements.lowercase ? 'valid' : 'invalid';
+            document.getElementById(`${prefix}Req4`).className = requirements.number ? 'valid' : 'invalid';
+            document.getElementById(`${prefix}Req5`).className = requirements.special ? 'valid' : 'invalid';
+
+            return Object.values(requirements).every(v => v);
+        }
+
+        // Doctor password validation
+        document.getElementById('doctorPassword').addEventListener('input', (e) => {
+            validatePassword(e.target.value, 'doctor');
+        });
+
+        // Hospital password validation
+        document.getElementById('hospitalPassword').addEventListener('input', (e) => {
+            validatePassword(e.target.value, 'hospital');
+        });
+
+        // Doctor/Nurse Registration
+        document.getElementById('doctorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const btn = document.getElementById('doctorSubmitBtn');
+            const errorDiv = document.getElementById('doctorError');
+            errorDiv.innerHTML = '';
+
+            const name = document.getElementById('doctorName').value.trim();
+            const email = document.getElementById('doctorEmail').value.trim();
+            const phone = document.getElementById('doctorPhone').value.trim();
+            const role = document.getElementById('doctorRole').value;
+            const password = document.getElementById('doctorPassword').value;
+            const confirmPassword = document.getElementById('doctorConfirmPassword').value;
+
+            // Validation
+            if (!role) {
+                errorDiv.innerHTML = '<div class="error-message">Please select your role (Doctor or Nurse)</div>';
+                return;
+            }
+
+            if (!validatePassword(password, 'doctor')) {
+                errorDiv.innerHTML = '<div class="error-message">Password does not meet requirements</div>';
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                errorDiv.innerHTML = '<div class="error-message">Passwords do not match</div>';
+                return;
+            }
+
+            btn.classList.add('loading');
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, phone, password, role })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.token) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    localStorage.setItem('userType', role);
+
+                    errorDiv.innerHTML = '<div class="success-message">Registration successful! Redirecting to onboarding...</div>';
+
+                    setTimeout(() => {
+                        window.location.href = 'doctor-onboarding.html';
+                    }, 1500);
+                } else {
+                    throw new Error(data.message || 'Registration failed');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                let errorMessage = error.message || 'Registration failed. Please try again.';
+                if (errorMessage.includes('already exists')) {
+                    errorMessage = 'This email is already registered. <a href="/index.html">Login instead</a>?';
+                }
+                errorDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        });
+
+        // Hospital Registration
+        document.getElementById('hospitalForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const btn = document.getElementById('hospitalSubmitBtn');
+            const errorDiv = document.getElementById('hospitalError');
+            errorDiv.innerHTML = '';
+
+            const hospitalName = document.getElementById('hospitalName').value.trim();
+            const name = document.getElementById('hospitalContactName').value.trim();
+            const email = document.getElementById('hospitalEmail').value.trim();
+            const phone = document.getElementById('hospitalPhone').value.trim();
+            const location = document.getElementById('hospitalLocation').value.trim();
+            const password = document.getElementById('hospitalPassword').value;
+            const confirmPassword = document.getElementById('hospitalConfirmPassword').value;
+
+            if (!validatePassword(password, 'hospital')) {
+                errorDiv.innerHTML = '<div class="error-message">Password does not meet requirements</div>';
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                errorDiv.innerHTML = '<div class="error-message">Passwords do not match</div>';
+                return;
+            }
+
+            btn.classList.add('loading');
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        email,
+                        phone,
+                        password,
+                        role: 'admin',
+                        hospital: hospitalName,
+                        location
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.token) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    localStorage.setItem('userType', 'hospital');
+
+                    errorDiv.innerHTML = '<div class="success-message">Registration successful! Redirecting to dashboard...</div>';
+
+                    setTimeout(() => {
+                        window.location.href = 'admin-dashboard.html';
+                    }, 1500);
+                } else {
+                    throw new Error(data.message || 'Registration failed');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                let errorMessage = error.message || 'Registration failed. Please try again.';
+                if (errorMessage.includes('already exists')) {
+                    errorMessage = 'This email is already registered. <a href="/index.html">Login instead</a>?';
+                }
+                errorDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic - Nocturnal</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 { color: #00ff00; }
+        .section {
+            background: #2a2a2a;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #00ff00;
+        }
+        .error { color: #ff0000; }
+        .success { color: #00ff00; }
+        .warning { color: #ffaa00; }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #00cc00; }
+        pre {
+            background: #000;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
+    <script src="/js/config.js"></script>
+</head>
+<body>
+    <h1>🔍 DIAGNOSTIC TOOL</h1>
+    
+    <div class="section">
+        <h2>1. Backend Server Status</h2>
+        <div id="backendStatus">Checking...</div>
+        <button onclick="checkBackend()">Recheck Backend</button>
+    </div>
+
+    <div class="section">
+        <h2>2. Firebase Status</h2>
+        <div id="firebaseStatus">Checking...</div>
+    </div>
+
+    <div class="section">
+        <h2>3. Current User Status</h2>
+        <div id="userStatus">Checking...</div>
+        <button onclick="showUserData()">Show User Data</button>
+    </div>
+
+    <div class="section">
+        <h2>4. localStorage Status</h2>
+        <div id="storageStatus">Checking...</div>
+    </div>
+
+    <div class="section">
+        <h2>5. HTML Elements</h2>
+        <div id="elementsStatus">Checking...</div>
+    </div>
+
+    <div class="section">
+        <h2>6. Actions</h2>
+        <button onclick="clearAll()">Clear All Data</button>
+        <button onclick="fixRole()">Fix My Role to Doctor</button>
+        <button onclick="goToLanding()">Go to Landing</button>
+        <button onclick="goToDashboard()">Go to Dashboard</button>
+    </div>
+
+    <div class="section">
+        <h2>7. Console Logs</h2>
+        <pre id="logs"></pre>
+    </div>
+
+    <script>
+        const logs = document.getElementById('logs');
+        
+        function log(msg) {
+            logs.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+            console.log(msg);
+        }
+
+        // Check backend
+        async function checkBackend() {
+            const div = document.getElementById('backendStatus');
+            div.innerHTML = 'Checking backend...';
+            
+            try {
+                const response = await fetch('http://localhost:5000');
+                const data = await response.json();
+                
+                if (data.message) {
+                    div.innerHTML = `<span class="success">✅ Backend is running!</span><br>Message: ${data.message}`;
+                    log('✅ Backend server is running on port 5000');
+                } else {
+                    div.innerHTML = `<span class="warning">⚠️ Backend responded but format is wrong</span>`;
+                    log('⚠️ Backend response format unexpected');
+                }
+            } catch (error) {
+                div.innerHTML = `<span class="error">❌ Backend NOT running!</span><br>Error: ${error.message}<br><br>
+                <strong>FIX:</strong> Open Command Prompt and run:<br>
+                <code>cd C:\\Users\\wgshx\\Documents\\nocturnal\\backend</code><br>
+                <code>npm start</code>`;
+                log('❌ Backend not accessible: ' + error.message);
+            }
+        }
+
+        // Check Firebase
+        function checkFirebase() {
+            const div = document.getElementById('firebaseStatus');
+            
+            if (typeof window.firebase === 'undefined') {
+                div.innerHTML = '<span class="error">❌ Firebase not loaded!</span>';
+                log('❌ Firebase not loaded');
+                return;
+            }
+
+            const auth = window.firebase.auth;
+            const user = auth?.currentUser;
+            
+            div.innerHTML = `
+                <span class="success">✅ Firebase loaded</span><br>
+                Auth: ${auth ? '✅' : '❌'}<br>
+                Current User: ${user ? user.email : 'None'}
+            `;
+            log('✅ Firebase status checked');
+        }
+
+        // Show user data
+        async function showUserData() {
+            const div = document.getElementById('userStatus');
+            
+            if (!window.firebase) {
+                div.innerHTML = '<span class="error">❌ Firebase not loaded</span>';
+                return;
+            }
+
+            const user = window.firebase.auth.currentUser;
+            
+            if (!user) {
+                div.innerHTML = '<span class="warning">⚠️ No user logged in</span>';
+                log('⚠️ No user currently logged in');
+                return;
+            }
+
+            try {
+                const { db, doc, getDoc } = window.firebase;
+                const userDocRef = doc(db, 'users', user.uid);
+                const userDoc = await getDoc(userDocRef);
+                
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    div.innerHTML = `
+                        <span class="success">✅ User found</span><br>
+                        Email: ${user.email}<br>
+                        Name: ${data.name}<br>
+                        Role: <strong>${data.role}</strong><br>
+                        Specialty: ${data.specialty || 'N/A'}<br>
+                        Hospital: ${data.hospital || 'N/A'}
+                    `;
+                    log(`✅ User data: ${data.name}, role: ${data.role}`);
+                } else {
+                    div.innerHTML = '<span class="error">❌ User document not found in Firestore</span>';
+                    log('❌ User document missing');
+                }
+            } catch (error) {
+                div.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+                log('❌ Error loading user: ' + error.message);
+            }
+        }
+
+        // Check localStorage
+        function checkStorage() {
+            const div = document.getElementById('storageStatus');
+            const token = localStorage.getItem('token');
+            const userType = localStorage.getItem('userType');
+            const userId = localStorage.getItem('userId');
+            const userName = localStorage.getItem('userName');
+
+            div.innerHTML = `
+                token: ${token ? '✅ Present' : '<span class="error">❌ Missing</span>'}<br>
+                userType: ${userType ? `✅ ${userType}` : '<span class="error">❌ Missing</span>'}<br>
+                userId: ${userId ? '✅ Present' : '<span class="error">❌ Missing</span>'}<br>
+                userName: ${userName ? `✅ ${userName}` : '<span class="error">❌ Missing</span>'}
+            `;
+            
+            log(`localStorage: token=${!!token}, userType=${userType}`);
+        }
+
+        // Check HTML elements
+        function checkElements() {
+            const div = document.getElementById('elementsStatus');
+            const elements = [
+                'landing-page',
+                'login-page',
+                'register-page',
+                'login-form',
+                'register-form',
+                'dashboard'
+            ];
+
+            let html = '';
+            elements.forEach(id => {
+                const exists = document.getElementById(id) !== null;
+                html += `${id}: ${exists ? '✅' : '<span class="error">❌</span>'}<br>`;
+            });
+
+            div.innerHTML = html;
+            log('HTML elements checked');
+        }
+
+        // Fix role
+        async function fixRole() {
+            if (!window.firebase) {
+                alert('Firebase not loaded!');
+                return;
+            }
+
+            const user = window.firebase.auth.currentUser;
+            if (!user) {
+                alert('No user logged in! Login first.');
+                return;
+            }
+
+            try {
+                const { db, doc, updateDoc } = window.firebase;
+                const userRef = doc(db, 'users', user.uid);
+                await updateDoc(userRef, {
+                    role: 'doctor',
+                    specialty: 'General Medicine'
+                });
+
+                alert('✅ Role updated to doctor!');
+                log('✅ Role updated to doctor');
+                showUserData();
+            } catch (error) {
+                alert('Error: ' + error.message);
+                log('❌ Error updating role: ' + error.message);
+            }
+        }
+
+        // Clear all
+        function clearAll() {
+            localStorage.clear();
+            alert('✅ All data cleared!');
+            log('🗑️ localStorage cleared');
+            checkStorage();
+        }
+
+        // Navigation
+        function goToLanding() {
+            window.location.href = 'index.html';
+        }
+
+        function goToDashboard() {
+            window.location.href = 'doctor-dashboard.html';
+        }
+
+        // Run checks on load
+        window.addEventListener('DOMContentLoaded', () => {
+            log('🔍 Starting diagnostics...');
+            checkBackend();
+            checkFirebase();
+            showUserData();
+            checkStorage();
+            checkElements();
+            log('✅ Diagnostics complete');
+        });
+    </script>
+</body>
+</html>

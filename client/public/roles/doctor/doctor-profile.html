@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - Nocturnal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        /* Navigation */
+        .navbar {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #475569;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: #3b82f6;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #3b82f6;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .page-header {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            color: #1e40af;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            color: #64748b;
+        }
+
+        /* Profile Card */
+        .profile-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .profile-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+            text-align: center;
+            color: white;
+        }
+
+        .profile-avatar-large {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: white;
+            color: #3b82f6;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+
+        .profile-name {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .profile-role {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        /* Profile Form */
+        .profile-form {
+            padding: 2rem;
+        }
+
+        .form-section {
+            margin-bottom: 2.5rem;
+        }
+
+        .form-section h2 {
+            color: #1e40af;
+            margin-bottom: 1.5rem;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            color: #475569;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-group small {
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
+
+        /* Checkbox Group */
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* Action Buttons */
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            padding-top: 1.5rem;
+            border-top: 2px solid #e2e8f0;
+        }
+
+        .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Success Message */
+        .success-message {
+            background: #dcfce7;
+            border: 2px solid #22c55e;
+            color: #166534;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .success-message.show {
+            display: flex;
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-links {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .container {
+                padding: 0 1rem;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+    <script src="/js/config.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="logo">🌙 Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/doctor/doctor-dashboard.html">Dashboard</a>
+            <a href="/roles/doctor/browse-duties.html">Browse Duties</a>
+            <a href="/roles/doctor/calendar.html">Calendar</a>
+            <a href="/roles/doctor/earnings.html">Earnings</a>
+            <a href="/roles/doctor/achievements.html">Achievements</a>
+            <a href="/roles/doctor/my-applications.html">My Applications</a>
+            <a href="/roles/doctor/doctor-profile.html" class="active">Profile</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">D</div>
+            <span id="userName">Loading...</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>My Profile 👤</h1>
+            <p>Manage your professional information and preferences</p>
+        </div>
+
+        <!-- Profile Card -->
+        <div class="profile-card">
+            <div class="profile-header">
+                <div class="profile-avatar-large" id="profileAvatarLarge">D</div>
+                <div class="profile-name" id="profileName">Loading...</div>
+                <div class="profile-role" id="profileRole">Healthcare Professional</div>
+            </div>
+
+            <div class="profile-form">
+                <!-- Success Message -->
+                <div class="success-message" id="successMessage">
+                    <span>✓</span>
+                    <span>Profile updated successfully!</span>
+                </div>
+
+                <form id="profileForm">
+                    <!-- Personal Information -->
+                    <div class="form-section">
+                        <h2>👤 Personal Information</h2>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="fullName">Full Name *</label>
+                                <input type="text" id="fullName" name="fullName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email Address *</label>
+                                <input type="email" id="email" name="email" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="phone">Phone Number *</label>
+                                <input type="tel" id="phone" name="phone" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="dateOfBirth">Date of Birth</label>
+                                <input type="date" id="dateOfBirth" name="dateOfBirth">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Professional Information -->
+                    <div class="form-section">
+                        <h2>🏥 Professional Information</h2>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="profession">Profession *</label>
+                                <select id="profession" name="profession" required>
+                                    <option value="">Select Profession</option>
+                                    <option value="Doctor">Doctor</option>
+                                    <option value="Nurse">Nurse</option>
+                                    <option value="Paramedic">Paramedic</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="specialization">Specialization</label>
+                                <select id="specialization" name="specialization">
+                                    <option value="">Select Specialization</option>
+                                    <option value="General Medicine">General Medicine</option>
+                                    <option value="Emergency">Emergency</option>
+                                    <option value="Cardiology">Cardiology</option>
+                                    <option value="Orthopedics">Orthopedics</option>
+                                    <option value="Pediatrics">Pediatrics</option>
+                                    <option value="ICU">ICU</option>
+                                    <option value="Surgery">Surgery</option>
+                                    <option value="Anesthesiology">Anesthesiology</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="licenseNumber">License Number *</label>
+                                <input type="text" id="licenseNumber" name="licenseNumber" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="experience">Years of Experience</label>
+                                <input type="number" id="experience" name="experience" min="0" max="50">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Location & Availability -->
+                    <div class="form-section">
+                        <h2>📍 Location & Availability</h2>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="city">City *</label>
+                                <input type="text" id="city" name="city" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="state">State</label>
+                                <input type="text" id="state" name="state">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Preferred Shifts</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="nightShift" name="nightShift">
+                                    <label for="nightShift">Night Shift</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="eveningShift" name="eveningShift">
+                                    <label for="eveningShift">Evening Shift</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="weekendShift" name="weekendShift">
+                                    <label for="weekendShift">Weekend Shift</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Information -->
+                    <div class="form-section">
+                        <h2>📝 Additional Information</h2>
+                        <div class="form-group">
+                            <label for="bio">Professional Bio</label>
+                            <textarea id="bio" name="bio" placeholder="Tell us about your experience and expertise..."></textarea>
+                            <small>This will be visible to hospitals when you apply for duties</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="certifications">Certifications</label>
+                            <textarea id="certifications" name="certifications" placeholder="List your certifications (one per line)"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="resetForm()">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { auth, signOut, onAuthStateChanged } from './firebase-config.js';
+
+        // Make auth available globally
+        window.firebaseAuth = auth;
+        window.firebaseSignOut = signOut;
+
+        // Monitor auth state
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                // Only redirect if there's no token (user actually logged out)
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    localStorage.clear();
+                    window.location.href = 'index.html';
+                }
+            } else {
+                // User is logged in, update token if needed
+                user.getIdToken().then(token => {
+                    localStorage.setItem('token', token);
+                });
+            }
+        });
+    </script>
+
+    <script>
+        // API Base URL
+        // API_URL is provided by config.js
+
+        // Check authentication
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            const userType = localStorage.getItem('userType');
+
+            if (!token || userType !== 'doctor') {
+                window.location.href = 'index.html';
+                return false;
+            }
+            return token;
+        }
+
+        // Logout function
+        async function logout() {
+            try {
+                // Clear localStorage
+                localStorage.removeItem('token');
+                localStorage.removeItem('userType');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('userName');
+
+                // Sign out from Firebase if available
+                if (window.firebaseAuth && window.firebaseSignOut) {
+                    await window.firebaseSignOut(window.firebaseAuth);
+                }
+
+                // Redirect to landing page
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+                // Force redirect anyway
+                window.location.href = 'index.html';
+            }
+        }
+
+        // Load user info
+        function loadUserInfo() {
+            const userName = localStorage.getItem('userName') || 'Doctor';
+            document.getElementById('userName').textContent = userName;
+            document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
+            document.getElementById('profileAvatarLarge').textContent = userName.charAt(0).toUpperCase();
+            document.getElementById('profileName').textContent = userName;
+        }
+
+        // Fetch user profile
+        async function fetchUserProfile() {
+            const token = checkAuth();
+            if (!token) return;
+
+            try {
+                const response = await fetch(`${API_URL}/users/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.user) {
+                    populateForm(data.user);
+                }
+            } catch (error) {
+                console.error('Error fetching profile:', error);
+            }
+        }
+
+        // Populate form with user data
+        function populateForm(user) {
+            document.getElementById('fullName').value = user.fullName || user.name || '';
+            document.getElementById('email').value = user.email || '';
+            document.getElementById('phone').value = user.phone || '';
+            document.getElementById('dateOfBirth').value = user.dateOfBirth ? user.dateOfBirth.split('T')[0] : '';
+            document.getElementById('profession').value = user.profession || 'Doctor';
+            document.getElementById('specialization').value = user.specialization || '';
+            document.getElementById('licenseNumber').value = user.licenseNumber || '';
+            document.getElementById('experience').value = user.experience || '';
+            document.getElementById('city').value = user.city || '';
+            document.getElementById('state').value = user.state || '';
+            document.getElementById('bio').value = user.bio || '';
+            document.getElementById('certifications').value = user.certifications || '';
+
+            // Set shift preferences
+            if (user.preferredShifts) {
+                document.getElementById('nightShift').checked = user.preferredShifts.includes('Night');
+                document.getElementById('eveningShift').checked = user.preferredShifts.includes('Evening');
+                document.getElementById('weekendShift').checked = user.preferredShifts.includes('Weekend');
+            }
+
+            // Update profile role
+            document.getElementById('profileRole').textContent = user.profession || 'Healthcare Professional';
+        }
+
+        // Handle form submission
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const token = checkAuth();
+            if (!token) return;
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+
+            // Collect preferred shifts
+            const preferredShifts = [];
+            if (document.getElementById('nightShift').checked) preferredShifts.push('Night');
+            if (document.getElementById('eveningShift').checked) preferredShifts.push('Evening');
+            if (document.getElementById('weekendShift').checked) preferredShifts.push('Weekend');
+
+            const profileData = {
+                fullName: document.getElementById('fullName').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                dateOfBirth: document.getElementById('dateOfBirth').value,
+                profession: document.getElementById('profession').value,
+                specialization: document.getElementById('specialization').value,
+                licenseNumber: document.getElementById('licenseNumber').value,
+                experience: document.getElementById('experience').value,
+                city: document.getElementById('city').value,
+                state: document.getElementById('state').value,
+                bio: document.getElementById('bio').value,
+                certifications: document.getElementById('certifications').value,
+                preferredShifts: preferredShifts
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/users/profile`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(profileData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update localStorage
+                    localStorage.setItem('userName', profileData.fullName);
+                    
+                    // Show success message
+                    const successMsg = document.getElementById('successMessage');
+                    successMsg.classList.add('show');
+                    setTimeout(() => successMsg.classList.remove('show'), 3000);
+                    
+                    // Reload user info
+                    loadUserInfo();
+                } else {
+                    alert(data.message || 'Failed to update profile');
+                }
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                alert('Error updating profile. Please try again.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Changes';
+            }
+        });
+
+        // Reset form
+        function resetForm() {
+            fetchUserProfile();
+        }
+
+        // Initialize page
+        window.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            loadUserInfo();
+            fetchUserProfile();
+        });
+    </script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>
