@@ -1,24 +1,31 @@
 /**
  * Environment Configuration System
  *
- * Manages configuration across development, staging, and production environments
+ * Manages configuration across development, staging, and production environments.
+ * Uses single .env file with NODE_ENV to control environment-specific behavior.
+ *
+ * Configuration Strategy:
+ * - Single .env file contains all secrets and configuration
+ * - NODE_ENV variable determines which config overrides apply
+ * - Environment-specific settings are defined in code below
+ * - No need for multiple .env.{environment} files
+ *
+ * Usage:
+ *   Set NODE_ENV in your .env file or system environment:
+ *   - development (default): Debug mode, relaxed rate limits
+ *   - staging: Production-like with detailed errors
+ *   - production: Strict security, minimal logging
+ *   - test: Isolated test database, no rate limits
  */
 
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Determine current environment
-const NODE_ENV = process.env.NODE_ENV || 'development';
-
-// Load environment-specific .env file
-const envFile = `.env.${NODE_ENV}`;
-const envPath = path.resolve(process.cwd(), envFile);
-
-// Load environment variables
-dotenv.config({ path: envPath });
-
-// Also load base .env file as fallback
+// Load single .env file (contains all secrets)
 dotenv.config();
+
+// Determine current environment from loaded .env or system
+const NODE_ENV = process.env.NODE_ENV || 'development';
 
 /**
  * Base configuration shared across all environments
@@ -310,8 +317,7 @@ const validateConfig = (config) => {
         throw new Error(
             `Missing required configuration: ${missing.join(', ')}\n` +
             `Environment: ${NODE_ENV}\n` +
-            `Env file: ${envFile}\n` +
-            `Please check your environment variables.`
+            `Please check your .env file or environment variables.`
         );
     }
 
