@@ -48,6 +48,7 @@ COPY --from=builder --chown=nodejs:nodejs /app/utils ./utils
 COPY --from=builder --chown=nodejs:nodejs /app/controllers ./controllers
 COPY --from=builder --chown=nodejs:nodejs /app/services ./services
 COPY --from=builder --chown=nodejs:nodejs /app/constants ./constants
+COPY --from=builder --chown=nodejs:nodejs /app/validators ./validators
 
 # Create directories for uploads and logs
 RUN mkdir -p uploads logs && \
