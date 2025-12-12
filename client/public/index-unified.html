@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nocturnal - Healthcare Staffing Platform</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #5B8DBE;
+            --success: #28a745;
+            --dark: #2C3E50;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #E8EAF6 0%, #C5CAE9 50%, #D1C4E9 100%);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 1rem;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #4A7099;
+            transform: translateY(-2px);
+        }
+
+        .hero {
+            max-width: 1200px;
+            margin: 4rem auto;
+            padding: 0 2rem;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            color: var(--dark);
+            margin-bottom: 1.5rem;
+            line-height: 1.2;
+        }
+
+        .hero-subtitle {
+            font-size: 1.5rem;
+            color: #666;
+            margin-bottom: 3rem;
+        }
+
+        .role-selection {
+            max-width: 1000px;
+            margin: 0 auto 4rem;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+        }
+
+        .role-card {
+            background: white;
+            padding: 3rem 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: 3px solid transparent;
+        }
+
+        .role-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+            border-color: var(--primary);
+        }
+
+        .role-icon {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 1.5rem;
+            background: linear-gradient(135deg, #5B8DBE 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+        }
+
+        .role-card h2 {
+            font-size: 2rem;
+            color: var(--dark);
+            margin-bottom: 1rem;
+        }
+
+        .role-card p {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .role-features {
+            text-align: left;
+            margin-bottom: 2rem;
+        }
+
+        .role-feature {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .role-feature i {
+            color: var(--success);
+            font-size: 1.2rem;
+        }
+
+        .features {
+            max-width: 1200px;
+            margin: 6rem auto;
+            padding: 0 2rem;
+        }
+
+        .features-title {
+            text-align: center;
+            font-size: 2.5rem;
+            color: var(--dark);
+            margin-bottom: 3rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .feature-card-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #5B8DBE 0%, #764ba2 100%);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: white;
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            color: var(--dark);
+            margin-bottom: 1rem;
+        }
+
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .cta {
+            background: white;
+            padding: 4rem 2rem;
+            margin: 4rem 0;
+            text-align: center;
+        }
+
+        .cta h2 {
+            font-size: 2.5rem;
+            color: var(--dark);
+            margin-bottom: 1rem;
+        }
+
+        .cta p {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        .footer {
+            background: var(--dark);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero-subtitle {
+                font-size: 1.1rem;
+            }
+
+            .role-selection {
+                grid-template-columns: 1fr;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <script src="js/config.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <span>🌙</span>
+            <span>Nocturnal</span>
+        </div>
+        <div class="nav-actions">
+            <a href="index.html" class="btn btn-outline">Login</a>
+            <a href="register.html" class="btn btn-primary">Sign Up</a>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <h1>Healthcare Staffing Made Simple</h1>
+        <p class="hero-subtitle">Connect hospitals with qualified medical professionals instantly</p>
+    </section>
+
+    <section class="role-selection" id="roles">
+        <div class="role-card" onclick="selectRole('doctor')">
+            <div class="role-icon">
+                <i class="fas fa-user-md"></i>
+            </div>
+            <h2>I'm a Doctor</h2>
+            <p>Find flexible shifts that match your specialty and schedule</p>
+
+            <div class="role-features">
+                <div class="role-feature">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Browse shifts by specialty & location</span>
+                </div>
+                <div class="role-feature">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Flexible scheduling</span>
+                </div>
+                <div class="role-feature">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Competitive pay rates</span>
+                </div>
+                <div class="role-feature">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Quick payments</span>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%;">
+                Join as Doctor
+            </button>
+        </div>
+
+        <div class="role-card" onclick="selectRole('hospital')">
+            <div class="role-icon">
+                <i class="fas fa-hospital"></i>
+            </div>
+            <h2>I'm a Hospital</h2>
+            <p>Fill staff shortages quickly with qualified professionals</p>
+
+            <div class="role-features">
+                <div class="role-feature">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Post shifts in minutes</span>
+                </div>
+                <div class="role-feature">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Verified medical professionals</span>
+                </div>
+                <div class="role-feature">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Smart matching algorithm</span>
+                </div>
+                <div class="role-feature">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Advanced analytics</span>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%;">
+                Join as Hospital
+            </button>
+        </div>
+    </section>
+
+    <section class="features">
+        <h2 class="features-title">Why Choose Nocturnal?</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-card-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <h3>Instant Matching</h3>
+                <p>Our smart algorithm matches doctors with shifts based on specialty, skills, location, and preferences in real-time.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-card-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3>Verified Professionals</h3>
+                <p>All doctors are verified with MCI registration, educational credentials, and professional references.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-card-icon">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                <h3>Secure Payments</h3>
+                <p>Guaranteed payments within 48 hours. Track earnings, generate invoices, and manage taxes easily.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-card-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h3>Real-time Analytics</h3>
+                <p>Comprehensive dashboards with insights on fill rates, spending, performance metrics, and forecasting.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-card-icon">
+                    <i class="fas fa-bell"></i>
+                </div>
+                <h3>Smart Notifications</h3>
+                <p>Stay updated with instant alerts for new shifts, applications, payments, and important updates.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-card-icon">
+                    <i class="fas fa-mobile-alt"></i>
+                </div>
+                <h3>Mobile Friendly</h3>
+                <p>Access the platform anywhere, anytime. Fully responsive design works on all devices.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta">
+        <h2>Ready to Get Started?</h2>
+        <p>Join thousands of healthcare professionals and hospitals using Nocturnal</p>
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <a href="register.html" class="btn btn-primary" style="padding: 1rem 3rem; font-size: 1.1rem;">
+                Sign Up Now
+            </a>
+            <a href="index.html" class="btn btn-outline" style="padding: 1rem 3rem; font-size: 1.1rem;">
+                Login
+            </a>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2025 Nocturnal. All rights reserved.</p>
+        <p style="margin-top: 0.5rem; opacity: 0.8;">Healthcare Staffing Platform</p>
+    </footer>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAxaGXt7lNNHk_j4l8J3HH-8vq7yp-JEhg",
+            authDomain: "nocturnal-49be3.firebaseapp.com",
+            projectId: "nocturnal-49be3",
+            storageBucket: "nocturnal-49be3.firebasestorage.app",
+            messagingSenderId: "913544430486",
+            appId: "1:913544430486:web:35c9e09b52b62a33e8c3f4"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        window.selectRole = function(role) {
+            // Redirect to unified registration page
+            window.location.href = 'register.html';
+        };
+
+        window.showLogin = async function(event) {
+            event.preventDefault();
+
+            const email = prompt('Enter your email:');
+            if (!email) return;
+
+            const password = prompt('Enter your password:');
+            if (!password) return;
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const token = await userCredential.user.getIdToken();
+                localStorage.setItem('token', token);
+
+                // Get user role
+                const response = await fetch('http://localhost:5000/api/auth/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    localStorage.setItem('user', JSON.stringify(data.user));
+
+                    // Redirect based on role
+                    if (data.user.role === 'doctor') {
+                        window.location.href = '/doctor-dashboard.html';
+                    } else {
+                        window.location.href = '/admin-dashboard.html';
+                    }
+                }
+            } catch (error) {
+                alert('Login failed: ' + error.message);
+            }
+        };
+
+        // Check if already logged in
+        const token = localStorage.getItem('token');
+        if (token) {
+            fetch('http://localhost:5000/api/auth/me', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.user.role === 'doctor') {
+                        window.location.href = '/doctor-dashboard.html';
+                    } else {
+                        window.location.href = '/admin-dashboard.html';
+                    }
+                }
+            })
+            .catch(err => console.log('Not logged in'));
+        }
+    </script>
+</body>
+</html>
