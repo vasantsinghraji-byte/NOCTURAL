@@ -1,53 +1,36 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const Notification = require('../models/notification');
+const notificationService = require('../services/notificationService');
 
 // Get all notifications for logged-in user
 router.get('/', protect, async (req, res) => {
   try {
     const { page = 1, limit = 20, unreadOnly = false } = req.query;
-    const skip = (page - 1) * limit;
 
-    const query = { user: req.user._id };
-    if (unreadOnly === 'true') {
-      query.read = false;
-    }
-
-    const notifications = await Notification.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('relatedDuty', 'title hospital date specialty')
-      .populate('relatedApplication', 'status')
-      .lean();
-
-    const total = await Notification.countDocuments(query);
-    const unreadCount = await Notification.getUnreadCount(req.user._id);
+    const result = await notificationService.getNotifications(req.user._id, {
+      page,
+      limit,
+      unreadOnly: unreadOnly === 'true'
+    });
 
     res.json({
       success: true,
-      data: {
-        notifications,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        },
-        unreadCount
-      }
+      data: result
     });
   } catch (error) {
     console.error('Error fetching notifications:', error);
-    res.status(500).json({ success: false, message: 'Error fetching notifications', error: error.message });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Error fetching notifications'
+    });
   }
 });
 
 // Get unread notification count
 router.get('/unread-count', protect, async (req, res) => {
   try {
-    const count = await Notification.getUnreadCount(req.user._id);
+    const count = await notificationService.getUnreadCount(req.user._id);
 
     res.json({
       success: true,
@@ -55,23 +38,17 @@ router.get('/unread-count', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ success: false, message: 'Error fetching count', error: error.message });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Error fetching count'
+    });
   }
 });
 
 // Mark notification as read
 router.put('/:id/read', protect, async (req, res) => {
   try {
-    const notification = await Notification.findOne({
-      _id: req.params.id,
-      user: req.user._id
-    });
-
-    if (!notification) {
-      return res.status(404).json({ success: false, message: 'Notification not found' });
-    }
-
-    await notification.markAsRead();
+    const notification = await notificationService.markAsRead(req.params.id, req.user._id);
 
     res.json({
       success: true,
@@ -80,14 +57,17 @@ router.put('/:id/read', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ success: false, message: 'Error updating notification', error: error.message });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Error updating notification'
+    });
   }
 });
 
 // Mark all notifications as read
 router.put('/read-all', protect, async (req, res) => {
   try {
-    await Notification.markAllAsRead(req.user._id);
+    await notificationService.markAllAsRead(req.user._id);
 
     res.json({
       success: true,
@@ -95,21 +75,17 @@ router.put('/read-all', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ success: false, message: 'Error updating notifications', error: error.message });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Error updating notifications'
+    });
   }
 });
 
 // Delete notification
 router.delete('/:id', protect, async (req, res) => {
   try {
-    const notification = await Notification.findOneAndDelete({
-      _id: req.params.id,
-      user: req.user._id
-    });
-
-    if (!notification) {
-      return res.status(404).json({ success: false, message: 'Notification not found' });
-    }
+    await notificationService.deleteNotification(req.params.id, req.user._id);
 
     res.json({
       success: true,
@@ -117,17 +93,17 @@ router.delete('/:id', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ success: false, message: 'Error deleting notification', error: error.message });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Error deleting notification'
+    });
   }
 });
 
 // Clear all read notifications
 router.delete('/clear/read', protect, async (req, res) => {
   try {
-    await Notification.deleteMany({
-      user: req.user._id,
-      read: true
-    });
+    await notificationService.clearReadNotifications(req.user._id);
 
     res.json({
       success: true,
@@ -135,7 +111,10 @@ router.delete('/clear/read', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ success: false, message: 'Error clearing notifications', error: error.message });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Error clearing notifications'
+    });
   }
 });
 
@@ -144,7 +123,7 @@ router.post('/', protect, async (req, res) => {
   try {
     const { userId, type, title, message, actionUrl, actionLabel, priority, channels } = req.body;
 
-    const notification = await Notification.createNotification({
+    const notification = await notificationService.createNotification({
       user: userId || req.user._id,
       type,
       title,
@@ -162,7 +141,10 @@ router.post('/', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating notification:', error);
-    res.status(500).json({ success: false, message: 'Error creating notification', error: error.message });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Error creating notification'
+    });
   }
 });
 
