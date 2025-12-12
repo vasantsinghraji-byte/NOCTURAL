@@ -46,6 +46,8 @@ COPY --from=builder --chown=nodejs:nodejs /app/routes ./routes
 COPY --from=builder --chown=nodejs:nodejs /app/middleware ./middleware
 COPY --from=builder --chown=nodejs:nodejs /app/utils ./utils
 COPY --from=builder --chown=nodejs:nodejs /app/controllers ./controllers
+COPY --from=builder --chown=nodejs:nodejs /app/services ./services
+COPY --from=builder --chown=nodejs:nodejs /app/constants ./constants
 
 # Create directories for uploads and logs
 RUN mkdir -p uploads logs && \
@@ -64,10 +66,6 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start application
-# Option 1: Direct node (simple, good for single container)
-# CMD ["node", "--max-old-space-size=2048", "server.js"]
-
-# Option 2: PM2 (recommended for production, handles clustering within container)
-# Install PM2 globally in builder stage and copy, or use npm script
-CMD ["npm", "run", "pm2:start:prod"]
+# Start application with direct node (recommended for containerized environments like Render)
+# PM2 is designed for VPS/bare metal, not PaaS containers
+CMD ["node", "--max-old-space-size=512", "server.js"]
