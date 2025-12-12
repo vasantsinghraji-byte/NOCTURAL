@@ -1,8 +1,11 @@
 {
   "name": "nocturnal",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Nocturnal Healthcare Staffing Platform",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node --max-old-space-size=2048 server.js",
     "dev": "nodemon --max-old-space-size=2048 server.js",
