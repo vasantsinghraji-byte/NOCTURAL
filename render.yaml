@@ -9,7 +9,7 @@ services:
     runtime: node
     region: singapore  # Change to your preferred region
     plan: free  # Use 'starter' for production
-    buildCommand: npm install
+    buildCommand: npm install --legacy-peer-deps
     startCommand: npm start
     healthCheckPath: /api/v1/health
     envVars:

@@ -1,27 +1,61 @@
+# Dependencies
 node_modules
 npm-debug.log
-.git
-.gitignore
+yarn-error.log
+
+# Build artifacts
+dist
+build
+.next
+
+# Environment files
 .env
-.env.*
-!.env.example
-logs
-*.log
-uploads
-.DS_Store
+.env.local
+.env.*.local
+
+# IDE
 .vscode
 .idea
-*.md
-!README.md
-docs
-tests
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Test coverage
 coverage
-*.test.js
+.nyc_output
+
+# Logs
+logs
+*.log
+
+# CI/CD
 .github
+.gitlab-ci.yml
+
+# Docker
 Dockerfile
-docker-compose*.yml
-k8s
-terraform
-.terraform
-*.tfstate
-*.tfstate.backup
+docker-compose.yml
+.dockerignore
+
+# Documentation
+*.md
+docs
+
+# Development only
+.prettierrc
+.eslintrc
+.editorconfig
+jest.config.js
+
+# Temporary files
+tmp
+temp
+*.tmp

@@ -1,0 +1,36 @@
+{
+  "name": "@nocturnal/shared",
+  "version": "1.0.0",
+  "description": "Shared middleware, utilities, and constants for Nocturnal microservices",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "nocturnal",
+    "shared",
+    "middleware",
+    "utilities"
+  ],
+  "author": "Nocturnal Team",
+  "license": "ISC",
+  "dependencies": {
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "ioredis": "^5.3.2",
+    "jsonwebtoken": "^9.0.2",
+    "rate-limit-redis": "^4.2.0",
+    "winston": "^3.11.0",
+    "winston-logstash": "^1.2.1",
+    "winston-loki": "^6.0.8",
+    "@sentry/node": "^7.99.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "peerDependencies": {
+    "express": "^4.18.0"
+  }
+}
