@@ -131,8 +131,12 @@ const corsConfig = () => {
         return callback(null, true);
       }
 
-      // Check if origin is in whitelist
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      // TEMPORARY: Allow localhost/127.0.0.1 even in production for testing
+      // TODO: Remove this after setting ALLOWED_ORIGINS properly
+      const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+
+      // Check if origin is in whitelist OR is localhost
+      if (allowedOrigins.indexOf(origin) !== -1 || isLocalhost) {
         callback(null, true);
       } else {
         logger.warn('CORS blocked request from unauthorized origin', { origin });
