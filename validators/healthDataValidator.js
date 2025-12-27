@@ -5,7 +5,7 @@
 
 const { body, param, query } = require('express-validator');
 const { handleValidationErrors } = require('./authValidator');
-const { METRIC_TYPES, ANALYTICS_PERIODS, SEVERITY_LEVELS } = require('../constants/healthConstants');
+const { METRIC_TYPES, ANALYTICS_PERIODS, ALLERGY_SEVERITY, CONDITION_SEVERITY } = require('../constants/healthConstants');
 
 /**
  * Validate health metric recording
@@ -109,7 +109,7 @@ const validateHealthRecordUpdate = [
 
   body('conditions.*.severity')
     .optional()
-    .isIn(Object.values(SEVERITY_LEVELS)).withMessage('Invalid severity level'),
+    .isIn(Object.values(CONDITION_SEVERITY)).withMessage('Invalid severity level'),
 
   body('allergies')
     .optional()
@@ -122,7 +122,7 @@ const validateHealthRecordUpdate = [
 
   body('allergies.*.severity')
     .optional()
-    .isIn(Object.values(SEVERITY_LEVELS)).withMessage('Invalid allergy severity'),
+    .isIn(Object.values(ALLERGY_SEVERITY)).withMessage('Invalid allergy severity'),
 
   body('currentMedications')
     .optional()
