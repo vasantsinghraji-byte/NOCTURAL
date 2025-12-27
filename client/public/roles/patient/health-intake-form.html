@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Intake Form - Nocturnal Healthcare</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .form-header p {
+            color: #666;
+        }
+
+        .progress-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .progress-bar::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 10%;
+            right: 10%;
+            height: 4px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 8px;
+        }
+
+        .step-circle.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .step-circle.completed {
+            background: #38ef7d;
+        }
+
+        .step-label {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .form-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            display: none;
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        /* Dynamic List */
+        .dynamic-list {
+            margin-bottom: 20px;
+        }
+
+        .list-item {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .list-item .remove-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ffebee;
+            border: none;
+            color: #c62828;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .add-btn {
+            background: #f0f0ff;
+            border: 2px dashed #667eea;
+            color: #667eea;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            width: 100%;
+            transition: background 0.3s;
+        }
+
+        .add-btn:hover {
+            background: #e0e0ff;
+        }
+
+        /* Radio/Checkbox Groups */
+        .option-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .option-item {
+            position: relative;
+        }
+
+        .option-item input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .option-item label {
+            display: block;
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .option-item input:checked + label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        /* Navigation Buttons */
+        .form-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            border: none;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border: none;
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success { background: #38ef7d; }
+        .toast.error { background: #f5576c; }
+        .toast.info { background: #667eea; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Loading */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .progress-bar {
+                overflow-x: auto;
+                padding-bottom: 10px;
+            }
+
+            .step-label {
+                font-size: 10px;
+            }
+        }
+    </style>
+    <script src="/js/config.js"></script>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="header">
+        <div class="header-content">
+            <button class="back-btn" onclick="goBack()">
+                <span>&larr;</span> Back to Dashboard
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="form-header">
+            <h1>Health Intake Form</h1>
+            <p>Please provide accurate information to help us serve you better</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-step">
+                <div class="step-circle active" id="step1Circle">1</div>
+                <span class="step-label">Lifestyle</span>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle" id="step2Circle">2</div>
+                <span class="step-label">Conditions</span>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle" id="step3Circle">3</div>
+                <span class="step-label">Allergies</span>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle" id="step4Circle">4</div>
+                <span class="step-label">Medications</span>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle" id="step5Circle">5</div>
+                <span class="step-label">Review</span>
+            </div>
+        </div>
+
+        <!-- Step 1: Lifestyle -->
+        <div class="form-section active" id="step1">
+            <h2 class="section-title">🏃 Lifestyle & Habits</h2>
+
+            <div class="form-group">
+                <label>Smoking Status</label>
+                <div class="option-group">
+                    <div class="option-item">
+                        <input type="radio" name="smokingStatus" id="smoking-never" value="NEVER" checked>
+                        <label for="smoking-never">Never</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="smokingStatus" id="smoking-former" value="FORMER">
+                        <label for="smoking-former">Former</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="smokingStatus" id="smoking-occasional" value="OCCASIONAL">
+                        <label for="smoking-occasional">Occasional</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="smokingStatus" id="smoking-current" value="CURRENT">
+                        <label for="smoking-current">Current</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Alcohol Consumption</label>
+                <div class="option-group">
+                    <div class="option-item">
+                        <input type="radio" name="alcoholConsumption" id="alcohol-none" value="NONE" checked>
+                        <label for="alcohol-none">None</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="alcoholConsumption" id="alcohol-occasional" value="OCCASIONAL">
+                        <label for="alcohol-occasional">Occasional</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="alcoholConsumption" id="alcohol-moderate" value="MODERATE">
+                        <label for="alcohol-moderate">Moderate</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="alcoholConsumption" id="alcohol-heavy" value="HEAVY">
+                        <label for="alcohol-heavy">Heavy</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Exercise Frequency</label>
+                <div class="option-group">
+                    <div class="option-item">
+                        <input type="radio" name="exerciseFrequency" id="exercise-never" value="NEVER">
+                        <label for="exercise-never">Never</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="exerciseFrequency" id="exercise-rarely" value="RARELY">
+                        <label for="exercise-rarely">Rarely</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="exerciseFrequency" id="exercise-weekly" value="WEEKLY" checked>
+                        <label for="exercise-weekly">Weekly</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="exerciseFrequency" id="exercise-daily" value="DAILY">
+                        <label for="exercise-daily">Daily</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Diet Type</label>
+                <div class="option-group">
+                    <div class="option-item">
+                        <input type="radio" name="dietType" id="diet-veg" value="VEGETARIAN">
+                        <label for="diet-veg">Vegetarian</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="dietType" id="diet-nonveg" value="NON_VEGETARIAN" checked>
+                        <label for="diet-nonveg">Non-Vegetarian</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="dietType" id="diet-vegan" value="VEGAN">
+                        <label for="diet-vegan">Vegan</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="dietType" id="diet-other" value="OTHER">
+                        <label for="diet-other">Other</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-nav">
+                <div></div>
+                <button class="btn btn-primary" onclick="nextStep(1)">Next &rarr;</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Medical Conditions -->
+        <div class="form-section" id="step2">
+            <h2 class="section-title">🏥 Medical Conditions</h2>
+            <p style="color: #666; margin-bottom: 20px;">List any medical conditions you have been diagnosed with</p>
+
+            <div class="dynamic-list" id="conditionsList">
+                <!-- Conditions added dynamically -->
+            </div>
+
+            <button class="add-btn" onclick="addCondition()">+ Add Condition</button>
+
+            <div class="form-nav">
+                <button class="btn btn-secondary" onclick="prevStep(2)">&larr; Previous</button>
+                <button class="btn btn-primary" onclick="nextStep(2)">Next &rarr;</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Allergies -->
+        <div class="form-section" id="step3">
+            <h2 class="section-title">⚠️ Allergies</h2>
+            <p style="color: #666; margin-bottom: 20px;">List any allergies (medications, food, environmental)</p>
+
+            <div class="dynamic-list" id="allergiesList">
+                <!-- Allergies added dynamically -->
+            </div>
+
+            <button class="add-btn" onclick="addAllergy()">+ Add Allergy</button>
+
+            <div class="form-nav">
+                <button class="btn btn-secondary" onclick="prevStep(3)">&larr; Previous</button>
+                <button class="btn btn-primary" onclick="nextStep(3)">Next &rarr;</button>
+            </div>
+        </div>
+
+        <!-- Step 4: Medications -->
+        <div class="form-section" id="step4">
+            <h2 class="section-title">💊 Current Medications</h2>
+            <p style="color: #666; margin-bottom: 20px;">List any medications you are currently taking</p>
+
+            <div class="dynamic-list" id="medicationsList">
+                <!-- Medications added dynamically -->
+            </div>
+
+            <button class="add-btn" onclick="addMedication()">+ Add Medication</button>
+
+            <div class="form-nav">
+                <button class="btn btn-secondary" onclick="prevStep(4)">&larr; Previous</button>
+                <button class="btn btn-primary" onclick="nextStep(4)">Next &rarr;</button>
+            </div>
+        </div>
+
+        <!-- Step 5: Review -->
+        <div class="form-section" id="step5">
+            <h2 class="section-title">📋 Review Your Information</h2>
+
+            <div id="reviewContent">
+                <!-- Review content populated dynamically -->
+            </div>
+
+            <div class="form-nav">
+                <button class="btn btn-secondary" onclick="prevStep(5)">&larr; Previous</button>
+                <div>
+                    <button class="btn btn-secondary" onclick="saveDraft()" style="margin-right: 10px;">Save Draft</button>
+                    <button class="btn btn-success" onclick="submitForm()">Submit for Review</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check authentication
+        const token = localStorage.getItem('patientToken');
+        if (!token) {
+            window.location.href = 'patient-login.html';
+        }
+
+        let currentStep = 1;
+        const totalSteps = 5;
+
+        // Form data
+        let formData = {
+            habits: {},
+            conditions: [],
+            allergies: [],
+            currentMedications: []
+        };
+
+        // Initialize
+        async function init() {
+            await loadDraft();
+        }
+
+        // Load existing draft
+        async function loadDraft() {
+            try {
+                const response = await fetch(`${API_URL}/health-intake/form`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.draft) {
+                        formData = { ...formData, ...data.draft };
+                        populateForm();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading draft:', error);
+            }
+        }
+
+        // Populate form with existing data
+        function populateForm() {
+            // Habits
+            if (formData.habits) {
+                Object.keys(formData.habits).forEach(key => {
+                    const radio = document.querySelector(`input[name="${key}"][value="${formData.habits[key]}"]`);
+                    if (radio) radio.checked = true;
+                });
+            }
+
+            // Conditions
+            formData.conditions.forEach(c => addCondition(c));
+
+            // Allergies
+            formData.allergies.forEach(a => addAllergy(a));
+
+            // Medications
+            formData.currentMedications.forEach(m => addMedication(m));
+        }
+
+        // Navigation
+        function nextStep(step) {
+            collectStepData(step);
+            if (step < totalSteps) {
+                showStep(step + 1);
+            }
+        }
+
+        function prevStep(step) {
+            if (step > 1) {
+                showStep(step - 1);
+            }
+        }
+
+        function showStep(step) {
+            // Hide all sections
+            document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+
+            // Show current section
+            document.getElementById(`step${step}`).classList.add('active');
+
+            // Update progress
+            for (let i = 1; i <= totalSteps; i++) {
+                const circle = document.getElementById(`step${i}Circle`);
+                circle.classList.remove('active', 'completed');
+                if (i < step) {
+                    circle.classList.add('completed');
+                    circle.innerHTML = '&#10003;';
+                } else if (i === step) {
+                    circle.classList.add('active');
+                    circle.innerHTML = i;
+                } else {
+                    circle.innerHTML = i;
+                }
+            }
+
+            currentStep = step;
+
+            // If review step, populate review
+            if (step === 5) {
+                populateReview();
+            }
+        }
+
+        // Collect data from current step
+        function collectStepData(step) {
+            if (step === 1) {
+                formData.habits = {
+                    smokingStatus: document.querySelector('input[name="smokingStatus"]:checked')?.value || 'NEVER',
+                    alcoholConsumption: document.querySelector('input[name="alcoholConsumption"]:checked')?.value || 'NONE',
+                    exerciseFrequency: document.querySelector('input[name="exerciseFrequency"]:checked')?.value || 'WEEKLY',
+                    dietType: document.querySelector('input[name="dietType"]:checked')?.value || 'NON_VEGETARIAN'
+                };
+            }
+        }
+
+        // Add condition
+        function addCondition(data = {}) {
+            const list = document.getElementById('conditionsList');
+            const id = Date.now();
+
+            const html = `
+                <div class="list-item" id="condition-${id}">
+                    <button class="remove-btn" onclick="removeItem('condition-${id}', 'conditions')">&times;</button>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Condition Name</label>
+                            <input type="text" placeholder="e.g., Diabetes, Hypertension"
+                                   value="${data.name || ''}"
+                                   onchange="updateCondition(${id}, 'name', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Severity</label>
+                            <select onchange="updateCondition(${id}, 'severity', this.value)">
+                                <option value="MILD" ${data.severity === 'MILD' ? 'selected' : ''}>Mild</option>
+                                <option value="MODERATE" ${data.severity === 'MODERATE' ? 'selected' : ''}>Moderate</option>
+                                <option value="SEVERE" ${data.severity === 'SEVERE' ? 'selected' : ''}>Severe</option>
+                                <option value="CHRONIC" ${data.severity === 'CHRONIC' ? 'selected' : ''}>Chronic</option>
+                                <option value="CONTROLLED" ${data.severity === 'CONTROLLED' ? 'selected' : ''}>Controlled</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            list.insertAdjacentHTML('beforeend', html);
+            formData.conditions.push({ id, name: data.name || '', severity: data.severity || 'MILD' });
+        }
+
+        function updateCondition(id, field, value) {
+            const condition = formData.conditions.find(c => c.id === id);
+            if (condition) condition[field] = value;
+        }
+
+        // Add allergy
+        function addAllergy(data = {}) {
+            const list = document.getElementById('allergiesList');
+            const id = Date.now();
+
+            const html = `
+                <div class="list-item" id="allergy-${id}">
+                    <button class="remove-btn" onclick="removeItem('allergy-${id}', 'allergies')">&times;</button>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Allergen</label>
+                            <input type="text" placeholder="e.g., Penicillin, Peanuts"
+                                   value="${data.allergen || ''}"
+                                   onchange="updateAllergy(${id}, 'allergen', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Reaction Type</label>
+                            <input type="text" placeholder="e.g., Rash, Swelling"
+                                   value="${data.reactionType || ''}"
+                                   onchange="updateAllergy(${id}, 'reactionType', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Severity</label>
+                            <select onchange="updateAllergy(${id}, 'severity', this.value)">
+                                <option value="MILD" ${data.severity === 'MILD' ? 'selected' : ''}>Mild</option>
+                                <option value="MODERATE" ${data.severity === 'MODERATE' ? 'selected' : ''}>Moderate</option>
+                                <option value="SEVERE" ${data.severity === 'SEVERE' ? 'selected' : ''}>Severe</option>
+                                <option value="LIFE_THREATENING" ${data.severity === 'LIFE_THREATENING' ? 'selected' : ''}>Life Threatening</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            list.insertAdjacentHTML('beforeend', html);
+            formData.allergies.push({ id, allergen: data.allergen || '', reactionType: data.reactionType || '', severity: data.severity || 'MILD' });
+        }
+
+        function updateAllergy(id, field, value) {
+            const allergy = formData.allergies.find(a => a.id === id);
+            if (allergy) allergy[field] = value;
+        }
+
+        // Add medication
+        function addMedication(data = {}) {
+            const list = document.getElementById('medicationsList');
+            const id = Date.now();
+
+            const html = `
+                <div class="list-item" id="medication-${id}">
+                    <button class="remove-btn" onclick="removeItem('medication-${id}', 'currentMedications')">&times;</button>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Medication Name</label>
+                            <input type="text" placeholder="e.g., Metformin, Aspirin"
+                                   value="${data.name || ''}"
+                                   onchange="updateMedication(${id}, 'name', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Dosage</label>
+                            <input type="text" placeholder="e.g., 500mg"
+                                   value="${data.dosage || ''}"
+                                   onchange="updateMedication(${id}, 'dosage', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Frequency</label>
+                            <input type="text" placeholder="e.g., Twice daily"
+                                   value="${data.frequency || ''}"
+                                   onchange="updateMedication(${id}, 'frequency', this.value)">
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            list.insertAdjacentHTML('beforeend', html);
+            formData.currentMedications.push({ id, name: data.name || '', dosage: data.dosage || '', frequency: data.frequency || '' });
+        }
+
+        function updateMedication(id, field, value) {
+            const medication = formData.currentMedications.find(m => m.id === id);
+            if (medication) medication[field] = value;
+        }
+
+        // Remove item
+        function removeItem(elementId, listName) {
+            document.getElementById(elementId).remove();
+            const id = parseInt(elementId.split('-')[1]);
+            formData[listName] = formData[listName].filter(item => item.id !== id);
+        }
+
+        // Populate review
+        function populateReview() {
+            collectStepData(currentStep);
+
+            const review = document.getElementById('reviewContent');
+
+            const habitsLabels = {
+                smokingStatus: 'Smoking',
+                alcoholConsumption: 'Alcohol',
+                exerciseFrequency: 'Exercise',
+                dietType: 'Diet'
+            };
+
+            let html = `
+                <div class="list-item">
+                    <h4 style="margin-bottom: 15px;">Lifestyle & Habits</h4>
+                    ${Object.entries(formData.habits).map(([key, value]) => `
+                        <p><strong>${habitsLabels[key]}:</strong> ${value.replace('_', ' ')}</p>
+                    `).join('')}
+                </div>
+
+                <div class="list-item">
+                    <h4 style="margin-bottom: 15px;">Medical Conditions (${formData.conditions.filter(c => c.name).length})</h4>
+                    ${formData.conditions.filter(c => c.name).map(c => `
+                        <p>${c.name} - <em>${c.severity}</em></p>
+                    `).join('') || '<p style="color: #666;">No conditions added</p>'}
+                </div>
+
+                <div class="list-item">
+                    <h4 style="margin-bottom: 15px;">Allergies (${formData.allergies.filter(a => a.allergen).length})</h4>
+                    ${formData.allergies.filter(a => a.allergen).map(a => `
+                        <p>${a.allergen} - ${a.reactionType || 'N/A'} - <em>${a.severity}</em></p>
+                    `).join('') || '<p style="color: #666;">No allergies added</p>'}
+                </div>
+
+                <div class="list-item">
+                    <h4 style="margin-bottom: 15px;">Current Medications (${formData.currentMedications.filter(m => m.name).length})</h4>
+                    ${formData.currentMedications.filter(m => m.name).map(m => `
+                        <p>${m.name} ${m.dosage ? `(${m.dosage})` : ''} ${m.frequency ? `- ${m.frequency}` : ''}</p>
+                    `).join('') || '<p style="color: #666;">No medications added</p>'}
+                </div>
+            `;
+
+            review.innerHTML = html;
+        }
+
+        // Save draft
+        async function saveDraft() {
+            collectStepData(currentStep);
+            showLoading(true);
+
+            try {
+                // Clean data (remove internal ids)
+                const cleanData = {
+                    ...formData,
+                    conditions: formData.conditions.filter(c => c.name).map(({ id, ...rest }) => rest),
+                    allergies: formData.allergies.filter(a => a.allergen).map(({ id, ...rest }) => rest),
+                    currentMedications: formData.currentMedications.filter(m => m.name).map(({ id, ...rest }) => rest)
+                };
+
+                const response = await fetch(`${API_URL}/health-intake/draft`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(cleanData)
+                });
+
+                if (!response.ok) throw new Error('Failed to save draft');
+
+                showToast('Draft saved successfully', 'success');
+            } catch (error) {
+                console.error('Error saving draft:', error);
+                showToast('Failed to save draft', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Submit form
+        async function submitForm() {
+            collectStepData(currentStep);
+            showLoading(true);
+
+            try {
+                // Clean data
+                const cleanData = {
+                    ...formData,
+                    conditions: formData.conditions.filter(c => c.name).map(({ id, ...rest }) => rest),
+                    allergies: formData.allergies.filter(a => a.allergen).map(({ id, ...rest }) => rest),
+                    currentMedications: formData.currentMedications.filter(m => m.name).map(({ id, ...rest }) => rest)
+                };
+
+                const response = await fetch(`${API_URL}/health-intake/submit`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(cleanData)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to submit');
+                }
+
+                showToast('Health profile submitted for review!', 'success');
+                setTimeout(() => {
+                    window.location.href = 'patient-health-dashboard.html';
+                }, 2000);
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                showToast(error.message || 'Failed to submit', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // UI Helpers
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function goBack() {
+            window.location.href = 'patient-health-dashboard.html';
+        }
+
+        // Initialize
+        init();
+    </script>
+</body>
+</html>
