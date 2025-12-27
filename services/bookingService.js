@@ -12,6 +12,17 @@ const User = require('../models/user');
 const { invalidateCache } = require('../middleware/queryCache');
 const logger = require('../utils/logger');
 const { HTTP_STATUS, PAGINATION } = require('../constants');
+const {
+  ValidationError,
+  AuthorizationError,
+  NotFoundError
+} = require('../utils/errors');
+
+// Health Dashboard integrations
+const healthIntakeService = require('./healthIntakeService');
+const healthMetricService = require('./healthMetricService');
+const healthRecordService = require('./healthRecordService');
+const doctorAccessService = require('./doctorAccessService');
 
 class BookingService {
   /**
@@ -35,10 +46,7 @@ class BookingService {
     // Verify patient exists
     const patient = await Patient.findById(patientId);
     if (!patient) {
-      throw {
-        statusCode: HTTP_STATUS.NOT_FOUND,
-        message: 'Patient not found'
-      };
+      throw new NotFoundError('Patient', patientId);
     }
 
     // Get service from catalog (match by name which corresponds to serviceType enum)
@@ -67,18 +75,12 @@ class BookingService {
     });
 
     if (!service) {
-      throw {
-        statusCode: HTTP_STATUS.NOT_FOUND,
-        message: 'Service not available'
-      };
+      throw new NotFoundError('Service');
     }
 
     // Check if prescription is required
     if (service.requirements?.prescriptionRequired && !bookingData.prescriptionUrl) {
-      throw {
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        message: 'Prescription is required for this service'
-      };
+      throw new ValidationError('Prescription is required for this service');
     }
 
     // Calculate pricing
@@ -139,6 +141,24 @@ class BookingService {
       amount: booking.pricing.payableAmount
     });
 
+    // Start health intake process if this is patient's first booking
+    if (patient.totalBookings === 0 && patient.intakeStatus === 'NOT_STARTED') {
+      try {
+        await healthIntakeService.startIntakeProcess(patientId, booking._id);
+        logger.info('Health intake process started', {
+          patientId,
+          bookingId: booking._id
+        });
+      } catch (error) {
+        // Log but don't fail the booking creation
+        logger.warn('Failed to start health intake process', {
+          patientId,
+          bookingId: booking._id,
+          error: error.message
+        });
+      }
+    }
+
     return booking;
   }
 
@@ -154,10 +174,7 @@ class BookingService {
       .populate('serviceProvider', 'name email phone specialty professional');
 
     if (!booking) {
-      throw {
-        statusCode: HTTP_STATUS.NOT_FOUND,
-        message: 'Booking not found'
-      };
+      throw new NotFoundError('Booking', bookingId);
     }
 
     // Authorization check - only patient, assigned provider, or admin can view
@@ -168,10 +185,7 @@ class BookingService {
       // Check if user is admin
       const user = await User.findById(userId);
       if (!user || user.role !== 'admin') {
-        throw {
-          statusCode: HTTP_STATUS.FORBIDDEN,
-          message: 'Not authorized to view this booking'
-        };
+        throw new AuthorizationError('Not authorized to view this booking');
       }
     }
 
@@ -242,35 +256,23 @@ class BookingService {
     const booking = await NurseBooking.findById(bookingId);
 
     if (!booking) {
-      throw {
-        statusCode: HTTP_STATUS.NOT_FOUND,
-        message: 'Booking not found'
-      };
+      throw new NotFoundError('Booking', bookingId);
     }
 
     // Check if booking is in correct status
     if (!['REQUESTED', 'SEARCHING'].includes(booking.status)) {
-      throw {
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        message: 'Booking cannot be assigned in current status'
-      };
+      throw new ValidationError('Booking cannot be assigned in current status');
     }
 
     // Verify provider exists and has correct role
     const provider = await User.findById(providerId);
     if (!provider) {
-      throw {
-        statusCode: HTTP_STATUS.NOT_FOUND,
-        message: 'Service provider not found'
-      };
+      throw new NotFoundError('Service provider', providerId);
     }
 
     const validRoles = ['nurse', 'physiotherapist'];
     if (!validRoles.includes(provider.role)) {
-      throw {
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        message: 'User is not a valid service provider'
-      };
+      throw new ValidationError('User is not a valid service provider');
     }
 
     // Assign provider
@@ -283,6 +285,32 @@ class BookingService {
     });
 
     await booking.save();
+
+    // Grant health data access to provider for this booking
+    try {
+      await doctorAccessService.grantAccess({
+        patientId: booking.patient,
+        doctorId: providerId,
+        bookingId: booking._id,
+        accessLevel: 'READ_WRITE',
+        allowedResources: ['HEALTH_RECORD', 'HEALTH_METRIC', 'DOCTOR_NOTE'],
+        grantReason: `Assigned to booking ${booking._id}`,
+        adminId: providerId, // System grant
+        adminName: 'System'
+      });
+
+      logger.info('Health data access granted to provider', {
+        bookingId: booking._id,
+        providerId,
+        patientId: booking.patient
+      });
+    } catch (error) {
+      logger.warn('Failed to grant health data access', {
+        bookingId: booking._id,
+        providerId,
+        error: error.message
+      });
+    }
 
     // Invalidate cache
     await invalidateCache('*:/api/bookings*');
@@ -308,10 +336,7 @@ class BookingService {
     const booking = await NurseBooking.findById(bookingId);
 
     if (!booking) {
-      throw {
-        statusCode: HTTP_STATUS.NOT_FOUND,
-        message: 'Booking not found'
-      };
+      throw new NotFoundError('Booking', bookingId);
     }
 
     // Validate status transition
@@ -328,10 +353,7 @@ class BookingService {
 
     const allowedStatuses = validTransitions[booking.status] || [];
     if (!allowedStatuses.includes(newStatus)) {
-      throw {
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        message: `Cannot change status from ${booking.status} to ${newStatus}`
-      };
+      throw new ValidationError(`Cannot change status from ${booking.status} to ${newStatus}`);
     }
 
     // Authorization check
@@ -340,10 +362,7 @@ class BookingService {
     const isAdmin = user && user.role === 'admin';
 
     if (!isProvider && !isAdmin) {
-      throw {
-        statusCode: HTTP_STATUS.FORBIDDEN,
-        message: 'Not authorized to update booking status'
-      };
+      throw new AuthorizationError('Not authorized to update booking status');
     }
 
     // Update status
@@ -396,25 +415,16 @@ class BookingService {
     const booking = await NurseBooking.findById(bookingId);
 
     if (!booking) {
-      throw {
-        statusCode: HTTP_STATUS.NOT_FOUND,
-        message: 'Booking not found'
-      };
+      throw new NotFoundError('Booking', bookingId);
     }
 
     // Authorization check
     if (booking.serviceProvider.toString() !== providerId) {
-      throw {
-        statusCode: HTTP_STATUS.FORBIDDEN,
-        message: 'Only assigned provider can complete the service'
-      };
+      throw new AuthorizationError('Only assigned provider can complete the service');
     }
 
     if (booking.status !== 'IN_PROGRESS') {
-      throw {
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        message: 'Service must be in progress to complete'
-      };
+      throw new ValidationError('Service must be in progress to complete');
     }
 
     // Add service report
@@ -442,6 +452,73 @@ class BookingService {
       }
     });
 
+    // Capture health metrics from service report
+    if (serviceReport.vitalsChecked) {
+      try {
+        const vitals = [];
+
+        // Map vitals from service report to health metrics
+        if (serviceReport.vitalsChecked.bloodPressure) {
+          const [systolic, diastolic] = serviceReport.vitalsChecked.bloodPressure.split('/').map(Number);
+          if (systolic) vitals.push({ metricType: 'BP_SYSTOLIC', value: systolic, unit: 'mmHg' });
+          if (diastolic) vitals.push({ metricType: 'BP_DIASTOLIC', value: diastolic, unit: 'mmHg' });
+        }
+        if (serviceReport.vitalsChecked.heartRate) {
+          vitals.push({ metricType: 'HEART_RATE', value: serviceReport.vitalsChecked.heartRate, unit: 'bpm' });
+        }
+        if (serviceReport.vitalsChecked.temperature) {
+          vitals.push({ metricType: 'TEMPERATURE', value: serviceReport.vitalsChecked.temperature, unit: 'celsius' });
+        }
+        if (serviceReport.vitalsChecked.oxygenSaturation) {
+          vitals.push({ metricType: 'OXYGEN', value: serviceReport.vitalsChecked.oxygenSaturation, unit: '%' });
+        }
+        if (serviceReport.vitalsChecked.bloodSugar) {
+          vitals.push({ metricType: 'BLOOD_SUGAR', value: serviceReport.vitalsChecked.bloodSugar, unit: 'mg/dL' });
+        }
+
+        if (vitals.length > 0) {
+          await healthMetricService.recordMultipleMetrics(booking.patient, vitals, {
+            type: 'BOOKING',
+            bookingId: booking._id,
+            providerId
+          });
+
+          logger.info('Health metrics captured from booking', {
+            bookingId: booking._id,
+            patientId: booking.patient,
+            metricsCount: vitals.length
+          });
+        }
+      } catch (error) {
+        logger.warn('Failed to capture health metrics from booking', {
+          bookingId: booking._id,
+          error: error.message
+        });
+      }
+    }
+
+    // Capture observations to health record
+    if (serviceReport.observations || serviceReport.recommendations) {
+      try {
+        await healthRecordService.captureBookingVitals(
+          booking.patient,
+          booking._id,
+          serviceReport,
+          providerId
+        );
+
+        logger.info('Booking observations captured to health record', {
+          bookingId: booking._id,
+          patientId: booking.patient
+        });
+      } catch (error) {
+        logger.warn('Failed to capture booking observations', {
+          bookingId: booking._id,
+          error: error.message
+        });
+      }
+    }
+
     // Invalidate cache
     await invalidateCache('*:/api/bookings*');
 
@@ -465,34 +542,22 @@ class BookingService {
     const booking = await NurseBooking.findById(bookingId);
 
     if (!booking) {
-      throw {
-        statusCode: HTTP_STATUS.NOT_FOUND,
-        message: 'Booking not found'
-      };
+      throw new NotFoundError('Booking', bookingId);
     }
 
     // Authorization check
     if (booking.patient.toString() !== patientId) {
-      throw {
-        statusCode: HTTP_STATUS.FORBIDDEN,
-        message: 'Only the patient can review this booking'
-      };
+      throw new AuthorizationError('Only the patient can review this booking');
     }
 
     // Check if booking is completed
     if (booking.status !== 'COMPLETED') {
-      throw {
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        message: 'Can only review completed bookings'
-      };
+      throw new ValidationError('Can only review completed bookings');
     }
 
     // Check if already reviewed
     if (booking.rating.ratedAt) {
-      throw {
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        message: 'Booking already reviewed'
-      };
+      throw new ValidationError('Booking already reviewed');
     }
 
     // Add rating and review
@@ -542,18 +607,12 @@ class BookingService {
     const booking = await NurseBooking.findById(bookingId);
 
     if (!booking) {
-      throw {
-        statusCode: HTTP_STATUS.NOT_FOUND,
-        message: 'Booking not found'
-      };
+      throw new NotFoundError('Booking', bookingId);
     }
 
     // Check if booking can be cancelled
     if (['COMPLETED', 'CANCELLED'].includes(booking.status)) {
-      throw {
-        statusCode: HTTP_STATUS.BAD_REQUEST,
-        message: 'Cannot cancel booking in current status'
-      };
+      throw new ValidationError('Cannot cancel booking in current status');
     }
 
     // Authorization check
@@ -563,10 +622,7 @@ class BookingService {
     const isAdmin = user && user.role === 'admin';
 
     if (!isPatient && !isProvider && !isAdmin) {
-      throw {
-        statusCode: HTTP_STATUS.FORBIDDEN,
-        message: 'Not authorized to cancel this booking'
-      };
+      throw new AuthorizationError('Not authorized to cancel this booking');
     }
 
     // Update booking

@@ -27,6 +27,13 @@ const patientRoutes = require('../patient');
 const bookingRoutes = require('../booking');
 const b2cPaymentRoutes = require('../payment');
 
+// Health Dashboard routes (Patient Analytics & Health History)
+const patientDashboardRoutes = require('../patientDashboard');
+const healthDataRoutes = require('../healthData');
+const healthAnalyticsRoutes = require('../healthAnalytics');
+const healthIntakeRoutes = require('../healthIntake');
+const doctorAccessRoutes = require('../doctorAccess');
+
 // Security monitoring routes
 const securityRoutes = require('../security');
 
@@ -68,6 +75,13 @@ router.use('/security', securityRoutes);
 router.use('/patients', patientRoutes);
 router.use('/bookings', bookingRoutes);
 router.use('/payments-b2c', b2cPaymentRoutes);
+
+// Patient Health Dashboard routes
+router.use('/patient-dashboard', patientDashboardRoutes);
+router.use('/health-records', healthDataRoutes);
+router.use('/health-analytics', healthAnalyticsRoutes);
+router.use('/health-intake', healthIntakeRoutes);
+router.use('/doctor-access', doctorAccessRoutes);
 
 // Health check (version-specific) - Used by Uptime Robot and monitoring services
 router.get('/health', async (req, res) => {

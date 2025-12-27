@@ -199,6 +199,41 @@ const PatientSchema = new mongoose.Schema({
     default: 0
   },
 
+  // Health Intake Status (for Patient Analytics Dashboard)
+  intakeStatus: {
+    type: String,
+    enum: ['NOT_STARTED', 'PENDING_PATIENT', 'PENDING_REVIEW', 'APPROVED'],
+    default: 'NOT_STARTED'
+  },
+  intakeCompletedAt: Date,
+  intakeApprovedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  intakeAssignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User' // Doctor assigned to review
+  },
+  intakeAssignedAt: Date,
+
+  // Current health record version (links to HealthRecord)
+  currentHealthRecordVersion: {
+    type: Number,
+    default: 0
+  },
+
+  // Emergency summary reference
+  emergencySummaryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'EmergencySummary'
+  },
+
+  // Quick flag for dashboard alerts
+  hasAbnormalMetrics: {
+    type: Boolean,
+    default: false
+  },
+
   // Referral
   referralCode: String,
   referredBy: {
