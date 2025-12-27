@@ -5,7 +5,7 @@
 
 const { body, param, query } = require('express-validator');
 const { handleValidationErrors } = require('./authValidator');
-const { SEVERITY_LEVELS } = require('../constants/healthConstants');
+const { ALLERGY_SEVERITY, CONDITION_SEVERITY } = require('../constants/healthConstants');
 
 /**
  * Validate intake draft save
@@ -93,7 +93,7 @@ const validateSubmitIntake = [
 
   body('conditions.*.severity')
     .optional()
-    .isIn(Object.values(SEVERITY_LEVELS)).withMessage('Invalid severity level'),
+    .isIn(Object.values(CONDITION_SEVERITY)).withMessage('Invalid severity level'),
 
   body('conditions.*.diagnosedDate')
     .optional()
@@ -116,7 +116,7 @@ const validateSubmitIntake = [
 
   body('allergies.*.severity')
     .optional()
-    .isIn(Object.values(SEVERITY_LEVELS)).withMessage('Invalid allergy severity'),
+    .isIn(Object.values(ALLERGY_SEVERITY)).withMessage('Invalid allergy severity'),
 
   body('currentMedications')
     .optional()
