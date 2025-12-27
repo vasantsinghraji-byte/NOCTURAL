@@ -235,8 +235,11 @@ const cleanupOldEntries = (map, maxAge) => {
 };
 
 // Periodic cleanup of metrics and blocked entities (runs every 5 minutes)
-const cleanupInterval = setInterval(() => {
-  const now = Date.now();
+// Skip in test environment to prevent Jest from hanging
+let cleanupInterval = null;
+if (process.env.NODE_ENV !== 'test') {
+  cleanupInterval = setInterval(() => {
+    const now = Date.now();
 
   // Clean up old blocked entities
   let blockedRemoved = 0;
@@ -250,9 +253,13 @@ const cleanupInterval = setInterval(() => {
   // Clean up old metric entries
   let totalRemoved = 0;
   Object.entries(rateLimitMetrics).forEach(([type, metric]) => {
-    totalRemoved += cleanupOldEntries(metric.ips, CLEANUP_CONFIG.entryMaxAge);
-    totalRemoved += cleanupOldEntries(metric.userIds, CLEANUP_CONFIG.entryMaxAge);
-    if (metric.endpoints) {
+    if (metric && metric.ips) {
+      totalRemoved += cleanupOldEntries(metric.ips, CLEANUP_CONFIG.entryMaxAge);
+    }
+    if (metric && metric.userIds) {
+      totalRemoved += cleanupOldEntries(metric.userIds, CLEANUP_CONFIG.entryMaxAge);
+    }
+    if (metric && metric.endpoints) {
       totalRemoved += cleanupOldEntries(metric.endpoints, CLEANUP_CONFIG.entryMaxAge);
     }
   });
@@ -269,7 +276,8 @@ const cleanupInterval = setInterval(() => {
       }
     });
   }
-}, CLEANUP_CONFIG.interval);
+  }, CLEANUP_CONFIG.interval);
+}
 
 // Export metrics for monitoring
 const getRateLimitMetrics = () => {
