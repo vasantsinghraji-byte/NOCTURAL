@@ -192,24 +192,53 @@ const validateFileType = async (req, res, next) => {
 /**
  * Create multer upload instance for investigation reports
  * Allows PDF and image files with higher size limits
+ * Uses S3 in production, local disk in development
  */
 const createReportUpload = () => {
-  const reportStorage = multer.diskStorage({
-    destination: (_req, _file, cb) => {
-      const dir = path.join(__dirname, '..', 'uploads/investigation-reports');
-      fs.mkdir(dir, { recursive: true }, (err) => {
-        if (err && err.code !== 'EEXIST') {
-          return cb(err);
-        }
-        cb(null, dir);
-      });
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const ext = path.extname(file.originalname);
-      cb(null, `report-${req.user._id}-${uniqueSuffix}${ext}`);
-    }
-  });
+  let reportStorage;
+
+  // Use S3 storage in production
+  if (storageConfig.USE_S3 && storageConfig.s3Client) {
+    const multerS3 = require('multer-s3');
+    reportStorage = multerS3({
+      s3: storageConfig.s3Client,
+      bucket: process.env.S3_BUCKET || 'nocturnal-uploads',
+      acl: 'private',
+      contentType: multerS3.AUTO_CONTENT_TYPE,
+      metadata: (req, file, cb) => {
+        cb(null, {
+          fieldName: file.fieldname,
+          uploadedBy: req.user ? req.user._id.toString() : 'anonymous',
+          uploadDate: new Date().toISOString()
+        });
+      },
+      key: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        const dateFolder = new Date().toISOString().split('T')[0];
+        const key = `investigation-reports/${dateFolder}/report-${req.user._id}-${uniqueSuffix}${ext}`;
+        cb(null, key);
+      }
+    });
+  } else {
+    // Fallback to local storage for development
+    reportStorage = multer.diskStorage({
+      destination: (_req, _file, cb) => {
+        const dir = path.join(__dirname, '..', 'uploads/investigation-reports');
+        fs.mkdir(dir, { recursive: true }, (err) => {
+          if (err && err.code !== 'EEXIST') {
+            return cb(err);
+          }
+          cb(null, dir);
+        });
+      },
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, `report-${req.user._id}-${uniqueSuffix}${ext}`);
+      }
+    });
+  }
 
   const reportFileFilter = (req, file, cb) => {
     const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];

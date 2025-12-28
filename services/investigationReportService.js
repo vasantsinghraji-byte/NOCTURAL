@@ -30,10 +30,10 @@ const createReport = async (patientId, reportData, files) => {
     reportDate: new Date(reportData.reportDate),
     files: files.map(file => ({
       originalName: file.originalname,
-      fileName: file.filename,
+      fileName: file.filename || file.key,
       mimeType: file.mimetype,
       size: file.size,
-      url: file.location || `/uploads/reports/${file.filename}`,
+      url: file.location || `/uploads/investigation-reports/${file.filename}`,
       publicId: file.key // For S3
     })),
     tags: reportData.tags || [],
