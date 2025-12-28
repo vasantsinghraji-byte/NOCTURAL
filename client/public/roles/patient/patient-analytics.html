@@ -1476,6 +1476,11 @@
                             <i class="fas fa-robot" style="color: var(--primary);"></i>
                             ${report.aiAnalysis.summary.substring(0, 150)}...
                         </p>
+                    ` : report.status === 'AI_FAILED' ? `
+                        <p style="font-size: 0.9rem; color: var(--danger); margin-bottom: 0.5rem;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            ${report.aiAnalysis?.error?.message || 'AI analysis failed - click to request doctor review'}
+                        </p>
                     ` : ''}
                     <div style="display: flex; gap: 0.5rem;">
                         ${report.files?.map(f => `
@@ -1521,7 +1526,9 @@
 
                 <div style="background: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
                     <h3 style="margin-bottom: 1rem;"><i class="fas fa-chart-line"></i> Blood Sugar Trends</h3>
-                    <canvas id="diabetesChart" height="300"></canvas>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="diabetesChart"></canvas>
+                    </div>
                 </div>
 
                 <div style="display: flex; gap: 1rem; justify-content: center;">
@@ -1566,7 +1573,9 @@
 
                 <div style="background: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
                     <h3 style="margin-bottom: 1rem;"><i class="fas fa-chart-area"></i> Blood Pressure Trends</h3>
-                    <canvas id="bpChart" height="300"></canvas>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="bpChart"></canvas>
+                    </div>
                 </div>
 
                 <div style="display: flex; gap: 1rem; justify-content: center;">
@@ -1814,15 +1823,10 @@
 
         async function loadTargets(type) {
             try {
-                const response = await fetch(`${API_URL}/patient-analytics/targets/${type}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const result = await apiCall(`/patient-analytics/targets/${type}`);
 
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.target) {
-                        populateTargetForm(type, data.target);
-                    }
+                if (result?.success && result.target) {
+                    populateTargetForm(type, result.target);
                 }
             } catch (error) {
                 console.error('Error loading targets:', error);
@@ -1932,18 +1936,12 @@
                     };
                 }
 
-                const response = await fetch(`${API_URL}/patient-analytics/targets`, {
+                const result = await apiCall('/patient-analytics/targets', {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify(targetData)
                 });
 
-                const data = await response.json();
-
-                if (response.ok) {
+                if (result?.success) {
                     showToast('Targets saved successfully!', 'success');
                     closeTargetModal();
                     // Refresh charts to reflect new targets
@@ -1953,7 +1951,7 @@
                         loadHypertensionData();
                     }
                 } else {
-                    throw new Error(data.error || 'Failed to save targets');
+                    throw new Error(result?.error || 'Failed to save targets');
                 }
             } catch (error) {
                 showToast(error.message, 'error');

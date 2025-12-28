@@ -595,9 +595,9 @@
 
         // Check authentication
         function checkAuth() {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('patientToken') || localStorage.getItem('token');
             if (!token) {
-                window.location.href = '/index.html';
+                window.location.href = 'patient-login.html';
                 return null;
             }
             return token;
