@@ -127,6 +127,7 @@ const recordBPReading = async (patientId, data) => {
 
 /**
  * Get diabetes tracker data for charts
+ * Optimized: Uses Promise.all for parallel queries
  */
 const getDiabetesChartData = async (patientId, options = {}) => {
   const { startDate, endDate, period = 'day' } = options;
@@ -135,40 +136,54 @@ const getDiabetesChartData = async (patientId, options = {}) => {
   const end = endDate ? new Date(endDate) : new Date();
   const start = startDate ? new Date(startDate) : new Date(end.getTime() - 90 * 24 * 60 * 60 * 1000); // Last 90 days
 
-  // Get target configuration
-  const target = await HealthTarget.getOrCreateTracker(patientId, TRACKER_TYPES.DIABETES);
+  // Get target configuration and latest readings in parallel
+  const [target, latestReadings] = await Promise.all([
+    HealthTarget.getOrCreateTracker(patientId, TRACKER_TYPES.DIABETES),
+    HealthMetric.getLatestByType(patientId)
+  ]);
 
-  // Get data for each metric type
-  const chartData = {};
+  // Fetch all metric data in parallel
+  const metricPromises = DIABETES_METRICS.map(async (metricType) => {
+    const [trends, aggregated] = await Promise.all([
+      HealthMetric.getTrends(patientId, metricType, { startDate: start, endDate: end }),
+      HealthMetric.getAggregatedTrends(patientId, metricType, period, { startDate: start, endDate: end })
+    ]);
 
-  for (const metricType of DIABETES_METRICS) {
-    const trends = await HealthMetric.getTrends(patientId, metricType, { startDate: start, endDate: end });
-    const aggregated = await HealthMetric.getAggregatedTrends(patientId, metricType, period, { startDate: start, endDate: end });
     const metricTarget = target.getTargetForMetric(metricType);
 
-    chartData[metricType] = {
-      readings: trends.metrics.map(m => ({
-        date: m.measuredAt,
-        value: m.value,
-        isAbnormal: m.isAbnormal,
-        abnormalityLevel: m.abnormalityLevel
-      })),
-      aggregated: aggregated,
-      stats: trends.stats,
-      target: metricTarget ? {
-        min: metricTarget.targetRange.min,
-        max: metricTarget.targetRange.max,
-        warningMin: metricTarget.targetRange.warningMin,
-        warningMax: metricTarget.targetRange.warningMax,
-        isCustom: metricTarget.isCustom
-      } : null,
-      unit: METRIC_UNITS[metricType],
-      normalRange: NORMAL_RANGES[metricType]
+    return {
+      metricType,
+      data: {
+        readings: trends.metrics.map(m => ({
+          date: m.measuredAt,
+          value: m.value,
+          isAbnormal: m.isAbnormal,
+          abnormalityLevel: m.abnormalityLevel
+        })),
+        aggregated: aggregated,
+        stats: trends.stats,
+        target: metricTarget ? {
+          min: metricTarget.targetRange.min,
+          max: metricTarget.targetRange.max,
+          warningMin: metricTarget.targetRange.warningMin,
+          warningMax: metricTarget.targetRange.warningMax,
+          isCustom: metricTarget.isCustom
+        } : null,
+        unit: METRIC_UNITS[metricType],
+        normalRange: NORMAL_RANGES[metricType]
+      }
     };
+  });
+
+  const metricResults = await Promise.all(metricPromises);
+
+  // Build chartData object
+  const chartData = {};
+  for (const { metricType, data } of metricResults) {
+    chartData[metricType] = data;
   }
 
-  // Get latest readings
-  const latestReadings = await HealthMetric.getLatestByType(patientId);
+  // Filter latest readings for diabetes metrics
   const diabetesLatest = {};
   for (const metricType of DIABETES_METRICS) {
     if (latestReadings[metricType]) {
@@ -187,6 +202,7 @@ const getDiabetesChartData = async (patientId, options = {}) => {
 
 /**
  * Get hypertension tracker data for charts
+ * Optimized: Uses Promise.all for parallel queries
  */
 const getHypertensionChartData = async (patientId, options = {}) => {
   const { startDate, endDate, period = 'day' } = options;
@@ -195,26 +211,28 @@ const getHypertensionChartData = async (patientId, options = {}) => {
   const end = endDate ? new Date(endDate) : new Date();
   const start = startDate ? new Date(startDate) : new Date(end.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-  // Get target configuration
-  const target = await HealthTarget.getOrCreateTracker(patientId, TRACKER_TYPES.HYPERTENSION);
+  // Run all queries in parallel
+  const [
+    target,
+    bpReadings,
+    systolicTrends,
+    diastolicTrends,
+    systolicAggregated,
+    diastolicAggregated,
+    latestReadings
+  ] = await Promise.all([
+    HealthTarget.getOrCreateTracker(patientId, TRACKER_TYPES.HYPERTENSION),
+    getBPReadingsCombined(patientId, start, end),
+    HealthMetric.getTrends(patientId, METRIC_TYPES.BP_SYSTOLIC, { startDate: start, endDate: end }),
+    HealthMetric.getTrends(patientId, METRIC_TYPES.BP_DIASTOLIC, { startDate: start, endDate: end }),
+    HealthMetric.getAggregatedTrends(patientId, METRIC_TYPES.BP_SYSTOLIC, period, { startDate: start, endDate: end }),
+    HealthMetric.getAggregatedTrends(patientId, METRIC_TYPES.BP_DIASTOLIC, period, { startDate: start, endDate: end }),
+    HealthMetric.getLatestByType(patientId)
+  ]);
 
-  // Get combined BP readings (systolic + diastolic)
-  const bpReadings = await getBPReadingsCombined(patientId, start, end);
-
-  // Get individual trends
-  const systolicTrends = await HealthMetric.getTrends(patientId, METRIC_TYPES.BP_SYSTOLIC, { startDate: start, endDate: end });
-  const diastolicTrends = await HealthMetric.getTrends(patientId, METRIC_TYPES.BP_DIASTOLIC, { startDate: start, endDate: end });
-
-  // Get aggregated data
-  const systolicAggregated = await HealthMetric.getAggregatedTrends(patientId, METRIC_TYPES.BP_SYSTOLIC, period, { startDate: start, endDate: end });
-  const diastolicAggregated = await HealthMetric.getAggregatedTrends(patientId, METRIC_TYPES.BP_DIASTOLIC, period, { startDate: start, endDate: end });
-
-  // Get targets
+  // Get targets from the tracker
   const systolicTarget = target.getTargetForMetric(METRIC_TYPES.BP_SYSTOLIC);
   const diastolicTarget = target.getTargetForMetric(METRIC_TYPES.BP_DIASTOLIC);
-
-  // Get latest readings
-  const latestReadings = await HealthMetric.getLatestByType(patientId);
 
   return {
     chartData: {
@@ -268,23 +286,63 @@ const getHypertensionChartData = async (patientId, options = {}) => {
 
 /**
  * Get combined BP readings (systolic/diastolic pairs)
+ * Optimized: Fetches all readings in 2 queries instead of O(n) queries
  */
 const getBPReadingsCombined = async (patientId, startDate, endDate) => {
-  const systolicReadings = await HealthMetric.find({
-    patient: patientId,
-    metricType: METRIC_TYPES.BP_SYSTOLIC,
-    measuredAt: { $gte: startDate, $lte: endDate }
-  }).sort({ measuredAt: 1 }).lean();
+  // Fetch both systolic and diastolic readings in parallel
+  const [systolicReadings, diastolicReadings] = await Promise.all([
+    HealthMetric.find({
+      patient: patientId,
+      metricType: METRIC_TYPES.BP_SYSTOLIC,
+      measuredAt: { $gte: startDate, $lte: endDate }
+    }).sort({ measuredAt: 1 }).lean(),
+    HealthMetric.find({
+      patient: patientId,
+      metricType: METRIC_TYPES.BP_DIASTOLIC,
+      measuredAt: { $gte: startDate, $lte: endDate }
+    }).sort({ measuredAt: 1 }).lean()
+  ]);
+
+  // Create maps for quick lookup
+  const diastolicByRelatedId = new Map();
+  const diastolicByTime = new Map();
+
+  for (const d of diastolicReadings) {
+    if (d.relatedMetricId) {
+      diastolicByRelatedId.set(d.relatedMetricId.toString(), d);
+    }
+    // Group by minute for proximity matching
+    const timeKey = Math.floor(d.measuredAt.getTime() / 60000);
+    if (!diastolicByTime.has(timeKey)) {
+      diastolicByTime.set(timeKey, []);
+    }
+    diastolicByTime.get(timeKey).push(d);
+  }
 
   const combined = [];
 
   for (const systolic of systolicReadings) {
-    // Find matching diastolic reading
-    const diastolic = await HealthMetric.findOne({
-      patient: patientId,
-      metricType: METRIC_TYPES.BP_DIASTOLIC,
-      relatedMetricId: systolic._id
-    }).lean();
+    // First try to find by related ID
+    let diastolic = diastolicByRelatedId.get(systolic._id.toString());
+
+    // If not found, try timestamp proximity (within 1 minute)
+    if (!diastolic) {
+      const timeKey = Math.floor(systolic.measuredAt.getTime() / 60000);
+      const nearby = [
+        ...(diastolicByTime.get(timeKey - 1) || []),
+        ...(diastolicByTime.get(timeKey) || []),
+        ...(diastolicByTime.get(timeKey + 1) || [])
+      ];
+
+      // Find closest match within 1 minute
+      for (const d of nearby) {
+        const timeDiff = Math.abs(d.measuredAt.getTime() - systolic.measuredAt.getTime());
+        if (timeDiff <= 60000) {
+          diastolic = d;
+          break;
+        }
+      }
+    }
 
     if (diastolic) {
       combined.push({
@@ -295,27 +353,6 @@ const getBPReadingsCombined = async (patientId, startDate, endDate) => {
         context: systolic.context,
         notes: systolic.notes
       });
-    } else {
-      // Try to find by timestamp proximity
-      const nearbyDiastolic = await HealthMetric.findOne({
-        patient: patientId,
-        metricType: METRIC_TYPES.BP_DIASTOLIC,
-        measuredAt: {
-          $gte: new Date(systolic.measuredAt.getTime() - 60000), // Within 1 minute
-          $lte: new Date(systolic.measuredAt.getTime() + 60000)
-        }
-      }).lean();
-
-      if (nearbyDiastolic) {
-        combined.push({
-          date: systolic.measuredAt,
-          systolic: systolic.value,
-          diastolic: nearbyDiastolic.value,
-          isAbnormal: systolic.isAbnormal || nearbyDiastolic.isAbnormal,
-          context: systolic.context,
-          notes: systolic.notes
-        });
-      }
     }
   }
 

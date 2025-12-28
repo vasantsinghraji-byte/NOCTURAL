@@ -15,11 +15,29 @@ let genAI = null;
 let model = null;
 
 const initializeClient = () => {
-  if (!genAI && process.env.GEMINI_API_KEY) {
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  if (!process.env.GEMINI_API_KEY) {
+    logger.warn('GEMINI_API_KEY not configured - AI analysis will be skipped');
+    return false;
+  }
+
+  if (!genAI) {
+    try {
+      genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      logger.info('Gemini AI client initialized successfully');
+    } catch (error) {
+      logger.error('Failed to initialize Gemini client', { error: error.message });
+      return false;
+    }
   }
   return !!model;
+};
+
+/**
+ * Check if AI analysis is available
+ */
+const isAvailable = () => {
+  return !!process.env.GEMINI_API_KEY;
 };
 
 // Medical report analysis prompt
@@ -319,5 +337,6 @@ module.exports = {
   analyzeFromUrl,
   formatAnalysisForStorage,
   validateAnalysisResult,
-  initializeClient
+  initializeClient,
+  isAvailable
 };

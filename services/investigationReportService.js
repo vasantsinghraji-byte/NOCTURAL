@@ -59,6 +59,22 @@ const triggerAIAnalysis = async (reportId) => {
     throw new Error('Report not found');
   }
 
+  // Check if AI is available
+  if (!geminiService.isAvailable()) {
+    logger.warn('AI analysis skipped - GEMINI_API_KEY not configured', { reportId });
+    report.status = INVESTIGATION_REPORT_STATUS.AI_FAILED;
+    report.aiAnalysis = {
+      status: 'FAILED',
+      error: {
+        code: 'AI_NOT_CONFIGURED',
+        message: 'AI analysis is not available. Please configure GEMINI_API_KEY or request a doctor review directly.',
+        retryable: false
+      }
+    };
+    await report.save();
+    return report;
+  }
+
   // Update status to analyzing
   report.status = INVESTIGATION_REPORT_STATUS.AI_ANALYZING;
   report.aiAnalysis = {
