@@ -649,7 +649,7 @@
                 const result = await apiCall(`/patient-analytics/reports/${reportId}`);
 
                 if (result?.success) {
-                    reportData = result.data.report;
+                    reportData = result.report;
                     renderReport(reportData);
                 } else {
                     showToast(result?.message || 'Failed to load report', 'error');
@@ -724,14 +724,24 @@
             }
 
             if (report.aiAnalysis.status === 'FAILED') {
+                const isRetryable = report.aiAnalysis.error?.retryable !== false;
+                const isNotConfigured = report.aiAnalysis.error?.code === 'AI_NOT_CONFIGURED';
+
                 content.innerHTML = `
                     <div style="text-align: center; padding: 2rem;">
                         <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: var(--danger); margin-bottom: 1rem;"></i>
-                        <h4>Analysis Failed</h4>
+                        <h4>Analysis ${isNotConfigured ? 'Unavailable' : 'Failed'}</h4>
                         <p style="color: var(--text-light); margin-bottom: 1rem;">${report.aiAnalysis.error?.message || 'An error occurred during analysis'}</p>
-                        <button class="btn btn-primary" onclick="retryAnalysis()">
-                            <i class="fas fa-redo"></i> Retry Analysis
-                        </button>
+                        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                            ${isRetryable ? `
+                                <button class="btn btn-primary" onclick="retryAnalysis()">
+                                    <i class="fas fa-redo"></i> Retry Analysis
+                                </button>
+                            ` : ''}
+                            <button class="btn btn-secondary" onclick="openReviewModal()">
+                                <i class="fas fa-user-md"></i> Request Doctor Review
+                            </button>
+                        </div>
                     </div>
                 `;
                 return;
@@ -1041,7 +1051,7 @@
                 if (result?.success) {
                     const select = document.getElementById('specialization');
                     select.innerHTML = '<option value="">Select Specialization</option>' +
-                        result.data.specializations.map(s => `<option value="${s}">${s}</option>`).join('');
+                        result.specializations.map(s => `<option value="${s}">${s}</option>`).join('');
                 }
             } catch (e) { console.error(e); }
         }
@@ -1052,7 +1062,7 @@
                 if (result?.success) {
                     const select = document.getElementById('doctorSelect');
                     select.innerHTML = '<option value="">Select Doctor</option>' +
-                        result.data.doctors.map(d => `<option value="${d._id}">Dr. ${d.name} - ${d.specialization || 'General'}</option>`).join('');
+                        result.doctors.map(d => `<option value="${d._id}">Dr. ${d.name} - ${d.specialization || 'General'}</option>`).join('');
                 }
             } catch (e) { console.error(e); }
         }
