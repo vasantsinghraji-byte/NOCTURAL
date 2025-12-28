@@ -54,7 +54,7 @@ services:
   - type: web
     name: nocturnal-frontend
     runtime: static
-    buildCommand: cd client && npm install && npm run build:optimize
+    buildCommand: cd client && npm install && npm run build
     staticPublishPath: client/dist
     headers:
       - path: /*
