@@ -33,6 +33,7 @@ const healthDataRoutes = require('../healthData');
 const healthAnalyticsRoutes = require('../healthAnalytics');
 const healthIntakeRoutes = require('../healthIntake');
 const doctorAccessRoutes = require('../doctorAccess');
+const patientAnalyticsRoutes = require('../patientAnalytics');
 
 // Security monitoring routes
 const securityRoutes = require('../security');
@@ -82,6 +83,7 @@ router.use('/health-records', healthDataRoutes);
 router.use('/health-analytics', healthAnalyticsRoutes);
 router.use('/health-intake', healthIntakeRoutes);
 router.use('/doctor-access', doctorAccessRoutes);
+router.use('/patient-analytics', patientAnalyticsRoutes);
 
 // Health check (version-specific) - Used by Uptime Robot and monitoring services
 router.get('/health', async (req, res) => {

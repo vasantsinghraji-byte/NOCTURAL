@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Details - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #5B8DBE;
+            --primary-dark: #4A7099;
+            --secondary: #7B68B8;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --text-dark: #2C3E50;
+            --text-light: #6C757D;
+            --bg-light: #F8F9FA;
+            --bg-white: #FFFFFF;
+            --border-color: #e0e0e0;
+            --shadow: 0 2px 10px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #E8EAF6 0%, #C5CAE9 50%, #D1C4E9 100%);
+            min-height: 100vh;
+            color: var(--text-dark);
+        }
+
+        /* Navbar */
+        .navbar {
+            background: var(--bg-white);
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar .logo { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+
+        .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover, .nav-links a.active { background: var(--primary); color: white; }
+
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: #333; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-sm { padding: 6px 12px; font-size: 0.85rem; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        /* Back button */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-dark);
+            text-decoration: none;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+
+        .back-link:hover { color: var(--primary); }
+
+        /* Report Header */
+        .report-header {
+            background: var(--bg-white);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+        }
+
+        .report-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+        }
+
+        .report-title { font-size: 1.75rem; margin-bottom: 0.5rem; }
+
+        .report-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .report-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .status-badge.uploaded { background: #e3f2fd; color: #1565c0; }
+        .status-badge.analyzing { background: #fff3e0; color: #ef6c00; }
+        .status-badge.analyzed { background: #e8f5e9; color: #2e7d32; }
+        .status-badge.pending-review { background: #fce4ec; color: #c2185b; }
+        .status-badge.reviewed { background: #e0f7fa; color: #00838f; }
+        .status-badge.failed { background: #ffebee; color: #c62828; }
+
+        /* Files Section */
+        .files-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .file-card {
+            background: var(--bg-light);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .file-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .file-card i { font-size: 2.5rem; color: var(--primary); margin-bottom: 0.5rem; }
+        .file-card .file-name { font-size: 0.85rem; word-break: break-all; color: var(--text-dark); }
+        .file-card .file-size { font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem; }
+
+        /* Content Cards */
+        .content-card {
+            background: var(--bg-white);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-header h3 { font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
+        .card-header.green { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+        .card-header.orange { background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%); }
+        .card-header.red { background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%); }
+
+        .card-body { padding: 1.5rem; }
+
+        /* AI Analysis Section */
+        .ai-summary {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        .ai-summary h4 { margin-bottom: 0.75rem; color: var(--primary); }
+        .ai-summary p { line-height: 1.7; }
+
+        /* Findings Table */
+        .findings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .findings-table th, .findings-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .findings-table th {
+            background: var(--bg-light);
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .findings-table tr:hover { background: #f8f9fa; }
+
+        .value-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .value-status.normal { background: #d4edda; color: #155724; }
+        .value-status.low { background: #fff3cd; color: #856404; }
+        .value-status.high { background: #f8d7da; color: #721c24; }
+        .value-status.critical { background: #dc3545; color: white; }
+
+        /* Concerns List */
+        .concerns-list { list-style: none; }
+
+        .concern-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-light);
+            border-radius: 10px;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid var(--warning);
+        }
+
+        .concern-item.high { border-left-color: var(--danger); }
+        .concern-item.critical { border-left-color: #8b0000; background: #fff5f5; }
+
+        .concern-icon { font-size: 1.5rem; }
+        .concern-content h5 { margin-bottom: 0.25rem; }
+        .concern-content p { font-size: 0.9rem; color: var(--text-light); }
+
+        /* Doctor Review Section */
+        .doctor-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .doctor-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .doctor-details h4 { margin-bottom: 0.25rem; }
+        .doctor-details p { color: var(--text-light); font-size: 0.9rem; }
+
+        .review-section { margin-bottom: 1.5rem; }
+        .review-section h4 { margin-bottom: 0.75rem; color: var(--text-dark); }
+        .review-section p { line-height: 1.7; }
+
+        .recommendations-list {
+            list-style: none;
+            margin-top: 0.75rem;
+        }
+
+        .recommendations-list li {
+            padding: 0.75rem 1rem;
+            background: var(--bg-light);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .recommendations-list li i { color: var(--success); margin-top: 3px; }
+
+        /* Request Review Section */
+        .request-review-section {
+            text-align: center;
+            padding: 2rem;
+            background: var(--bg-light);
+            border-radius: 12px;
+        }
+
+        .request-review-section h4 { margin-bottom: 0.5rem; }
+        .request-review-section p { color: var(--text-light); margin-bottom: 1.5rem; }
+
+        .review-options {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* Questions Section */
+        .questions-section { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
+
+        .question-item {
+            background: var(--bg-light);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .question-item .question { font-weight: 600; margin-bottom: 0.5rem; }
+        .question-item .answer { color: var(--text-dark); padding-left: 1rem; border-left: 3px solid var(--primary); }
+        .question-item .meta { font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem; }
+
+        /* Follow-up Alert */
+        .followup-alert {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .followup-alert i { font-size: 1.5rem; color: #856404; }
+
+        /* Loading & Empty States */
+        .loading-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: var(--bg-white);
+            border-radius: 16px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-light); }
+        .modal-body { padding: 1.5rem; }
+        .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 1rem; }
+
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
+        .form-control { width: 100%; padding: 12px 16px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 1rem; }
+        .form-control:focus { outline: none; border-color: var(--primary); }
+
+        /* Toast */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+
+        .toast {
+            background: var(--bg-white);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.error { border-left: 4px solid var(--danger); }
+
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .navbar { flex-wrap: wrap; gap: 1rem; padding: 1rem; }
+            .nav-links { width: 100%; justify-content: center; }
+            .report-header-top { flex-direction: column; gap: 1rem; }
+            .review-options { flex-direction: column; }
+            .doctor-info { flex-direction: column; text-align: center; }
+        }
+    </style>
+    <script src="/js/config.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/patient/patient-dashboard.html">Dashboard</a>
+            <a href="/roles/patient/patient-health-dashboard.html">Health</a>
+            <a href="/roles/patient/patient-analytics.html" class="active">Analytics</a>
+            <a href="/roles/patient/booking-form.html">Book Service</a>
+        </div>
+        <button class="btn btn-outline" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    </nav>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="container">
+        <a href="/roles/patient/patient-analytics.html" class="back-link">
+            <i class="fas fa-arrow-left"></i> Back to Analytics
+        </a>
+
+        <div id="loadingContainer" class="loading-container">
+            <div class="spinner"></div>
+        </div>
+
+        <div id="reportContent" style="display: none;">
+            <!-- Report Header -->
+            <div class="report-header">
+                <div class="report-header-top">
+                    <div>
+                        <h1 class="report-title" id="reportTitle">Loading...</h1>
+                        <div class="report-meta">
+                            <span><i class="fas fa-tag"></i> <span id="reportType">-</span></span>
+                            <span><i class="fas fa-calendar"></i> <span id="reportDate">-</span></span>
+                            <span><i class="fas fa-hashtag"></i> <span id="reportNumber">-</span></span>
+                        </div>
+                    </div>
+                    <span class="status-badge" id="statusBadge">-</span>
+                </div>
+
+                <div id="reportDescription" style="margin-bottom: 1.5rem; color: var(--text-light);"></div>
+
+                <h4 style="margin-bottom: 1rem;"><i class="fas fa-paperclip"></i> Attached Files</h4>
+                <div class="files-grid" id="filesGrid"></div>
+            </div>
+
+            <!-- AI Analysis Section -->
+            <div class="content-card" id="aiAnalysisCard">
+                <div class="card-header">
+                    <h3><i class="fas fa-robot"></i> AI Analysis</h3>
+                    <span id="aiConfidence"></span>
+                </div>
+                <div class="card-body" id="aiAnalysisContent">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Doctor Review Section -->
+            <div class="content-card" id="doctorReviewCard">
+                <div class="card-header green">
+                    <h3><i class="fas fa-user-md"></i> Doctor Review</h3>
+                    <span id="reviewDate"></span>
+                </div>
+                <div class="card-body" id="doctorReviewContent">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-top: 2rem;">
+                <button class="btn btn-outline" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print Report
+                </button>
+                <button class="btn btn-danger" onclick="confirmDelete()">
+                    <i class="fas fa-trash"></i> Delete Report
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Request Review Modal -->
+    <div class="modal" id="reviewModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Request Doctor Review</h3>
+                <button class="modal-close" onclick="closeReviewModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Assignment Method</label>
+                    <select class="form-control" id="assignmentType" onchange="toggleDoctorSelection()">
+                        <option value="AUTO_QUEUE">Auto-assign to specialist queue</option>
+                        <option value="PATIENT_CHOICE">Choose a specific doctor</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="specializationGroup">
+                    <label>Required Specialization</label>
+                    <select class="form-control" id="specialization">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="doctorGroup" style="display: none;">
+                    <label>Select Doctor</label>
+                    <select class="form-control" id="doctorSelect">
+                        <option value="">Loading doctors...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeReviewModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitReviewRequest()" id="submitReviewBtn">
+                    <i class="fas fa-paper-plane"></i> Request Review
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ask Question Modal -->
+    <div class="modal" id="questionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Ask a Question</h3>
+                <button class="modal-close" onclick="closeQuestionModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Your Question</label>
+                    <textarea class="form-control" id="questionText" rows="4" placeholder="Type your question about this report..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeQuestionModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitQuestion()" id="submitQuestionBtn">
+                    <i class="fas fa-paper-plane"></i> Submit Question
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let reportId = null;
+        let reportData = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            const params = new URLSearchParams(window.location.search);
+            reportId = params.get('id');
+
+            if (!reportId) {
+                showToast('Report ID not provided', 'error');
+                setTimeout(() => window.location.href = '/roles/patient/patient-analytics.html', 2000);
+                return;
+            }
+
+            loadReport();
+            loadSpecializations();
+        });
+
+        function checkAuth() {
+            const token = localStorage.getItem('patientToken') || localStorage.getItem('token');
+            if (!token) window.location.href = '/roles/patient/patient-login.html';
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/index.html';
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        function getToken() {
+            return localStorage.getItem('patientToken') || localStorage.getItem('token');
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            const token = getToken();
+            const baseUrl = typeof AppConfig !== 'undefined' ? AppConfig.api(endpoint) : `http://localhost:5000/api/v1${endpoint}`;
+
+            const response = await fetch(baseUrl, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    ...options.headers
+                }
+            });
+
+            if (response.status === 401) { logout(); return null; }
+            return response.json();
+        }
+
+        async function loadReport() {
+            try {
+                const result = await apiCall(`/patient-analytics/reports/${reportId}`);
+
+                if (result?.success) {
+                    reportData = result.data.report;
+                    renderReport(reportData);
+                } else {
+                    showToast(result?.message || 'Failed to load report', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Failed to load report', 'error');
+            } finally {
+                document.getElementById('loadingContainer').style.display = 'none';
+                document.getElementById('reportContent').style.display = 'block';
+            }
+        }
+
+        function renderReport(report) {
+            // Header
+            document.getElementById('reportTitle').textContent = report.title;
+            document.getElementById('reportType').textContent = report.reportType.replace(/_/g, ' ');
+            document.getElementById('reportDate').textContent = new Date(report.reportDate).toLocaleDateString();
+            document.getElementById('reportNumber').textContent = report.reportNumber;
+
+            if (report.description) {
+                document.getElementById('reportDescription').textContent = report.description;
+            }
+
+            // Status Badge
+            const statusBadge = document.getElementById('statusBadge');
+            const statusMap = {
+                'UPLOADED': { class: 'uploaded', text: 'Uploaded' },
+                'AI_ANALYZING': { class: 'analyzing', text: 'AI Analyzing...' },
+                'AI_ANALYZED': { class: 'analyzed', text: 'AI Analyzed' },
+                'AI_FAILED': { class: 'failed', text: 'Analysis Failed' },
+                'PENDING_DOCTOR_REVIEW': { class: 'pending-review', text: 'Awaiting Doctor Review' },
+                'DOCTOR_REVIEWING': { class: 'pending-review', text: 'Doctor Reviewing' },
+                'REVIEWED': { class: 'reviewed', text: 'Reviewed' }
+            };
+            const status = statusMap[report.status] || { class: '', text: report.status };
+            statusBadge.className = `status-badge ${status.class}`;
+            statusBadge.textContent = status.text;
+
+            // Files
+            const filesGrid = document.getElementById('filesGrid');
+            filesGrid.innerHTML = report.files.map(file => `
+                <div class="file-card" onclick="window.open('${file.url}', '_blank')">
+                    <i class="fas ${file.mimeType === 'application/pdf' ? 'fa-file-pdf' : 'fa-file-image'}"></i>
+                    <div class="file-name">${file.originalName}</div>
+                    <div class="file-size">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                </div>
+            `).join('');
+
+            // AI Analysis
+            renderAIAnalysis(report);
+
+            // Doctor Review
+            renderDoctorReview(report);
+        }
+
+        function renderAIAnalysis(report) {
+            const card = document.getElementById('aiAnalysisCard');
+            const content = document.getElementById('aiAnalysisContent');
+            const confidence = document.getElementById('aiConfidence');
+
+            if (!report.aiAnalysis || report.aiAnalysis.status === 'PENDING') {
+                card.style.display = report.status === 'UPLOADED' || report.status === 'AI_ANALYZING' ? 'block' : 'none';
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                        <h4>AI Analysis in Progress</h4>
+                        <p style="color: var(--text-light);">Please wait while our AI analyzes your report...</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (report.aiAnalysis.status === 'FAILED') {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: var(--danger); margin-bottom: 1rem;"></i>
+                        <h4>Analysis Failed</h4>
+                        <p style="color: var(--text-light); margin-bottom: 1rem;">${report.aiAnalysis.error?.message || 'An error occurred during analysis'}</p>
+                        <button class="btn btn-primary" onclick="retryAnalysis()">
+                            <i class="fas fa-redo"></i> Retry Analysis
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            // Show confidence score
+            if (report.aiAnalysis.confidenceScore) {
+                confidence.innerHTML = `<i class="fas fa-chart-pie"></i> ${report.aiAnalysis.confidenceScore}% confidence`;
+            }
+
+            let html = '';
+
+            // Summary
+            if (report.aiAnalysis.summary) {
+                html += `
+                    <div class="ai-summary">
+                        <h4><i class="fas fa-lightbulb"></i> Summary</h4>
+                        <p>${report.aiAnalysis.summary}</p>
+                    </div>
+                `;
+            }
+
+            // Key Observations
+            if (report.aiAnalysis.keyObservations?.length > 0) {
+                html += `
+                    <h4 style="margin-bottom: 1rem;"><i class="fas fa-eye"></i> Key Observations</h4>
+                    <ul style="margin-bottom: 1.5rem; padding-left: 1.5rem;">
+                        ${report.aiAnalysis.keyObservations.map(obs => `<li style="margin-bottom: 0.5rem;">${obs}</li>`).join('')}
+                    </ul>
+                `;
+            }
+
+            // Findings Table
+            if (report.aiAnalysis.extractedData?.findings?.length > 0) {
+                html += `
+                    <h4 style="margin-bottom: 1rem;"><i class="fas fa-list"></i> Test Results</h4>
+                    <div style="overflow-x: auto;">
+                        <table class="findings-table">
+                            <thead>
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Value</th>
+                                    <th>Normal Range</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${report.aiAnalysis.extractedData.findings.map(f => `
+                                    <tr>
+                                        <td><strong>${f.parameter}</strong></td>
+                                        <td>${f.value} ${f.unit || ''}</td>
+                                        <td>${f.normalRange || '-'}</td>
+                                        <td>
+                                            <span class="value-status ${getStatusClass(f.status)}">
+                                                <i class="fas fa-${getStatusIcon(f.status)}"></i>
+                                                ${f.status || 'N/A'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            // Concerns
+            if (report.aiAnalysis.concerns?.length > 0) {
+                html += `
+                    <h4 style="margin: 1.5rem 0 1rem;"><i class="fas fa-exclamation-triangle"></i> Areas of Concern</h4>
+                    <ul class="concerns-list">
+                        ${report.aiAnalysis.concerns.map(c => `
+                            <li class="concern-item ${c.severity?.toLowerCase()}">
+                                <div class="concern-icon">
+                                    <i class="fas fa-${c.severity === 'CRITICAL' ? 'times-circle' : c.severity === 'HIGH' ? 'exclamation-circle' : 'info-circle'}"
+                                       style="color: ${c.severity === 'CRITICAL' ? '#8b0000' : c.severity === 'HIGH' ? 'var(--danger)' : 'var(--warning)'}"></i>
+                                </div>
+                                <div class="concern-content">
+                                    <h5>${c.description}</h5>
+                                    <p><strong>Recommendation:</strong> ${c.recommendation || 'Consult with your doctor'}</p>
+                                </div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+            }
+
+            content.innerHTML = html || '<p style="color: var(--text-light);">No detailed analysis available.</p>';
+        }
+
+        function renderDoctorReview(report) {
+            const card = document.getElementById('doctorReviewCard');
+            const content = document.getElementById('doctorReviewContent');
+            const dateEl = document.getElementById('reviewDate');
+
+            // Show request review section if not reviewed yet
+            if (!report.doctorReview || report.doctorReview.status === 'PENDING' || !report.doctorReview.assignedTo) {
+                if (report.status === 'AI_ANALYZED' || report.status === 'AI_FAILED') {
+                    content.innerHTML = `
+                        <div class="request-review-section">
+                            <i class="fas fa-user-md" style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                            <h4>Get Expert Review</h4>
+                            <p>Have a specialist doctor review your report and provide professional insights.</p>
+                            <div class="review-options">
+                                <button class="btn btn-primary" onclick="openReviewModal()">
+                                    <i class="fas fa-paper-plane"></i> Request Doctor Review
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else if (report.status === 'PENDING_DOCTOR_REVIEW') {
+                    content.innerHTML = `
+                        <div style="text-align: center; padding: 2rem;">
+                            <i class="fas fa-clock" style="font-size: 2rem; color: var(--warning); margin-bottom: 1rem;"></i>
+                            <h4>Awaiting Doctor Review</h4>
+                            <p style="color: var(--text-light);">Your report is in the queue for review. You'll be notified when complete.</p>
+                        </div>
+                    `;
+                } else {
+                    card.style.display = 'none';
+                }
+                return;
+            }
+
+            // Doctor info
+            const review = report.doctorReview;
+            const doctor = review.assignedTo;
+
+            if (review.completedAt) {
+                dateEl.innerHTML = `<i class="fas fa-calendar-check"></i> ${new Date(review.completedAt).toLocaleDateString()}`;
+            }
+
+            let html = '';
+
+            // Doctor Info
+            if (doctor) {
+                html += `
+                    <div class="doctor-info">
+                        <div class="doctor-avatar">
+                            ${doctor.profilePhoto ? `<img src="${doctor.profilePhoto}" alt="${doctor.name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : `<i class="fas fa-user-md"></i>`}
+                        </div>
+                        <div class="doctor-details">
+                            <h4>Dr. ${doctor.name}</h4>
+                            <p>${doctor.specialization || 'Specialist'}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Interpretation
+            if (review.interpretation) {
+                html += `
+                    <div class="review-section">
+                        <h4><i class="fas fa-stethoscope"></i> Doctor's Interpretation</h4>
+                        <p>${review.interpretation}</p>
+                    </div>
+                `;
+            }
+
+            // Findings
+            if (review.findings?.length > 0) {
+                html += `
+                    <div class="review-section">
+                        <h4><i class="fas fa-clipboard-list"></i> Clinical Findings</h4>
+                        ${review.findings.map(f => `
+                            <div style="padding: 0.75rem; background: var(--bg-light); border-radius: 8px; margin-bottom: 0.5rem; border-left: 4px solid ${getSignificanceColor(f.significance)};">
+                                <strong>${f.category || 'Finding'}:</strong> ${f.observation}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            // Recommendations
+            if (review.recommendations?.length > 0) {
+                html += `
+                    <div class="review-section">
+                        <h4><i class="fas fa-tasks"></i> Recommendations</h4>
+                        <ul class="recommendations-list">
+                            ${review.recommendations.map(r => `
+                                <li><i class="fas fa-check-circle"></i> ${r}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            // Notes for patient
+            if (review.patientNotes) {
+                html += `
+                    <div class="review-section">
+                        <h4><i class="fas fa-comment-medical"></i> Notes for You</h4>
+                        <p>${review.patientNotes}</p>
+                    </div>
+                `;
+            }
+
+            // Follow-up
+            if (review.followUpRequired) {
+                html += `
+                    <div class="followup-alert">
+                        <i class="fas fa-calendar-alt"></i>
+                        <div>
+                            <strong>Follow-up Required</strong>
+                            <p style="margin: 0; font-size: 0.9rem;">${review.followUpNotes || 'Please schedule a follow-up appointment.'}</p>
+                            ${review.followUpDate ? `<small>Recommended by: ${new Date(review.followUpDate).toLocaleDateString()}</small>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Questions Section
+            html += renderQuestionsSection(report);
+
+            // Acknowledge button if not acknowledged
+            if (!report.patientAcknowledged && review.status === 'COMPLETED') {
+                html += `
+                    <div style="text-align: center; margin-top: 2rem;">
+                        <button class="btn btn-success" onclick="acknowledgeReport()">
+                            <i class="fas fa-check"></i> I've Read This Review
+                        </button>
+                    </div>
+                `;
+            }
+
+            content.innerHTML = html;
+        }
+
+        function renderQuestionsSection(report) {
+            let html = `
+                <div class="questions-section">
+                    <h4><i class="fas fa-question-circle"></i> Questions & Answers</h4>
+            `;
+
+            if (report.patientQuestions?.length > 0) {
+                html += report.patientQuestions.map(q => `
+                    <div class="question-item">
+                        <div class="question"><i class="fas fa-user"></i> ${q.question}</div>
+                        ${q.answer ? `
+                            <div class="answer"><i class="fas fa-user-md"></i> ${q.answer}</div>
+                            <div class="meta">Answered on ${new Date(q.answeredAt).toLocaleDateString()}</div>
+                        ` : `
+                            <div style="color: var(--text-light); font-style: italic;">Awaiting response...</div>
+                        `}
+                    </div>
+                `).join('');
+            } else {
+                html += `<p style="color: var(--text-light);">No questions asked yet.</p>`;
+            }
+
+            html += `
+                <button class="btn btn-outline" onclick="openQuestionModal()" style="margin-top: 1rem;">
+                    <i class="fas fa-plus"></i> Ask a Question
+                </button>
+            </div>
+            `;
+
+            return html;
+        }
+
+        function getStatusClass(status) {
+            const map = { 'NORMAL': 'normal', 'LOW': 'low', 'HIGH': 'high', 'CRITICAL_LOW': 'critical', 'CRITICAL_HIGH': 'critical' };
+            return map[status] || '';
+        }
+
+        function getStatusIcon(status) {
+            const map = { 'NORMAL': 'check', 'LOW': 'arrow-down', 'HIGH': 'arrow-up', 'CRITICAL_LOW': 'exclamation', 'CRITICAL_HIGH': 'exclamation' };
+            return map[status] || 'minus';
+        }
+
+        function getSignificanceColor(sig) {
+            const map = { 'NORMAL': 'var(--success)', 'MONITOR': 'var(--info)', 'CONCERN': 'var(--warning)', 'URGENT': 'var(--danger)' };
+            return map[sig] || 'var(--border-color)';
+        }
+
+        // Modals
+        function openReviewModal() {
+            document.getElementById('reviewModal').classList.add('active');
+        }
+
+        function closeReviewModal() {
+            document.getElementById('reviewModal').classList.remove('active');
+        }
+
+        function openQuestionModal() {
+            document.getElementById('questionModal').classList.add('active');
+        }
+
+        function closeQuestionModal() {
+            document.getElementById('questionModal').classList.remove('active');
+            document.getElementById('questionText').value = '';
+        }
+
+        function toggleDoctorSelection() {
+            const type = document.getElementById('assignmentType').value;
+            document.getElementById('specializationGroup').style.display = type === 'AUTO_QUEUE' ? 'block' : 'none';
+            document.getElementById('doctorGroup').style.display = type === 'PATIENT_CHOICE' ? 'block' : 'none';
+
+            if (type === 'PATIENT_CHOICE') {
+                loadDoctors();
+            }
+        }
+
+        async function loadSpecializations() {
+            try {
+                const result = await apiCall('/patient-analytics/specializations');
+                if (result?.success) {
+                    const select = document.getElementById('specialization');
+                    select.innerHTML = '<option value="">Select Specialization</option>' +
+                        result.data.specializations.map(s => `<option value="${s}">${s}</option>`).join('');
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadDoctors(specialization = '') {
+            try {
+                const result = await apiCall(`/patient-analytics/available-doctors?specialization=${specialization}`);
+                if (result?.success) {
+                    const select = document.getElementById('doctorSelect');
+                    select.innerHTML = '<option value="">Select Doctor</option>' +
+                        result.data.doctors.map(d => `<option value="${d._id}">Dr. ${d.name} - ${d.specialization || 'General'}</option>`).join('');
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function submitReviewRequest() {
+            const btn = document.getElementById('submitReviewBtn');
+            const type = document.getElementById('assignmentType').value;
+
+            let body = { assignmentType: type };
+
+            if (type === 'AUTO_QUEUE') {
+                body.specialization = document.getElementById('specialization').value;
+                if (!body.specialization) {
+                    showToast('Please select a specialization', 'error');
+                    return;
+                }
+            } else {
+                body.doctorId = document.getElementById('doctorSelect').value;
+                if (!body.doctorId) {
+                    showToast('Please select a doctor', 'error');
+                    return;
+                }
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+            try {
+                const result = await apiCall(`/patient-analytics/reports/${reportId}/request-review`, {
+                    method: 'POST',
+                    body: JSON.stringify(body)
+                });
+
+                if (result?.success) {
+                    showToast('Review requested successfully!', 'success');
+                    closeReviewModal();
+                    loadReport();
+                } else {
+                    showToast(result?.message || 'Failed to request review', 'error');
+                }
+            } catch (e) {
+                showToast('Failed to request review', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Request Review';
+            }
+        }
+
+        async function submitQuestion() {
+            const btn = document.getElementById('submitQuestionBtn');
+            const question = document.getElementById('questionText').value.trim();
+
+            if (!question) {
+                showToast('Please enter a question', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+            try {
+                const result = await apiCall(`/patient-analytics/reports/${reportId}/questions`, {
+                    method: 'POST',
+                    body: JSON.stringify({ question })
+                });
+
+                if (result?.success) {
+                    showToast('Question submitted!', 'success');
+                    closeQuestionModal();
+                    loadReport();
+                } else {
+                    showToast(result?.message || 'Failed to submit question', 'error');
+                }
+            } catch (e) {
+                showToast('Failed to submit question', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Question';
+            }
+        }
+
+        async function acknowledgeReport() {
+            try {
+                const result = await apiCall(`/patient-analytics/reports/${reportId}/acknowledge`, { method: 'POST' });
+                if (result?.success) {
+                    showToast('Report acknowledged', 'success');
+                    loadReport();
+                }
+            } catch (e) {
+                showToast('Failed to acknowledge', 'error');
+            }
+        }
+
+        async function retryAnalysis() {
+            try {
+                const result = await apiCall(`/patient-analytics/reports/${reportId}/retry-analysis`, { method: 'POST' });
+                if (result?.success) {
+                    showToast('Analysis restarted', 'success');
+                    loadReport();
+                }
+            } catch (e) {
+                showToast('Failed to retry', 'error');
+            }
+        }
+
+        function confirmDelete() {
+            if (confirm('Are you sure you want to delete this report? This action cannot be undone.')) {
+                deleteReport();
+            }
+        }
+
+        async function deleteReport() {
+            try {
+                const result = await apiCall(`/patient-analytics/reports/${reportId}`, { method: 'DELETE' });
+                if (result?.success) {
+                    showToast('Report deleted', 'success');
+                    setTimeout(() => window.location.href = '/roles/patient/patient-analytics.html', 1500);
+                }
+            } catch (e) {
+                showToast('Failed to delete', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

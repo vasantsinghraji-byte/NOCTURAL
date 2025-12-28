@@ -83,6 +83,14 @@ const REQUIRED_VARS = {
     type: 'string',
     description: 'Comma-separated list of allowed CORS origins',
     example: 'http://localhost:3000,https://example.com'
+  },
+
+  // AI Integration (Optional)
+  GEMINI_API_KEY: {
+    required: false,
+    type: 'string',
+    description: 'Google Gemini API key for investigation report AI analysis',
+    example: 'AIzaSy...'
   }
 };
 
@@ -202,9 +210,6 @@ function validateEnvironment(options = {}) {
 
   if (warnings.length > 0 && logWarnings) {
     logger.warn('Environment validation warnings', { warnings });
-    warnings.forEach(warning => {
-      console.warn(`⚠️  ${warning}`);
-    });
   }
 
   // Log success
@@ -214,7 +219,6 @@ function validateEnvironment(options = {}) {
       environment: envName,
       varsChecked: Object.keys(REQUIRED_VARS).length
     });
-    console.log(`✅ Environment validated successfully (${envName})`);
   }
 
   return {

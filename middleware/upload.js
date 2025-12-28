@@ -11,7 +11,8 @@ const uploadDirs = [
   'uploads/documents/mci',
   'uploads/documents/degrees',
   'uploads/documents/ids',
-  'uploads/documents/certificates'
+  'uploads/documents/certificates',
+  'uploads/investigation-reports'
 ];
 
 // Initialize upload directories asynchronously (only for local storage)
@@ -28,7 +29,7 @@ const initializeUploadDirs = async () => {
     } catch (error) {
       // Directory might already exist, that's OK
       if (error.code !== 'EEXIST') {
-        console.error(`Failed to create directory ${fullPath}:`, error);
+        logger.error('Failed to create upload directory', { path: fullPath, error: error.message });
       }
     }
   });
@@ -37,7 +38,7 @@ const initializeUploadDirs = async () => {
 };
 
 // Initialize directories (non-blocking)
-initializeUploadDirs().catch(console.error);
+initializeUploadDirs().catch(err => logger.error('Failed to initialize upload directories', { error: err.message }));
 
 // Set upload type middleware for S3 path organization
 const setUploadType = (type) => {
@@ -146,7 +147,7 @@ const validateFileType = async (req, res, next) => {
 
       if (!fileTypeResult) {
         // Delete uploaded file asynchronously
-        await fs.promises.unlink(file.path).catch(console.error);
+        await fs.promises.unlink(file.path).catch(err => logger.warn('Failed to delete invalid file', { path: file.path, error: err.message }));
         logger.logSecurity('file_validation_failed', {
           filename: file.filename,
           reason: 'Could not determine file type from magic numbers',
@@ -162,7 +163,7 @@ const validateFileType = async (req, res, next) => {
       const allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
       if (!allowedMimes.includes(fileTypeResult.mime)) {
         // Delete uploaded file asynchronously
-        await fs.promises.unlink(file.path).catch(console.error);
+        await fs.promises.unlink(file.path).catch(err => logger.warn('Failed to delete invalid file', { path: file.path, error: err.message }));
         logger.logSecurity('file_type_mismatch', {
           filename: file.filename,
           declaredMime: file.mimetype,
@@ -188,6 +189,55 @@ const validateFileType = async (req, res, next) => {
   }
 };
 
+/**
+ * Create multer upload instance for investigation reports
+ * Allows PDF and image files with higher size limits
+ */
+const createReportUpload = () => {
+  const reportStorage = multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      const dir = path.join(__dirname, '..', 'uploads/investigation-reports');
+      fs.mkdir(dir, { recursive: true }, (err) => {
+        if (err && err.code !== 'EEXIST') {
+          return cb(err);
+        }
+        cb(null, dir);
+      });
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = path.extname(file.originalname);
+      cb(null, `report-${req.user._id}-${uniqueSuffix}${ext}`);
+    }
+  });
+
+  const reportFileFilter = (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    const allowedExts = /jpeg|jpg|png|pdf/;
+    const extname = path.extname(file.originalname).toLowerCase().slice(1);
+
+    if (allowedMimes.includes(file.mimetype.toLowerCase()) && allowedExts.test(extname)) {
+      cb(null, true);
+    } else {
+      logger.logSecurity('invalid_report_upload', {
+        mimetype: file.mimetype,
+        extension: extname,
+        userId: req.user ? req.user._id : 'anonymous'
+      });
+      cb(new Error('Investigation reports must be JPG, PNG, or PDF files'), false);
+    }
+  };
+
+  return multer({
+    storage: reportStorage,
+    limits: {
+      fileSize: 20 * 1024 * 1024, // 20MB per file for reports
+      files: 10 // Max 10 files per report
+    },
+    fileFilter: reportFileFilter
+  });
+};
+
 // Export upload middleware configurations
 module.exports = {
   // Single file uploads (with validation)
@@ -203,6 +253,9 @@ module.exports = {
     { name: 'mbbsDegree', maxCount: 1 },
     { name: 'photoId', maxCount: 1 }
   ]),
+
+  // Investigation report upload factory
+  createReportUpload,
 
   // File validation middleware (use AFTER multer middleware)
   validateFileType,

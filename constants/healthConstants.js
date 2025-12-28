@@ -15,6 +15,8 @@ const METRIC_TYPES = {
   BLOOD_SUGAR: 'BLOOD_SUGAR',
   BLOOD_SUGAR_FASTING: 'BLOOD_SUGAR_FASTING',
   BLOOD_SUGAR_PP: 'BLOOD_SUGAR_PP',
+  BLOOD_SUGAR_RBS: 'BLOOD_SUGAR_RBS',  // Random Blood Sugar
+  HBA1C: 'HBA1C',                       // Glycated Hemoglobin
   WEIGHT: 'WEIGHT',
   HEIGHT: 'HEIGHT',
   BMI: 'BMI',
@@ -31,6 +33,8 @@ const METRIC_UNITS = {
   [METRIC_TYPES.BLOOD_SUGAR]: 'mg/dL',
   [METRIC_TYPES.BLOOD_SUGAR_FASTING]: 'mg/dL',
   [METRIC_TYPES.BLOOD_SUGAR_PP]: 'mg/dL',
+  [METRIC_TYPES.BLOOD_SUGAR_RBS]: 'mg/dL',
+  [METRIC_TYPES.HBA1C]: '%',
   [METRIC_TYPES.WEIGHT]: 'kg',
   [METRIC_TYPES.HEIGHT]: 'cm',
   [METRIC_TYPES.BMI]: 'kg/m2',
@@ -48,6 +52,8 @@ const NORMAL_RANGES = {
   [METRIC_TYPES.BLOOD_SUGAR]: { min: 70, max: 140 },
   [METRIC_TYPES.BLOOD_SUGAR_FASTING]: { min: 70, max: 100 },
   [METRIC_TYPES.BLOOD_SUGAR_PP]: { min: 70, max: 140 },
+  [METRIC_TYPES.BLOOD_SUGAR_RBS]: { min: 70, max: 140 },
+  [METRIC_TYPES.HBA1C]: { min: 4.0, max: 5.6 },  // Normal: <5.7%, Prediabetes: 5.7-6.4%, Diabetes: >=6.5%
   [METRIC_TYPES.WEIGHT]: { min: 30, max: 200 }, // General range
   [METRIC_TYPES.HEIGHT]: { min: 100, max: 220 }, // General range
   [METRIC_TYPES.BMI]: { min: 18.5, max: 24.9 },
@@ -213,6 +219,49 @@ const EMERGENCY_FIELDS = [
   'insurance'
 ];
 
+// Investigation report status
+const INVESTIGATION_REPORT_STATUS = {
+  UPLOADED: 'UPLOADED',
+  AI_ANALYZING: 'AI_ANALYZING',
+  AI_ANALYZED: 'AI_ANALYZED',
+  AI_FAILED: 'AI_FAILED',
+  PENDING_DOCTOR_REVIEW: 'PENDING_DOCTOR_REVIEW',
+  DOCTOR_REVIEWING: 'DOCTOR_REVIEWING',
+  REVIEWED: 'REVIEWED',
+  REJECTED: 'REJECTED'
+};
+
+// Investigation report types
+const INVESTIGATION_REPORT_TYPES = {
+  BLOOD_TEST: 'BLOOD_TEST',
+  URINE_TEST: 'URINE_TEST',
+  IMAGING: 'IMAGING',           // X-ray, CT, MRI, Ultrasound
+  ECG: 'ECG',
+  BIOPSY: 'BIOPSY',
+  PATHOLOGY: 'PATHOLOGY',
+  LIPID_PROFILE: 'LIPID_PROFILE',
+  THYROID_PANEL: 'THYROID_PANEL',
+  LIVER_FUNCTION: 'LIVER_FUNCTION',
+  KIDNEY_FUNCTION: 'KIDNEY_FUNCTION',
+  DIABETES_PANEL: 'DIABETES_PANEL',
+  VITAMIN_PANEL: 'VITAMIN_PANEL',
+  ALLERGY_TEST: 'ALLERGY_TEST',
+  OTHER: 'OTHER'
+};
+
+// Doctor assignment types for investigation reports
+const REPORT_ASSIGNMENT_TYPE = {
+  MANUAL: 'MANUAL',           // Admin assigns specific doctor
+  AUTO_QUEUE: 'AUTO_QUEUE',   // Goes to specialist queue
+  PATIENT_CHOICE: 'PATIENT_CHOICE' // Patient selects doctor
+};
+
+// Health tracker types
+const TRACKER_TYPES = {
+  DIABETES: 'DIABETES',
+  HYPERTENSION: 'HYPERTENSION'
+};
+
 module.exports = {
   METRIC_TYPES,
   METRIC_UNITS,
@@ -234,5 +283,9 @@ module.exports = {
   CONDITION_SEVERITY,
   ANALYTICS_PERIODS,
   QR_TOKEN_CONFIG,
-  EMERGENCY_FIELDS
+  EMERGENCY_FIELDS,
+  INVESTIGATION_REPORT_STATUS,
+  INVESTIGATION_REPORT_TYPES,
+  REPORT_ASSIGNMENT_TYPE,
+  TRACKER_TYPES
 };

@@ -330,12 +330,14 @@ class UnifiedNavigation {
                 { icon: 'fa-home', text: 'Dashboard', href: '/roles/patient/patient-dashboard.html' },
                 { icon: 'fa-calendar-plus', text: 'Book Service', href: '/roles/patient/booking-form.html' },
                 { icon: 'fa-list-alt', text: 'My Bookings', href: '/roles/patient/booking-details.html' },
-                { icon: 'fa-wallet', text: 'Payments', href: '/roles/patient/payments-dashboard.html' },
+                { icon: 'fa-heartbeat', text: 'Health', href: '/roles/patient/patient-health-dashboard.html' },
+                { icon: 'fa-chart-line', text: 'Analytics', href: '/roles/patient/patient-analytics.html' },
                 {
                     icon: 'fa-ellipsis-h',
                     text: 'More',
                     dropdown: [
                         { icon: 'fa-user', text: 'My Profile', href: '#' },
+                        { icon: 'fa-wallet', text: 'Payments', href: '/roles/patient/payments-dashboard.html' },
                         { icon: 'fa-history', text: 'History', href: '#' },
                         { icon: 'fa-cog', text: 'Settings', href: '#' },
                         { divider: true },

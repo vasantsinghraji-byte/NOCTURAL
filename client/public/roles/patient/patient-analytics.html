@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Analytics - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #5B8DBE;
+            --primary-dark: #4A7099;
+            --secondary: #7B68B8;
+            --accent: #9B8FC7;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --text-dark: #2C3E50;
+            --text-light: #6C757D;
+            --bg-light: #F8F9FA;
+            --bg-white: #FFFFFF;
+            --border-color: #e0e0e0;
+            --shadow: 0 2px 10px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #E8EAF6 0%, #C5CAE9 50%, #D1C4E9 100%);
+            min-height: 100vh;
+            color: var(--text-dark);
+        }
+
+        /* Navbar */
+        .navbar {
+            background: var(--bg-white);
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Page Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            color: var(--text-dark);
+        }
+
+        .page-header h1 i {
+            color: var(--primary);
+            margin-right: 10px;
+        }
+
+        /* Tabs */
+        .tabs-container {
+            background: var(--bg-white);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .tabs-header {
+            display: flex;
+            background: var(--bg-light);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 1.25rem 1.5rem;
+            background: transparent;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary);
+            background: rgba(91, 141, 190, 0.1);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            background: var(--bg-white);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary);
+        }
+
+        .tab-btn .badge {
+            background: var(--danger);
+            color: white;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 2rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Summary Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .summary-card.green {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .summary-card.orange {
+            background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%);
+        }
+
+        .summary-card.red {
+            background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+        }
+
+        .summary-card .card-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 3rem;
+            opacity: 0.2;
+        }
+
+        .summary-card .card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .summary-card .card-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-light);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: var(--border-color);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 1rem;
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+
+            .nav-links {
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .tabs-header {
+                flex-direction: column;
+            }
+
+            .tab-btn {
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            .tab-btn.active::after {
+                display: none;
+            }
+
+            .page-header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .quick-actions {
+                justify-content: center;
+            }
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: var(--bg-white);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.error { border-left: 4px solid var(--danger); }
+        .toast.warning { border-left: 4px solid var(--warning); }
+        .toast.info { border-left: 4px solid var(--info); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-white);
+            border-radius: 16px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalIn 0.3s ease;
+        }
+
+        @keyframes modalIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 1.25rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .form-group label.required::after {
+            content: '*';
+            color: var(--danger);
+            margin-left: 4px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(91, 141, 190, 0.2);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-badge.pending { background: #fff3cd; color: #856404; }
+        .status-badge.analyzing { background: #cce5ff; color: #004085; }
+        .status-badge.analyzed { background: #d4edda; color: #155724; }
+        .status-badge.reviewed { background: #d1ecf1; color: #0c5460; }
+        .status-badge.failed { background: #f8d7da; color: #721c24; }
+    </style>
+    <script src="/js/config.js"></script>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="logo">Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/patient/patient-dashboard.html">Dashboard</a>
+            <a href="/roles/patient/patient-health-dashboard.html">Health</a>
+            <a href="/roles/patient/patient-analytics.html" class="active">Analytics</a>
+            <a href="/roles/patient/booking-form.html">Book Service</a>
+        </div>
+        <button class="btn btn-outline" onclick="logout()">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+    </nav>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="fas fa-chart-line"></i> Health Analytics</h1>
+            <div class="quick-actions">
+                <button class="btn btn-primary" onclick="openUploadModal()">
+                    <i class="fas fa-upload"></i> Upload Report
+                </button>
+                <button class="btn btn-success" onclick="openReadingModal('diabetes')">
+                    <i class="fas fa-tint"></i> Log Blood Sugar
+                </button>
+                <button class="btn btn-danger" onclick="openReadingModal('bp')">
+                    <i class="fas fa-heartbeat"></i> Log Blood Pressure
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabs Container -->
+        <div class="tabs-container">
+            <!-- Tab Headers -->
+            <div class="tabs-header">
+                <button class="tab-btn active" data-tab="reports">
+                    <i class="fas fa-file-medical"></i>
+                    Investigation Reports
+                    <span class="badge" id="pendingReportsBadge" style="display: none;">0</span>
+                </button>
+                <button class="tab-btn" data-tab="diabetes">
+                    <i class="fas fa-tint"></i>
+                    Diabetes Tracker
+                </button>
+                <button class="tab-btn" data-tab="hypertension">
+                    <i class="fas fa-heartbeat"></i>
+                    Hypertension Tracker
+                </button>
+            </div>
+
+            <!-- Reports Tab -->
+            <div class="tab-content active" id="reports-tab">
+                <div class="loading-spinner" id="reportsLoading">
+                    <div class="spinner"></div>
+                </div>
+                <div id="reportsContent" style="display: none;">
+                    <!-- Content loaded dynamically -->
+                </div>
+            </div>
+
+            <!-- Diabetes Tab -->
+            <div class="tab-content" id="diabetes-tab">
+                <div class="loading-spinner" id="diabetesLoading">
+                    <div class="spinner"></div>
+                </div>
+                <div id="diabetesContent" style="display: none;">
+                    <!-- Content loaded dynamically -->
+                </div>
+            </div>
+
+            <!-- Hypertension Tab -->
+            <div class="tab-content" id="hypertension-tab">
+                <div class="loading-spinner" id="hypertensionLoading">
+                    <div class="spinner"></div>
+                </div>
+                <div id="hypertensionContent" style="display: none;">
+                    <!-- Content loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Report Modal -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-upload"></i> Upload Investigation Report</h2>
+                <button class="modal-close" onclick="closeUploadModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label class="required">Report Title</label>
+                        <input type="text" class="form-control" id="reportTitle" placeholder="e.g., Blood Test Results - Dec 2024" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="required">Report Type</label>
+                            <select class="form-control" id="reportType" required>
+                                <option value="">Select Type</option>
+                                <option value="BLOOD_TEST">Blood Test</option>
+                                <option value="URINE_TEST">Urine Test</option>
+                                <option value="IMAGING">Imaging (X-ray, CT, MRI)</option>
+                                <option value="ECG">ECG</option>
+                                <option value="DIABETES_PANEL">Diabetes Panel</option>
+                                <option value="LIPID_PROFILE">Lipid Profile</option>
+                                <option value="THYROID_PANEL">Thyroid Panel</option>
+                                <option value="LIVER_FUNCTION">Liver Function</option>
+                                <option value="KIDNEY_FUNCTION">Kidney Function</option>
+                                <option value="VITAMIN_PANEL">Vitamin Panel</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="required">Report Date</label>
+                            <input type="date" class="form-control" id="reportDate" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description (Optional)</label>
+                        <textarea class="form-control" id="reportDescription" rows="2" placeholder="Any additional notes..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="required">Upload Files (PDF, JPG, PNG)</label>
+                        <div class="file-upload-area" id="fileDropZone">
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                            <p style="margin-bottom: 0.5rem;">Drag & drop files here or click to browse</p>
+                            <p style="color: var(--text-light); font-size: 0.9rem;">Max 10 files, 20MB each</p>
+                            <input type="file" id="reportFiles" multiple accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
+                        </div>
+                        <div id="fileList" style="margin-top: 1rem;"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeUploadModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitReport()" id="submitReportBtn">
+                    <i class="fas fa-upload"></i> Upload & Analyze
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reading Entry Modal -->
+    <div class="modal" id="readingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="readingModalTitle"><i class="fas fa-tint"></i> Log Reading</h2>
+                <button class="modal-close" onclick="closeReadingModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="readingForm">
+                    <!-- Diabetes Fields -->
+                    <div id="diabetesFields" style="display: none;">
+                        <div class="form-group">
+                            <label class="required">Reading Type</label>
+                            <select class="form-control" id="diabetesType">
+                                <option value="BLOOD_SUGAR_RBS">Random Blood Sugar (RBS)</option>
+                                <option value="BLOOD_SUGAR_FASTING">Fasting Blood Sugar</option>
+                                <option value="BLOOD_SUGAR_PP">Post-Prandial (PP)</option>
+                                <option value="HBA1C">HbA1c</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="required" id="diabetesValueLabel">Value (mg/dL)</label>
+                            <input type="number" class="form-control" id="diabetesValue" step="0.1" required>
+                        </div>
+                    </div>
+
+                    <!-- BP Fields -->
+                    <div id="bpFields" style="display: none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="required">Systolic (mmHg)</label>
+                                <input type="number" class="form-control" id="systolicValue" placeholder="120" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="required">Diastolic (mmHg)</label>
+                                <input type="number" class="form-control" id="diastolicValue" placeholder="80" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Common Fields -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Context</label>
+                            <select class="form-control" id="readingContext">
+                                <option value="">Select Context</option>
+                                <option value="FASTING">Fasting</option>
+                                <option value="POST_MEAL">Post Meal</option>
+                                <option value="RESTING">Resting</option>
+                                <option value="POST_EXERCISE">Post Exercise</option>
+                                <option value="UNDER_STRESS">Under Stress</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Date & Time</label>
+                            <input type="datetime-local" class="form-control" id="readingDateTime">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes (Optional)</label>
+                        <textarea class="form-control" id="readingNotes" rows="2" placeholder="Any notes..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeReadingModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitReading()" id="submitReadingBtn">
+                    <i class="fas fa-save"></i> Save Reading
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Target Configuration Modal -->
+    <div class="modal" id="targetModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="targetModalTitle"><i class="fas fa-bullseye"></i> Configure Targets</h2>
+                <button class="modal-close" onclick="closeTargetModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="targetForm">
+                    <!-- Diabetes Targets -->
+                    <div id="diabetesTargets" style="display: none;">
+                        <p style="color: var(--text-light); margin-bottom: 1.5rem;">Set your target ranges for diabetes monitoring. These will be shown on your charts and used to flag abnormal readings.</p>
+
+                        <h4 style="margin-bottom: 1rem; color: var(--primary);"><i class="fas fa-tint"></i> Blood Sugar Targets (mg/dL)</h4>
+                        <div class="form-row" style="margin-bottom: 1.5rem;">
+                            <div class="form-group">
+                                <label>Fasting - Min</label>
+                                <input type="number" class="form-control" id="diabetesFastingMin" value="70">
+                            </div>
+                            <div class="form-group">
+                                <label>Fasting - Max</label>
+                                <input type="number" class="form-control" id="diabetesFastingMax" value="100">
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-bottom: 1.5rem;">
+                            <div class="form-group">
+                                <label>RBS - Min</label>
+                                <input type="number" class="form-control" id="diabetesRbsMin" value="70">
+                            </div>
+                            <div class="form-group">
+                                <label>RBS - Max</label>
+                                <input type="number" class="form-control" id="diabetesRbsMax" value="140">
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-bottom: 1.5rem;">
+                            <div class="form-group">
+                                <label>Post-Prandial - Min</label>
+                                <input type="number" class="form-control" id="diabetesPpMin" value="70">
+                            </div>
+                            <div class="form-group">
+                                <label>Post-Prandial - Max</label>
+                                <input type="number" class="form-control" id="diabetesPpMax" value="180">
+                            </div>
+                        </div>
+
+                        <h4 style="margin-bottom: 1rem; color: var(--secondary);"><i class="fas fa-percentage"></i> HbA1c Target (%)</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Target HbA1c (Max)</label>
+                                <input type="number" class="form-control" id="hba1cTarget" step="0.1" value="7.0">
+                            </div>
+                            <div class="form-group">
+                                <label>Good Control Below</label>
+                                <input type="number" class="form-control" id="hba1cGood" step="0.1" value="6.5">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hypertension Targets -->
+                    <div id="hypertensionTargets" style="display: none;">
+                        <p style="color: var(--text-light); margin-bottom: 1.5rem;">Set your blood pressure target ranges. These targets will help identify readings that need attention.</p>
+
+                        <h4 style="margin-bottom: 1rem; color: var(--danger);"><i class="fas fa-heart-pulse"></i> Systolic Pressure (mmHg)</h4>
+                        <div class="form-row" style="margin-bottom: 1.5rem;">
+                            <div class="form-group">
+                                <label>Normal - Min</label>
+                                <input type="number" class="form-control" id="systolicMin" value="90">
+                            </div>
+                            <div class="form-group">
+                                <label>Normal - Max</label>
+                                <input type="number" class="form-control" id="systolicMax" value="120">
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-bottom: 1.5rem;">
+                            <div class="form-group">
+                                <label>Elevated (up to)</label>
+                                <input type="number" class="form-control" id="systolicElevated" value="129">
+                            </div>
+                            <div class="form-group">
+                                <label>High Stage 1 (up to)</label>
+                                <input type="number" class="form-control" id="systolicHigh1" value="139">
+                            </div>
+                        </div>
+
+                        <h4 style="margin-bottom: 1rem; color: var(--info);"><i class="fas fa-heart"></i> Diastolic Pressure (mmHg)</h4>
+                        <div class="form-row" style="margin-bottom: 1.5rem;">
+                            <div class="form-group">
+                                <label>Normal - Min</label>
+                                <input type="number" class="form-control" id="diastolicMin" value="60">
+                            </div>
+                            <div class="form-group">
+                                <label>Normal - Max</label>
+                                <input type="number" class="form-control" id="diastolicMax" value="80">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>High Stage 1 (up to)</label>
+                                <input type="number" class="form-control" id="diastolicHigh1" value="89">
+                            </div>
+                            <div class="form-group">
+                                <label>High Stage 2 (above)</label>
+                                <input type="number" class="form-control" id="diastolicHigh2" value="90">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reminder Settings -->
+                    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                        <h4 style="margin-bottom: 1rem;"><i class="fas fa-bell"></i> Reminder Settings</h4>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                <input type="checkbox" id="enableReminders" style="width: 18px; height: 18px;">
+                                <span>Enable daily reading reminders</span>
+                            </label>
+                        </div>
+                        <div id="reminderTimeGroup" style="display: none;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Reminder Time</label>
+                                    <input type="time" class="form-control" id="reminderTime" value="08:00">
+                                </div>
+                                <div class="form-group">
+                                    <label>Frequency</label>
+                                    <select class="form-control" id="reminderFrequency">
+                                        <option value="daily">Daily</option>
+                                        <option value="twice_daily">Twice Daily</option>
+                                        <option value="weekly">Weekly</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="resetToDefaults()">
+                    <i class="fas fa-undo"></i> Reset Defaults
+                </button>
+                <button class="btn btn-outline" onclick="closeTargetModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveTargets()" id="saveTargetBtn">
+                    <i class="fas fa-save"></i> Save Targets
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let currentReadingType = null;
+        let selectedFiles = [];
+        let currentTargetType = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            initTabs();
+            initFileUpload();
+            initDateDefaults();
+            loadReportsTab();
+        });
+
+        // Auth check
+        function checkAuth() {
+            const token = localStorage.getItem('patientToken') || localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/roles/patient/patient-login.html';
+            }
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('patientToken');
+            localStorage.removeItem('token');
+            localStorage.removeItem('patient');
+            localStorage.removeItem('user');
+            window.location.href = '/index.html';
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            };
+
+            toast.innerHTML = `<i class="fas ${icons[type]}"></i> ${message}`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Tab functionality
+        function initTabs() {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tabId = btn.dataset.tab;
+
+                    // Update buttons
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    // Update content
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    document.getElementById(`${tabId}-tab`).classList.add('active');
+
+                    // Load tab content
+                    if (tabId === 'reports') loadReportsTab();
+                    else if (tabId === 'diabetes') loadDiabetesTab();
+                    else if (tabId === 'hypertension') loadHypertensionTab();
+                });
+            });
+        }
+
+        // File upload drag-drop
+        function initFileUpload() {
+            const dropZone = document.getElementById('fileDropZone');
+            const fileInput = document.getElementById('reportFiles');
+
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = 'var(--primary)';
+                dropZone.style.background = 'rgba(91, 141, 190, 0.1)';
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.style.borderColor = '#e0e0e0';
+                dropZone.style.background = 'var(--bg-light)';
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = '#e0e0e0';
+                dropZone.style.background = 'var(--bg-light)';
+                handleFiles(e.dataTransfer.files);
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(e.target.files);
+            });
+        }
+
+        function handleFiles(files) {
+            const fileList = document.getElementById('fileList');
+            const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+
+            Array.from(files).forEach(file => {
+                if (!validTypes.includes(file.type)) {
+                    showToast(`Invalid file type: ${file.name}`, 'error');
+                    return;
+                }
+                if (file.size > 20 * 1024 * 1024) {
+                    showToast(`File too large: ${file.name}`, 'error');
+                    return;
+                }
+                if (selectedFiles.length >= 10) {
+                    showToast('Maximum 10 files allowed', 'warning');
+                    return;
+                }
+                selectedFiles.push(file);
+            });
+
+            renderFileList();
+        }
+
+        function renderFileList() {
+            const fileList = document.getElementById('fileList');
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = '';
+                return;
+            }
+
+            fileList.innerHTML = selectedFiles.map((file, index) => `
+                <div style="display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--bg-light); border-radius: 8px; margin-bottom: 8px;">
+                    <i class="fas ${file.type === 'application/pdf' ? 'fa-file-pdf' : 'fa-file-image'}" style="color: var(--primary);"></i>
+                    <span style="flex: 1;">${file.name}</span>
+                    <span style="color: var(--text-light); font-size: 0.85rem;">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                    <button type="button" onclick="removeFile(${index})" style="background: none; border: none; color: var(--danger); cursor: pointer;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            renderFileList();
+        }
+
+        // Date defaults
+        function initDateDefaults() {
+            document.getElementById('reportDate').valueAsDate = new Date();
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('readingDateTime').value = now.toISOString().slice(0, 16);
+        }
+
+        // Modal functions
+        function openUploadModal() {
+            document.getElementById('uploadModal').classList.add('active');
+            selectedFiles = [];
+            document.getElementById('uploadForm').reset();
+            document.getElementById('fileList').innerHTML = '';
+            initDateDefaults();
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.remove('active');
+        }
+
+        function openReadingModal(type) {
+            currentReadingType = type;
+            const modal = document.getElementById('readingModal');
+            const title = document.getElementById('readingModalTitle');
+
+            document.getElementById('diabetesFields').style.display = type === 'diabetes' ? 'block' : 'none';
+            document.getElementById('bpFields').style.display = type === 'bp' ? 'block' : 'none';
+
+            if (type === 'diabetes') {
+                title.innerHTML = '<i class="fas fa-tint"></i> Log Blood Sugar Reading';
+            } else {
+                title.innerHTML = '<i class="fas fa-heartbeat"></i> Log Blood Pressure Reading';
+            }
+
+            modal.classList.add('active');
+            initDateDefaults();
+        }
+
+        function closeReadingModal() {
+            document.getElementById('readingModal').classList.remove('active');
+            document.getElementById('readingForm').reset();
+        }
+
+        // Update label for HbA1c
+        document.getElementById('diabetesType')?.addEventListener('change', (e) => {
+            const label = document.getElementById('diabetesValueLabel');
+            if (e.target.value === 'HBA1C') {
+                label.textContent = 'Value (%)';
+            } else {
+                label.textContent = 'Value (mg/dL)';
+            }
+        });
+
+        // API calls
+        function getToken() {
+            return localStorage.getItem('patientToken') || localStorage.getItem('token');
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            const token = getToken();
+            const baseUrl = typeof AppConfig !== 'undefined' ? AppConfig.api(endpoint) : `http://localhost:5000/api/v1${endpoint}`;
+
+            const response = await fetch(baseUrl, {
+                ...options,
+                headers: {
+                    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+                    'Authorization': `Bearer ${token}`,
+                    ...options.headers
+                }
+            });
+
+            if (response.status === 401) {
+                logout();
+                return null;
+            }
+
+            return response.json();
+        }
+
+        // Submit report
+        async function submitReport() {
+            const btn = document.getElementById('submitReportBtn');
+            const originalText = btn.innerHTML;
+
+            if (selectedFiles.length === 0) {
+                showToast('Please select at least one file', 'error');
+                return;
+            }
+
+            const title = document.getElementById('reportTitle').value;
+            const type = document.getElementById('reportType').value;
+            const date = document.getElementById('reportDate').value;
+
+            if (!title || !type || !date) {
+                showToast('Please fill all required fields', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+
+            try {
+                const formData = new FormData();
+                formData.append('title', title);
+                formData.append('reportType', type);
+                formData.append('reportDate', date);
+                formData.append('description', document.getElementById('reportDescription').value);
+
+                selectedFiles.forEach(file => {
+                    formData.append('files', file);
+                });
+
+                const result = await apiCall('/patient-analytics/reports', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (result?.success) {
+                    showToast('Report uploaded successfully! AI analysis started.', 'success');
+                    closeUploadModal();
+                    loadReportsTab();
+                } else {
+                    showToast(result?.message || 'Upload failed', 'error');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showToast('Upload failed. Please try again.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        // Submit reading
+        async function submitReading() {
+            const btn = document.getElementById('submitReadingBtn');
+            const originalText = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                let endpoint, body;
+                const context = document.getElementById('readingContext').value;
+                const measuredAt = document.getElementById('readingDateTime').value;
+                const notes = document.getElementById('readingNotes').value;
+
+                if (currentReadingType === 'diabetes') {
+                    endpoint = '/patient-analytics/diabetes/readings';
+                    body = {
+                        metricType: document.getElementById('diabetesType').value,
+                        value: parseFloat(document.getElementById('diabetesValue').value),
+                        context,
+                        measuredAt,
+                        notes
+                    };
+                } else {
+                    endpoint = '/patient-analytics/hypertension/readings';
+                    body = {
+                        systolic: parseInt(document.getElementById('systolicValue').value),
+                        diastolic: parseInt(document.getElementById('diastolicValue').value),
+                        context,
+                        measuredAt,
+                        notes
+                    };
+                }
+
+                const result = await apiCall(endpoint, {
+                    method: 'POST',
+                    body: JSON.stringify(body)
+                });
+
+                if (result?.success) {
+                    showToast('Reading saved successfully!', 'success');
+                    closeReadingModal();
+
+                    if (currentReadingType === 'diabetes') {
+                        loadDiabetesTab();
+                    } else {
+                        loadHypertensionTab();
+                    }
+                } else {
+                    showToast(result?.message || 'Failed to save reading', 'error');
+                }
+            } catch (error) {
+                console.error('Save error:', error);
+                showToast('Failed to save reading', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        // Tab loaders - Will be populated by separate component files
+        async function loadReportsTab() {
+            const loading = document.getElementById('reportsLoading');
+            const content = document.getElementById('reportsContent');
+
+            loading.style.display = 'flex';
+            content.style.display = 'none';
+
+            try {
+                const result = await apiCall('/patient-analytics/overview');
+
+                if (result?.success) {
+                    const { reports } = result.data;
+
+                    // Update badge
+                    const pendingCount = (reports?.pendingAI || 0) + (reports?.pendingReview || 0);
+                    const badge = document.getElementById('pendingReportsBadge');
+                    if (pendingCount > 0) {
+                        badge.textContent = pendingCount;
+                        badge.style.display = 'inline';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+
+                    content.innerHTML = await renderReportsContent(reports);
+                }
+            } catch (error) {
+                console.error('Error loading reports:', error);
+                content.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><h3>Error loading reports</h3></div>';
+            } finally {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            }
+        }
+
+        async function loadDiabetesTab() {
+            const loading = document.getElementById('diabetesLoading');
+            const content = document.getElementById('diabetesContent');
+
+            loading.style.display = 'flex';
+            content.style.display = 'none';
+
+            try {
+                const [summaryResult, chartResult] = await Promise.all([
+                    apiCall('/patient-analytics/diabetes/summary'),
+                    apiCall('/patient-analytics/diabetes/chart?period=day')
+                ]);
+
+                if (summaryResult?.success && chartResult?.success) {
+                    content.innerHTML = renderDiabetesContent(summaryResult.data.summary, chartResult.data);
+                    initDiabetesCharts(chartResult.data);
+                }
+            } catch (error) {
+                console.error('Error loading diabetes data:', error);
+                content.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><h3>Error loading data</h3></div>';
+            } finally {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            }
+        }
+
+        async function loadHypertensionTab() {
+            const loading = document.getElementById('hypertensionLoading');
+            const content = document.getElementById('hypertensionContent');
+
+            loading.style.display = 'flex';
+            content.style.display = 'none';
+
+            try {
+                const [summaryResult, chartResult] = await Promise.all([
+                    apiCall('/patient-analytics/hypertension/summary'),
+                    apiCall('/patient-analytics/hypertension/chart?period=day')
+                ]);
+
+                if (summaryResult?.success && chartResult?.success) {
+                    content.innerHTML = renderHypertensionContent(summaryResult.data.summary, chartResult.data);
+                    initHypertensionCharts(chartResult.data);
+                }
+            } catch (error) {
+                console.error('Error loading hypertension data:', error);
+                content.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><h3>Error loading data</h3></div>';
+            } finally {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            }
+        }
+
+        // Render functions (placeholders - will be enhanced)
+        async function renderReportsContent(summary) {
+            const reportsResult = await apiCall('/patient-analytics/reports?limit=10');
+            const reports = reportsResult?.data?.reports || [];
+
+            return `
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="card-icon"><i class="fas fa-file-medical"></i></div>
+                        <div class="card-value">${summary?.totalReports || 0}</div>
+                        <div class="card-label">Total Reports</div>
+                    </div>
+                    <div class="summary-card green">
+                        <div class="card-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="card-value">${summary?.reviewed || 0}</div>
+                        <div class="card-label">Reviewed</div>
+                    </div>
+                    <div class="summary-card orange">
+                        <div class="card-icon"><i class="fas fa-clock"></i></div>
+                        <div class="card-value">${summary?.pendingReview || 0}</div>
+                        <div class="card-label">Pending Review</div>
+                    </div>
+                    <div class="summary-card red">
+                        <div class="card-icon"><i class="fas fa-robot"></i></div>
+                        <div class="card-value">${summary?.pendingAI || 0}</div>
+                        <div class="card-label">AI Processing</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 1rem;">Recent Reports</h3>
+                ${reports.length > 0 ? `
+                    <div class="reports-list">
+                        ${reports.map(report => renderReportCard(report)).join('')}
+                    </div>
+                ` : `
+                    <div class="empty-state">
+                        <i class="fas fa-file-upload"></i>
+                        <h3>No reports yet</h3>
+                        <p>Upload your first investigation report to get started</p>
+                        <button class="btn btn-primary" onclick="openUploadModal()" style="margin-top: 1rem;">
+                            <i class="fas fa-upload"></i> Upload Report
+                        </button>
+                    </div>
+                `}
+            `;
+        }
+
+        function renderReportCard(report) {
+            const statusColors = {
+                'UPLOADED': 'pending',
+                'AI_ANALYZING': 'analyzing',
+                'AI_ANALYZED': 'analyzed',
+                'PENDING_DOCTOR_REVIEW': 'pending',
+                'REVIEWED': 'reviewed',
+                'AI_FAILED': 'failed'
+            };
+
+            const statusLabels = {
+                'UPLOADED': 'Uploaded',
+                'AI_ANALYZING': 'AI Analyzing',
+                'AI_ANALYZED': 'AI Analyzed',
+                'PENDING_DOCTOR_REVIEW': 'Awaiting Review',
+                'REVIEWED': 'Reviewed',
+                'AI_FAILED': 'Analysis Failed'
+            };
+
+            return `
+                <div style="background: var(--bg-light); padding: 1.25rem; border-radius: 12px; margin-bottom: 1rem; cursor: pointer;" onclick="viewReport('${report._id}')">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                        <div>
+                            <h4 style="margin-bottom: 0.25rem;">${report.title}</h4>
+                            <p style="color: var(--text-light); font-size: 0.9rem;">
+                                ${report.reportType.replace(/_/g, ' ')} &bull; ${new Date(report.reportDate).toLocaleDateString()}
+                            </p>
+                        </div>
+                        <span class="status-badge ${statusColors[report.status] || 'pending'}">
+                            ${statusLabels[report.status] || report.status}
+                        </span>
+                    </div>
+                    ${report.aiAnalysis?.summary ? `
+                        <p style="font-size: 0.9rem; color: var(--text-dark); margin-bottom: 0.5rem;">
+                            <i class="fas fa-robot" style="color: var(--primary);"></i>
+                            ${report.aiAnalysis.summary.substring(0, 150)}...
+                        </p>
+                    ` : ''}
+                    <div style="display: flex; gap: 0.5rem;">
+                        ${report.files?.map(f => `
+                            <span style="background: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">
+                                <i class="fas ${f.mimeType === 'application/pdf' ? 'fa-file-pdf' : 'fa-file-image'}"></i>
+                            </span>
+                        `).join('') || ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function viewReport(reportId) {
+            window.location.href = `/roles/patient/report-details.html?id=${reportId}`;
+        }
+
+        function renderDiabetesContent(summary, chartData) {
+            const latest = summary?.latestReadings || {};
+
+            return `
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="card-icon"><i class="fas fa-tint"></i></div>
+                        <div class="card-value">${latest.BLOOD_SUGAR_RBS?.value || '--'}</div>
+                        <div class="card-label">Latest RBS (mg/dL)</div>
+                    </div>
+                    <div class="summary-card green">
+                        <div class="card-icon"><i class="fas fa-percentage"></i></div>
+                        <div class="card-value">${latest.HBA1C?.value || '--'}</div>
+                        <div class="card-label">Latest HbA1c (%)</div>
+                    </div>
+                    <div class="summary-card orange">
+                        <div class="card-icon"><i class="fas fa-chart-line"></i></div>
+                        <div class="card-value">${summary?.weeklyStats?.BLOOD_SUGAR_RBS?.count || 0}</div>
+                        <div class="card-label">Readings This Week</div>
+                    </div>
+                    <div class="summary-card ${(summary?.monthlyStats?.abnormalPercentage || 0) > 20 ? 'red' : ''}">
+                        <div class="card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="card-value">${summary?.monthlyStats?.abnormalPercentage || 0}%</div>
+                        <div class="card-label">Out of Range</div>
+                    </div>
+                </div>
+
+                <div style="background: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
+                    <h3 style="margin-bottom: 1rem;"><i class="fas fa-chart-line"></i> Blood Sugar Trends</h3>
+                    <canvas id="diabetesChart" height="300"></canvas>
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <button class="btn btn-success" onclick="openReadingModal('diabetes')">
+                        <i class="fas fa-plus"></i> Add Reading
+                    </button>
+                    <button class="btn btn-outline" onclick="configureTargets('diabetes')">
+                        <i class="fas fa-bullseye"></i> Set Targets
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderHypertensionContent(summary, chartData) {
+            const latest = summary?.latestReadings || {};
+            const systolic = latest.systolic?.value || '--';
+            const diastolic = latest.diastolic?.value || '--';
+
+            return `
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="card-icon"><i class="fas fa-heartbeat"></i></div>
+                        <div class="card-value">${systolic}/${diastolic}</div>
+                        <div class="card-label">Latest BP (mmHg)</div>
+                    </div>
+                    <div class="summary-card green">
+                        <div class="card-icon"><i class="fas fa-chart-line"></i></div>
+                        <div class="card-value">${summary?.weeklyStats?.BP_SYSTOLIC?.count || 0}</div>
+                        <div class="card-label">Readings This Week</div>
+                    </div>
+                    <div class="summary-card orange">
+                        <div class="card-icon"><i class="fas fa-calculator"></i></div>
+                        <div class="card-value">${summary?.weeklyStats?.BP_SYSTOLIC?.average || '--'}</div>
+                        <div class="card-label">Avg Systolic</div>
+                    </div>
+                    <div class="summary-card ${(summary?.monthlyStats?.abnormalPercentage || 0) > 20 ? 'red' : ''}">
+                        <div class="card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="card-value">${summary?.monthlyStats?.abnormalPercentage || 0}%</div>
+                        <div class="card-label">Out of Range</div>
+                    </div>
+                </div>
+
+                <div style="background: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
+                    <h3 style="margin-bottom: 1rem;"><i class="fas fa-chart-area"></i> Blood Pressure Trends</h3>
+                    <canvas id="bpChart" height="300"></canvas>
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <button class="btn btn-danger" onclick="openReadingModal('bp')">
+                        <i class="fas fa-plus"></i> Add Reading
+                    </button>
+                    <button class="btn btn-outline" onclick="configureTargets('hypertension')">
+                        <i class="fas fa-bullseye"></i> Set Targets
+                    </button>
+                </div>
+            `;
+        }
+
+        // Chart initialization
+        let diabetesChartInstance = null;
+        let bpChartInstance = null;
+
+        function initDiabetesCharts(data) {
+            const ctx = document.getElementById('diabetesChart')?.getContext('2d');
+            if (!ctx) return;
+
+            if (diabetesChartInstance) diabetesChartInstance.destroy();
+
+            const rbsData = data.chartData?.BLOOD_SUGAR_RBS || { readings: [] };
+            const target = rbsData.target || { min: 70, max: 140 };
+
+            diabetesChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: rbsData.readings.map(r => new Date(r.date).toLocaleDateString()),
+                    datasets: [
+                        {
+                            label: 'Blood Sugar (mg/dL)',
+                            data: rbsData.readings.map(r => r.value),
+                            borderColor: '#5B8DBE',
+                            backgroundColor: 'rgba(91, 141, 190, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Target Max',
+                            data: rbsData.readings.map(() => target.max),
+                            borderColor: '#ffc107',
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Target Min',
+                            data: rbsData.readings.map(() => target.min),
+                            borderColor: '#28a745',
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            suggestedMin: 50,
+                            suggestedMax: 200
+                        }
+                    }
+                }
+            });
+        }
+
+        function initHypertensionCharts(data) {
+            const ctx = document.getElementById('bpChart')?.getContext('2d');
+            if (!ctx) return;
+
+            if (bpChartInstance) bpChartInstance.destroy();
+
+            const combined = data.chartData?.combined || [];
+            const systolicTarget = data.chartData?.systolic?.target || { min: 90, max: 120 };
+            const diastolicTarget = data.chartData?.diastolic?.target || { min: 60, max: 80 };
+
+            bpChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: combined.map(r => new Date(r.date).toLocaleDateString()),
+                    datasets: [
+                        {
+                            label: 'Systolic (mmHg)',
+                            data: combined.map(r => r.systolic),
+                            borderColor: '#dc3545',
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Diastolic (mmHg)',
+                            data: combined.map(r => r.diastolic),
+                            borderColor: '#5B8DBE',
+                            backgroundColor: 'rgba(91, 141, 190, 0.1)',
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Systolic Target',
+                            data: combined.map(() => systolicTarget.max),
+                            borderColor: 'rgba(220, 53, 69, 0.3)',
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Diastolic Target',
+                            data: combined.map(() => diastolicTarget.max),
+                            borderColor: 'rgba(91, 141, 190, 0.3)',
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            suggestedMin: 40,
+                            suggestedMax: 180
+                        }
+                    }
+                }
+            });
+        }
+
+        function configureTargets(type) {
+            currentTargetType = type;
+            const modal = document.getElementById('targetModal');
+            const title = document.getElementById('targetModalTitle');
+
+            // Show/hide appropriate target fields
+            document.getElementById('diabetesTargets').style.display = type === 'diabetes' ? 'block' : 'none';
+            document.getElementById('hypertensionTargets').style.display = type === 'hypertension' ? 'block' : 'none';
+
+            // Update title
+            if (type === 'diabetes') {
+                title.innerHTML = '<i class="fas fa-bullseye"></i> Diabetes Target Configuration';
+            } else {
+                title.innerHTML = '<i class="fas fa-bullseye"></i> Blood Pressure Target Configuration';
+            }
+
+            // Load existing targets
+            loadTargets(type);
+
+            modal.classList.add('active');
+        }
+
+        function closeTargetModal() {
+            document.getElementById('targetModal').classList.remove('active');
+            currentTargetType = null;
+        }
+
+        async function loadTargets(type) {
+            try {
+                const response = await fetch(`${API_URL}/patient-analytics/targets/${type}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.target) {
+                        populateTargetForm(type, data.target);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading targets:', error);
+            }
+        }
+
+        function populateTargetForm(type, target) {
+            if (type === 'diabetes') {
+                if (target.ranges) {
+                    if (target.ranges.fasting) {
+                        document.getElementById('diabetesFastingMin').value = target.ranges.fasting.min || 70;
+                        document.getElementById('diabetesFastingMax').value = target.ranges.fasting.max || 100;
+                    }
+                    if (target.ranges.rbs) {
+                        document.getElementById('diabetesRbsMin').value = target.ranges.rbs.min || 70;
+                        document.getElementById('diabetesRbsMax').value = target.ranges.rbs.max || 140;
+                    }
+                    if (target.ranges.postPrandial) {
+                        document.getElementById('diabetesPpMin').value = target.ranges.postPrandial.min || 70;
+                        document.getElementById('diabetesPpMax').value = target.ranges.postPrandial.max || 180;
+                    }
+                    if (target.ranges.hba1c) {
+                        document.getElementById('hba1cTarget').value = target.ranges.hba1c.max || 7.0;
+                        document.getElementById('hba1cGood').value = target.ranges.hba1c.good || 6.5;
+                    }
+                }
+            } else if (type === 'hypertension') {
+                if (target.ranges) {
+                    if (target.ranges.systolic) {
+                        document.getElementById('systolicMin').value = target.ranges.systolic.min || 90;
+                        document.getElementById('systolicMax').value = target.ranges.systolic.max || 120;
+                        document.getElementById('systolicElevated').value = target.ranges.systolic.elevated || 129;
+                        document.getElementById('systolicHigh1').value = target.ranges.systolic.high1 || 139;
+                    }
+                    if (target.ranges.diastolic) {
+                        document.getElementById('diastolicMin').value = target.ranges.diastolic.min || 60;
+                        document.getElementById('diastolicMax').value = target.ranges.diastolic.max || 80;
+                        document.getElementById('diastolicHigh1').value = target.ranges.diastolic.high1 || 89;
+                        document.getElementById('diastolicHigh2').value = target.ranges.diastolic.high2 || 90;
+                    }
+                }
+            }
+
+            // Reminders
+            if (target.reminders) {
+                document.getElementById('enableReminders').checked = target.reminders.enabled || false;
+                document.getElementById('reminderTimeGroup').style.display = target.reminders.enabled ? 'block' : 'none';
+                if (target.reminders.time) {
+                    document.getElementById('reminderTime').value = target.reminders.time;
+                }
+                if (target.reminders.frequency) {
+                    document.getElementById('reminderFrequency').value = target.reminders.frequency;
+                }
+            }
+        }
+
+        async function saveTargets() {
+            const btn = document.getElementById('saveTargetBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            btn.disabled = true;
+
+            try {
+                let targetData = {
+                    trackerType: currentTargetType,
+                    ranges: {},
+                    reminders: {
+                        enabled: document.getElementById('enableReminders').checked,
+                        time: document.getElementById('reminderTime').value,
+                        frequency: document.getElementById('reminderFrequency').value
+                    }
+                };
+
+                if (currentTargetType === 'diabetes') {
+                    targetData.ranges = {
+                        fasting: {
+                            min: parseFloat(document.getElementById('diabetesFastingMin').value),
+                            max: parseFloat(document.getElementById('diabetesFastingMax').value)
+                        },
+                        rbs: {
+                            min: parseFloat(document.getElementById('diabetesRbsMin').value),
+                            max: parseFloat(document.getElementById('diabetesRbsMax').value)
+                        },
+                        postPrandial: {
+                            min: parseFloat(document.getElementById('diabetesPpMin').value),
+                            max: parseFloat(document.getElementById('diabetesPpMax').value)
+                        },
+                        hba1c: {
+                            max: parseFloat(document.getElementById('hba1cTarget').value),
+                            good: parseFloat(document.getElementById('hba1cGood').value)
+                        }
+                    };
+                } else if (currentTargetType === 'hypertension') {
+                    targetData.ranges = {
+                        systolic: {
+                            min: parseInt(document.getElementById('systolicMin').value),
+                            max: parseInt(document.getElementById('systolicMax').value),
+                            elevated: parseInt(document.getElementById('systolicElevated').value),
+                            high1: parseInt(document.getElementById('systolicHigh1').value)
+                        },
+                        diastolic: {
+                            min: parseInt(document.getElementById('diastolicMin').value),
+                            max: parseInt(document.getElementById('diastolicMax').value),
+                            high1: parseInt(document.getElementById('diastolicHigh1').value),
+                            high2: parseInt(document.getElementById('diastolicHigh2').value)
+                        }
+                    };
+                }
+
+                const response = await fetch(`${API_URL}/patient-analytics/targets`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(targetData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast('Targets saved successfully!', 'success');
+                    closeTargetModal();
+                    // Refresh charts to reflect new targets
+                    if (currentTargetType === 'diabetes') {
+                        loadDiabetesData();
+                    } else {
+                        loadHypertensionData();
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to save targets');
+                }
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function resetToDefaults() {
+            if (currentTargetType === 'diabetes') {
+                document.getElementById('diabetesFastingMin').value = 70;
+                document.getElementById('diabetesFastingMax').value = 100;
+                document.getElementById('diabetesRbsMin').value = 70;
+                document.getElementById('diabetesRbsMax').value = 140;
+                document.getElementById('diabetesPpMin').value = 70;
+                document.getElementById('diabetesPpMax').value = 180;
+                document.getElementById('hba1cTarget').value = 7.0;
+                document.getElementById('hba1cGood').value = 6.5;
+            } else if (currentTargetType === 'hypertension') {
+                document.getElementById('systolicMin').value = 90;
+                document.getElementById('systolicMax').value = 120;
+                document.getElementById('systolicElevated').value = 129;
+                document.getElementById('systolicHigh1').value = 139;
+                document.getElementById('diastolicMin').value = 60;
+                document.getElementById('diastolicMax').value = 80;
+                document.getElementById('diastolicHigh1').value = 89;
+                document.getElementById('diastolicHigh2').value = 90;
+            }
+            showToast('Reset to default values', 'info');
+        }
+
+        // Toggle reminder time fields
+        document.getElementById('enableReminders').addEventListener('change', function() {
+            document.getElementById('reminderTimeGroup').style.display = this.checked ? 'block' : 'none';
+        });
+    </script>
+
+    <style>
+        /* File upload area */
+        .file-upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: var(--bg-light);
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(91, 141, 190, 0.05);
+        }
+    </style>
+</body>
+</html>
