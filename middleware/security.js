@@ -146,6 +146,18 @@ const corsConfig = () => {
     );
   }
 
+  // Add production Render frontend URL if not already included
+  const renderFrontendUrl = process.env.RENDER_FRONTEND_URL || 'https://nocturnal-frontend-208z.onrender.com';
+  if (!allowedOrigins.includes(renderFrontendUrl)) {
+    allowedOrigins.push(renderFrontendUrl);
+  }
+
+  // Log allowed origins on startup
+  logger.info('CORS configured with allowed origins', {
+    origins: allowedOrigins,
+    env: process.env.NODE_ENV
+  });
+
   return {
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, Postman, etc.)
