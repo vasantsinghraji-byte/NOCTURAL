@@ -601,7 +601,10 @@
                 <h3 id="intakeTitle">Complete Your Health Profile</h3>
                 <p id="intakeMessage">Help us serve you better by sharing your health information</p>
             </div>
-            <button class="btn-intake" id="intakeBtn" onclick="goToIntake()">Start Now</button>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn-intake" onclick="location.href='health-intake-form.html'" style="background: white; color: #f5576c;">Quick Intake</button>
+                <button class="btn-intake" id="intakeBtn" onclick="goToMedicalHistory()">Complete Medical History</button>
+            </div>
         </div>
 
         <!-- Stats Overview -->
@@ -1001,6 +1004,11 @@
         // Go to intake form
         function goToIntake() {
             window.location.href = 'health-intake-form.html';
+        }
+
+        // Go to complete medical history form
+        function goToMedicalHistory() {
+            window.location.href = 'patient-medical-history-form.html';
         }
 
         // Logout
