@@ -1233,7 +1233,9 @@
             content.style.display = 'none';
 
             try {
+                console.log('Loading reports overview...');
                 const result = await apiCall('/patient-analytics/overview');
+                console.log('Reports overview result:', result);
 
                 if (result?.success) {
                     const reports = result.reports || {};
@@ -1249,10 +1251,33 @@
                     }
 
                     content.innerHTML = await renderReportsContent(reports);
+                } else {
+                    // Show error if API returned success:false
+                    const errorMsg = result?.message || 'Failed to load reports';
+                    console.error('Reports API error:', errorMsg);
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <h3>Error loading reports</h3>
+                            <p style="color: var(--text-light); margin-top: 0.5rem;">${errorMsg}</p>
+                            <button class="btn btn-primary" onclick="loadReportsTab()" style="margin-top: 1rem;">
+                                <i class="fas fa-sync"></i> Retry
+                            </button>
+                        </div>
+                    `;
                 }
             } catch (error) {
                 console.error('Error loading reports:', error);
-                content.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><h3>Error loading reports</h3></div>';
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <h3>Error loading reports</h3>
+                        <p style="color: var(--text-light); margin-top: 0.5rem;">${error.message}</p>
+                        <button class="btn btn-primary" onclick="loadReportsTab()" style="margin-top: 1rem;">
+                            <i class="fas fa-sync"></i> Retry
+                        </button>
+                    </div>
+                `;
             } finally {
                 loading.style.display = 'none';
                 content.style.display = 'block';
@@ -1267,18 +1292,45 @@
             content.style.display = 'none';
 
             try {
+                console.log('Loading diabetes data...');
                 const [summaryResult, chartResult] = await Promise.all([
                     apiCall('/patient-analytics/diabetes/summary'),
                     apiCall('/patient-analytics/diabetes/chart?period=day')
                 ]);
 
+                console.log('Diabetes summary result:', summaryResult);
+                console.log('Diabetes chart result:', chartResult);
+
                 if (summaryResult?.success && chartResult?.success) {
                     content.innerHTML = renderDiabetesContent(summaryResult.summary, chartResult);
                     initDiabetesCharts(chartResult);
+                } else {
+                    // Show error if API returned success:false
+                    const errorMsg = summaryResult?.message || chartResult?.message || 'Failed to load diabetes data';
+                    console.error('Diabetes API error:', errorMsg);
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <h3>Error loading data</h3>
+                            <p style="color: var(--text-light); margin-top: 0.5rem;">${errorMsg}</p>
+                            <button class="btn btn-primary" onclick="loadDiabetesTab()" style="margin-top: 1rem;">
+                                <i class="fas fa-sync"></i> Retry
+                            </button>
+                        </div>
+                    `;
                 }
             } catch (error) {
                 console.error('Error loading diabetes data:', error);
-                content.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><h3>Error loading data</h3></div>';
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <h3>Error loading data</h3>
+                        <p style="color: var(--text-light); margin-top: 0.5rem;">${error.message}</p>
+                        <button class="btn btn-primary" onclick="loadDiabetesTab()" style="margin-top: 1rem;">
+                            <i class="fas fa-sync"></i> Retry
+                        </button>
+                    </div>
+                `;
             } finally {
                 loading.style.display = 'none';
                 content.style.display = 'block';
@@ -1293,18 +1345,45 @@
             content.style.display = 'none';
 
             try {
+                console.log('Loading hypertension data...');
                 const [summaryResult, chartResult] = await Promise.all([
                     apiCall('/patient-analytics/hypertension/summary'),
                     apiCall('/patient-analytics/hypertension/chart?period=day')
                 ]);
 
+                console.log('Hypertension summary result:', summaryResult);
+                console.log('Hypertension chart result:', chartResult);
+
                 if (summaryResult?.success && chartResult?.success) {
                     content.innerHTML = renderHypertensionContent(summaryResult.summary, chartResult);
                     initHypertensionCharts(chartResult);
+                } else {
+                    // Show error if API returned success:false
+                    const errorMsg = summaryResult?.message || chartResult?.message || 'Failed to load hypertension data';
+                    console.error('Hypertension API error:', errorMsg);
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <h3>Error loading data</h3>
+                            <p style="color: var(--text-light); margin-top: 0.5rem;">${errorMsg}</p>
+                            <button class="btn btn-primary" onclick="loadHypertensionTab()" style="margin-top: 1rem;">
+                                <i class="fas fa-sync"></i> Retry
+                            </button>
+                        </div>
+                    `;
                 }
             } catch (error) {
                 console.error('Error loading hypertension data:', error);
-                content.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><h3>Error loading data</h3></div>';
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <h3>Error loading data</h3>
+                        <p style="color: var(--text-light); margin-top: 0.5rem;">${error.message}</p>
+                        <button class="btn btn-primary" onclick="loadHypertensionTab()" style="margin-top: 1rem;">
+                            <i class="fas fa-sync"></i> Retry
+                        </button>
+                    </div>
+                `;
             } finally {
                 loading.style.display = 'none';
                 content.style.display = 'block';
@@ -1313,7 +1392,9 @@
 
         // Render functions (placeholders - will be enhanced)
         async function renderReportsContent(summary) {
+            console.log('Fetching reports list...');
             const reportsResult = await apiCall('/patient-analytics/reports?limit=10');
+            console.log('Reports list result:', reportsResult);
             const reports = reportsResult?.reports || [];
 
             return `
@@ -1505,43 +1586,104 @@
 
         function initDiabetesCharts(data) {
             const ctx = document.getElementById('diabetesChart')?.getContext('2d');
-            if (!ctx) return;
+            if (!ctx) {
+                console.error('Diabetes chart canvas not found');
+                return;
+            }
 
             if (diabetesChartInstance) diabetesChartInstance.destroy();
 
+            // Combine ALL blood sugar readings from different types
             const rbsData = data.chartData?.BLOOD_SUGAR_RBS || { readings: [] };
-            const target = rbsData.target || { min: 70, max: 140 };
+            const fastingData = data.chartData?.BLOOD_SUGAR_FASTING || { readings: [] };
+            const ppData = data.chartData?.BLOOD_SUGAR_PP || { readings: [] };
+            const hba1cData = data.chartData?.HBA1C || { readings: [] };
+
+            // Combine all readings into one array with type labels
+            const allReadings = [
+                ...rbsData.readings.map(r => ({ ...r, type: 'RBS', color: '#5B8DBE' })),
+                ...fastingData.readings.map(r => ({ ...r, type: 'Fasting', color: '#28a745' })),
+                ...ppData.readings.map(r => ({ ...r, type: 'PP', color: '#ffc107' }))
+            ].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // Check if there's any data
+            if (allReadings.length === 0) {
+                // Show empty state message in chart area
+                const chartContainer = ctx.canvas.parentElement;
+                chartContainer.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: var(--text-light);">
+                        <i class="fas fa-chart-line" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                        <p style="margin-bottom: 0.5rem;">No blood sugar readings yet</p>
+                        <p style="font-size: 0.9rem;">Add your first reading to see the chart</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const target = rbsData.target || fastingData.target || { min: 70, max: 140 };
+
+            // Create datasets for each type
+            const datasets = [];
+
+            if (rbsData.readings.length > 0) {
+                datasets.push({
+                    label: 'RBS (mg/dL)',
+                    data: allReadings.map(r => r.type === 'RBS' ? r.value : null),
+                    borderColor: '#5B8DBE',
+                    backgroundColor: 'rgba(91, 141, 190, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    spanGaps: true
+                });
+            }
+
+            if (fastingData.readings.length > 0) {
+                datasets.push({
+                    label: 'Fasting (mg/dL)',
+                    data: allReadings.map(r => r.type === 'Fasting' ? r.value : null),
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    spanGaps: true
+                });
+            }
+
+            if (ppData.readings.length > 0) {
+                datasets.push({
+                    label: 'Post-Prandial (mg/dL)',
+                    data: allReadings.map(r => r.type === 'PP' ? r.value : null),
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    spanGaps: true
+                });
+            }
+
+            // Add target lines
+            datasets.push({
+                label: 'Target Max',
+                data: allReadings.map(() => target.max),
+                borderColor: 'rgba(220, 53, 69, 0.5)',
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
+            });
+            datasets.push({
+                label: 'Target Min',
+                data: allReadings.map(() => target.min),
+                borderColor: 'rgba(40, 167, 69, 0.5)',
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
+            });
 
             diabetesChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: rbsData.readings.map(r => new Date(r.date).toLocaleDateString()),
-                    datasets: [
-                        {
-                            label: 'Blood Sugar (mg/dL)',
-                            data: rbsData.readings.map(r => r.value),
-                            borderColor: '#5B8DBE',
-                            backgroundColor: 'rgba(91, 141, 190, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Target Max',
-                            data: rbsData.readings.map(() => target.max),
-                            borderColor: '#ffc107',
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false
-                        },
-                        {
-                            label: 'Target Min',
-                            data: rbsData.readings.map(() => target.min),
-                            borderColor: '#28a745',
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false
-                        }
-                    ]
+                    labels: allReadings.map(r => new Date(r.date).toLocaleDateString()),
+                    datasets
                 },
                 options: {
                     responsive: true,
@@ -1562,13 +1704,30 @@
 
         function initHypertensionCharts(data) {
             const ctx = document.getElementById('bpChart')?.getContext('2d');
-            if (!ctx) return;
+            if (!ctx) {
+                console.error('BP chart canvas not found');
+                return;
+            }
 
             if (bpChartInstance) bpChartInstance.destroy();
 
             const combined = data.chartData?.combined || [];
             const systolicTarget = data.chartData?.systolic?.target || { min: 90, max: 120 };
             const diastolicTarget = data.chartData?.diastolic?.target || { min: 60, max: 80 };
+
+            // Check if there's any data
+            if (combined.length === 0) {
+                // Show empty state message in chart area
+                const chartContainer = ctx.canvas.parentElement;
+                chartContainer.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: var(--text-light);">
+                        <i class="fas fa-heartbeat" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                        <p style="margin-bottom: 0.5rem;">No blood pressure readings yet</p>
+                        <p style="font-size: 0.9rem;">Add your first BP reading to see the chart</p>
+                    </div>
+                `;
+                return;
+            }
 
             bpChartInstance = new Chart(ctx, {
                 type: 'line',
