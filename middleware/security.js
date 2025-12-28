@@ -4,31 +4,53 @@
  */
 
 const helmet = require('helmet');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
+
+/**
+ * Generate a cryptographically secure nonce for CSP
+ * @returns {string} Base64-encoded nonce
+ */
+const generateNonce = () => {
+  return crypto.randomBytes(16).toString('base64');
+};
 
 /**
  * Security Headers Configuration
  * Implements OWASP security best practices
  */
 const securityHeaders = () => {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
+  // Build scriptSrc dynamically based on environment
+  const scriptSrc = [
+    "'self'",
+    'https://cdn.jsdelivr.net',
+    'https://unpkg.com',
+    'https://www.google.com',
+    'https://www.gstatic.com',
+    'https://checkout.razorpay.com',  // Razorpay checkout script
+    'https://api.razorpay.com'
+  ];
+
+  // Only allow unsafe-eval in development (for debugging tools, hot reload, etc.)
+  if (isDevelopment) {
+    scriptSrc.push("'unsafe-eval'");
+    scriptSrc.push("'unsafe-inline'"); // Only in dev - production should use nonces
+  }
+  // Note: For production inline scripts, use nonces via res.locals.cspNonce
+  // Add nonce dynamically via the nonceMiddleware below
+
   return helmet({
     // Content Security Policy
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: [
-          "'self'",
-          "'unsafe-inline'", // Required for some frontend frameworks
-          "'unsafe-eval'", // Required for development
-          'https://cdn.jsdelivr.net',
-          'https://unpkg.com',
-          'https://www.google.com',
-          'https://www.gstatic.com'
-        ],
-        scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc.)
+        scriptSrc,
+        scriptSrcAttr: isDevelopment ? ["'unsafe-inline'"] : ["'none'"], // Disable inline handlers in production
         styleSrc: [
           "'self'",
-          "'unsafe-inline'",
+          "'unsafe-inline'", // Required for CSS frameworks - lower XSS risk than script unsafe-inline
           'https://fonts.googleapis.com',
           'https://cdn.jsdelivr.net',
           'https://cdnjs.cloudflare.com'
@@ -131,15 +153,14 @@ const corsConfig = () => {
         return callback(null, true);
       }
 
-      // TEMPORARY: Allow localhost/127.0.0.1 even in production for testing
-      // TODO: Remove this after setting ALLOWED_ORIGINS properly
-      const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
-
-      // Check if origin is in whitelist OR is localhost
-      if (allowedOrigins.indexOf(origin) !== -1 || isLocalhost) {
+      // Strict origin whitelist check - no bypasses
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        logger.warn('CORS blocked request from unauthorized origin', { origin });
+        logger.warn('CORS blocked request from unauthorized origin', {
+          origin,
+          allowedOrigins: allowedOrigins.length > 0 ? allowedOrigins : 'NONE CONFIGURED'
+        });
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -352,6 +373,21 @@ const logSecurityEvents = (req, res, next) => {
   next();
 };
 
+/**
+ * CSP Nonce Middleware
+ * Generates a unique nonce per request for inline scripts in production
+ * Usage: Add nonce="<%= locals.cspNonce %>" to inline <script> tags
+ */
+const nonceMiddleware = (req, res, next) => {
+  const nonce = generateNonce();
+  res.locals.cspNonce = nonce;
+
+  // Make nonce available for CSP header modification if needed
+  req.cspNonce = nonce;
+
+  next();
+};
+
 module.exports = {
   securityHeaders,
   corsConfig,
@@ -361,5 +397,7 @@ module.exports = {
   preventParameterPollution,
   enforceHTTPS,
   addSecurityHeaders,
-  logSecurityEvents
+  logSecurityEvents,
+  nonceMiddleware,
+  generateNonce
 };

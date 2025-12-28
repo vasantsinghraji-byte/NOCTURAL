@@ -3,11 +3,29 @@
  * Load this BEFORE any other scripts that make API calls
  */
 
+// Determine the correct API base URL
+const getBaseUrl = () => {
+    const hostname = window.location.hostname;
+
+    // Development
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:5000';
+    }
+
+    // Production - Render deployment
+    // Frontend: nocturnal-frontend-208z.onrender.com
+    // Backend: nocturnal-api.onrender.com
+    if (hostname.includes('nocturnal-frontend') || hostname.includes('render.com')) {
+        return 'https://nocturnal-api.onrender.com';
+    }
+
+    // Fallback: Same origin (for when frontend is served from backend)
+    return window.location.origin;
+};
+
 // API Configuration Object
 const API_CONFIG = {
-    BASE_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:5000'   // Development
-        : window.location.origin,   // Production (same domain)
+    BASE_URL: getBaseUrl(),
     API_VERSION: 'v1',
     TIMEOUT: 10000,
 
