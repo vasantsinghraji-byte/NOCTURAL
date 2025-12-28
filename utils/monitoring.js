@@ -35,9 +35,9 @@ if (process.env.SENTRY_DSN) {
         return event;
       }
     });
-    console.log('✅ Sentry monitoring initialized');
+    logger.info('Sentry monitoring initialized');
   } catch (e) {
-    console.log('ℹ️  Sentry not installed - error tracking disabled');
+    logger.info('Sentry not installed - error tracking disabled');
   }
 }
 
@@ -62,14 +62,32 @@ const ERROR_THRESHOLDS = {
 // Reset window (e.g., every hour)
 const RESET_INTERVAL = 60 * 60 * 1000; // 1 hour
 
-// Reset error counts periodically
-setInterval(() => {
-  Object.keys(errorCounts).forEach(key => {
-    errorCounts[key] = 0;
-  });
-}, RESET_INTERVAL);
+// Reset error counts periodically (skip in test environment)
+let resetInterval = null;
+if (process.env.NODE_ENV !== 'test') {
+  resetInterval = setInterval(() => {
+    Object.keys(errorCounts).forEach(key => {
+      errorCounts[key] = 0;
+    });
+  }, RESET_INTERVAL);
+}
 
 const monitoring = {
+  // Track a general event (non-error)
+  trackEvent: (eventName, context = {}) => {
+    logger.info(`Event tracked: ${eventName}`, context);
+
+    // Send to Sentry if configured
+    if (Sentry) {
+      Sentry.addBreadcrumb({
+        category: 'event',
+        message: eventName,
+        data: context,
+        level: 'info'
+      });
+    }
+  },
+
   // Track an error and potentially trigger alert
   trackError: (type, error, context = {}) => {
     errorCounts[type] = (errorCounts[type] || 0) + 1;
