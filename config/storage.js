@@ -1,52 +1,45 @@
-const { S3Client } = require('@aws-sdk/client-s3');
 const multer = require('multer');
-const multerS3 = require('multer-s3');
 const path = require('path');
+const logger = require('../utils/logger');
 
 // Determine storage backend based on environment
-const USE_S3 = process.env.USE_S3 === 'true' || process.env.NODE_ENV === 'production';
-const USE_LOCAL = !USE_S3;
+const USE_GCS = process.env.USE_GCS === 'true' || process.env.NODE_ENV === 'production';
+const USE_LOCAL = !USE_GCS;
 
-// S3 Client Configuration
-let s3Client = null;
-if (USE_S3) {
-  s3Client = new S3Client({
-    region: process.env.AWS_REGION || 'us-east-1',
-    credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-    } : undefined // Uses IAM role if running on AWS (ECS/EC2)
-  });
-}
+// Google Cloud Storage Client Configuration
+let gcsClient = null;
+let gcsBucket = null;
 
-// S3 Storage Configuration
-const s3Storage = USE_S3 ? multerS3({
-  s3: s3Client,
-  bucket: process.env.S3_BUCKET || 'nocturnal-uploads',
-  acl: 'private', // Files are private by default
-  contentType: multerS3.AUTO_CONTENT_TYPE,
-  metadata: (req, file, cb) => {
-    cb(null, {
-      fieldName: file.fieldname,
-      uploadedBy: req.user ? req.user._id.toString() : 'anonymous',
-      uploadDate: new Date().toISOString()
-    });
-  },
-  key: (req, file, cb) => {
-    // Generate unique filename with timestamp and random string
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const basename = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9]/g, '_');
-    const filename = `${basename}-${uniqueSuffix}${ext}`;
+if (USE_GCS && process.env.GCS_BUCKET) {
+  try {
+    const { Storage } = require('@google-cloud/storage');
 
-    // Organize by upload type and date
-    const folder = req.uploadType || 'general';
-    const dateFolder = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const key = `${folder}/${dateFolder}/${filename}`;
+    // Initialize GCS client
+    // Uses GOOGLE_APPLICATION_CREDENTIALS env var for auth, or inline credentials
+    const gcsConfig = {};
 
-    cb(null, key);
+    if (process.env.GCS_PROJECT_ID) {
+      gcsConfig.projectId = process.env.GCS_PROJECT_ID;
+    }
+
+    // Support for inline credentials (Base64 encoded JSON key)
+    if (process.env.GCS_CREDENTIALS) {
+      try {
+        const credentials = JSON.parse(Buffer.from(process.env.GCS_CREDENTIALS, 'base64').toString('utf8'));
+        gcsConfig.credentials = credentials;
+        gcsConfig.projectId = credentials.project_id;
+      } catch (e) {
+        logger.error('Failed to parse GCS_CREDENTIALS', { error: e.message });
+      }
+    }
+
+    gcsClient = new Storage(gcsConfig);
+    gcsBucket = gcsClient.bucket(process.env.GCS_BUCKET);
+    logger.info('Google Cloud Storage initialized', { bucket: process.env.GCS_BUCKET });
+  } catch (error) {
+    logger.error('Failed to initialize Google Cloud Storage', { error: error.message });
   }
-}) : null;
+}
 
 // Local Storage Configuration (fallback for development)
 const localStorage = multer.diskStorage({
@@ -69,6 +62,76 @@ const localStorage = multer.diskStorage({
     cb(null, `${basename}-${uniqueSuffix}${ext}`);
   }
 });
+
+// Custom multer storage engine for Google Cloud Storage
+const gcsStorage = {
+  _handleFile: async function(req, file, cb) {
+    if (!gcsBucket) {
+      return cb(new Error('Google Cloud Storage not initialized'));
+    }
+
+    try {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = path.extname(file.originalname);
+      const basename = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `${basename}-${uniqueSuffix}${ext}`;
+
+      // Organize by upload type and date
+      const folder = req.uploadType || 'general';
+      const dateFolder = new Date().toISOString().split('T')[0];
+      const key = `${folder}/${dateFolder}/${filename}`;
+
+      const blob = gcsBucket.file(key);
+      const blobStream = blob.createWriteStream({
+        resumable: false,
+        metadata: {
+          contentType: file.mimetype,
+          metadata: {
+            fieldName: file.fieldname,
+            uploadedBy: req.user ? req.user._id.toString() : 'anonymous',
+            uploadDate: new Date().toISOString()
+          }
+        }
+      });
+
+      let size = 0;
+
+      file.stream.on('data', (chunk) => {
+        size += chunk.length;
+      });
+
+      file.stream.pipe(blobStream);
+
+      blobStream.on('error', (error) => {
+        cb(error);
+      });
+
+      blobStream.on('finish', () => {
+        const publicUrl = `https://storage.googleapis.com/${process.env.GCS_BUCKET}/${key}`;
+        cb(null, {
+          key: key,
+          location: publicUrl,
+          bucket: process.env.GCS_BUCKET,
+          size: size,
+          mimetype: file.mimetype
+        });
+      });
+    } catch (error) {
+      cb(error);
+    }
+  },
+  _removeFile: async function(req, file, cb) {
+    if (!gcsBucket || !file.key) {
+      return cb(null);
+    }
+    try {
+      await gcsBucket.file(file.key).delete();
+      cb(null);
+    } catch (error) {
+      cb(error);
+    }
+  }
+};
 
 // File Filter for security
 const fileFilter = (req, file, cb) => {
@@ -94,10 +157,12 @@ const fileFilter = (req, file, cb) => {
 
 // Export storage configuration
 module.exports = {
-  USE_S3,
+  USE_GCS,
   USE_LOCAL,
-  s3Client,
-  storage: USE_S3 ? s3Storage : localStorage,
+  gcsClient,
+  gcsBucket,
+  storage: USE_GCS && gcsBucket ? gcsStorage : localStorage,
+
   fileFilter,
 
   // Limits
@@ -106,43 +171,43 @@ module.exports = {
     files: 5 // Maximum 5 files per upload
   },
 
-  // Get file URL (works for both S3 and local)
+  // Get file URL (works for both GCS and local)
   getFileUrl: (filename) => {
-    if (USE_S3) {
-      const bucket = process.env.S3_BUCKET || 'nocturnal-uploads';
-      const region = process.env.AWS_REGION || 'us-east-1';
-      return `https://${bucket}.s3.${region}.amazonaws.com/${filename}`;
+    if (USE_GCS) {
+      const bucket = process.env.GCS_BUCKET;
+      return `https://storage.googleapis.com/${bucket}/${filename}`;
     } else {
       return `/uploads/${filename}`;
     }
   },
 
-  // Generate signed URL for private S3 files
+  // Generate signed URL for private GCS files
   getSignedUrl: async (key, expiresIn = 3600) => {
-    if (!USE_S3 || !s3Client) {
+    if (!USE_GCS || !gcsBucket) {
       return null;
     }
 
-    const { GetObjectCommand } = require('@aws-sdk/client-s3');
-    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-
-    const command = new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET || 'nocturnal-uploads',
-      Key: key
-    });
-
-    return await getSignedUrl(s3Client, command, { expiresIn });
+    try {
+      const [url] = await gcsBucket.file(key).getSignedUrl({
+        version: 'v4',
+        action: 'read',
+        expires: Date.now() + expiresIn * 1000
+      });
+      return url;
+    } catch (error) {
+      logger.error('Failed to generate signed URL', { error: error.message });
+      return null;
+    }
   },
 
-  // Delete file (works for both S3 and local)
+  // Delete file (works for both GCS and local)
   deleteFile: async (filename) => {
-    if (USE_S3 && s3Client) {
-      const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
-      const command = new DeleteObjectCommand({
-        Bucket: process.env.S3_BUCKET || 'nocturnal-uploads',
-        Key: filename
-      });
-      await s3Client.send(command);
+    if (USE_GCS && gcsBucket) {
+      try {
+        await gcsBucket.file(filename).delete();
+      } catch (error) {
+        logger.warn('Failed to delete file from GCS', { filename, error: error.message });
+      }
     } else {
       const fs = require('fs').promises;
       const filePath = path.join(__dirname, '../uploads', filename);

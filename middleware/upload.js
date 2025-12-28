@@ -18,7 +18,7 @@ const uploadDirs = [
 // Initialize upload directories asynchronously (only for local storage)
 const initializeUploadDirs = async () => {
   if (!storageConfig.USE_LOCAL) {
-    logger.info('Using S3 storage - skipping local directory initialization');
+    logger.info('Using Google Cloud Storage - skipping local directory initialization');
     return;
   }
 
@@ -40,7 +40,7 @@ const initializeUploadDirs = async () => {
 // Initialize directories (non-blocking)
 initializeUploadDirs().catch(err => logger.error('Failed to initialize upload directories', { error: err.message }));
 
-// Set upload type middleware for S3 path organization
+// Set upload type middleware for GCS path organization
 const setUploadType = (type) => {
   return (req, res, next) => {
     req.uploadType = type;
@@ -48,7 +48,7 @@ const setUploadType = (type) => {
   };
 };
 
-// Use storage from config (S3 or local based on environment)
+// Use storage from config (GCS or local based on environment)
 const storage = storageConfig.storage;
 
 // File filter for validation - checks MIME type AND extension
@@ -115,10 +115,16 @@ const upload = multer({
 /**
  * Validate uploaded file using magic numbers (file signature)
  * This prevents MIME type spoofing attacks
+ * Note: This only works for local storage - GCS files are validated differently
  */
 const validateFileType = async (req, res, next) => {
   try {
     if (!req.file && !req.files) {
+      return next();
+    }
+
+    // Skip validation for GCS uploads (files are streamed directly)
+    if (storageConfig.USE_GCS) {
       return next();
     }
 
@@ -192,34 +198,75 @@ const validateFileType = async (req, res, next) => {
 /**
  * Create multer upload instance for investigation reports
  * Allows PDF and image files with higher size limits
- * Uses S3 in production, local disk in development
+ * Uses GCS in production, local disk in development
  */
 const createReportUpload = () => {
   let reportStorage;
 
-  // Use S3 storage in production
-  if (storageConfig.USE_S3 && storageConfig.s3Client) {
-    const multerS3 = require('multer-s3');
-    reportStorage = multerS3({
-      s3: storageConfig.s3Client,
-      bucket: process.env.S3_BUCKET || 'nocturnal-uploads',
-      acl: 'private',
-      contentType: multerS3.AUTO_CONTENT_TYPE,
-      metadata: (req, file, cb) => {
-        cb(null, {
-          fieldName: file.fieldname,
-          uploadedBy: req.user ? req.user._id.toString() : 'anonymous',
-          uploadDate: new Date().toISOString()
-        });
+  // Use GCS storage in production
+  if (storageConfig.USE_GCS && storageConfig.gcsBucket) {
+    // Custom GCS storage engine for investigation reports
+    reportStorage = {
+      _handleFile: function(req, file, cb) {
+        if (!storageConfig.gcsBucket) {
+          return cb(new Error('Google Cloud Storage not initialized'));
+        }
+
+        try {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const ext = path.extname(file.originalname);
+          const dateFolder = new Date().toISOString().split('T')[0];
+          const key = `investigation-reports/${dateFolder}/report-${req.user._id}-${uniqueSuffix}${ext}`;
+
+          const blob = storageConfig.gcsBucket.file(key);
+          const blobStream = blob.createWriteStream({
+            resumable: false,
+            metadata: {
+              contentType: file.mimetype,
+              metadata: {
+                fieldName: file.fieldname,
+                uploadedBy: req.user ? req.user._id.toString() : 'anonymous',
+                uploadDate: new Date().toISOString()
+              }
+            }
+          });
+
+          let size = 0;
+
+          file.stream.on('data', (chunk) => {
+            size += chunk.length;
+          });
+
+          file.stream.pipe(blobStream);
+
+          blobStream.on('error', (error) => {
+            cb(error);
+          });
+
+          blobStream.on('finish', () => {
+            const publicUrl = `https://storage.googleapis.com/${process.env.GCS_BUCKET}/${key}`;
+            cb(null, {
+              key: key,
+              location: publicUrl,
+              bucket: process.env.GCS_BUCKET,
+              size: size,
+              mimetype: file.mimetype,
+              filename: key
+            });
+          });
+        } catch (error) {
+          cb(error);
+        }
       },
-      key: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        const dateFolder = new Date().toISOString().split('T')[0];
-        const key = `investigation-reports/${dateFolder}/report-${req.user._id}-${uniqueSuffix}${ext}`;
-        cb(null, key);
+      _removeFile: function(req, file, cb) {
+        if (!storageConfig.gcsBucket || !file.key) {
+          return cb(null);
+        }
+        storageConfig.gcsBucket.file(file.key).delete()
+          .then(() => cb(null))
+          .catch((error) => cb(error));
       }
-    });
+    };
   } else {
     // Fallback to local storage for development
     reportStorage = multer.diskStorage({
@@ -289,7 +336,7 @@ module.exports = {
   // File validation middleware (use AFTER multer middleware)
   validateFileType,
 
-  // Upload type setters for S3 organization
+  // Upload type setters for GCS organization
   setUploadType,
 
   // Generic upload
