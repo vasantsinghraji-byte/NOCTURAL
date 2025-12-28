@@ -107,7 +107,7 @@ const HealthAccessTokenSchema = new mongoose.Schema({
 // Compound indexes
 HealthAccessTokenSchema.index({ patient: 1, grantedTo: 1, isActive: 1 });
 HealthAccessTokenSchema.index({ grantedTo: 1, isActive: 1 });
-HealthAccessTokenSchema.index({ booking: 1 });
+// Note: booking field already has index: true in schema definition
 HealthAccessTokenSchema.index({ isActive: 1, expiresAt: 1 });
 
 // Static: Generate a new access token
