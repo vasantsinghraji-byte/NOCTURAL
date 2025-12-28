@@ -1236,7 +1236,7 @@
                 const result = await apiCall('/patient-analytics/overview');
 
                 if (result?.success) {
-                    const { reports } = result.data;
+                    const reports = result.reports || {};
 
                     // Update badge
                     const pendingCount = (reports?.pendingAI || 0) + (reports?.pendingReview || 0);
@@ -1273,8 +1273,8 @@
                 ]);
 
                 if (summaryResult?.success && chartResult?.success) {
-                    content.innerHTML = renderDiabetesContent(summaryResult.data.summary, chartResult.data);
-                    initDiabetesCharts(chartResult.data);
+                    content.innerHTML = renderDiabetesContent(summaryResult.summary, chartResult);
+                    initDiabetesCharts(chartResult);
                 }
             } catch (error) {
                 console.error('Error loading diabetes data:', error);
@@ -1299,8 +1299,8 @@
                 ]);
 
                 if (summaryResult?.success && chartResult?.success) {
-                    content.innerHTML = renderHypertensionContent(summaryResult.data.summary, chartResult.data);
-                    initHypertensionCharts(chartResult.data);
+                    content.innerHTML = renderHypertensionContent(summaryResult.summary, chartResult);
+                    initHypertensionCharts(chartResult);
                 }
             } catch (error) {
                 console.error('Error loading hypertension data:', error);
@@ -1314,7 +1314,7 @@
         // Render functions (placeholders - will be enhanced)
         async function renderReportsContent(summary) {
             const reportsResult = await apiCall('/patient-analytics/reports?limit=10');
-            const reports = reportsResult?.data?.reports || [];
+            const reports = reportsResult?.reports || [];
 
             return `
                 <div class="summary-grid">
