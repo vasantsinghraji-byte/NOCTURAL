@@ -1,71 +1,155 @@
 /**
  * Common Styles - Shared across all pages
- * Extracted from multiple HTML files for reusability
+ * Modern Design System inspired by Claude.ai
  */
 
+/* Google Fonts - Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 /* CSS Reset */
-* {
+*, *::before, *::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    border-width: 0;
+    border-style: solid;
+    border-color: #e5e7eb;
 }
 
 /* CSS Variables - Design System */
 :root {
-    /* Primary Colors */
-    --primary: #5B8DBE;
-    --primary-dark: #4A7099;
-    --primary-light: #7BA5D1;
+    /* Spacing Scale */
+    --size-2xs: 2px;
+    --size-xs: 4px;
+    --size-sm: 8px;
+    --size-md: 16px;
+    --size-ml: 24px;
+    --size-lg: 32px;
+    --size-xl: 48px;
 
-    /* Secondary Colors */
-    --secondary: #7B68B8;
-    --accent: #9B8FC7;
+    /* Primary Colors - Warm Teal/Blue */
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-light: #3b82f6;
+    --primary-subtle: rgba(37, 99, 235, 0.1);
+
+    /* Secondary Colors - Warm Accents */
+    --secondary: #6366f1;
+    --accent: #8b5cf6;
+
+    /* Semantic Colors */
+    --super-color: #2563eb;
+    --positive-color: #16a34a;
+    --negative-color: #dc2626;
+    --caution-color: #f59e0b;
+    --attention-color: #0891b2;
 
     /* Status Colors */
-    --success: #28a745;
-    --danger: #dc3545;
-    --warning: #ffc107;
-    --info: #17a2b8;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --warning: #f59e0b;
+    --info: #0891b2;
 
-    /* Text Colors */
-    --text-dark: #2C3E50;
-    --text-light: #6C757D;
-    --text-muted: #95A5A6;
+    /* Text Colors - Dark Slate */
+    --text-dark: #0f172a;
+    --text-primary: #1e293b;
+    --text-light: #475569;
+    --text-muted: #94a3b8;
+    --text-inverse: #ffffff;
 
-    /* Background Colors */
-    --bg-light: #F8F9FA;
+    /* Foreground Colors (Claude-style naming) */
+    --foreground-color: #0f172a;
+    --foreground-quiet-color: #334155;
+    --foreground-quieter-color: #64748b;
+    --foreground-quietest-color: #94a3b8;
+    --foreground-subtle-color: #cbd5e1;
+    --foreground-inverse-color: #ffffff;
+
+    /* Background Colors - Warm Paper */
+    --bg-paper: #FAFAF8;
+    --bg-light: #FAFAF8;
     --bg-white: #FFFFFF;
-    --bg-gray: #E9ECEF;
+    --bg-gray: #f1f5f9;
+    --bg-subtle: #f8fafc;
+    --bg-raised: #ffffff;
+    --bg-elevated: #ffffff;
 
-    /* Gradients */
-    --gradient-bg: linear-gradient(135deg, #E8EAF6 0%, #C5CAE9 50%, #D1C4E9 100%);
+    /* Background Colors (Claude-style naming) */
+    --background-base-color: #FAFAF8;
+    --background-subtle-color: #f8fafc;
+    --background-raised-color: #ffffff;
+    --background-elevated-color: #ffffff;
+
+    /* Border Colors */
+    --border-color: rgba(0, 0, 0, 0.08);
+    --border-light: #e2e8f0;
+    --border-focus: var(--primary);
+
+    /* Gradients - Soft, Warm */
+    --gradient-bg: linear-gradient(135deg, #faf5ff 0%, #f0f9ff 50%, #f0fdf4 100%);
     --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    --gradient-subtle: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(248,250,252,1) 100%);
 
-    /* Shadows */
-    --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
-    --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
-    --shadow-lg: 0 10px 25px rgba(0,0,0,0.15);
+    /* Shadows - Softer, More Natural */
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
+    --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.08), 0 10px 10px -5px rgba(0,0,0,0.03);
+    --shadow-overlay: 0 25px 50px -12px rgba(0,0,0,0.15);
 
     /* Border Radius */
     --radius-sm: 4px;
     --radius-md: 8px;
     --radius-lg: 12px;
-    --radius-xl: 20px;
-    --radius-pill: 30px;
+    --radius-xl: 16px;
+    --radius-2xl: 20px;
+    --radius-pill: 9999px;
 
     /* Transitions */
     --transition-fast: 0.15s ease;
-    --transition-normal: 0.3s ease;
-    --transition-slow: 0.5s ease;
+    --transition-normal: 0.2s ease;
+    --transition-slow: 0.3s ease;
+
+    /* Layout */
+    --header-height: 56px;
+    --page-horizontal-padding: var(--size-md);
+    --container-max-width: 1200px;
+}
+
+/* Base HTML Styles */
+html {
+    scroll-padding-top: 100px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    font-family: 'Inter', sans-serif;
+    font-feature-settings: normal;
+    font-variation-settings: normal;
 }
 
 /* Base Styles */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     color: var(--text-dark);
     line-height: 1.6;
     overflow-x: hidden;
-    background: var(--bg-light);
+    background-color: var(--bg-paper);
+    font-size: 16px;
+}
+
+@media (min-width: 1025px) {
+    body {
+        font-size: 16px;
+    }
+}
+
+/* Text Selection */
+::selection {
+    background: #234C6A;
+    color: white;
 }
 
 /* Typography */
