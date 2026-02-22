@@ -1,5 +1,13 @@
 const { MongoClient } = require('mongodb');
 
+// Load password from environment variable
+const DEV_PASSWORD = process.env.MONGO_DEV_PASSWORD;
+if (!DEV_PASSWORD) {
+  console.error('ERROR: MONGO_DEV_PASSWORD environment variable is required.');
+  console.error('Usage: MONGO_DEV_PASSWORD=<password> node create-mongo-user.js');
+  process.exit(1);
+}
+
 async function createUser() {
   // Connect without auth first (to admin database)
   const client = new MongoClient('mongodb://localhost:27017', {
@@ -16,7 +24,7 @@ async function createUser() {
     try {
       await adminDb.command({
         createUser: 'nocturnaldev',
-        pwd: 'DevPass2025!ChangeMe',
+        pwd: DEV_PASSWORD,
         roles: [
           { role: 'readWrite', db: 'nocturnal_dev' },
           { role: 'dbAdmin', db: 'nocturnal_dev' }
@@ -28,7 +36,7 @@ async function createUser() {
         console.log('User already exists. Trying to update password...');
         await adminDb.command({
           updateUser: 'nocturnaldev',
-          pwd: 'DevPass2025!ChangeMe'
+          pwd: DEV_PASSWORD
         });
         console.log('✅ Password updated successfully!');
       } else {

@@ -68,11 +68,13 @@ const baseConfig = {
         lockoutDuration: 15 * 60 * 1000 // 15 minutes
     },
 
-    // CORS
+    // CORS - localhost fallback only in development/test
     cors: {
         origin: process.env.ALLOWED_ORIGINS
-            ? process.env.ALLOWED_ORIGINS.split(',')
-            : ['http://localhost:3000'],
+            ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
+            : (NODE_ENV === 'production' || NODE_ENV === 'staging')
+                ? []
+                : ['http://localhost:3000'],
         credentials: true
     },
 
@@ -312,6 +314,11 @@ const validateConfig = (config) => {
             missing.push(key);
         }
     });
+
+    // CORS origins are required in production/staging
+    if ((NODE_ENV === 'production' || NODE_ENV === 'staging') && !process.env.ALLOWED_ORIGINS) {
+        missing.push('cors.origin (ALLOWED_ORIGINS)');
+    }
 
     if (missing.length > 0) {
         throw new Error(

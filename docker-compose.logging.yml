@@ -12,19 +12,21 @@ services:
     container_name: nocturnal-elasticsearch
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:?ELASTIC_PASSWORD is required}
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - cluster.name=nocturnal-logs
       - node.name=elasticsearch-node-1
     ports:
-      - "9200:9200"
-      - "9300:9300"
+      - "127.0.0.1:9200:9200"
+      - "127.0.0.1:9300:9300"
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     networks:
       - logging-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f -u elastic:${ELASTIC_PASSWORD} http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -38,11 +40,11 @@ services:
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
       - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
       - ./logs:/logs:ro
+    expose:
+      - "5044"      # Beats input (internal only - accessed by Filebeat via Docker network)
+      - "5000"      # TCP/UDP input (internal only)
     ports:
-      - "5044:5044"  # Beats input
-      - "5000:5000/tcp"  # TCP input
-      - "5000:5000/udp"  # UDP input
-      - "9600:9600"  # Monitoring API
+      - "127.0.0.1:9600:9600"  # Monitoring API (localhost only)
     environment:
       - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
     networks:
@@ -63,6 +65,8 @@ services:
     container_name: nocturnal-kibana
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD:?ELASTIC_PASSWORD is required}
       - SERVER_NAME=nocturnal-kibana
       - SERVER_HOST=0.0.0.0
     ports:
@@ -83,12 +87,13 @@ services:
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.11.0
     container_name: nocturnal-filebeat
-    user: root
+    user: "1000:1000"
+    cap_drop:
+      - ALL
     volumes:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - ./logs:/logs:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - filebeat_data:/usr/share/filebeat/data
     command: filebeat -e -strict.perms=false
     networks:
@@ -144,8 +149,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?GRAFANA_PASSWORD is required}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=http://localhost:3000
       - GF_INSTALL_PLUGINS=grafana-clock-panel

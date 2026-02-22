@@ -8,9 +8,17 @@
 const { MongoClient } = require('mongodb');
 
 const adminUri = 'mongodb://localhost:27017/admin';
-const ADMIN_PASSWORD = 'NocturnalAdmin2025!Secure';
-const DEV_PASSWORD = 'DevPass2025!ChangeMe';
-const PROD_PASSWORD = 'ProdPass2025!VeryStrong';
+
+// Load credentials from environment variables
+const ADMIN_PASSWORD = process.env.MONGO_ADMIN_PASSWORD;
+const DEV_PASSWORD = process.env.MONGO_DEV_PASSWORD;
+const PROD_PASSWORD = process.env.MONGO_PROD_PASSWORD;
+
+if (!ADMIN_PASSWORD || !DEV_PASSWORD || !PROD_PASSWORD) {
+  console.error('ERROR: Required environment variables not set.');
+  console.error('Please set: MONGO_ADMIN_PASSWORD, MONGO_DEV_PASSWORD, MONGO_PROD_PASSWORD');
+  process.exit(1);
+}
 
 async function fixAuthentication() {
     console.log('=== MongoDB Authentication Fix Using Localhost Exception ===\n');

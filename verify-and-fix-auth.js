@@ -6,9 +6,17 @@
 
 const { MongoClient } = require('mongodb');
 
+// Load password from environment variable
+const DEV_PASSWORD = process.env.MONGO_DEV_PASSWORD;
+if (!DEV_PASSWORD) {
+  console.error('ERROR: MONGO_DEV_PASSWORD environment variable is required.');
+  console.error('Usage: MONGO_DEV_PASSWORD=<password> node verify-and-fix-auth.js');
+  process.exit(1);
+}
+
 // Try without authentication first (admin connection)
 const adminUri = 'mongodb://localhost:27017/admin';
-const devUri = 'mongodb://nocturnaldev:DevPass2025!ChangeMe@localhost:27017/nocturnal_dev?authSource=admin';
+const devUri = `mongodb://nocturnaldev:${encodeURIComponent(DEV_PASSWORD)}@localhost:27017/nocturnal_dev?authSource=admin`;
 
 console.log('=== MongoDB Authentication Diagnostics ===\n');
 

@@ -71,12 +71,12 @@ jobs:
           NODE_ENV=test
           PORT=5001
           MONGODB_URI=mongodb://admin:testpass@localhost:27017/nocturnal_test?authSource=admin
-          JWT_SECRET=test_jwt_secret_key_for_ci_pipeline_only
+          JWT_SECRET=${{ secrets.CI_JWT_SECRET }}
           JWT_EXPIRE=7d
-          ENCRYPTION_KEY=a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90
+          ENCRYPTION_KEY=${{ secrets.CI_ENCRYPTION_KEY }}
           ALLOWED_ORIGINS=http://localhost:3000
-          RAZORPAY_KEY_ID=rzp_test_dummy
-          RAZORPAY_KEY_SECRET=dummy_secret
+          RAZORPAY_KEY_ID=${{ secrets.CI_RAZORPAY_KEY_ID }}
+          RAZORPAY_KEY_SECRET=${{ secrets.CI_RAZORPAY_KEY_SECRET }}
           EOF
 
       - name: Wait for MongoDB
@@ -147,9 +147,9 @@ jobs:
           NODE_ENV=production
           PORT=5000
           MONGODB_URI=mongodb://localhost:27017/nocturnal_prod
-          JWT_SECRET=dummy_jwt_secret_for_build_validation
+          JWT_SECRET=${{ secrets.CI_JWT_SECRET }}
           JWT_EXPIRE=7d
-          ENCRYPTION_KEY=a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90
+          ENCRYPTION_KEY=${{ secrets.CI_ENCRYPTION_KEY }}
           ALLOWED_ORIGINS=http://localhost:3000
           EOF
           timeout 10 node server.js || echo "Server validation skipped"

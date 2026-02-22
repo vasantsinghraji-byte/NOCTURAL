@@ -2,7 +2,8 @@
  * MongoDB User Creation Script
  *
  * This script creates MongoDB users for authentication.
- * Run with: node create-mongo-users.js
+ * Run with:
+ *   MONGO_ADMIN_PASSWORD=xxx MONGO_DEV_PASSWORD=xxx MONGO_PROD_PASSWORD=xxx node create-mongo-users.js
  *
  * IMPORTANT: Run this BEFORE enabling authentication in MongoDB
  */
@@ -12,10 +13,16 @@ const { MongoClient } = require('mongodb');
 // MongoDB connection (no auth - must run before enabling authentication)
 const uri = 'mongodb://localhost:27017';
 
-// User credentials - CHANGE THESE PASSWORDS!
-const ADMIN_PASSWORD = 'NocturnalAdmin2025!Secure';  // Change this!
-const DEV_PASSWORD = 'DevPass2025!ChangeMe';         // Change this!
-const PROD_PASSWORD = 'ProdPass2025!VeryStrong';    // Change this!
+// User credentials - loaded from environment variables
+const ADMIN_PASSWORD = process.env.MONGO_ADMIN_PASSWORD;
+const DEV_PASSWORD = process.env.MONGO_DEV_PASSWORD;
+const PROD_PASSWORD = process.env.MONGO_PROD_PASSWORD;
+
+if (!ADMIN_PASSWORD || !DEV_PASSWORD || !PROD_PASSWORD) {
+  console.error('ERROR: Required environment variables not set.');
+  console.error('Please set: MONGO_ADMIN_PASSWORD, MONGO_DEV_PASSWORD, MONGO_PROD_PASSWORD');
+  process.exit(1);
+}
 
 async function createUsers() {
     const client = new MongoClient(uri);
@@ -93,29 +100,28 @@ async function createUsers() {
         }
 
         console.log('\n=== User Creation Complete ===\n');
-        console.log('Created users with these credentials:');
+        console.log('Created users:');
         console.log('─────────────────────────────────────');
         console.log('Admin user:');
         console.log(`  Username: admin`);
-        console.log(`  Password: ${ADMIN_PASSWORD}`);
+        console.log(`  Password: ******* (from MONGO_ADMIN_PASSWORD)`);
         console.log(`  Database: admin`);
         console.log('');
         console.log('Development user:');
         console.log(`  Username: nocturnaldev`);
-        console.log(`  Password: ${DEV_PASSWORD}`);
+        console.log(`  Password: ******* (from MONGO_DEV_PASSWORD)`);
         console.log(`  Database: nocturnal_dev`);
         console.log('');
         console.log('Production user:');
         console.log(`  Username: nocturnalprod`);
-        console.log(`  Password: ${PROD_PASSWORD}`);
+        console.log(`  Password: ******* (from MONGO_PROD_PASSWORD)`);
         console.log(`  Database: nocturnal_prod`);
         console.log('─────────────────────────────────────\n');
 
         console.log('Next steps:');
         console.log('1. Edit: C:\\Program Files\\MongoDB\\Server\\8.2\\bin\\mongod.cfg');
         console.log('2. Add authentication config (see below)');
-        console.log('3. Restart MongoDB service');
-        console.log('4. Update .env files with these passwords\n');
+        console.log('3. Restart MongoDB service\n');
 
         console.log('MongoDB Config to add:');
         console.log('─────────────────────────────────────');
@@ -127,8 +133,7 @@ async function createUsers() {
         console.log('  net stop MongoDB');
         console.log('  net start MongoDB\n');
 
-        console.log('⚠ IMPORTANT: Change the default passwords in this script!');
-        console.log('⚠ IMPORTANT: Store passwords securely (password manager)');
+        console.log('⚠ IMPORTANT: Store passwords securely (password manager, .env file)');
 
     } catch (err) {
         console.error('✗ Error:', err.message);

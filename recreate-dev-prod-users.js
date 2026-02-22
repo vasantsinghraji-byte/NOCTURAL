@@ -5,11 +5,18 @@
 
 const { MongoClient } = require('mongodb');
 
-const ADMIN_PASSWORD = 'NocturnalAdmin2025!Secure';
-const DEV_PASSWORD = 'DevPass2025!ChangeMe';
-const PROD_PASSWORD = 'ProdPass2025!VeryStrong';
+// Load credentials from environment variables
+const ADMIN_PASSWORD = process.env.MONGO_ADMIN_PASSWORD;
+const DEV_PASSWORD = process.env.MONGO_DEV_PASSWORD;
+const PROD_PASSWORD = process.env.MONGO_PROD_PASSWORD;
 
-const adminUri = `mongodb://admin:${ADMIN_PASSWORD}@localhost:27017/admin?authSource=admin`;
+if (!ADMIN_PASSWORD || !DEV_PASSWORD || !PROD_PASSWORD) {
+  console.error('ERROR: Required environment variables not set.');
+  console.error('Please set: MONGO_ADMIN_PASSWORD, MONGO_DEV_PASSWORD, MONGO_PROD_PASSWORD');
+  process.exit(1);
+}
+
+const adminUri = `mongodb://admin:${encodeURIComponent(ADMIN_PASSWORD)}@localhost:27017/admin?authSource=admin`;
 
 console.log('=== Recreating Development and Production Users ===\n');
 
@@ -103,12 +110,12 @@ async function recreateUsers() {
         console.log('─────────────────────────────────────');
         console.log('Development:');
         console.log(`  User: nocturnaldev`);
-        console.log(`  Pass: ${DEV_PASSWORD}`);
+        console.log(`  Pass: ******* (from MONGO_DEV_PASSWORD)`);
         console.log(`  DB:   nocturnal_dev`);
         console.log('');
         console.log('Production:');
         console.log(`  User: nocturnalprod`);
-        console.log(`  Pass: ${PROD_PASSWORD}`);
+        console.log(`  Pass: ******* (from MONGO_PROD_PASSWORD)`);
         console.log(`  DB:   nocturnal_prod`);
         console.log('─────────────────────────────────────\n');
         console.log('Now test the connection:');

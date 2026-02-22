@@ -1,12 +1,26 @@
 // MongoDB initialization script
 // This runs when MongoDB container is first created
+//
+// Required environment variables:
+//   MONGO_APP_USER     - Application database username
+//   MONGO_APP_PASSWORD - Application database password
+//
+// Pass these via docker-compose environment or --env flags.
+
+const appUser = process.env.MONGO_APP_USER;
+const appPassword = process.env.MONGO_APP_PASSWORD;
+
+if (!appUser || !appPassword) {
+  print('ERROR: MONGO_APP_USER and MONGO_APP_PASSWORD environment variables are required.');
+  quit(1);
+}
 
 db = db.getSiblingDB('nocturnal');
 
 // Create application user
 db.createUser({
-  user: process.env.MONGO_APP_USER || 'nocturnalapp',
-  pwd: process.env.MONGO_APP_PASSWORD || 'changeme',
+  user: appUser,
+  pwd: appPassword,
   roles: [
     {
       role: 'readWrite',
