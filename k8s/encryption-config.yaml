@@ -1,0 +1,30 @@
+# Encryption Configuration for Kubernetes Secrets at Rest
+#
+# This file configures the kube-apiserver to encrypt Secret resources in etcd.
+#
+# SETUP (self-managed clusters only):
+#   1. Place this file on every control plane node at /etc/kubernetes/encryption-config.yaml
+#   2. Add to kube-apiserver manifest (/etc/kubernetes/manifests/kube-apiserver.yaml):
+#        --encryption-provider-config=/etc/kubernetes/encryption-config.yaml
+#   3. Mount the file into the apiserver pod via hostPath volume
+#   4. Restart kube-apiserver
+#   5. Re-encrypt existing secrets: kubectl get secrets -A -o json | kubectl replace -f -
+#
+# For managed clusters (EKS/GKE/AKS), use the provider's native KMS integration
+# instead of this file. See comments in k8s/secrets.yaml.
+
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+- resources:
+  - secrets
+  providers:
+  # Primary: AES-CBC encryption (replace with KMS provider for production)
+  - aescbc:
+      keys:
+      - name: nocturnal-key-1
+        # REQUIRED: Generate a 32-byte base64-encoded key:
+        #   head -c 32 /dev/urandom | base64
+        secret: <REPLACE_WITH_GENERATED_KEY>
+  # Fallback: allows reading previously unencrypted secrets
+  - identity: {}

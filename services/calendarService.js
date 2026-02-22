@@ -190,16 +190,29 @@ class CalendarService {
    * @returns {Promise<Array>} Created availability slots
    */
   async setAvailability(userId, availabilitySlots) {
-    // Remove existing availability
-    await Availability.deleteMany({ user: userId });
+    for (const slot of availabilitySlots) {
+      if (slot.startTime && slot.endTime && slot.startTime >= slot.endTime) {
+        throw {
+          statusCode: HTTP_STATUS.BAD_REQUEST || 400,
+          message: `Invalid time slot: startTime (${slot.startTime}) must be before endTime (${slot.endTime})`
+        };
+      }
+    }
 
-    // Create new availability slots
     const slots = availabilitySlots.map(slot => ({
       ...slot,
       user: userId
     }));
 
+    // Insert new slots FIRST — if this fails, old data is preserved
     const created = await Availability.insertMany(slots);
+    const newIds = created.map(s => s._id);
+
+    // Only delete old slots after new ones are successfully created
+    await Availability.deleteMany({
+      user: userId,
+      _id: { $nin: newIds }
+    });
 
     logger.info('Availability updated', { userId, slotsCount: created.length });
 
@@ -214,6 +227,20 @@ class CalendarService {
    * @returns {Promise<Object>} Updated slot
    */
   async updateAvailabilitySlot(slotId, userId, updates) {
+    if (updates.startTime || updates.endTime) {
+      const existing = await Availability.findOne({ _id: slotId, user: userId });
+      if (existing) {
+        const startTime = updates.startTime || existing.startTime;
+        const endTime = updates.endTime || existing.endTime;
+        if (startTime >= endTime) {
+          throw {
+            statusCode: HTTP_STATUS.BAD_REQUEST || 400,
+            message: `Invalid time slot: startTime (${startTime}) must be before endTime (${endTime})`
+          };
+        }
+      }
+    }
+
     const slot = await Availability.findOneAndUpdate(
       { _id: slotId, user: userId },
       updates,

@@ -49,11 +49,10 @@ class PatientService {
         phone
       });
     } catch (error) {
-      logger.error('Patient creation error', { email, error: error.message });
+      logger.error('Patient creation error', { email, error: error.message, stack: error.stack });
       throw {
         statusCode: HTTP_STATUS.BAD_REQUEST,
-        message: 'Error creating patient account',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        message: 'Error creating patient account'
       };
     }
 
@@ -191,17 +190,18 @@ class PatientService {
       };
     }
 
-    // Prevent updating sensitive fields
-    delete updateData.password;
-    delete updateData.email;
-    delete updateData.phone;
-    delete updateData.isActive;
-    delete updateData.totalBookings;
-    delete updateData.totalSpent;
+    // Allowlist: only these fields can be updated by the patient
+    const ALLOWED_FIELDS = [
+      'name', 'dateOfBirth', 'gender', 'bloodGroup',
+      'profilePhoto', 'address', 'emergencyContact',
+      'insurance', 'preferences'
+    ];
 
-    // Update fields
+    // Update only allowed fields
     Object.keys(updateData).forEach(key => {
-      patient[key] = updateData[key];
+      if (ALLOWED_FIELDS.includes(key)) {
+        patient[key] = updateData[key];
+      }
     });
 
     await patient.save();
@@ -230,21 +230,29 @@ class PatientService {
       };
     }
 
-    // If this is the first address or marked as default, unset other defaults
-    if (addressData.isDefault || patient.savedAddresses.length === 0) {
-      patient.savedAddresses.forEach(addr => addr.isDefault = false);
-      addressData.isDefault = true;
+    const shouldBeDefault = addressData.isDefault || patient.savedAddresses.length === 0;
+    addressData.isDefault = shouldBeDefault;
+
+    let updatedPatient;
+    if (shouldBeDefault) {
+      // Atomically clear all existing defaults and push new address
+      await Patient.findByIdAndUpdate(patientId, {
+        $set: { 'savedAddresses.$[].isDefault': false }
+      });
     }
 
-    patient.savedAddresses.push(addressData);
-    await patient.save();
+    updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { $push: { savedAddresses: addressData } },
+      { new: true }
+    );
 
     logger.info('Patient Address Added', {
-      patientId: patient._id,
+      patientId: updatedPatient._id,
       addressLabel: addressData.label
     });
 
-    return patient;
+    return updatedPatient;
   }
 
   /**
@@ -255,44 +263,53 @@ class PatientService {
    * @returns {Promise<Object>} Updated patient
    */
   async updateAddress(patientId, addressId, updateData) {
-    const patient = await Patient.findById(patientId);
+    // Verify patient and address exist
+    const patient = await Patient.findOne({
+      _id: patientId,
+      'savedAddresses._id': addressId
+    });
 
     if (!patient) {
-      throw {
-        statusCode: HTTP_STATUS.NOT_FOUND,
-        message: 'Patient not found'
-      };
-    }
-
-    const address = patient.savedAddresses.id(addressId);
-    if (!address) {
+      const exists = await Patient.findById(patientId);
+      if (!exists) {
+        throw {
+          statusCode: HTTP_STATUS.NOT_FOUND,
+          message: 'Patient not found'
+        };
+      }
       throw {
         statusCode: HTTP_STATUS.NOT_FOUND,
         message: 'Address not found'
       };
     }
 
-    // If setting as default, unset other defaults
+    // If setting as default, atomically unset other defaults first
     if (updateData.isDefault) {
-      patient.savedAddresses.forEach(addr => {
-        if (addr._id.toString() !== addressId) {
-          addr.isDefault = false;
-        }
+      await Patient.findByIdAndUpdate(patientId, {
+        $set: { 'savedAddresses.$[other].isDefault': false }
+      }, {
+        arrayFilters: [{ 'other._id': { $ne: addressId } }]
       });
     }
 
-    Object.keys(updateData).forEach(key => {
-      address[key] = updateData[key];
-    });
+    // Build atomic $set for the matched address fields
+    const setFields = {};
+    for (const key of Object.keys(updateData)) {
+      setFields[`savedAddresses.$.${key}`] = updateData[key];
+    }
 
-    await patient.save();
+    const updatedPatient = await Patient.findOneAndUpdate(
+      { _id: patientId, 'savedAddresses._id': addressId },
+      { $set: setFields },
+      { new: true }
+    );
 
     logger.info('Patient Address Updated', {
-      patientId: patient._id,
+      patientId: updatedPatient._id,
       addressId
     });
 
-    return patient;
+    return updatedPatient;
   }
 
   /**
@@ -361,6 +378,9 @@ class PatientService {
         message: 'Invalid medical history category'
       };
     }
+
+    // Validate entryData structure per category
+    this._validateMedicalHistoryEntry(category, entryData);
 
     if (!patient.medicalHistory) {
       patient.medicalHistory = {};
@@ -456,6 +476,60 @@ class PatientService {
         ? Math.round(patient.totalSpent / patient.totalBookings)
         : 0
     };
+  }
+
+  /**
+   * Validate medical history entry structure per category
+   */
+  _validateMedicalHistoryEntry(category, data) {
+    if (!data || typeof data !== 'object') {
+      throw {
+        statusCode: HTTP_STATUS.BAD_REQUEST,
+        message: 'Entry data must be a non-empty object'
+      };
+    }
+
+    const rules = {
+      conditions: {
+        required: ['name'],
+        allowed: ['name', 'diagnosedDate', 'severity', 'notes']
+      },
+      allergies: {
+        required: ['allergen', 'severity'],
+        allowed: ['allergen', 'reaction', 'severity']
+      },
+      currentMedications: {
+        required: ['name', 'dosage', 'frequency'],
+        allowed: ['name', 'dosage', 'frequency', 'startDate', 'prescribedBy']
+      },
+      surgeries: {
+        required: ['name'],
+        allowed: ['name', 'date', 'hospital', 'surgeon', 'complications']
+      },
+      familyHistory: {
+        required: ['relation', 'condition'],
+        allowed: ['relation', 'condition', 'notes']
+      }
+    };
+
+    const rule = rules[category];
+    if (!rule) return;
+
+    const missing = rule.required.filter(field => !data[field]);
+    if (missing.length > 0) {
+      throw {
+        statusCode: HTTP_STATUS.BAD_REQUEST,
+        message: `Missing required fields for ${category}: ${missing.join(', ')}`
+      };
+    }
+
+    const unknownFields = Object.keys(data).filter(key => !rule.allowed.includes(key));
+    if (unknownFields.length > 0) {
+      throw {
+        statusCode: HTTP_STATUS.BAD_REQUEST,
+        message: `Unknown fields for ${category}: ${unknownFields.join(', ')}. Allowed: ${rule.allowed.join(', ')}`
+      };
+    }
   }
 }
 

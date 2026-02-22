@@ -40,21 +40,24 @@ class HealthIntakeService {
    * Start intake process (triggered on first booking)
    */
   async startIntakeProcess(patientId, triggerBookingId) {
-    const patient = await Patient.findById(patientId);
-    if (!patient) {
-      throw new NotFoundError('Patient', patientId);
-    }
+    // Atomic: only transition NOT_STARTED → PENDING_PATIENT once
+    const patient = await Patient.findOneAndUpdate(
+      { _id: patientId, intakeStatus: 'NOT_STARTED' },
+      { $set: { intakeStatus: 'PENDING_PATIENT' } },
+      { new: true }
+    );
 
-    // Only start if not already started
-    if (patient.intakeStatus !== 'NOT_STARTED') {
+    if (!patient) {
+      // Distinguish "not found" from "already started"
+      const exists = await Patient.findById(patientId);
+      if (!exists) {
+        throw new NotFoundError('Patient', patientId);
+      }
       return {
         alreadyStarted: true,
-        status: patient.intakeStatus
+        status: exists.intakeStatus
       };
     }
-
-    patient.intakeStatus = 'PENDING_PATIENT';
-    await patient.save();
 
     logger.info('Intake process started', {
       patientId,
@@ -192,15 +195,22 @@ class HealthIntakeService {
    * Validate intake data
    */
   validateIntakeData(data) {
-    // Basic validation - ensure at least some health info is provided
-    const hasConditions = data.conditions && data.conditions.length > 0;
-    const hasAllergies = data.allergies && data.allergies.length > 0;
-    const hasMedications = data.currentMedications && data.currentMedications.length > 0;
-    const hasHabits = data.habits && Object.keys(data.habits).length > 0;
+    const missing = [];
 
-    // At minimum, we need habits info (smoking, alcohol, etc.)
-    if (!hasHabits) {
-      throw new ValidationError('Please provide lifestyle/habits information');
+    if (!data.allergies || !Array.isArray(data.allergies)) {
+      missing.push('allergies (provide an empty array [] if none)');
+    }
+
+    if (!data.currentMedications || !Array.isArray(data.currentMedications)) {
+      missing.push('currentMedications (provide an empty array [] if none)');
+    }
+
+    if (!data.habits || Object.keys(data.habits).length === 0) {
+      missing.push('habits (lifestyle/habits information)');
+    }
+
+    if (missing.length > 0) {
+      throw new ValidationError(`Missing required health intake fields: ${missing.join(', ')}`);
     }
 
     return true;

@@ -49,8 +49,8 @@ const REQUIRED_VARS = {
     required: true,
     type: 'string',
     validate: (value) => {
-      if (value.length < 32) {
-        return 'JWT_SECRET must be at least 32 characters long';
+      if (value.length < 64) {
+        return 'JWT_SECRET must be at least 64 characters long for HS256';
       }
       // Check if it looks like a secure random string
       if (/^(secret|test|123|abc)/i.test(value)) {
@@ -58,23 +58,20 @@ const REQUIRED_VARS = {
       }
       return null;
     },
-    description: 'JWT signing secret (min 32 characters)'
+    description: 'JWT signing secret (min 64 characters for HS256)'
   },
 
   ENCRYPTION_KEY: {
     required: true,
     type: 'string',
     validate: (value) => {
-      if (value.length < 32) {
-        return 'ENCRYPTION_KEY must be at least 32 characters long';
-      }
-      // Should be hexadecimal for crypto compatibility
-      if (!/^[a-f0-9]{32,}$/i.test(value)) {
-        return 'ENCRYPTION_KEY should be a hexadecimal string (32+ chars)';
+      // AES-256 requires exactly 32 bytes = 64 hex characters
+      if (!/^[a-f0-9]{64}$/i.test(value)) {
+        return 'ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes for AES-256). Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"';
       }
       return null;
     },
-    description: 'Encryption key for sensitive data (hex, min 32 chars)'
+    description: 'Encryption key for sensitive data (64 hex chars / 32 bytes for AES-256)'
   },
 
   // Optional but recommended
@@ -83,6 +80,43 @@ const REQUIRED_VARS = {
     type: 'string',
     description: 'Comma-separated list of allowed CORS origins',
     example: 'http://localhost:3000,https://example.com'
+  },
+
+  // Payment Gateway
+  RAZORPAY_KEY_ID: {
+    required: false,
+    type: 'string',
+    validate: (value) => {
+      if (value && !value.startsWith('rzp_')) {
+        return 'RAZORPAY_KEY_ID should start with rzp_test_ or rzp_live_';
+      }
+      return null;
+    },
+    description: 'Razorpay API key ID (required if payment features are used)'
+  },
+  RAZORPAY_KEY_SECRET: {
+    required: false,
+    type: 'string',
+    validate: (value) => {
+      if (process.env.RAZORPAY_KEY_ID && !value) {
+        return 'RAZORPAY_KEY_SECRET is required when RAZORPAY_KEY_ID is set';
+      }
+      return null;
+    },
+    description: 'Razorpay API key secret'
+  },
+
+  // Redis (Optional - for caching)
+  REDIS_PASSWORD: {
+    required: false,
+    type: 'string',
+    validate: (value) => {
+      if (process.env.REDIS_ENABLED === 'true' && !value) {
+        return 'REDIS_PASSWORD is required when REDIS_ENABLED is true';
+      }
+      return null;
+    },
+    description: 'Redis AUTH password (required when Redis is enabled)'
   },
 
   // AI Integration (Optional)

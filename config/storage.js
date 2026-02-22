@@ -134,25 +134,35 @@ const gcsStorage = {
 };
 
 // File Filter for security
-const fileFilter = (req, file, cb) => {
-  // Allowed file types
-  const allowedMimeTypes = [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  ];
+// MIME type to allowed extensions mapping
+const MIME_EXTENSION_MAP = {
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/png': ['.png'],
+  'image/gif': ['.gif'],
+  'image/webp': ['.webp'],
+  'application/pdf': ['.pdf'],
+  'application/msword': ['.doc'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+  'application/vnd.ms-excel': ['.xls'],
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+};
 
-  if (allowedMimeTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error(`File type not allowed: ${file.mimetype}`), false);
+const ALLOWED_MIME_TYPES = Object.keys(MIME_EXTENSION_MAP);
+
+const fileFilter = (req, file, cb) => {
+  // Validate MIME type
+  if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+    return cb(new Error(`File type not allowed: ${file.mimetype}`), false);
   }
+
+  // Cross-validate file extension against claimed MIME type
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedExtensions = MIME_EXTENSION_MAP[file.mimetype];
+  if (!allowedExtensions.includes(ext)) {
+    return cb(new Error(`File extension "${ext}" does not match MIME type "${file.mimetype}"`), false);
+  }
+
+  cb(null, true);
 };
 
 // Export storage configuration
@@ -170,6 +180,10 @@ module.exports = {
     fileSize: 10 * 1024 * 1024, // 10MB max file size
     files: 5 // Maximum 5 files per upload
   },
+
+  // Allowed MIME types and extension map (for consumers that need the list)
+  ALLOWED_MIME_TYPES,
+  MIME_EXTENSION_MAP,
 
   // Get file URL (works for both GCS and local)
   getFileUrl: (filename) => {

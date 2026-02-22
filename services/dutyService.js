@@ -10,7 +10,8 @@ const { invalidateCache } = require('../middleware/queryCache');
 const {  HTTP_STATUS,
   DUTY_STATUS,
   SUCCESS_MESSAGE,
-  ERROR_MESSAGE
+  ERROR_MESSAGE,
+  PAGINATION
 } = require('../constants');
 const logger = require('../utils/logger');
 
@@ -23,11 +24,12 @@ class DutyService {
    */
   async getAllDuties(filters = {}, options = {}) {
     const {
-      page = 1,
-      limit = 20,
       sort = { urgency: -1, date: 1 },
       populate = 'postedBy'
     } = options;
+
+    const page = Math.max(PAGINATION.DEFAULT_PAGE, Math.floor(Number(options.page) || PAGINATION.DEFAULT_PAGE));
+    const limit = Math.min(PAGINATION.MAX_LIMIT, Math.max(PAGINATION.MIN_LIMIT, Math.floor(Number(options.limit) || PAGINATION.DEFAULT_LIMIT)));
 
     const duties = await Duty.find(filters)
       .populate(populate, 'name hospital')
@@ -76,7 +78,7 @@ class DutyService {
    */
   async createDuty(dutyData, user) {
     // Add user data
-    dutyData.postedBy = user.id;
+    dutyData.postedBy = user._id;
 
     if (user.role === 'admin') {
       dutyData.hospital = user.hospital;
@@ -89,7 +91,7 @@ class DutyService {
 
     logger.info('Duty Created', {
       dutyId: duty._id,
-      postedBy: user.id,
+      postedBy: user._id,
       title: duty.title
     });
 
@@ -114,7 +116,7 @@ class DutyService {
     }
 
     // Check authorization
-    if (duty.postedBy.toString() !== user.id) {
+    if (duty.postedBy.toString() !== user._id.toString()) {
       throw {
         statusCode: HTTP_STATUS.FORBIDDEN,
         message: ERROR_MESSAGE.UNAUTHORIZED
@@ -131,7 +133,7 @@ class DutyService {
 
     logger.info('Duty Updated', {
       dutyId: duty._id,
-      updatedBy: user.id,
+      updatedBy: user._id,
       title: duty.title
     });
 
@@ -155,7 +157,7 @@ class DutyService {
     }
 
     // Check authorization
-    if (duty.postedBy.toString() !== user.id) {
+    if (duty.postedBy.toString() !== user._id.toString()) {
       throw {
         statusCode: HTTP_STATUS.FORBIDDEN,
         message: ERROR_MESSAGE.UNAUTHORIZED
@@ -169,7 +171,7 @@ class DutyService {
 
     logger.info('Duty Deleted', {
       dutyId: duty._id,
-      deletedBy: user.id,
+      deletedBy: user._id,
       title: duty.title
     });
   }

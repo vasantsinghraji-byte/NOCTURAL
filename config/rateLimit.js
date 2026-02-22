@@ -1,8 +1,26 @@
+const net = require('net');
 const rateLimit = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis');
 const logger = require('../utils/logger');
 const monitoring = require('../utils/monitoring');
 const redisClient = require('../config/redis');
+
+// Parse and validate whitelisted IPs at startup
+const whitelistedIPs = (() => {
+  const raw = process.env.WHITELISTED_IPS;
+  if (!raw) return [];
+
+  const ips = raw.split(',').map(ip => ip.trim()).filter(Boolean);
+  const invalid = ips.filter(ip => !net.isIP(ip));
+  if (invalid.length > 0) {
+    logger.error('Invalid IPs in WHITELISTED_IPS, they will be ignored', { invalid });
+  }
+  const valid = ips.filter(ip => net.isIP(ip));
+  if (valid.length > 0) {
+    logger.info('Rate limit IP whitelist loaded', { count: valid.length });
+  }
+  return valid;
+})();
 
 // Track rate limit hits for adaptive limiting with TTL
 // Each entry is stored as: { count: number, lastUpdated: timestamp }
@@ -159,9 +177,8 @@ const createMonitoredLimiter = (options) => {
     message,
     handler: createRateLimitHandler(type),
     skip: (req) => {
-      // Skip for whitelisted IPs or internal requests
-      return req.ip === '127.0.0.1' ||
-             (process.env.WHITELISTED_IPS && process.env.WHITELISTED_IPS.split(',').includes(req.ip));
+      // Skip for loopback or whitelisted IPs (validated at startup)
+      return req.ip === '127.0.0.1' || req.ip === '::1' || whitelistedIPs.includes(req.ip);
     },
     // Use default keyGenerator which handles IPv6 correctly
     standardHeaders: true,

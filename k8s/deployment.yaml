@@ -1,3 +1,57 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nocturnal
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nocturnal-sa
+  namespace: nocturnal
+  labels:
+    app: nocturnal
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: nocturnal-role
+  namespace: nocturnal
+  labels:
+    app: nocturnal
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["nocturnal-secrets"]
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["nocturnal-config"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nocturnal-rolebinding
+  namespace: nocturnal
+  labels:
+    app: nocturnal
+subjects:
+- kind: ServiceAccount
+  name: nocturnal-sa
+  namespace: nocturnal
+roleRef:
+  kind: Role
+  name: nocturnal-role
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,11 +82,19 @@ spec:
         runAsNonRoot: true
         runAsUser: 1001
         fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
 
       containers:
       - name: app
         image: ghcr.io/yourusername/nocturnal:latest
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
         ports:
         - containerPort: 5000
           name: http
@@ -94,6 +156,8 @@ spec:
           mountPath: /app/uploads
         - name: logs
           mountPath: /app/logs
+        - name: tmp
+          mountPath: /tmp
 
       volumes:
       - name: uploads
@@ -102,6 +166,9 @@ spec:
       - name: logs
         persistentVolumeClaim:
           claimName: nocturnal-logs-pvc
+      - name: tmp
+        emptyDir:
+          sizeLimit: 100Mi
 ---
 apiVersion: v1
 kind: Service
@@ -162,3 +229,172 @@ spec:
       - type: Pods
         value: 2
         periodSeconds: 30
+---
+# NetworkPolicy: Default deny all ingress and egress in namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: nocturnal
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+# NetworkPolicy: nocturnal-app
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-nocturnal-app
+  namespace: nocturnal
+  labels:
+    app: nocturnal
+spec:
+  podSelector:
+    matchLabels:
+      app: nocturnal
+      tier: backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from nginx ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 5000
+  # Allow Prometheus scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: monitoring
+    ports:
+    - protocol: TCP
+      port: 5000
+  egress:
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow traffic to Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  # Allow traffic to MongoDB
+  - to:
+    - podSelector:
+        matchLabels:
+          app: mongodb
+    ports:
+    - protocol: TCP
+      port: 27017
+---
+# NetworkPolicy: Redis
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis
+  namespace: nocturnal
+  labels:
+    app: redis
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Only accept connections from nocturnal-app
+  - from:
+    - podSelector:
+        matchLabels:
+          app: nocturnal
+          tier: backend
+    ports:
+    - protocol: TCP
+      port: 6379
+  egress:
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+---
+# NetworkPolicy: MongoDB
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mongodb
+  namespace: nocturnal
+  labels:
+    app: mongodb
+spec:
+  podSelector:
+    matchLabels:
+      app: mongodb
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Accept connections from nocturnal-app
+  - from:
+    - podSelector:
+        matchLabels:
+          app: nocturnal
+          tier: backend
+    ports:
+    - protocol: TCP
+      port: 27017
+  # Accept replica set peer connections
+  - from:
+    - podSelector:
+        matchLabels:
+          app: mongodb
+    ports:
+    - protocol: TCP
+      port: 27017
+  egress:
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow replica set peer communication
+  - to:
+    - podSelector:
+        matchLabels:
+          app: mongodb
+    ports:
+    - protocol: TCP
+      port: 27017

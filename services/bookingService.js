@@ -93,10 +93,21 @@ class BookingService {
 
     // Check for surge pricing
     if (service.pricing.surgePricing?.enabled) {
-      const bookingHour = new Date(`${scheduledDate}T${scheduledTime}`).getHours();
+      const bookingDate = new Date(`${scheduledDate}T${scheduledTime}`);
+      if (isNaN(bookingDate.getTime())) {
+        throw new ValidationError('Invalid scheduled date/time format');
+      }
+      const bookingHour = bookingDate.getHours();
+      const timeFormatRegex = /^\d{1,2}:\d{2}$/;
       const isSurgeHour = service.pricing.surgePricing.surgeHours.some(sh => {
-        const start = parseInt(sh.start.split(':')[0]);
-        const end = parseInt(sh.end.split(':')[0]);
+        if (!sh.start || !sh.end || !timeFormatRegex.test(sh.start) || !timeFormatRegex.test(sh.end)) {
+          return false;
+        }
+        const start = parseInt(sh.start.split(':')[0], 10);
+        const end = parseInt(sh.end.split(':')[0], 10);
+        if (isNaN(start) || isNaN(end) || start < 0 || start > 23 || end < 0 || end > 23) {
+          return false;
+        }
         return bookingHour >= start && bookingHour < end;
       });
 
@@ -105,7 +116,14 @@ class BookingService {
       }
     }
 
-    // Create booking
+    // Calculate pricing upfront so the booking is created with correct amounts
+    const platformFee = basePrice * 0.15;
+    const gst = (basePrice + platformFee) * 0.18;
+    const totalAmount = basePrice + platformFee + gst;
+    const discount = 0;
+    const payableAmount = totalAmount - discount;
+
+    // Create booking with final pricing in a single operation
     const booking = await NurseBooking.create({
       patient: patientId,
       serviceType,
@@ -118,20 +136,15 @@ class BookingService {
       packageDetails: isPackage ? packageDetails : undefined,
       pricing: {
         basePrice,
-        platformFee: 0,
-        gst: 0,
-        payableAmount: 0
+        platformFee,
+        gst,
+        discount,
+        totalAmount,
+        payableAmount
       },
       prescriptionUrl: bookingData.prescriptionUrl,
       status: 'REQUESTED'
     });
-
-    // Calculate total amount
-    booking.calculateTotalAmount();
-    await booking.save();
-
-    // Invalidate booking cache
-    await invalidateCache('*:/api/bookings*');
 
     logger.info('Booking Created', {
       bookingId: booking._id,
@@ -159,6 +172,9 @@ class BookingService {
       }
     }
 
+    // Invalidate cache after all operations complete
+    await invalidateCache('*:/api/bookings*');
+
     return booking;
   }
 
@@ -168,7 +184,7 @@ class BookingService {
    * @param {String} userId - User ID (patient or provider)
    * @returns {Promise<Object>} Booking details
    */
-  async getBookingById(bookingId, userId) {
+  async getBookingById(bookingId, userId, userRole) {
     const booking = await NurseBooking.findById(bookingId)
       .populate('patient', 'name email phone')
       .populate('serviceProvider', 'name email phone specialty professional');
@@ -180,13 +196,10 @@ class BookingService {
     // Authorization check - only patient, assigned provider, or admin can view
     const isPatient = booking.patient._id.toString() === userId;
     const isProvider = booking.serviceProvider && booking.serviceProvider._id.toString() === userId;
+    const isAdmin = userRole === 'admin';
 
-    if (!isPatient && !isProvider) {
-      // Check if user is admin
-      const user = await User.findById(userId);
-      if (!user || user.role !== 'admin') {
-        throw new AuthorizationError('Not authorized to view this booking');
-      }
+    if (!isPatient && !isProvider && !isAdmin) {
+      throw new AuthorizationError('Not authorized to view this booking');
     }
 
     return booking;
@@ -253,17 +266,6 @@ class BookingService {
    * @returns {Promise<Object>} Updated booking
    */
   async assignProvider(bookingId, providerId) {
-    const booking = await NurseBooking.findById(bookingId);
-
-    if (!booking) {
-      throw new NotFoundError('Booking', bookingId);
-    }
-
-    // Check if booking is in correct status
-    if (!['REQUESTED', 'SEARCHING'].includes(booking.status)) {
-      throw new ValidationError('Booking cannot be assigned in current status');
-    }
-
     // Verify provider exists and has correct role
     const provider = await User.findById(providerId);
     if (!provider) {
@@ -275,16 +277,29 @@ class BookingService {
       throw new ValidationError('User is not a valid service provider');
     }
 
-    // Assign provider
-    booking.serviceProvider = providerId;
-    booking.status = 'ASSIGNED';
-    booking.statusHistory.push({
-      status: 'ASSIGNED',
-      timestamp: new Date(),
-      note: `Assigned to ${provider.name}`
-    });
+    // Atomic: assign provider only if booking is in assignable status
+    const booking = await NurseBooking.findOneAndUpdate(
+      {
+        _id: bookingId,
+        status: { $in: ['REQUESTED', 'SEARCHING'] }
+      },
+      {
+        $set: {
+          serviceProvider: providerId,
+          status: 'ASSIGNED'
+        }
+      },
+      { new: true }
+    );
 
-    await booking.save();
+    if (!booking) {
+      // Check if booking exists at all to give a better error
+      const exists = await NurseBooking.findById(bookingId);
+      if (!exists) {
+        throw new NotFoundError('Booking', bookingId);
+      }
+      throw new ValidationError('Booking cannot be assigned - already assigned or in wrong status');
+    }
 
     // Grant health data access to provider for this booking
     try {
@@ -295,7 +310,7 @@ class BookingService {
         accessLevel: 'READ_WRITE',
         allowedResources: ['HEALTH_RECORD', 'HEALTH_METRIC', 'DOCTOR_NOTE'],
         grantReason: `Assigned to booking ${booking._id}`,
-        adminId: providerId, // System grant
+        adminId: providerId,
         adminName: 'System'
       });
 
@@ -305,14 +320,22 @@ class BookingService {
         patientId: booking.patient
       });
     } catch (error) {
-      logger.warn('Failed to grant health data access', {
+      // Roll back assignment — provider can't work without health data access
+      await NurseBooking.findByIdAndUpdate(bookingId, {
+        $set: { status: 'SEARCHING' },
+        $unset: { serviceProvider: 1 }
+      });
+
+      logger.error('Provider assignment rolled back - access grant failed', {
         bookingId: booking._id,
         providerId,
         error: error.message
       });
+
+      throw new ValidationError('Failed to grant health data access. Assignment rolled back.');
     }
 
-    // Invalidate cache
+    // Invalidate cache after all operations complete
     await invalidateCache('*:/api/bookings*');
 
     logger.info('Provider Assigned to Booking', {
@@ -366,21 +389,17 @@ class BookingService {
     }
 
     // Update status
+    const oldStatus = booking.status;
     booking.status = newStatus;
-    booking.statusHistory.push({
-      status: newStatus,
-      timestamp: new Date(),
-      note: note || `Status changed to ${newStatus}`
-    });
 
     // Set timestamps for specific statuses
     if (newStatus === 'IN_PROGRESS') {
       booking.actualService.startTime = new Date();
     } else if (newStatus === 'COMPLETED') {
       booking.actualService.endTime = new Date();
-      booking.actualService.actualDuration = Math.round(
-        (booking.actualService.endTime - booking.actualService.startTime) / (1000 * 60)
-      );
+      booking.actualService.duration = booking.actualService.startTime
+        ? Math.round((booking.actualService.endTime - booking.actualService.startTime) / (1000 * 60))
+        : null;
     } else if (newStatus === 'CANCELLED') {
       booking.cancellation = {
         cancelledAt: new Date(),
@@ -396,7 +415,7 @@ class BookingService {
 
     logger.info('Booking Status Updated', {
       bookingId: booking._id,
-      oldStatus: booking.statusHistory[booking.statusHistory.length - 2]?.status,
+      oldStatus,
       newStatus,
       updatedBy: userId
     });
@@ -427,56 +446,32 @@ class BookingService {
       throw new ValidationError('Service must be in progress to complete');
     }
 
-    // Add service report
-    booking.actualService.serviceReport = serviceReport;
-    booking.actualService.endTime = new Date();
-    booking.actualService.actualDuration = Math.round(
-      (booking.actualService.endTime - booking.actualService.startTime) / (1000 * 60)
-    );
-
-    // Update status to completed
-    booking.status = 'COMPLETED';
-    booking.statusHistory.push({
-      status: 'COMPLETED',
-      timestamp: new Date(),
-      note: 'Service completed successfully'
-    });
-
-    await booking.save();
-
-    // Update patient statistics
-    await Patient.findByIdAndUpdate(booking.patient, {
-      $inc: {
-        totalBookings: 1,
-        totalSpent: booking.pricing.payableAmount
-      }
-    });
-
-    // Capture health metrics from service report
+    // Capture health metrics BEFORE marking as completed
+    // so failure is visible and data isn't silently lost
     if (serviceReport.vitalsChecked) {
-      try {
-        const vitals = [];
+      const vitals = [];
 
-        // Map vitals from service report to health metrics
-        if (serviceReport.vitalsChecked.bloodPressure) {
-          const [systolic, diastolic] = serviceReport.vitalsChecked.bloodPressure.split('/').map(Number);
-          if (systolic) vitals.push({ metricType: 'BP_SYSTOLIC', value: systolic, unit: 'mmHg' });
-          if (diastolic) vitals.push({ metricType: 'BP_DIASTOLIC', value: diastolic, unit: 'mmHg' });
-        }
-        if (serviceReport.vitalsChecked.heartRate) {
-          vitals.push({ metricType: 'HEART_RATE', value: serviceReport.vitalsChecked.heartRate, unit: 'bpm' });
-        }
-        if (serviceReport.vitalsChecked.temperature) {
-          vitals.push({ metricType: 'TEMPERATURE', value: serviceReport.vitalsChecked.temperature, unit: 'celsius' });
-        }
-        if (serviceReport.vitalsChecked.oxygenSaturation) {
-          vitals.push({ metricType: 'OXYGEN', value: serviceReport.vitalsChecked.oxygenSaturation, unit: '%' });
-        }
-        if (serviceReport.vitalsChecked.bloodSugar) {
-          vitals.push({ metricType: 'BLOOD_SUGAR', value: serviceReport.vitalsChecked.bloodSugar, unit: 'mg/dL' });
-        }
+      // Map vitals from service report to health metrics
+      if (serviceReport.vitalsChecked.bloodPressure) {
+        const [systolic, diastolic] = serviceReport.vitalsChecked.bloodPressure.split('/').map(Number);
+        if (systolic) vitals.push({ metricType: 'BP_SYSTOLIC', value: systolic, unit: 'mmHg' });
+        if (diastolic) vitals.push({ metricType: 'BP_DIASTOLIC', value: diastolic, unit: 'mmHg' });
+      }
+      if (serviceReport.vitalsChecked.heartRate) {
+        vitals.push({ metricType: 'HEART_RATE', value: serviceReport.vitalsChecked.heartRate, unit: 'bpm' });
+      }
+      if (serviceReport.vitalsChecked.temperature) {
+        vitals.push({ metricType: 'TEMPERATURE', value: serviceReport.vitalsChecked.temperature, unit: 'celsius' });
+      }
+      if (serviceReport.vitalsChecked.oxygenSaturation) {
+        vitals.push({ metricType: 'OXYGEN', value: serviceReport.vitalsChecked.oxygenSaturation, unit: '%' });
+      }
+      if (serviceReport.vitalsChecked.bloodSugar) {
+        vitals.push({ metricType: 'BLOOD_SUGAR', value: serviceReport.vitalsChecked.bloodSugar, unit: 'mg/dL' });
+      }
 
-        if (vitals.length > 0) {
+      if (vitals.length > 0) {
+        try {
           await healthMetricService.recordMultipleMetrics(booking.patient, vitals, {
             type: 'BOOKING',
             bookingId: booking._id,
@@ -488,12 +483,14 @@ class BookingService {
             patientId: booking.patient,
             metricsCount: vitals.length
           });
+        } catch (error) {
+          logger.error('Failed to capture health metrics from booking — data in service report', {
+            bookingId: booking._id,
+            patientId: booking.patient,
+            vitalsCount: vitals.length,
+            error: error.message
+          });
         }
-      } catch (error) {
-        logger.warn('Failed to capture health metrics from booking', {
-          bookingId: booking._id,
-          error: error.message
-        });
       }
     }
 
@@ -512,12 +509,37 @@ class BookingService {
           patientId: booking.patient
         });
       } catch (error) {
-        logger.warn('Failed to capture booking observations', {
+        logger.error('Failed to capture booking observations — data in service report', {
           bookingId: booking._id,
           error: error.message
         });
       }
     }
+
+    // Now save the service report and mark as COMPLETED
+    const endTime = new Date();
+    const duration = booking.actualService?.startTime
+      ? Math.round((endTime - booking.actualService.startTime) / (1000 * 60))
+      : null;
+
+    const completionUpdate = {
+      $set: {
+        status: 'COMPLETED',
+        'actualService.serviceReport': serviceReport,
+        'actualService.endTime': endTime,
+        'actualService.duration': duration
+      }
+    };
+
+    await NurseBooking.findByIdAndUpdate(booking._id, completionUpdate);
+
+    // Update patient statistics
+    await Patient.findByIdAndUpdate(booking.patient, {
+      $inc: {
+        totalBookings: 1,
+        totalSpent: booking.pricing.payableAmount
+      }
+    });
 
     // Invalidate cache
     await invalidateCache('*:/api/bookings*');
@@ -525,7 +547,7 @@ class BookingService {
     logger.info('Service Completed', {
       bookingId: booking._id,
       providerId,
-      duration: booking.actualService.actualDuration
+      duration
     });
 
     return booking;
@@ -632,11 +654,6 @@ class BookingService {
       cancelledBy: userId,
       reason
     };
-    booking.statusHistory.push({
-      status: 'CANCELLED',
-      timestamp: new Date(),
-      note: reason
-    });
 
     await booking.save();
 

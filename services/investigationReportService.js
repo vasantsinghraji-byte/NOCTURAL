@@ -12,11 +12,50 @@ const User = require('../models/user');
 const geminiService = require('./geminiAnalysisService');
 const notificationService = require('./notificationService');
 const logger = require('../utils/logger');
+const path = require('path');
 const {
   INVESTIGATION_REPORT_STATUS,
   INVESTIGATION_REPORT_TYPES,
   REPORT_ASSIGNMENT_TYPE
 } = require('../constants/healthConstants');
+
+const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+const ALLOWED_URL_PROTOCOLS = ['https:'];
+const UPLOADS_BASE_DIR = path.resolve('./uploads');
+
+/**
+ * Validate file URL/path before sending to AI analysis
+ * Prevents SSRF, path traversal, and invalid file types
+ */
+const validateFileForAnalysis = (file) => {
+  if (!file.url || typeof file.url !== 'string') {
+    throw new Error('File URL is missing or invalid');
+  }
+
+  if (!file.mimeType || !ALLOWED_MIME_TYPES.includes(file.mimeType)) {
+    throw new Error(`Invalid file type: ${file.mimeType}. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`);
+  }
+
+  if (file.url.startsWith('http')) {
+    let parsed;
+    try {
+      parsed = new URL(file.url);
+    } catch {
+      throw new Error('Invalid file URL format');
+    }
+    if (!ALLOWED_URL_PROTOCOLS.includes(parsed.protocol)) {
+      throw new Error(`Only HTTPS URLs are allowed, got: ${parsed.protocol}`);
+    }
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '0.0.0.0' || parsed.hostname.startsWith('169.254.') || parsed.hostname.startsWith('10.') || parsed.hostname.startsWith('192.168.') || parsed.hostname.endsWith('.internal')) {
+      throw new Error('URLs pointing to internal/private addresses are not allowed');
+    }
+  } else {
+    const resolvedPath = path.resolve(file.url.startsWith('/') ? `.${file.url}` : file.url);
+    if (!resolvedPath.startsWith(UPLOADS_BASE_DIR)) {
+      throw new Error('File path must be within the uploads directory');
+    }
+  }
+};
 
 /**
  * Create a new investigation report
@@ -84,6 +123,11 @@ const triggerAIAnalysis = async (reportId) => {
   await report.save();
 
   try {
+    // Validate all file URLs/paths before sending to AI
+    for (const file of report.files) {
+      validateFileForAnalysis(file);
+    }
+
     let analysisResult;
 
     // Analyze based on file storage type

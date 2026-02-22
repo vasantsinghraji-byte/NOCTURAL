@@ -8,8 +8,10 @@
  * - Trend analysis
  */
 
+const mongoose = require('mongoose');
 const HealthMetric = require('../models/healthMetric');
 const HealthTarget = require('../models/healthTarget');
+const Patient = require('../models/patient');
 const {
   METRIC_TYPES,
   METRIC_UNITS,
@@ -41,6 +43,17 @@ const recordDiabetesReading = async (patientId, data) => {
 
   if (!DIABETES_METRICS.includes(metricType)) {
     throw new Error('Invalid metric type for diabetes tracker');
+  }
+
+  const patient = await Patient.findById(patientId).select('medicalHistory.conditions').lean();
+  if (!patient) {
+    throw new Error('Patient not found');
+  }
+  const hasDiabetes = (patient.medicalHistory?.conditions || []).some(
+    c => c.name && c.name.toLowerCase().includes('diabetes')
+  );
+  if (!hasDiabetes) {
+    throw new Error('Patient does not have a diabetes diagnosis. Add the condition to the patient profile before recording diabetes metrics.');
   }
 
   const metric = await HealthMetric.create({
@@ -77,6 +90,17 @@ const recordBPReading = async (patientId, data) => {
 
   if (!systolic || !diastolic) {
     throw new Error('Both systolic and diastolic values are required');
+  }
+
+  const patient = await Patient.findById(patientId).select('medicalHistory.conditions').lean();
+  if (!patient) {
+    throw new Error('Patient not found');
+  }
+  const hasHypertension = (patient.medicalHistory?.conditions || []).some(
+    c => c.name && c.name.toLowerCase().includes('hypertension')
+  );
+  if (!hasHypertension) {
+    throw new Error('Patient does not have a hypertension diagnosis. Add the condition to the patient profile before recording BP metrics.');
   }
 
   // Create systolic metric
@@ -422,20 +446,28 @@ const getTrackerSummary = async (patientId, trackerType) => {
     weeklyStats[metricType] = trends.stats;
   }
 
-  // Get abnormal readings count from last 30 days
+  // Get total and abnormal counts atomically in a single aggregation
   const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const abnormalCount = await HealthMetric.countDocuments({
-    patient: patientId,
-    metricType: { $in: metricTypes },
-    isAbnormal: true,
-    measuredAt: { $gte: monthAgo }
-  });
-
-  const totalCount = await HealthMetric.countDocuments({
-    patient: patientId,
-    metricType: { $in: metricTypes },
-    measuredAt: { $gte: monthAgo }
-  });
+  const [monthlyCounts] = await HealthMetric.aggregate([
+    {
+      $match: {
+        patient: new mongoose.Types.ObjectId(patientId),
+        metricType: { $in: metricTypes },
+        measuredAt: { $gte: monthAgo }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        totalCount: { $sum: 1 },
+        abnormalCount: {
+          $sum: { $cond: [{ $eq: ['$isAbnormal', true] }, 1, 0] }
+        }
+      }
+    }
+  ]);
+  const totalCount = monthlyCounts?.totalCount || 0;
+  const abnormalCount = monthlyCounts?.abnormalCount || 0;
 
   return {
     trackerType,

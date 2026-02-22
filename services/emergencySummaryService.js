@@ -88,11 +88,10 @@ class EmergencySummaryService {
     const summary = await this.getEmergencySummary(patientId);
 
     // Validate expiry hours
-    if (expiryHours < QR_TOKEN_CONFIG.MIN_EXPIRY_HOURS) {
-      expiryHours = QR_TOKEN_CONFIG.MIN_EXPIRY_HOURS;
-    }
-    if (expiryHours > QR_TOKEN_CONFIG.MAX_EXPIRY_HOURS) {
-      expiryHours = QR_TOKEN_CONFIG.MAX_EXPIRY_HOURS;
+    if (expiryHours < QR_TOKEN_CONFIG.MIN_EXPIRY_HOURS || expiryHours > QR_TOKEN_CONFIG.MAX_EXPIRY_HOURS) {
+      throw new ValidationError(
+        `expiryHours must be between ${QR_TOKEN_CONFIG.MIN_EXPIRY_HOURS} and ${QR_TOKEN_CONFIG.MAX_EXPIRY_HOURS} hours`
+      );
     }
 
     // Generate token
@@ -161,13 +160,23 @@ class EmergencySummaryService {
    * Revoke QR token
    */
   async revokeQRToken(patientId) {
-    const summary = await EmergencySummary.findOne({ patient: patientId });
+    // Atomically clear token fields — safe against concurrent revocations
+    const summary = await EmergencySummary.findOneAndUpdate(
+      { patient: patientId },
+      {
+        $unset: {
+          qrToken: 1,
+          qrTokenHash: 1,
+          qrTokenExpiry: 1,
+          qrTokenCreatedAt: 1
+        }
+      },
+      { new: true }
+    );
 
     if (!summary) {
       throw new NotFoundError('EmergencySummary', patientId);
     }
-
-    await summary.revokeToken();
 
     logger.info('Emergency QR token revoked', { patientId });
 

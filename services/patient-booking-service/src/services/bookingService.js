@@ -39,6 +39,17 @@ class BookingService {
         throw new Error('Service not available');
       }
 
+      // Validate service is available in the requested city
+      const bookingCity = serviceLocation?.address?.city;
+      if (bookingCity && service.availability.availableCities?.length > 0) {
+        const cityMatch = service.availability.availableCities.some(
+          city => city.toLowerCase() === bookingCity.toLowerCase()
+        );
+        if (!cityMatch) {
+          throw new Error(`Service "${serviceType}" is not available in "${bookingCity}". Available cities: ${service.availability.availableCities.join(', ')}`);
+        }
+      }
+
       // Create booking object
       const booking = new NurseBooking({
         patient: patientId,

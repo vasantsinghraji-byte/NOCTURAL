@@ -142,7 +142,7 @@ class ServiceCatalogService {
     }
 
     const now = new Date();
-    const currentTime = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
     let basePrice = service.pricing.basePrice;
     let surgeApplied = false;
@@ -152,7 +152,13 @@ class ServiceCatalogService {
       const surgeHours = service.pricing.surgePricing.surgeHours || [];
 
       for (const timeSlot of surgeHours) {
-        if (currentTime >= timeSlot.start && currentTime <= timeSlot.end) {
+        if (!timeSlot.start || !timeSlot.end) continue;
+        const [startH, startM] = timeSlot.start.split(':').map(Number);
+        const [endH, endM] = timeSlot.end.split(':').map(Number);
+        if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) continue;
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+        if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
           basePrice = basePrice * service.pricing.surgePricing.surgeMultiplier;
           surgeApplied = true;
           break;

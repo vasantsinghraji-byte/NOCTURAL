@@ -140,6 +140,34 @@ class NotificationService {
    * @returns {Promise<Object>} Created notification
    */
   async createNotification(notificationData) {
+    const VALID_RECIPIENT_MODELS = ['User', 'Patient'];
+
+    if (notificationData.recipientModel && !VALID_RECIPIENT_MODELS.includes(notificationData.recipientModel)) {
+      throw {
+        statusCode: HTTP_STATUS.BAD_REQUEST,
+        message: `Invalid recipientModel: "${notificationData.recipientModel}". Must be one of: ${VALID_RECIPIENT_MODELS.join(', ')}`
+      };
+    }
+
+    // Normalize: callers may pass 'recipient' instead of 'user'
+    if (notificationData.recipient && !notificationData.user) {
+      notificationData.user = notificationData.recipient;
+    }
+
+    if (!notificationData.user) {
+      throw {
+        statusCode: HTTP_STATUS.BAD_REQUEST,
+        message: 'Notification recipient (user) is required'
+      };
+    }
+
+    if (!notificationData.type) {
+      throw {
+        statusCode: HTTP_STATUS.BAD_REQUEST,
+        message: 'Notification type is required'
+      };
+    }
+
     const notification = await Notification.createNotification(notificationData);
 
     logger.info('Notification created', {

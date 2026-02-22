@@ -83,10 +83,21 @@ Important guidelines:
 
 Analyze the following medical report:`;
 
+// Maximum file size: 20MB (Gemini API inline data limit)
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+
 /**
  * Convert file to Gemini-compatible format
  */
 const fileToGenerativePart = async (filePath, mimeType) => {
+  const stat = await fs.stat(filePath);
+  if (stat.size > MAX_FILE_SIZE_BYTES) {
+    throw new Error(`File exceeds maximum size of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB: ${(stat.size / (1024 * 1024)).toFixed(1)}MB`);
+  }
+  if (stat.size === 0) {
+    throw new Error('File is empty');
+  }
+
   const data = await fs.readFile(filePath);
   return {
     inlineData: {
@@ -213,7 +224,19 @@ const analyzeFromUrl = async (url, mimeType) => {
       throw new Error(`Failed to fetch file: ${response.statusText}`);
     }
 
+    const contentLength = parseInt(response.headers.get('content-length'), 10);
+    if (contentLength && contentLength > MAX_FILE_SIZE_BYTES) {
+      throw new Error(`Remote file exceeds maximum size of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB: ${(contentLength / (1024 * 1024)).toFixed(1)}MB`);
+    }
+
     const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > MAX_FILE_SIZE_BYTES) {
+      throw new Error(`Remote file exceeds maximum size of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB: ${(buffer.byteLength / (1024 * 1024)).toFixed(1)}MB`);
+    }
+    if (buffer.byteLength === 0) {
+      throw new Error('Remote file is empty');
+    }
+
     const base64 = Buffer.from(buffer).toString('base64');
 
     const imagePart = {
