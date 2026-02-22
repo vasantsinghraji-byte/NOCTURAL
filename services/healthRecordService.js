@@ -8,13 +8,14 @@
 const HealthRecord = require('../models/healthRecord');
 const Patient = require('../models/patient');
 const EmergencySummary = require('../models/emergencySummary');
+const User = require('../models/user');
 const logger = require('../utils/logger');
 const {
   RECORD_TYPES,
   RECORD_STATUS,
   DATA_SOURCES
 } = require('../constants/healthConstants');
-const { NotFoundError, ValidationError } = require('../utils/errors');
+const { NotFoundError, ValidationError, AuthorizationError } = require('../utils/errors');
 
 class HealthRecordService {
   /**
@@ -67,12 +68,16 @@ class HealthRecordService {
 
   /**
    * Append an update to health records (creates new version)
+   * Uses optimistic concurrency control to prevent orphaned versions
    */
   async appendUpdate(patientId, updates, source = {}) {
     const patient = await Patient.findById(patientId);
     if (!patient) {
       throw new NotFoundError('Patient', patientId);
     }
+
+    // Capture expected version for optimistic concurrency guard
+    const expectedVersion = patient.currentHealthRecordVersion || 0;
 
     // Get latest approved record to base the update on
     const latestRecord = await HealthRecord.getLatestApproved(patientId);
@@ -102,19 +107,46 @@ class HealthRecordService {
 
     await record.save();
 
-    // Compute and store changes
+    // Compute and store changes atomically (avoid double full-save)
     const changes = await record.computeChanges();
     if (changes) {
+      await HealthRecord.findByIdAndUpdate(record._id, { $set: { changes } });
       record.changes = changes;
-      await record.save();
     }
 
-    // Update patient's current version
-    patient.currentHealthRecordVersion = record.version;
-    await patient.save();
+    // Atomically update patient version — only if no concurrent update changed it
+    const updatedPatient = await Patient.findOneAndUpdate(
+      {
+        _id: patientId,
+        $or: [
+          { currentHealthRecordVersion: expectedVersion },
+          { currentHealthRecordVersion: { $exists: false } }
+        ]
+      },
+      { $set: { currentHealthRecordVersion: record.version } },
+      { new: true }
+    );
+
+    if (!updatedPatient) {
+      // Concurrent update won — roll back the orphaned record
+      await HealthRecord.findByIdAndUpdate(record._id, {
+        $set: { isActive: false, isLatest: false, deletedAt: new Date() }
+      });
+
+      // Restore previous record's isLatest flag
+      if (record.previousVersion) {
+        await HealthRecord.findByIdAndUpdate(record.previousVersion, {
+          $set: { isLatest: true }
+        });
+      }
+
+      throw new ValidationError(
+        'Concurrent health record update detected. Please retry.'
+      );
+    }
 
     // Update emergency summary
-    await EmergencySummary.updateFromHealthRecord(patientId, record, patient);
+    await EmergencySummary.updateFromHealthRecord(patientId, record, updatedPatient);
 
     logger.info('Health record updated', {
       patientId,
@@ -348,6 +380,15 @@ class HealthRecordService {
       throw new ValidationError('Record is not pending review');
     }
 
+    // Validate assignee is a doctor
+    const doctor = await User.findById(doctorId);
+    if (!doctor) {
+      throw new NotFoundError('User', doctorId);
+    }
+    if (doctor.role !== 'doctor') {
+      throw new ValidationError('Only doctors can be assigned to review intakes');
+    }
+
     record.review = {
       ...record.review,
       assignedBy: adminId,
@@ -386,7 +427,12 @@ class HealthRecordService {
       throw new ValidationError('Record is not pending review');
     }
 
-    // Verify doctor is assigned
+    // Verify reviewer is a doctor and is assigned
+    const reviewer = await User.findById(doctorId);
+    if (!reviewer || reviewer.role !== 'doctor') {
+      throw new AuthorizationError('Only doctors can review intakes');
+    }
+
     if (record.review?.assignedTo?.toString() !== doctorId.toString()) {
       throw new ValidationError('You are not assigned to review this intake');
     }

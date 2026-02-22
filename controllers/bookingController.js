@@ -31,7 +31,7 @@ exports.createBooking = async (req, res, next) => {
  */
 exports.getBooking = async (req, res, next) => {
   try {
-    const booking = await bookingService.getBookingById(req.params.id, req.user.id);
+    const booking = await bookingService.getBookingById(req.params.id, req.user._id.toString(), req.user.role);
 
     responseHelper.sendSuccess(res, { booking }, 'Booking fetched successfully');
   } catch (error) {

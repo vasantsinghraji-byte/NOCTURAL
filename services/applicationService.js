@@ -155,24 +155,64 @@ class ApplicationService {
       };
     }
 
-    application.status = status;
-    if (notes) {
-      application.notes = notes;
-    }
-    await application.save();
-
-    // If accepted, mark duty as filled
     if (status === 'ACCEPTED') {
-      await Duty.findByIdAndUpdate(application.duty._id, {
-        status: 'FILLED',
-        assignedTo: application.applicant
-      });
+      // Atomic: assign doctor only if duty is still OPEN and doctor not already assigned
+      const updatedDuty = await Duty.findOneAndUpdate(
+        {
+          _id: application.duty._id,
+          status: 'OPEN',
+          'assignedDoctors.doctor': { $ne: application.applicant }
+        },
+        {
+          $push: {
+            assignedDoctors: {
+              doctor: application.applicant,
+              assignedAt: new Date(),
+              status: 'CONFIRMED'
+            }
+          },
+          $inc: { positionsFilled: 1 }
+        },
+        { new: true }
+      );
 
-      logger.info('Application accepted, duty filled', {
+      if (!updatedDuty) {
+        throw {
+          statusCode: HTTP_STATUS.CONFLICT,
+          message: 'Duty is no longer available or applicant already assigned'
+        };
+      }
+
+      // Duty updated atomically — now save application status
+      application.status = 'ACCEPTED';
+      if (notes) application.notes = notes;
+      await application.save();
+
+      // If all positions filled, mark duty as FILLED and auto-reject remaining
+      if (updatedDuty.positionsFilled >= updatedDuty.positionsNeeded) {
+        await Duty.findByIdAndUpdate(updatedDuty._id, { status: 'FILLED' });
+
+        await Application.updateMany(
+          {
+            duty: application.duty._id,
+            status: 'PENDING',
+            _id: { $ne: applicationId }
+          },
+          { status: 'REJECTED', notes: 'Auto-rejected: all positions filled' }
+        );
+      }
+
+      logger.info('Application accepted, doctor assigned', {
         applicationId,
         dutyId: application.duty._id,
-        applicantId: application.applicant
+        applicantId: application.applicant,
+        positionsFilled: updatedDuty.positionsFilled,
+        positionsNeeded: updatedDuty.positionsNeeded
       });
+    } else {
+      application.status = status;
+      if (notes) application.notes = notes;
+      await application.save();
     }
 
     logger.info('Application status updated', {

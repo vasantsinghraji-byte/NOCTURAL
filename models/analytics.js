@@ -44,6 +44,12 @@ const doctorAnalyticsSchema = new mongoose.Schema({
             totalEarned: Number
         }
     },
+    // Rating statistics (atomic updates)
+    ratingStats: {
+        totalRatings: { type: Number, default: 0 },
+        ratingSum: { type: Number, default: 0 },
+        averageRating: { type: Number, default: 0 }
+    },
     // Shift completion statistics
     shiftStats: {
         totalCompleted: { type: Number, default: 0 },

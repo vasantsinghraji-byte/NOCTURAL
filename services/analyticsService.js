@@ -157,18 +157,33 @@ class AnalyticsService {
    * @returns {Promise<Object>} Updated analytics
    */
   async recordRating(userId, rating) {
-    const analytics = await this.getDoctorAnalytics(userId);
-
-    analytics.totalRatings = (analytics.totalRatings || 0) + 1;
-    const totalRatingSum = (analytics.averageRating || 0) * (analytics.totalRatings - 1) + rating;
-    analytics.averageRating = totalRatingSum / analytics.totalRatings;
-
-    await analytics.save();
+    // Atomic pipeline update: increment counts and recompute average in one operation
+    const analytics = await DoctorAnalytics.findOneAndUpdate(
+      { user: userId },
+      [
+        {
+          $set: {
+            'ratingStats.totalRatings': { $add: [{ $ifNull: ['$ratingStats.totalRatings', 0] }, 1] },
+            'ratingStats.ratingSum': { $add: [{ $ifNull: ['$ratingStats.ratingSum', 0] }, rating] }
+          }
+        },
+        {
+          $set: {
+            'ratingStats.averageRating': {
+              $divide: ['$ratingStats.ratingSum', '$ratingStats.totalRatings']
+            },
+            lastUpdated: new Date()
+          }
+        }
+      ],
+      { new: true, upsert: true }
+    );
 
     logger.info('Updated doctor rating analytics', {
       userId,
       newRating: rating,
-      averageRating: analytics.averageRating
+      averageRating: analytics.ratingStats.averageRating,
+      totalRatings: analytics.ratingStats.totalRatings
     });
 
     return analytics;
@@ -223,6 +238,12 @@ class AnalyticsService {
    * @returns {Promise<Object>} Dashboard data
    */
   async getHospitalDashboard(hospitalId) {
+    // Get this hospital's duty IDs to scope the pending applications query
+    const hospitalDutyIds = await Duty.find(
+      { postedBy: hospitalId },
+      { _id: 1 }
+    ).lean().then(docs => docs.map(d => d._id));
+
     const [analytics, activeDuties, pendingApplications] = await Promise.all([
       this.getHospitalAnalytics(hospitalId),
       Duty.countDocuments({
@@ -230,6 +251,7 @@ class AnalyticsService {
         status: 'OPEN'
       }),
       Application.countDocuments({
+        duty: { $in: hospitalDutyIds },
         status: 'PENDING'
       })
     ]);

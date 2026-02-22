@@ -77,29 +77,44 @@ class HealthMetricService {
       throw new NotFoundError('Patient', patientId);
     }
 
-    const recordedMetrics = [];
-    let hasAbnormal = false;
-
-    for (const metricData of metricsArray) {
-      try {
-        const metric = await this.recordMetric(patientId, metricData, source);
-        recordedMetrics.push(metric);
-        if (metric.isAbnormal) {
-          hasAbnormal = true;
-        }
-      } catch (error) {
-        logger.warn('Failed to record metric', {
-          patientId,
-          metricType: metricData.metricType,
-          error: error.message
-        });
+    // Validate and build all metric documents upfront — fail before any writes
+    const metricDocs = metricsArray.map(metricData => {
+      if (!Object.values(METRIC_TYPES).includes(metricData.metricType)) {
+        throw new ValidationError(`Invalid metric type: ${metricData.metricType}`);
       }
+
+      return {
+        patient: patientId,
+        metricType: metricData.metricType,
+        value: metricData.value,
+        unit: metricData.unit || METRIC_UNITS[metricData.metricType],
+        measuredAt: metricData.measuredAt || new Date(),
+        measuredBy: metricData.measuredBy || {
+          type: MEASUREMENT_SOURCES.PATIENT
+        },
+        source: {
+          type: source.type || DATA_SOURCES.MANUAL_ENTRY,
+          bookingId: source.bookingId
+        },
+        notes: metricData.notes,
+        context: metricData.context
+      };
+    });
+
+    // Batch insert — all succeed or all fail, no silent partial saves
+    const recordedMetrics = await HealthMetric.insertMany(metricDocs);
+
+    // Check for abnormal values and update patient flag
+    const hasAbnormal = recordedMetrics.some(m => m.isAbnormal);
+    if (hasAbnormal) {
+      await Patient.findByIdAndUpdate(patientId, { hasAbnormalMetrics: true });
     }
 
-    if (hasAbnormal) {
-      patient.hasAbnormalMetrics = true;
-      await patient.save();
-    }
+    logger.info('Multiple health metrics recorded', {
+      patientId,
+      count: recordedMetrics.length,
+      hasAbnormal
+    });
 
     return recordedMetrics;
   }

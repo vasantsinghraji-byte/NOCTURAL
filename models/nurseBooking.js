@@ -164,11 +164,17 @@ const NurseBookingSchema = new mongoose.Schema({
     },
     status: {
       type: String,
-      enum: ['PENDING', 'PAID', 'FAILED', 'REFUNDED'],
+      enum: ['PENDING', 'PAID', 'FAILED', 'REFUND_PENDING', 'REFUNDED'],
       default: 'PENDING'
     },
+    orderId: String,         // Razorpay order ID
+    paymentId: String,       // Razorpay payment ID
     transactionId: String,
+    amount: Number,
+    currency: { type: String, default: 'INR' },
     paidAt: Date,
+    failureReason: String,
+    refundId: String,        // Razorpay refund ID
     refundedAt: Date,
     refundAmount: Number,
     refundReason: String
