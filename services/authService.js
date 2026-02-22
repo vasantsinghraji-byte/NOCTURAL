@@ -43,11 +43,10 @@ class AuthService {
         phone
       });
     } catch (error) {
-      logger.error('User creation error', { email, error: error.message });
+      logger.error('User creation error', { email, error: error.message, stack: error.stack });
       throw {
         statusCode: HTTP_STATUS.BAD_REQUEST,
-        message: 'Error creating user account',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        message: 'Error creating user account'
       };
     }
 
@@ -118,9 +117,16 @@ class AuthService {
     // Generate token
     const token = generateToken(user._id);
 
-    // Update last active
-    user.lastActive = new Date();
-    await user.save();
+    // Update last active — don't block login if this fails
+    try {
+      user.lastActive = new Date();
+      await user.save();
+    } catch (error) {
+      logger.error('Failed to update lastActive on login', {
+        userId: user._id,
+        error: error.message
+      });
+    }
 
     logger.logAuth('login', email, true);
     logger.info('User Login', {

@@ -241,6 +241,9 @@ const PatientSchema = new mongoose.Schema({
     ref: 'Patient'
   },
 
+  // Security
+  passwordChangedAt: Date,
+
   // Timestamps
   lastActive: Date,
   deletedAt: Date // Soft delete
@@ -249,11 +252,14 @@ const PatientSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Hash password before saving
+// Hash password before saving and track password change time
 PatientSchema.pre('save', async function(next) {
   if (this.isModified('password')) {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+    if (!this.isNew) {
+      this.passwordChangedAt = new Date();
+    }
   }
   next();
 });

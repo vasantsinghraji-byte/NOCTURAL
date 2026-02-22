@@ -49,6 +49,17 @@ exports.protectPatient = async (req, res, next) => {
       });
     }
 
+    // Check if password was changed after token was issued
+    if (patient.passwordChangedAt && decoded.iat) {
+      const changedAtSec = Math.floor(patient.passwordChangedAt.getTime() / 1000);
+      if (decoded.iat < changedAtSec) {
+        return res.status(401).json({
+          success: false,
+          message: 'Password recently changed - please login again'
+        });
+      }
+    }
+
     // Attach patient to request as 'user' for consistency
     req.user = patient;
     req.patient = patient; // Also available as req.patient

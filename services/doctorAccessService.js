@@ -13,6 +13,7 @@ const DoctorNote = require('../models/doctorNote');
 const EmergencySummary = require('../models/emergencySummary');
 const Patient = require('../models/patient');
 const User = require('../models/user');
+const NurseBooking = require('../models/nurseBooking');
 const logger = require('../utils/logger');
 const {
   ACCESS_LEVELS,
@@ -40,6 +41,23 @@ class DoctorAccessService {
       maxUsage
     } = data;
 
+    // Validate token constraints
+    if (expiresAt !== undefined) {
+      const expiry = new Date(expiresAt);
+      if (isNaN(expiry.getTime())) {
+        throw new ValidationError('expiresAt must be a valid date');
+      }
+      if (expiry <= new Date()) {
+        throw new ValidationError('expiresAt must be a future date');
+      }
+    }
+
+    if (maxUsage !== undefined) {
+      if (!Number.isInteger(maxUsage) || maxUsage < 1) {
+        throw new ValidationError('maxUsage must be a positive integer');
+      }
+    }
+
     // Validate patient exists
     const patient = await Patient.findById(patientId);
     if (!patient) {
@@ -59,8 +77,46 @@ class DoctorAccessService {
 
     // Validate admin
     const admin = await User.findById(adminId);
-    if (!admin || !['admin', 'hospital'].includes(admin.role)) {
+    if (!admin || admin.role !== 'admin') {
       throw new AuthorizationError('Only admins can grant access');
+    }
+
+    // Hospital boundary enforcement for hospital-scoped admins
+    if (admin.hospital) {
+      // Doctor must belong to the same hospital
+      if (doctor.hospital !== admin.hospital) {
+        logger.logSecurity('cross_hospital_access_attempt', {
+          adminId,
+          adminHospital: admin.hospital,
+          doctorId,
+          doctorHospital: doctor.hospital
+        });
+        throw new AuthorizationError(
+          'Cannot grant access to a doctor outside your hospital'
+        );
+      }
+
+      // Patient must have at least one booking with a provider from this hospital
+      const hospitalProviderIds = await User.find(
+        { hospital: admin.hospital, role: { $in: validRoles } },
+        { _id: 1 }
+      ).lean().then(docs => docs.map(d => d._id));
+
+      const patientHasHospitalBooking = await NurseBooking.exists({
+        patient: patientId,
+        serviceProvider: { $in: hospitalProviderIds }
+      });
+
+      if (!patientHasHospitalBooking) {
+        logger.logSecurity('cross_hospital_patient_access_attempt', {
+          adminId,
+          adminHospital: admin.hospital,
+          patientId
+        });
+        throw new AuthorizationError(
+          'Patient has no bookings with your hospital'
+        );
+      }
     }
 
     // Generate access token
@@ -196,8 +252,19 @@ class DoctorAccessService {
     // Get the doctor info for audit
     const doctor = await User.findById(doctorId);
 
-    // Record usage
-    await accessToken.recordUsage(requestContext.ipAddress);
+    // Record usage — don't block authorized access if tracking fails
+    let usageRecordFailed = false;
+    try {
+      await accessToken.recordUsage(requestContext.ipAddress);
+    } catch (error) {
+      usageRecordFailed = true;
+      logger.error('Failed to record token usage — access still granted', {
+        tokenId: accessToken._id,
+        doctorId,
+        patientId,
+        error: error.message
+      });
+    }
 
     // Log access
     await this.logAccess({
@@ -216,7 +283,8 @@ class DoctorAccessService {
       ipAddress: requestContext.ipAddress,
       userAgent: requestContext.userAgent,
       endpoint: requestContext.endpoint,
-      success: true
+      success: true,
+      usageRecordFailed
     });
 
     // Fetch the requested data

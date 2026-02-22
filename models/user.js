@@ -241,7 +241,10 @@ const UserSchema = new mongoose.Schema({
     default: true
   },
 
-  lastActive: Date
+  lastActive: Date,
+
+  // Security
+  passwordChangedAt: Date
 
 }, {
   timestamps: true
@@ -315,6 +318,9 @@ UserSchema.pre('save', async function(next) {
     if (this.isModified('password')) {
       const salt = await bcrypt.genSalt(10);
       this.password = await bcrypt.hash(this.password, salt);
+      if (!this.isNew) {
+        this.passwordChangedAt = new Date();
+      }
     }
 
     // 2. Encrypt bank account number if modified
