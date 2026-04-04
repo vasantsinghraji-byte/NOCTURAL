@@ -157,21 +157,23 @@ document.addEventListener('DOMContentLoaded', function () {
       var password = document.getElementById('loginPassword').value;
 
       try {
-        var response = await AppConfig.fetch('auth/login', {
+        var data = await AppConfig.fetch('auth/login', {
           method: 'POST',
+          skipAuth: true,
+          parseJson: true,
           body: JSON.stringify({ email: email, password: password })
         });
-
-        var data = await response.json();
-
-        if (data.success && data.token) {
-          NocturnalSession.completeAuthSuccess(data, {
+        NocturnalSession.completeAuthSuccess(
+          NocturnalSession.expectJsonSuccess(data, 'Login failed', {
+            isSuccess: function (payload) {
+              return !!(payload && payload.success && payload.token);
+            }
+          }),
+          {
             useRoleRedirect: true,
             routeOverrides: ROUTE_MAP
-          });
-        } else {
-          throw new Error(data.message || 'Login failed');
-        }
+          }
+        );
       } catch (error) {
         console.error('Login error:', error);
         NocturnalSession.renderFormMessage(
@@ -194,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function () {
       e.preventDefault();
       var btn = e.target.querySelector('button[type="submit"]');
       var errorDiv = document.getElementById('registerError');
-      errorDiv.innerHTML = '';
+      NocturnalSession.clearFormMessage(errorDiv);
 
       var name = document.getElementById('registerName').value;
       var email = document.getElementById('registerEmail').value;
@@ -205,15 +207,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
       NocturnalSession.setButtonLoading(btn);
 
-      if (password !== confirmPassword) {
-        NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match.');
+      if (!NocturnalSession.validatePasswordStrength(password, errorDiv)) {
+        NocturnalSession.resetButtonState(btn);
+        return;
+      }
+
+      if (!NocturnalSession.validatePasswordMatch(password, confirmPassword, errorDiv, {
+        message: 'Passwords do not match.'
+      })) {
         NocturnalSession.resetButtonState(btn);
         return;
       }
 
       try {
-        var response = await AppConfig.fetch('auth/register', {
+        var data = await AppConfig.fetch('auth/register', {
           method: 'POST',
+          skipAuth: true,
+          parseJson: true,
           body: JSON.stringify({
             name: name,
             email: email,
@@ -223,17 +233,17 @@ document.addEventListener('DOMContentLoaded', function () {
             role: role
           })
         });
-
-        var data = await response.json();
-
-        if (data.success && data.token) {
-          NocturnalSession.completeAuthSuccess(data, {
+        NocturnalSession.completeAuthSuccess(
+          NocturnalSession.expectJsonSuccess(data, 'Registration failed', {
+            isSuccess: function (payload) {
+              return !!(payload && payload.success && payload.token);
+            }
+          }),
+          {
             useRoleRedirect: true,
             routeOverrides: ROUTE_MAP
-          });
-        } else {
-          throw new Error(data.message || 'Registration failed');
-        }
+          }
+        );
       } catch (error) {
         console.error('Registration error:', error);
         NocturnalSession.renderFormMessage(

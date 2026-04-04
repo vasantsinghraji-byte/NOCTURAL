@@ -398,6 +398,7 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
 </head>
 <body>
     <div class="container">
@@ -467,7 +468,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="password" class="required">Password</label>
-                            <input type="password" id="password" class="form-control" placeholder="Min. 6 characters" required>
+                            <input type="password" id="password" class="form-control" placeholder="Min. 8 chars with uppercase, number & symbol" required>
                         </div>
                         <div class="form-group">
                             <label for="confirmPassword" class="required">Confirm Password</label>
@@ -700,7 +701,6 @@
 
     <script type="module">
         // Secure JWT-based authentication (Firebase removed for security)
-        // API_URL is provided by config.js
         let currentStep = 1;
         let formData = {};
         let uploadedFiles = {};
@@ -845,12 +845,16 @@
                 // Skip password validation if user already registered
                 const existingToken = localStorage.getItem('token');
                 if (!existingToken) {
-                    if (password !== confirmPassword) {
-                        showAlert('Passwords do not match', 'danger');
+                    if (!NocturnalSession.validatePasswordStrength(password, null, {
+                        onInvalid: (message) => showAlert(message, 'danger')
+                    })) {
                         return false;
                     }
-                    if (password.length < 6) {
-                        showAlert('Password must be at least 6 characters', 'danger');
+
+                    if (!NocturnalSession.validatePasswordMatch(password, confirmPassword, null, {
+                        message: 'Passwords do not match',
+                        onInvalid: (message) => showAlert(message, 'danger')
+                    })) {
                         return false;
                     }
                 }
@@ -949,9 +953,9 @@
 
             // Disable submit button to prevent double submission
             const submitBtn = e.target.querySelector('button[type="submit"]');
-            const originalBtnText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            NocturnalSession.setButtonLoading(submitBtn, {
+                loadingHtml: '<i class="fas fa-spinner fa-spin"></i> Processing...'
+            });
 
             try {
                 showAlert('Saving your profile...', 'success');
@@ -963,23 +967,20 @@
                     // If no token, register new user
                     formData.role = 'doctor';
 
-                    const response = await fetch(AppConfig.api('auth/register'), {
+                    const data = await AppConfig.fetch('auth/register', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        skipAuth: true,
+                        parseJson: true,
                         body: JSON.stringify(formData)
                     });
-
-                    const data = await response.json();
                     console.log('Registration response:', data);
-
-                    if (data.success && data.token) {
-                        localStorage.setItem('token', data.token);
-                        localStorage.setItem('user', JSON.stringify(data.user));
-                    } else {
-                        throw new Error(data.message || 'Registration failed');
-                    }
+                    var authData = NocturnalSession.expectJsonSuccess(data, 'Registration failed', {
+                        isSuccess: function (payload) {
+                            return !!(payload && payload.success && payload.token && payload.user);
+                        }
+                    });
+                    localStorage.setItem('token', authData.token);
+                    NocturnalSession.persistSession(authData.user, 'doctor');
                 } else {
                     // User already exists, just update their profile
                     // CRITICAL: Mark onboarding as completed so user goes to dashboard on next login
@@ -987,24 +988,20 @@
 
                     console.log('Updating profile with data:', formData);
 
-                    const response = await fetch(AppConfig.api('auth/me'), {
+                    const data = await AppConfig.fetch('auth/me', {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${existingToken}`
-                        },
+                        parseJson: true,
                         body: JSON.stringify(formData)
                     });
-
-                    const data = await response.json();
                     console.log('Update response:', data);
-
-                    if (!data.success) {
-                        throw new Error(data.message || 'Failed to update profile');
-                    }
-
-                    // Update user in localStorage
-                    localStorage.setItem('user', JSON.stringify(data.user));
+                    NocturnalSession.persistSession(
+                        NocturnalSession.expectJsonSuccess(data, 'Failed to update profile', {
+                            isSuccess: function (payload) {
+                                return !!(payload && payload.success && payload.user);
+                            }
+                        }).user,
+                        'doctor'
+                    );
                 }
 
                 // Upload documents
@@ -1020,10 +1017,8 @@
             } catch (error) {
                 console.error('Onboarding error:', error);
                 showAlert(error.message || 'Onboarding failed. Please try again.', 'danger');
-
-                // Re-enable submit button
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalBtnText;
+            } finally {
+                NocturnalSession.resetButtonState(submitBtn);
             }
         });
 
@@ -1055,18 +1050,14 @@
 
                 console.log(`Uploading ${type} to ${endpoint}...`);
 
-                const response = await fetch(`${API_URL}${endpoint}`, {
+                const result = await AppConfig.fetch(endpoint, {
                     method: 'POST',
+                    parseJson: true,
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: formData
                 });
-
-                const result = await response.json();
                 console.log(`Upload ${type} result:`, result);
-
-                if (!response.ok || !result.success) {
-                    throw new Error(`Failed to upload ${type}: ${result.message || 'Upload failed'}`);
-                }
+                NocturnalSession.expectJsonSuccess(result, `Failed to upload ${type}: Upload failed`);
             }
 
             console.log('All documents uploaded successfully!');

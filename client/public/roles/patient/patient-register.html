@@ -245,7 +245,7 @@
                 <input type="password" id="password" name="password" required
                        placeholder="Create a strong password" minlength="8">
                 <div class="password-requirements">
-                    Min 8 characters with uppercase, lowercase & number
+                    Min 8 characters with uppercase, lowercase, number & special character
                 </div>
             </div>
 
@@ -277,41 +277,49 @@
             const errorDiv = document.getElementById('errorDiv');
             const btn = document.getElementById('submitBtn');
 
-            errorDiv.innerHTML = '';
+            NocturnalSession.clearFormMessage(errorDiv);
 
             // Validation
-            if (password !== confirmPassword) {
-                NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match');
+            if (!NocturnalSession.validatePasswordStrength(password, errorDiv)) {
                 return;
             }
 
-            if (phone.length !== 10 || !phone.match(/^[6-9][0-9]{9}$/)) {
-                NocturnalSession.renderFormMessage(errorDiv, 'Please enter a valid 10-digit mobile number');
+            if (!NocturnalSession.validatePasswordMatch(password, confirmPassword, errorDiv, {
+                message: 'Passwords do not match'
+            })) {
+                return;
+            }
+
+            if (!NocturnalSession.validatePhoneNumber(phone, errorDiv, {
+                message: 'Please enter a valid 10-digit mobile number'
+            })) {
                 return;
             }
 
             NocturnalSession.setButtonLoading(btn, { clearText: true });
 
             try {
-                const response = await AppConfig.fetch('patients/register', {
+                const data = await AppConfig.fetch('patients/register', {
                     method: 'POST',
+                    skipAuth: true,
+                    parseJson: true,
                     body: JSON.stringify({ name, email, phone, password })
                 });
-
-                const data = await response.json();
-
-                if (data.success && data.token) {
-                    NocturnalSession.completeAuthSuccess(data, {
+                NocturnalSession.completeAuthSuccess(
+                    NocturnalSession.expectJsonSuccess(data, 'Registration failed', {
+                        isSuccess: function (payload) {
+                            return !!(payload && payload.success && payload.token);
+                        }
+                    }),
+                    {
                         tokenKey: 'patientToken',
                         userKey: 'patient',
                         successContainer: errorDiv,
                         successMessage: 'Registration successful! Redirecting...',
                         redirectUrl: 'patient-dashboard.html',
                         redirectDelayMs: 1500
-                    });
-                } else {
-                    throw new Error(data.message || 'Registration failed');
-                }
+                    }
+                );
             } catch (error) {
                 console.error('Registration error:', error);
                 NocturnalSession.renderFormMessage(
