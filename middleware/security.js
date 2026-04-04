@@ -38,8 +38,16 @@ const securityHeaders = () => {
     scriptSrc.push("'unsafe-eval'");
     scriptSrc.push("'unsafe-inline'"); // Only in dev - production should use nonces
   }
-  // Note: For production inline scripts, use nonces via res.locals.cspNonce
-  // Add nonce dynamically via the nonceMiddleware below
+
+  // In production, generate a per-request nonce so pages that still require
+  // an inline <script nonce="..."> can be allowlisted without 'unsafe-inline'.
+  if (!isDevelopment) {
+    scriptSrc.push((req, res) => {
+      const nonce = generateNonce();
+      res.locals.cspNonce = nonce;
+      return `'nonce-${nonce}'`;
+    });
+  }
 
   return helmet({
     // Content Security Policy

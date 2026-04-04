@@ -19,7 +19,7 @@ const responseHelper = require('../utils/responseHelper');
  */
 exports.getMyAccessTokens = async (req, res, next) => {
   try {
-    const doctorId = req.user._id;
+    const doctorId = req.user.id;
     const tokens = await doctorAccessService.getMyAccessTokens(doctorId);
 
     responseHelper.sendSuccess(res, { tokens }, 'Access tokens loaded');
@@ -35,7 +35,7 @@ exports.getMyAccessTokens = async (req, res, next) => {
  */
 exports.getPatientData = async (req, res, next) => {
   try {
-    const doctorId = req.user._id;
+    const doctorId = req.user.id;
     const { patientId } = req.params;
 
     const data = await doctorAccessService.getPatientDataForDoctor(
@@ -58,7 +58,7 @@ exports.getPatientData = async (req, res, next) => {
  */
 exports.getPatientRecords = async (req, res, next) => {
   try {
-    const doctorId = req.user._id;
+    const doctorId = req.user.id;
     const { patientId } = req.params;
 
     const data = await doctorAccessService.getPatientDataForDoctor(
@@ -81,7 +81,7 @@ exports.getPatientRecords = async (req, res, next) => {
  */
 exports.getPatientMetrics = async (req, res, next) => {
   try {
-    const doctorId = req.user._id;
+    const doctorId = req.user.id;
     const { patientId } = req.params;
 
     const data = await doctorAccessService.getPatientDataForDoctor(
@@ -104,7 +104,7 @@ exports.getPatientMetrics = async (req, res, next) => {
  */
 exports.addDoctorNote = async (req, res, next) => {
   try {
-    const doctorId = req.user._id;
+    const doctorId = req.user.id;
     const { patientId } = req.params;
     const noteData = req.body;
 
@@ -148,7 +148,7 @@ exports.addDoctorNote = async (req, res, next) => {
  */
 exports.getWhoHasAccess = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const tokens = await doctorAccessService.getPatientAccessTokens(patientId);
 
     responseHelper.sendSuccess(res, { accessTokens: tokens }, 'Access tokens loaded');
@@ -164,7 +164,7 @@ exports.getWhoHasAccess = async (req, res, next) => {
  */
 exports.revokeAccessByPatient = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { tokenId } = req.params;
     const { reason } = req.body;
 
@@ -183,7 +183,7 @@ exports.revokeAccessByPatient = async (req, res, next) => {
  */
 exports.getMyAccessHistory = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { page, limit, startDate, endDate } = req.query;
 
     const options = {
@@ -215,7 +215,7 @@ exports.getMyAccessHistory = async (req, res, next) => {
  */
 exports.grantAccess = async (req, res, next) => {
   try {
-    const adminId = req.user._id;
+    const adminId = req.user.id;
     const { patientId, doctorId, bookingId, accessLevel, allowedResources, expiresAt, grantReason } = req.body;
 
     const tokenData = await doctorAccessService.grantAccess({
@@ -243,7 +243,7 @@ exports.grantAccess = async (req, res, next) => {
  */
 exports.revokeAccessByAdmin = async (req, res, next) => {
   try {
-    const adminId = req.user._id;
+    const adminId = req.user.id;
     const { tokenId } = req.params;
     const { reason } = req.body;
 
@@ -359,10 +359,7 @@ exports.getEmergencyData = async (req, res, next) => {
     const data = await emergencySummaryService.getEmergencyDataByToken(qrToken);
 
     if (!data) {
-      return res.status(404).json({
-        success: false,
-        message: 'Emergency data not found or token expired'
-      });
+      return responseHelper.sendNotFound(res, 'Emergency data not found or token expired');
     }
 
     responseHelper.sendSuccess(res, { emergency: data }, 'Emergency data loaded');

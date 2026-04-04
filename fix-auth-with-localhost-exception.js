@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 /**
  * Fix MongoDB Authentication using Localhost Exception
  *

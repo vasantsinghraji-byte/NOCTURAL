@@ -9,6 +9,16 @@ const jwt = require('jsonwebtoken');
 const Patient = require('../models/patient');
 const logger = require('../utils/logger');
 
+const normalizeAuthenticatedUser = (user) => {
+  if (!user) return user;
+
+  if (!user.id && user._id) {
+    user.id = typeof user._id.toString === 'function' ? user._id.toString() : user._id;
+  }
+
+  return user;
+};
+
 /**
  * Protect patient routes - JWT verification for patients only
  */
@@ -61,8 +71,8 @@ exports.protectPatient = async (req, res, next) => {
     }
 
     // Attach patient to request as 'user' for consistency
-    req.user = patient;
-    req.patient = patient; // Also available as req.patient
+    req.user = normalizeAuthenticatedUser(patient);
+    req.patient = req.user; // Also available as req.patient
     req.userType = 'patient'; // Identify user type
 
     next();
@@ -137,11 +147,11 @@ exports.protectBoth = async (req, res, next) => {
     }
 
     // Attach user to request
-    req.user = user;
+    req.user = normalizeAuthenticatedUser(user);
     req.userType = userType;
 
     if (userType === 'patient') {
-      req.patient = user;
+      req.patient = req.user;
     }
 
     next();

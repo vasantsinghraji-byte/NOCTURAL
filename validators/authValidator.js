@@ -5,6 +5,7 @@
 
 const { body, param, query, validationResult } = require('express-validator');
 const logger = require('../utils/logger');
+const { REGISTRATION_ROLES, FIELD_LIMITS } = require('../constants/enums');
 
 /**
  * Validation result handler
@@ -40,7 +41,7 @@ const validateRegister = [
   body('name')
     .trim()
     .notEmpty().withMessage('Name is required')
-    .isLength({ min: 2, max: 100 }).withMessage('Name must be between 2 and 100 characters')
+    .isLength(FIELD_LIMITS.NAME).withMessage(`Name must be between ${FIELD_LIMITS.NAME.min} and ${FIELD_LIMITS.NAME.max} characters`)
     .matches(/^[a-zA-Z\s'-]+$/).withMessage('Name can only contain letters, spaces, hyphens, and apostrophes')
     .escape(),
 
@@ -49,7 +50,7 @@ const validateRegister = [
     .notEmpty().withMessage('Email is required')
     .isEmail().withMessage('Invalid email format')
     .normalizeEmail()
-    .isLength({ max: 255 }).withMessage('Email too long')
+    .isLength({ max: FIELD_LIMITS.EMAIL.max }).withMessage('Email too long')
     .custom((value) => {
       // Block disposable email domains
       const disposableDomains = ['tempmail.com', 'guerrillamail.com', '10minutemail.com'];
@@ -62,8 +63,8 @@ const validateRegister = [
 
   body('password')
     .notEmpty().withMessage('Password is required')
-    .isLength({ min: 8, max: 128 }).withMessage('Password must be between 8 and 128 characters')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]/)
+    .isLength(FIELD_LIMITS.PASSWORD).withMessage(`Password must be between ${FIELD_LIMITS.PASSWORD.min} and ${FIELD_LIMITS.PASSWORD.max} characters`)
+    .matches(FIELD_LIMITS.PASSWORD_PATTERN)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character')
     .not().matches(/^(.)\1+$/).withMessage('Password cannot be all the same character')
     .not().isIn(['password', 'Password123!', '12345678', 'Aa123456!'])
@@ -81,11 +82,11 @@ const validateRegister = [
   body('phone')
     .optional()
     .trim()
-    .matches(/^\+?[1-9]\d{1,14}$/).withMessage('Invalid phone number format (use E.164 format: +1234567890)'),
+    .matches(FIELD_LIMITS.PHONE_E164).withMessage('Invalid phone number format (use E.164 format: +1234567890)'),
 
   body('role')
     .notEmpty().withMessage('Role is required')
-    .isIn(['doctor', 'nurse', 'physiotherapist', 'patient']).withMessage('Invalid role'),
+    .isIn(REGISTRATION_ROLES).withMessage('Invalid role'),
 
   body('dateOfBirth')
     .optional()
@@ -159,8 +160,8 @@ const validateResetPassword = [
 
   body('password')
     .notEmpty().withMessage('Password is required')
-    .isLength({ min: 8, max: 128 }).withMessage('Password must be between 8 and 128 characters')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]/)
+    .isLength(FIELD_LIMITS.PASSWORD).withMessage(`Password must be between ${FIELD_LIMITS.PASSWORD.min} and ${FIELD_LIMITS.PASSWORD.max} characters`)
+    .matches(FIELD_LIMITS.PASSWORD_PATTERN)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
 
   body('confirmPassword')
@@ -184,8 +185,8 @@ const validateChangePassword = [
 
   body('newPassword')
     .notEmpty().withMessage('New password is required')
-    .isLength({ min: 8, max: 128 }).withMessage('Password must be between 8 and 128 characters')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]/)
+    .isLength(FIELD_LIMITS.PASSWORD).withMessage(`Password must be between ${FIELD_LIMITS.PASSWORD.min} and ${FIELD_LIMITS.PASSWORD.max} characters`)
+    .matches(FIELD_LIMITS.PASSWORD_PATTERN)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character')
     .custom((value, { req }) => {
       if (value === req.body.currentPassword) {
@@ -292,21 +293,30 @@ const validateLogout = [
  * Update profile validation
  */
 const validateUpdateProfile = [
+  body('role')
+    .not().exists().withMessage('Role cannot be modified via profile update'),
+  body('password')
+    .not().exists().withMessage('Use the change-password endpoint to update your password'),
+  body('isVerified')
+    .not().exists().withMessage('Verification status cannot be modified'),
+  body('email')
+    .not().exists().withMessage('Email cannot be changed via profile update'),
+
   body('name')
     .optional()
     .trim()
-    .isLength({ min: 2, max: 100 }).withMessage('Name must be between 2 and 100 characters')
+    .isLength(FIELD_LIMITS.NAME).withMessage(`Name must be between ${FIELD_LIMITS.NAME.min} and ${FIELD_LIMITS.NAME.max} characters`)
     .matches(/^[a-zA-Z\s'-]+$/).withMessage('Name can only contain letters, spaces, hyphens, and apostrophes'),
 
   body('phone')
     .optional()
     .trim()
-    .matches(/^\+?[1-9]\d{1,14}$/).withMessage('Invalid phone number format'),
+    .matches(FIELD_LIMITS.PHONE_E164).withMessage('Invalid phone number format'),
 
   body('bio')
     .optional()
     .trim()
-    .isLength({ max: 500 }).withMessage('Bio cannot exceed 500 characters'),
+    .isLength({ max: FIELD_LIMITS.BIO.max }).withMessage('Bio cannot exceed 500 characters'),
 
   handleValidationErrors
 ];

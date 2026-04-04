@@ -3,7 +3,7 @@
  * Caches MongoDB query results in Redis for improved performance
  */
 
-const { redisClient } = require('../config/redis');
+const { getRedisClient } = require('../config/redis');
 const logger = require('../utils/logger');
 
 // Default cache TTL (Time To Live) in seconds
@@ -11,6 +11,21 @@ const DEFAULT_CACHE_TTL = 300; // 5 minutes
 
 // Cache key prefix
 const CACHE_PREFIX = 'query:';
+let cachedRedisClient = null;
+
+const getReadyRedisClient = async () => {
+  if (cachedRedisClient && cachedRedisClient.status === 'ready') {
+    return cachedRedisClient;
+  }
+
+  const redisClient = await getRedisClient();
+  if (redisClient && redisClient.status === 'ready') {
+    cachedRedisClient = redisClient;
+    return redisClient;
+  }
+
+  return null;
+};
 
 /**
  * Generate cache key from request
@@ -47,6 +62,8 @@ const queryCache = (options = {}) => {
   } = options;
 
   return async (req, res, next) => {
+    const redisClient = await getReadyRedisClient();
+
     // Skip caching if:
     // 1. Redis is not available
     // 2. Request is not GET
@@ -164,7 +181,9 @@ const removeFields = (obj, fields) => {
  * Invalidate cache by pattern
  */
 const invalidateCache = async (pattern) => {
-  if (!redisClient || redisClient.status !== 'ready') {
+  const redisClient = await getReadyRedisClient();
+
+  if (!redisClient) {
     return;
   }
 
@@ -204,7 +223,9 @@ const invalidateResourceCache = async (resource) => {
  * Clear all query cache
  */
 const clearAllCache = async () => {
-  if (!redisClient || redisClient.status !== 'ready') {
+  const redisClient = await getReadyRedisClient();
+
+  if (!redisClient) {
     return;
   }
 
@@ -228,7 +249,9 @@ const clearAllCache = async () => {
  * Get cache statistics
  */
 const getCacheStats = async () => {
-  if (!redisClient || redisClient.status !== 'ready') {
+  const redisClient = await getReadyRedisClient();
+
+  if (!redisClient) {
     return null;
   }
 

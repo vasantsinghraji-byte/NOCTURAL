@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 /**
  * Verify and Fix MongoDB Authentication
  *

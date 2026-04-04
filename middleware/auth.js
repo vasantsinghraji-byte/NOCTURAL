@@ -3,6 +3,16 @@ const User = require('../models/user');
 const { isValidRole } = require('../constants/roles');
 const logger = require('../utils/logger');
 
+const normalizeAuthenticatedUser = (user) => {
+  if (!user) return user;
+
+  if (!user.id && user._id) {
+    user.id = typeof user._id.toString === 'function' ? user._id.toString() : user._id;
+  }
+
+  return user;
+};
+
 // Protect routes - SECURED with proper JWT verification
 exports.protect = async (req, res, next) => {
   try {
@@ -53,7 +63,7 @@ exports.protect = async (req, res, next) => {
     }
 
     // Attach user to request
-    req.user = user;
+    req.user = normalizeAuthenticatedUser(user);
     next();
   } catch (error) {
     // Handle specific JWT errors

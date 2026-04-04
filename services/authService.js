@@ -10,6 +10,16 @@ const { generateToken } = require('../middleware/auth');
 const logger = require('../utils/logger');
 const { HTTP_STATUS, SUCCESS_MESSAGE, ERROR_MESSAGE } = require('../constants');
 
+const ALLOWED_PROFILE_FIELDS = [
+  'name',
+  'phone',
+  'location',
+  'professional',
+  'notificationSettings',
+  'isAvailableForShifts',
+  'specialty'
+];
+
 class AuthService {
   /**
    * Register a new user
@@ -185,9 +195,10 @@ class AuthService {
       };
     }
 
-    // Update fields
-    Object.keys(updateData).forEach(key => {
-      user[key] = updateData[key];
+    ALLOWED_PROFILE_FIELDS.forEach(key => {
+      if (Object.prototype.hasOwnProperty.call(updateData, key)) {
+        user[key] = updateData[key];
+      }
     });
 
     // Recalculate profile strength
