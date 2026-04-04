@@ -53,15 +53,17 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --production
+        run: npm ci --omit=dev
 
       - name: Create deployment package
         run: |
-          mkdir -p deploy
-          cp -r . deploy/
-          cd deploy
-          rm -rf .git .github node_modules coverage tests
-          tar -czf ../nocturnal-staging.tar.gz .
+          tar -czf nocturnal-staging.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='coverage' \
+            --exclude='tests' \
+            .
 
       - name: Deploy to staging server
         run: |
@@ -108,18 +110,20 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --production
+        run: npm ci --omit=dev
 
       - name: Build production assets
         run: npm run build:prod || npm run build || echo "No build required"
 
       - name: Create deployment package
         run: |
-          mkdir -p deploy
-          cp -r . deploy/
-          cd deploy
-          rm -rf .git .github node_modules coverage tests
-          tar -czf ../nocturnal-production.tar.gz .
+          tar -czf nocturnal-production.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='coverage' \
+            --exclude='tests' \
+            .
 
       - name: Backup current production
         run: |
@@ -183,15 +187,17 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --production
+        run: npm ci --omit=dev
 
       - name: Create rollback deployment package
         run: |
-          mkdir -p deploy
-          cp -r . deploy/
-          cd deploy
-          rm -rf .git .github node_modules coverage tests
-          tar -czf ../nocturnal-rollback.tar.gz .
+          tar -czf nocturnal-rollback.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='coverage' \
+            --exclude='tests' \
+            .
 
       - name: Deploy rollback package
         run: |
