@@ -22,6 +22,7 @@ describe('Frontend Auth Form Helper', () => {
     expect(frontendSessionSrc).toContain('function resetButtonState(button, options)');
     expect(frontendSessionSrc).toContain('function getLoginErrorMessage(error, overrides)');
     expect(frontendSessionSrc).toContain('function getRegistrationErrorMessage(error, overrides)');
+    expect(frontendSessionSrc).toContain('function expectJsonSuccess(data, fallbackMessage, options)');
     expect(frontendSessionSrc).toContain('function completeAuthSuccess(authData, options)');
     expect(frontendSessionSrc).toContain('function validateRequiredValue(value, container, message, options)');
     expect(frontendSessionSrc).toContain('function validatePasswordMatch(password, confirmPassword, container, options)');
@@ -33,6 +34,7 @@ describe('Frontend Auth Form Helper', () => {
     expect(frontendSessionSrc).toContain('if (config.loadingHtml)');
     expect(frontendSessionSrc).toContain('if (config.htmlContent)');
     expect(frontendSessionSrc).toContain("if (typeof config.onInvalid === 'function')");
+    expect(frontendSessionSrc).toContain('isSuccess: function (payload) {');
     expect(frontendSessionSrc).toContain("invalidCredentialsMessage: 'Invalid email or password. Please try again.'");
     expect(frontendSessionSrc).toContain("defaultMessage: 'Registration failed. Please try again.'");
     expect(frontendSessionSrc).toContain("message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character.'");
@@ -46,7 +48,9 @@ describe('Frontend Auth Form Helper', () => {
     expect(landingSrc).toContain('NocturnalSession.validatePasswordMatch(password, confirmPassword, errorDiv');
     expect(landingSrc).toContain('NocturnalSession.setButtonLoading(btn)');
     expect(landingSrc).toContain('NocturnalSession.resetButtonState(btn)');
-    expect(landingSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(landingSrc).toContain('NocturnalSession.expectJsonSuccess(data, \'Login failed\'');
+    expect(landingSrc).toContain('NocturnalSession.expectJsonSuccess(data, \'Registration failed\'');
+    expect(landingSrc).toContain('NocturnalSession.completeAuthSuccess(');
     expect(landingSrc).toContain('useRoleRedirect: true');
 
     expect(sharedRegisterSrc).toContain('<script src="/js/frontend-session.js"></script>');
@@ -58,7 +62,8 @@ describe('Frontend Auth Form Helper', () => {
     expect(sharedRegisterSrc).toContain('NocturnalSession.validatePasswordMatch(password, confirmPassword, errorDiv');
     expect(sharedRegisterSrc).toContain('NocturnalSession.setButtonLoading(btn)');
     expect(sharedRegisterSrc).toContain('NocturnalSession.resetButtonState(btn)');
-    expect(sharedRegisterSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(sharedRegisterSrc).toContain('NocturnalSession.expectJsonSuccess(data, \'Registration failed\'');
+    expect(sharedRegisterSrc).toContain('NocturnalSession.completeAuthSuccess(');
     expect(sharedRegisterSrc).toContain('skipAuth: true');
     expect(sharedRegisterSrc).toContain('parseJson: true');
     expect(sharedRegisterSrc).toContain("redirectUrl: 'doctor-onboarding.html'");
@@ -69,7 +74,8 @@ describe('Frontend Auth Form Helper', () => {
     expect(patientLoginSrc).toContain('NocturnalSession.getLoginErrorMessage(error');
     expect(patientLoginSrc).toContain("NocturnalSession.setButtonLoading(btn, { clearText: true })");
     expect(patientLoginSrc).toContain("NocturnalSession.resetButtonState(btn, { textContent: 'Login' })");
-    expect(patientLoginSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(patientLoginSrc).toContain('NocturnalSession.expectJsonSuccess(data, \'Login failed\'');
+    expect(patientLoginSrc).toContain('NocturnalSession.completeAuthSuccess(');
     expect(patientLoginSrc).toContain('skipAuth: true');
     expect(patientLoginSrc).toContain('parseJson: true');
     expect(patientLoginSrc).toContain("tokenKey: 'patientToken'");
@@ -80,7 +86,8 @@ describe('Frontend Auth Form Helper', () => {
     expect(providerLoginSrc).toContain("{ className: 'message error' }");
     expect(providerLoginSrc).toContain("NocturnalSession.setButtonLoading(btn, { clearText: true })");
     expect(providerLoginSrc).toContain("NocturnalSession.resetButtonState(btn, { textContent: 'Login' })");
-    expect(providerLoginSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(providerLoginSrc).toContain('NocturnalSession.expectJsonSuccess(data, \'Login failed\'');
+    expect(providerLoginSrc).toContain('NocturnalSession.completeAuthSuccess(authData, {');
     expect(providerLoginSrc).toContain('skipAuth: true');
     expect(providerLoginSrc).toContain('parseJson: true');
     expect(providerLoginSrc).toContain("successClassName: 'message success'");
@@ -95,7 +102,8 @@ describe('Frontend Auth Form Helper', () => {
     expect(patientRegisterSrc).toContain('uppercase, lowercase, number & special character');
     expect(patientRegisterSrc).toContain("NocturnalSession.setButtonLoading(btn, { clearText: true })");
     expect(patientRegisterSrc).toContain("NocturnalSession.resetButtonState(btn, { textContent: 'Create Account' })");
-    expect(patientRegisterSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(patientRegisterSrc).toContain('NocturnalSession.expectJsonSuccess(data, \'Registration failed\'');
+    expect(patientRegisterSrc).toContain('NocturnalSession.completeAuthSuccess(');
     expect(patientRegisterSrc).toContain('skipAuth: true');
     expect(patientRegisterSrc).toContain('parseJson: true');
     expect(patientRegisterSrc).toContain("redirectUrl: 'patient-dashboard.html'");
@@ -108,11 +116,14 @@ describe('Frontend Auth Form Helper', () => {
     expect(doctorOnboardingSrc).toContain("loadingHtml: '<i class=\"fas fa-spinner fa-spin\"></i> Processing...'");
     expect(doctorOnboardingSrc).toContain('NocturnalSession.resetButtonState(submitBtn)');
     expect(doctorOnboardingSrc).toContain("const data = await AppConfig.fetch('auth/register', {");
+    expect(doctorOnboardingSrc).toContain('NocturnalSession.expectJsonSuccess(data, \'Registration failed\'');
     expect(doctorOnboardingSrc).toContain('skipAuth: true');
     expect(doctorOnboardingSrc).toContain('parseJson: true');
     expect(doctorOnboardingSrc).toContain("const data = await AppConfig.fetch('auth/me', {");
-    expect(doctorOnboardingSrc).toContain("NocturnalSession.persistSession(data.user, 'doctor')");
+    expect(doctorOnboardingSrc).toContain('NocturnalSession.expectJsonSuccess(data, \'Failed to update profile\'');
+    expect(doctorOnboardingSrc).toContain("NocturnalSession.persistSession(authData.user, 'doctor')");
     expect(doctorOnboardingSrc).toContain("const result = await AppConfig.fetch(endpoint, {");
+    expect(doctorOnboardingSrc).toContain('NocturnalSession.expectJsonSuccess(result, `Failed to upload ${type}: Upload failed`)');
     expect(doctorOnboardingSrc).not.toContain('password.length < 6');
     expect(doctorOnboardingSrc).not.toContain('${API_URL}${endpoint}');
   });
