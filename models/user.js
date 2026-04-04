@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { encrypt, decrypt } = require('../utils/encryption');
+const { STAFF_ROLES, SPECIALIZATIONS, EMPLOYMENT_STATUSES, SHIFT_PREFERENCES } = require('../constants/enums');
 
 const UserSchema = new mongoose.Schema({
   // Basic Information
@@ -29,7 +30,7 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['doctor', 'nurse', 'physiotherapist', 'admin'],
+    enum: STAFF_ROLES,
     required: true
   },
 
@@ -52,26 +53,7 @@ const UserSchema = new mongoose.Schema({
     stateMedicalCouncil: String,
     primarySpecialization: {
       type: String,
-      enum: [
-        'Internal Medicine',
-        'Emergency Medicine',
-        'General Surgery',
-        'Anaesthesiology',
-        'Intensive Care / Critical Care Medicine',
-        'Obstetrics & Gynaecology',
-        'Orthopaedics',
-        'Urology',
-        'Neurosurgery',
-        'ENT (Otolaryngology)',
-        'Cardiothoracic Surgery',
-        'General Paediatrics',
-        'Neonatology',
-        'General Psychiatry',
-        'Radiology',
-        'Pathology / Laboratory Medicine',
-        'Palliative Medicine',
-        'Other'
-      ]
+      enum: SPECIALIZATIONS
     },
     secondarySpecializations: [{
       type: String
@@ -79,7 +61,7 @@ const UserSchema = new mongoose.Schema({
     yearsOfExperience: Number,
     currentEmploymentStatus: {
       type: String,
-      enum: ['Full-time', 'Part-time', 'Freelance', 'Between Jobs', 'Student']
+      enum: EMPLOYMENT_STATUSES
     },
 
     // Skills
@@ -90,7 +72,7 @@ const UserSchema = new mongoose.Schema({
     // Preferences
     preferredShiftTimes: [{
       type: String,
-      enum: ['Morning', 'Evening', 'Night', 'Weekend', '24hr']
+      enum: SHIFT_PREFERENCES
     }],
     serviceRadius: {
       type: Number, // in kilometers

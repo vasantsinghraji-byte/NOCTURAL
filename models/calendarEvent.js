@@ -193,7 +193,6 @@ calendarEventSchema.methods.detectConflicts = async function() {
         }
     }
 
-    await this.save();
     return this.conflicts;
 };
 

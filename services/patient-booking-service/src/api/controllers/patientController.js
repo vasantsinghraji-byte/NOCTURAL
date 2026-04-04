@@ -96,7 +96,7 @@ class PatientController {
         error: error.message
       });
 
-      res.status(404).json({
+      res.status(error.statusCode || 500).json({
         success: false,
         message: error.message
       });
@@ -124,7 +124,7 @@ class PatientController {
         error: error.message
       });
 
-      res.status(400).json({
+      res.status(error.statusCode || 400).json({
         success: false,
         message: error.message
       });
@@ -167,7 +167,7 @@ class PatientController {
         error: error.message
       });
 
-      res.status(400).json({
+      res.status(error.statusCode || 400).json({
         success: false,
         message: error.message
       });
@@ -195,7 +195,7 @@ class PatientController {
         error: error.message
       });
 
-      res.status(400).json({
+      res.status(error.statusCode || 400).json({
         success: false,
         message: error.message
       });
@@ -220,7 +220,7 @@ class PatientController {
         error: error.message
       });
 
-      res.status(400).json({
+      res.status(error.statusCode || 400).json({
         success: false,
         message: error.message
       });

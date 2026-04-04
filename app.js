@@ -53,7 +53,19 @@ const app = express();
 // Skip heavy middleware in test environment
 const isTest = process.env.NODE_ENV === 'test';
 
-// 0. Enforce HTTPS in production (redirect HTTP to HTTPS)
+// 0. Global request timeout — prevent stalled requests from holding connections open
+const REQUEST_TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT_MS) || 30000; // 30 seconds default
+app.use((req, res, next) => {
+  req.setTimeout(REQUEST_TIMEOUT_MS, () => {
+    if (!res.headersSent) {
+      logger.warn('Request timed out', { method: req.method, path: req.path, ip: req.ip });
+      res.status(408).json({ success: false, message: 'Request timed out' });
+    }
+  });
+  next();
+});
+
+// 1. Enforce HTTPS in production (redirect HTTP to HTTPS)
 if (!isTest) {
   app.use(enforceHTTPS);
 }
@@ -122,8 +134,18 @@ if (!isTest) {
   app.use('/api/v1/security', strictRateLimiter);
 }
 
+// Reject oversized requests early — refuse to read bodies larger than allowed
+const MAX_CONTENT_LENGTH = parseInt(process.env.MAX_CONTENT_LENGTH) || 1048576; // 1MB default
+app.use((req, res, next) => {
+  const contentLength = parseInt(req.headers['content-length'], 10);
+  if (contentLength && contentLength > MAX_CONTENT_LENGTH) {
+    return res.status(413).json({ success: false, message: 'Request entity too large' });
+  }
+  next();
+});
+
 // Body parser with size limits
-app.use(express.json({ limit: '10kb' })); // Limit payload size
+app.use(express.json({ limit: '10kb' })); // Limit JSON payload size
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
 // Enhanced NoSQL injection sanitization

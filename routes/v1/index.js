@@ -5,6 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
+const logger = require('../../utils/logger');
 
 // Import existing routes (they are now v1 routes)
 const authRoutes = require('../auth');
@@ -25,7 +26,6 @@ const paymentsRoutes = require('../payments');
 const metricsRouter = require('../admin/metrics');
 const patientRoutes = require('../patient');
 const bookingRoutes = require('../booking');
-const b2cPaymentRoutes = require('../payment');
 
 // Health Dashboard routes (Patient Analytics & Health History)
 const patientDashboardRoutes = require('../patientDashboard');
@@ -75,7 +75,20 @@ router.use('/security', securityRoutes);
 // B2C routes
 router.use('/patients', patientRoutes);
 router.use('/bookings', bookingRoutes);
-router.use('/payments-b2c', b2cPaymentRoutes);
+
+const hasRazorpayCredentials = !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+const isB2CPaymentEnabled = hasRazorpayCredentials && process.env.RAZORPAY_ENABLED !== 'false';
+
+if (process.env.RAZORPAY_ENABLED === 'true' && !hasRazorpayCredentials) {
+  logger.warn('RAZORPAY_ENABLED is set but RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET are missing — B2C payment routes will not be loaded');
+}
+
+if (isB2CPaymentEnabled) {
+  const b2cPaymentRoutes = require('../payment');
+  router.use('/payments-b2c', b2cPaymentRoutes);
+} else {
+  logger.info('Skipping B2C payment route registration because Razorpay is disabled or unconfigured');
+}
 
 // Patient Health Dashboard routes
 router.use('/patient-dashboard', patientDashboardRoutes);

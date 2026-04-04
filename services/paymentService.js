@@ -5,23 +5,41 @@
  * Handles Razorpay integration, order creation, and payment verification
  */
 
-const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const Booking = require('../models/nurseBooking');
 const logger = require('../utils/logger');
 const { HTTP_STATUS } = require('../constants');
 
-// Validate Razorpay credentials at startup
-if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-  logger.error('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables are required');
-  throw new Error('Missing Razorpay credentials. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.');
-}
+let razorpayClient = null;
 
-// Initialize Razorpay instance
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+function getRazorpayClient() {
+  if (razorpayClient) return razorpayClient;
+
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    logger.error('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables are required for payment operations');
+    throw {
+      statusCode: HTTP_STATUS.SERVICE_UNAVAILABLE,
+      message: 'Missing Razorpay credentials. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.'
+    };
+  }
+
+  let Razorpay;
+  try {
+    Razorpay = require('razorpay');
+  } catch (err) {
+    logger.error('razorpay package is not installed', { error: err.message });
+    throw {
+      statusCode: HTTP_STATUS.SERVICE_UNAVAILABLE,
+      message: 'Payment service unavailable. Required package not installed.'
+    };
+  }
+
+  razorpayClient = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+  });
+  return razorpayClient;
+}
 
 class PaymentService {
   /**
@@ -31,6 +49,7 @@ class PaymentService {
    * @returns {Promise<Object>} Order details
    */
   async createOrder(bookingId, userId) {
+    const razorpay = getRazorpayClient();
     const booking = await Booking.findById(bookingId);
 
     if (!booking) {
@@ -183,6 +202,7 @@ class PaymentService {
    * @returns {Promise<Object>} Verification result
    */
   async verifyPayment(paymentData, userId) {
+    const razorpay = getRazorpayClient();
     const {
       razorpay_order_id,
       razorpay_payment_id,
@@ -313,15 +333,24 @@ class PaymentService {
    * Handle payment failure
    * @param {String} bookingId - Booking ID
    * @param {Object} error - Error details
+   * @param {String} userId - User ID (patient)
    * @returns {Promise<Object>} Updated booking
    */
-  async handlePaymentFailure(bookingId, error) {
+  async handlePaymentFailure(bookingId, error, userId) {
     const booking = await Booking.findById(bookingId);
 
     if (!booking) {
       throw {
         statusCode: HTTP_STATUS.NOT_FOUND,
         message: 'Booking not found'
+      };
+    }
+
+    // Verify booking belongs to requesting patient
+    if (booking.patient.toString() !== userId) {
+      throw {
+        statusCode: HTTP_STATUS.FORBIDDEN,
+        message: 'Unauthorized access to booking'
       };
     }
 
@@ -385,6 +414,7 @@ class PaymentService {
    * @returns {Promise<Object>} Refund result
    */
   async processRefund(bookingId, amount = null) {
+    const razorpay = getRazorpayClient();
     const booking = await Booking.findById(bookingId);
 
     if (!booking) {

@@ -8,6 +8,10 @@ const { createLogger } = require('@nocturnal/shared');
 
 const logger = createLogger({ serviceName: 'patient-booking-service' });
 
+// In-memory cache for service catalog data (changes infrequently)
+const SERVICE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const serviceCache = new Map();
+
 class ServiceCatalogService {
   /**
    * Get all active services
@@ -135,7 +139,19 @@ class ServiceCatalogService {
    * Get service pricing
    */
   async getServicePricing(serviceId) {
-    const service = await ServiceCatalog.findById(serviceId);
+    // Check cache first — catalog data changes infrequently
+    const cacheKey = `pricing:${serviceId}`;
+    const cached = serviceCache.get(cacheKey);
+
+    let service;
+    if (cached && Date.now() - cached.timestamp < SERVICE_CACHE_TTL_MS) {
+      service = cached.data;
+    } else {
+      service = await ServiceCatalog.findById(serviceId).lean();
+      if (service) {
+        serviceCache.set(cacheKey, { data: service, timestamp: Date.now() });
+      }
+    }
 
     if (!service) {
       throw new Error('Service not found');

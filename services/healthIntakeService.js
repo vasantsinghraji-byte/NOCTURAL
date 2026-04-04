@@ -17,6 +17,7 @@ const {
   INTAKE_STATUS
 } = require('../constants/healthConstants');
 const { NotFoundError, ValidationError } = require('../utils/errors');
+const notificationService = require('./notificationService');
 
 class HealthIntakeService {
   /**
@@ -64,7 +65,25 @@ class HealthIntakeService {
       triggerBookingId
     });
 
-    // TODO: Send notification to patient to complete intake
+    // Send notification to patient to complete intake
+    try {
+      await notificationService.createNotification({
+        user: patientId,
+        recipientModel: 'Patient',
+        type: 'INTAKE_REQUIRED',
+        title: 'Health Intake Required',
+        message: 'Please complete your health intake form to proceed with your booking.',
+        priority: 'HIGH',
+        actionUrl: `/patient/intake/${patientId}`,
+        actionLabel: 'Complete Intake',
+        metadata: { triggerBookingId }
+      });
+    } catch (notifyError) {
+      logger.warn('Failed to send intake notification', {
+        patientId,
+        error: notifyError.message
+      });
+    }
 
     return {
       started: true,
@@ -186,7 +205,29 @@ class HealthIntakeService {
       recordId: record._id
     });
 
-    // TODO: Notify admins that a new intake is pending assignment
+    // Notify admins that a new intake is pending assignment
+    try {
+      const admins = await User.find({ role: 'admin', isActive: true }).select('_id').lean();
+      await Promise.allSettled(
+        admins.map(admin =>
+          notificationService.createNotification({
+            user: admin._id,
+            type: 'INTAKE_SUBMITTED',
+            title: 'New Intake Pending Assignment',
+            message: 'Patient intake has been submitted and requires doctor assignment.',
+            priority: 'HIGH',
+            actionUrl: `/admin/intake/${patientId}`,
+            actionLabel: 'Assign Doctor',
+            metadata: { patientId, recordId: record._id }
+          })
+        )
+      );
+    } catch (notifyError) {
+      logger.warn('Failed to send admin intake notifications', {
+        patientId,
+        error: notifyError.message
+      });
+    }
 
     return record;
   }
@@ -234,7 +275,25 @@ class HealthIntakeService {
       adminId
     });
 
-    // TODO: Notify the assigned doctor
+    // Notify the assigned doctor
+    try {
+      await notificationService.createNotification({
+        user: doctorId,
+        type: 'INTAKE_ASSIGNED',
+        title: 'Intake Review Assigned',
+        message: 'A patient health intake has been assigned to you for review.',
+        priority: 'HIGH',
+        actionUrl: `/doctor/intake/${intakeId}`,
+        actionLabel: 'Review Intake',
+        metadata: { intakeId, assignedBy: adminId }
+      });
+    } catch (notifyError) {
+      logger.warn('Failed to send doctor assignment notification', {
+        doctorId,
+        intakeId,
+        error: notifyError.message
+      });
+    }
 
     return record;
   }
@@ -300,7 +359,26 @@ class HealthIntakeService {
       patientId: record.patient
     });
 
-    // TODO: Notify patient of approval
+    // Notify patient of approval
+    try {
+      await notificationService.createNotification({
+        user: record.patient,
+        recipientModel: 'Patient',
+        type: 'INTAKE_APPROVED',
+        title: 'Health Intake Approved',
+        message: 'Your health intake has been reviewed and approved by a doctor. You are all set!',
+        priority: 'MEDIUM',
+        actionUrl: `/patient/intake/${intakeId}/status`,
+        actionLabel: 'View Status',
+        metadata: { intakeId, approvedBy: doctorId }
+      });
+    } catch (notifyError) {
+      logger.warn('Failed to send patient approval notification', {
+        patientId: record.patient,
+        intakeId,
+        error: notifyError.message
+      });
+    }
 
     return record;
   }
@@ -327,7 +405,24 @@ class HealthIntakeService {
       changesCount: changesRequired.length
     });
 
-    // TODO: Notify patient of required changes
+    // Notify patient of required changes
+    try {
+      await notificationService.createNotification({
+        user: record.patient,
+        recipientModel: 'Patient',
+        type: 'INTAKE_CHANGES_REQUIRED',
+        title: 'Changes Required on Your Health Intake',
+        message: `A doctor has reviewed your health intake and requested ${changesRequired.length} change(s). Please update and resubmit.`,
+        priority: 'HIGH',
+        actionUrl: `/patient/intake/${intakeId}/edit`,
+        actionLabel: 'View Required Changes',
+        metadata: { intakeId, requestedBy: doctorId, changesCount: changesRequired.length }
+      });
+    } catch (notifyError) {
+      logger.warn('Failed to send patient changes-required notification', {
+        patientId: record.patient, intakeId, error: notifyError.message
+      });
+    }
 
     return record;
   }
@@ -353,7 +448,24 @@ class HealthIntakeService {
       reason: rejectionReason
     });
 
-    // TODO: Notify patient of rejection
+    // Notify patient of rejection
+    try {
+      await notificationService.createNotification({
+        user: record.patient,
+        recipientModel: 'Patient',
+        type: 'INTAKE_REJECTED',
+        title: 'Health Intake Not Approved',
+        message: `Your health intake has been reviewed and was not approved. Reason: ${rejectionReason}`,
+        priority: 'HIGH',
+        actionUrl: `/patient/intake/${intakeId}/status`,
+        actionLabel: 'View Details',
+        metadata: { intakeId, rejectedBy: doctorId, reason: rejectionReason }
+      });
+    } catch (notifyError) {
+      logger.warn('Failed to send patient rejection notification', {
+        patientId: record.patient, intakeId, error: notifyError.message
+      });
+    }
 
     return record;
   }

@@ -6,7 +6,7 @@
  */
 
 const patientService = require('../services/patientService');
-const { HTTP_STATUS, SUCCESS_MESSAGE } = require('../constants');
+const { SUCCESS_MESSAGE } = require('../constants');
 const responseHelper = require('../utils/responseHelper');
 
 /**
@@ -180,10 +180,7 @@ exports.verifyPassword = async (req, res, next) => {
     const { password } = req.body;
 
     if (!password) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        message: 'Password is required'
-      });
+      return responseHelper.sendBadRequest(res, 'Password is required');
     }
 
     const isValid = await patientService.verifyPassword(req.user.id, password);

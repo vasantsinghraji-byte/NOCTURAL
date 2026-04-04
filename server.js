@@ -10,6 +10,10 @@ const path = require('path');
 const fs = require('fs');
 const mime = require('mime-types');
 const swaggerUi = require('swagger-ui-express');
+
+// Load environment variables before importing env-sensitive local modules.
+dotenv.config();
+
 const swaggerSpec = require('./config/swagger');
 const logger = require('./utils/logger');
 const metricsRouter = require('./routes/admin/metrics');
@@ -37,9 +41,6 @@ const {
   preventParameterPollution,
   enforceHTTPS
 } = require('./middleware/security');
-
-// Load environment variables (don't override existing env vars in production)
-dotenv.config();
 
 // Validate environment variables at startup (fail fast if misconfigured)
 const { validateEnvironment } = require('./config/validateEnv');

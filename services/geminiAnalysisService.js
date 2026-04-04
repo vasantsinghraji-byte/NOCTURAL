@@ -23,7 +23,7 @@ const initializeClient = () => {
   if (!genAI) {
     try {
       genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-1.5-flash' });
       logger.info('Gemini AI client initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize Gemini client', { error: error.message });
@@ -132,7 +132,12 @@ const analyzeReport = async (filePath, mimeType) => {
       throw new Error('Failed to extract JSON from Gemini response');
     }
 
-    const analysis = JSON.parse(jsonMatch[0]);
+    let analysis;
+    try {
+      analysis = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      throw new Error('Failed to parse JSON from Gemini response: ' + parseError.message);
+    }
 
     return {
       success: true,
@@ -184,7 +189,12 @@ const analyzeMultipleFiles = async (files) => {
       throw new Error('Failed to extract JSON from Gemini response');
     }
 
-    const analysis = JSON.parse(jsonMatch[0]);
+    let analysis;
+    try {
+      analysis = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      throw new Error('Failed to parse JSON from Gemini response: ' + parseError.message);
+    }
 
     return {
       success: true,
@@ -259,7 +269,12 @@ const analyzeFromUrl = async (url, mimeType) => {
       throw new Error('Failed to extract JSON from Gemini response');
     }
 
-    const analysis = JSON.parse(jsonMatch[0]);
+    let analysis;
+    try {
+      analysis = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      throw new Error('Failed to parse JSON from Gemini response: ' + parseError.message);
+    }
 
     return {
       success: true,

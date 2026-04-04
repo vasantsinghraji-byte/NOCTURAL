@@ -81,9 +81,30 @@ const createReport = async (patientId, reportData, files) => {
 
   await report.save();
 
-  // Trigger async AI analysis
-  triggerAIAnalysis(report._id).catch(err => {
+  // Trigger async AI analysis — status tracked via report.status and report.aiAnalysis
+  triggerAIAnalysis(report._id).catch(async (err) => {
     logger.error('Failed to trigger AI analysis', { reportId: report._id, error: err.message });
+    // Ensure report reflects the failure if triggerAIAnalysis crashed before updating status
+    try {
+      const current = await InvestigationReport.findById(report._id);
+      if (current && current.status === INVESTIGATION_REPORT_STATUS.UPLOADED) {
+        current.status = INVESTIGATION_REPORT_STATUS.AI_FAILED;
+        current.aiAnalysis = {
+          status: 'FAILED',
+          error: {
+            code: 'TRIGGER_FAILED',
+            message: err.message,
+            retryable: true
+          }
+        };
+        await current.save();
+      }
+    } catch (updateErr) {
+      logger.error('Failed to update report status after AI trigger failure', {
+        reportId: report._id,
+        error: updateErr.message
+      });
+    }
   });
 
   return report;
@@ -168,11 +189,18 @@ const triggerAIAnalysis = async (reportId) => {
     await report.save();
 
     // Notify patient of analysis completion
+    let notificationFailed = false;
     if (report.status === INVESTIGATION_REPORT_STATUS.AI_ANALYZED) {
-      await notifyPatientAnalysisComplete(report);
+      try {
+        await notifyPatientAnalysisComplete(report);
+      } catch {
+        notificationFailed = true;
+      }
     }
 
-    return report;
+    const result = report.toObject ? report.toObject() : report;
+    if (notificationFailed) result.notificationFailed = true;
+    return result;
   } catch (error) {
     logger.error('AI analysis failed', { reportId, error: error.message });
 
@@ -276,11 +304,18 @@ const requestDoctorReview = async (reportId, patientId, options) => {
   await report.save();
 
   // Notify assigned doctor if applicable
+  let notificationFailed = false;
   if (doctorReview.assignedTo) {
-    await notifyDoctorNewReview(report, doctorReview.assignedTo);
+    try {
+      await notifyDoctorNewReview(report, doctorReview.assignedTo);
+    } catch {
+      notificationFailed = true;
+    }
   }
 
-  return report;
+  const result = report.toObject ? report.toObject() : report;
+  if (notificationFailed) result.notificationFailed = true;
+  return result;
 };
 
 /**
@@ -349,9 +384,16 @@ const submitDoctorReview = async (reportId, doctorId, reviewData) => {
   await report.save();
 
   // Notify patient
-  await notifyPatientReviewComplete(report);
+  let notificationFailed = false;
+  try {
+    await notifyPatientReviewComplete(report);
+  } catch {
+    notificationFailed = true;
+  }
 
-  return report;
+  const result = report.toObject ? report.toObject() : report;
+  if (notificationFailed) result.notificationFailed = true;
+  return result;
 };
 
 /**
@@ -423,11 +465,18 @@ const askQuestion = async (reportId, patientId, question) => {
   await report.save();
 
   // Notify doctor of new question
+  let notificationFailed = false;
   if (report.doctorReview?.assignedTo) {
-    await notifyDoctorNewQuestion(report, report.doctorReview.assignedTo);
+    try {
+      await notifyDoctorNewQuestion(report, report.doctorReview.assignedTo);
+    } catch {
+      notificationFailed = true;
+    }
   }
 
-  return report;
+  const result = report.toObject ? report.toObject() : report;
+  if (notificationFailed) result.notificationFailed = true;
+  return result;
 };
 
 /**
@@ -455,9 +504,16 @@ const answerQuestion = async (reportId, questionId, doctorId, answer) => {
   await report.save();
 
   // Notify patient
-  await notifyPatientQuestionAnswered(report, question);
+  let notificationFailed = false;
+  try {
+    await notifyPatientQuestionAnswered(report, question);
+  } catch {
+    notificationFailed = true;
+  }
 
-  return report;
+  const result = report.toObject ? report.toObject() : report;
+  if (notificationFailed) result.notificationFailed = true;
+  return result;
 };
 
 /**
@@ -556,7 +612,8 @@ const notifyPatientAnalysisComplete = async (report) => {
       data: { reportId: report._id }
     });
   } catch (err) {
-    logger.error('Failed to send analysis complete notification', { error: err.message });
+    logger.error('Failed to send analysis complete notification', { error: err.message, reportId: report._id });
+    throw err;
   }
 };
 
@@ -571,7 +628,8 @@ const notifyDoctorNewReview = async (report, doctorId) => {
       data: { reportId: report._id }
     });
   } catch (err) {
-    logger.error('Failed to send new review notification', { error: err.message });
+    logger.error('Failed to send new review notification', { error: err.message, reportId: report._id, doctorId });
+    throw err;
   }
 };
 
@@ -586,7 +644,8 @@ const notifyPatientReviewComplete = async (report) => {
       data: { reportId: report._id }
     });
   } catch (err) {
-    logger.error('Failed to send review complete notification', { error: err.message });
+    logger.error('Failed to send review complete notification', { error: err.message, reportId: report._id });
+    throw err;
   }
 };
 
@@ -601,7 +660,8 @@ const notifyDoctorNewQuestion = async (report, doctorId) => {
       data: { reportId: report._id }
     });
   } catch (err) {
-    logger.error('Failed to send question notification', { error: err.message });
+    logger.error('Failed to send question notification', { error: err.message, reportId: report._id, doctorId });
+    throw err;
   }
 };
 
@@ -616,7 +676,8 @@ const notifyPatientQuestionAnswered = async (report, question) => {
       data: { reportId: report._id, questionId: question._id }
     });
   } catch (err) {
-    logger.error('Failed to send answer notification', { error: err.message });
+    logger.error('Failed to send answer notification', { error: err.message, reportId: report._id });
+    throw err;
   }
 };
 

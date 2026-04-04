@@ -8,7 +8,7 @@
  */
 
 const paymentService = require('../services/paymentService');
-const { HTTP_STATUS } = require('../constants');
+const logger = require('../utils/logger');
 const responseHelper = require('../utils/responseHelper');
 
 /**
@@ -21,28 +21,21 @@ exports.createOrder = async (req, res, next) => {
     const { bookingId } = req.body;
 
     if (!bookingId) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        message: 'Booking ID is required'
-      });
+      return responseHelper.sendBadRequest(res, 'Booking ID is required');
     }
 
     const result = await paymentService.createOrder(bookingId, req.user.id);
     responseHelper.sendSuccess(res, result, 'Payment order created successfully');
-
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
+    if (!error.statusCode) {
+      logger.error('Error creating Razorpay order', {
+        bookingId: req.body?.bookingId,
+        userId: req.user?.id,
+        error: error.message,
+        stack: error.stack
       });
     }
-    console.error('Error creating Razorpay order:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: 'Failed to create payment order',
-      error: error.message
-    });
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -61,28 +54,21 @@ exports.verifyPayment = async (req, res, next) => {
     } = req.body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !bookingId) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        message: 'Missing payment verification details'
-      });
+      return responseHelper.sendBadRequest(res, 'Missing payment verification details');
     }
 
     const result = await paymentService.verifyPayment(req.body, req.user.id);
     responseHelper.sendSuccess(res, result, 'Payment verified successfully');
-
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
+    if (!error.statusCode) {
+      logger.error('Error verifying payment', {
+        bookingId: req.body?.bookingId,
+        userId: req.user?.id,
+        error: error.message,
+        stack: error.stack
       });
     }
-    console.error('Error verifying payment:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: 'Failed to verify payment',
-      error: error.message
-    });
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -96,28 +82,21 @@ exports.handlePaymentFailure = async (req, res, next) => {
     const { bookingId, error } = req.body;
 
     if (!bookingId) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        message: 'Booking ID is required'
-      });
+      return responseHelper.sendBadRequest(res, 'Booking ID is required');
     }
 
-    const result = await paymentService.handlePaymentFailure(bookingId, error);
+    const result = await paymentService.handlePaymentFailure(bookingId, error, req.user.id);
     responseHelper.sendSuccess(res, result, 'Payment failure recorded');
-
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
+    if (!error.statusCode) {
+      logger.error('Error handling payment failure', {
+        bookingId: req.body?.bookingId,
+        userId: req.user?.id,
+        error: error.message,
+        stack: error.stack
       });
     }
-    console.error('Error handling payment failure:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: 'Failed to process payment failure',
-      error: error.message
-    });
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -132,20 +111,16 @@ exports.getPaymentStatus = async (req, res, next) => {
 
     const result = await paymentService.getPaymentStatus(bookingId, req.user.id);
     responseHelper.sendSuccess(res, result, 'Payment status fetched successfully');
-
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
+    if (!error.statusCode) {
+      logger.error('Error fetching payment status', {
+        bookingId: req.params?.bookingId,
+        userId: req.user?.id,
+        error: error.message,
+        stack: error.stack
       });
     }
-    console.error('Error fetching payment status:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: 'Failed to fetch payment status',
-      error: error.message
-    });
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -159,27 +134,20 @@ exports.processRefund = async (req, res, next) => {
     const { bookingId, amount } = req.body;
 
     if (!bookingId) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        message: 'Booking ID is required'
-      });
+      return responseHelper.sendBadRequest(res, 'Booking ID is required');
     }
 
     const result = await paymentService.processRefund(bookingId, amount);
     responseHelper.sendSuccess(res, result, 'Refund processed successfully');
-
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
+    if (!error.statusCode) {
+      logger.error('Error processing refund', {
+        bookingId: req.body?.bookingId,
+        userId: req.user?.id,
+        error: error.message,
+        stack: error.stack
       });
     }
-    console.error('Error processing refund:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: 'Failed to process refund',
-      error: error.message
-    });
+    responseHelper.handleServiceError(error, res, next);
   }
 };

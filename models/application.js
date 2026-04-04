@@ -23,7 +23,16 @@ const ApplicationSchema = new mongoose.Schema({
   appliedAt: {
     type: Date,
     default: Date.now
-  }
+  },
+  notes: String,
+  statusHistory: [{
+    fromStatus: { type: String, required: true },
+    toStatus: { type: String, required: true },
+    changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    changedAt: { type: Date, default: Date.now },
+    changedFields: [String],
+    notes: String
+  }]
 }, {
   timestamps: true
 });

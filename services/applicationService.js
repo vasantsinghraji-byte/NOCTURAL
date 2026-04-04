@@ -26,7 +26,7 @@ class ApplicationService {
         page: options.page || 1,
         limit: options.limit || 20,
         sort: options.sort || { appliedAt: -1 },
-        populate: 'duty'
+        populate: { path: 'duty', select: 'title hospitalName date startTime endTime specialty status location.city compensation.totalAmount urgency' }
       }
     );
 
@@ -155,6 +155,11 @@ class ApplicationService {
       };
     }
 
+    const oldStatus = application.status;
+    const changedAt = new Date();
+    const changedFields = ['status'];
+    if (notes && notes !== application.notes) changedFields.push('notes');
+
     if (status === 'ACCEPTED') {
       // Atomic: assign doctor only if duty is still OPEN and doctor not already assigned
       const updatedDuty = await Duty.findOneAndUpdate(
@@ -186,6 +191,10 @@ class ApplicationService {
       // Duty updated atomically — now save application status
       application.status = 'ACCEPTED';
       if (notes) application.notes = notes;
+      application.statusHistory.push({
+        fromStatus: oldStatus, toStatus: 'ACCEPTED', changedBy: userId,
+        changedAt, changedFields, notes
+      });
       await application.save();
 
       // If all positions filled, mark duty as FILLED and auto-reject remaining
@@ -198,7 +207,17 @@ class ApplicationService {
             status: 'PENDING',
             _id: { $ne: applicationId }
           },
-          { status: 'REJECTED', notes: 'Auto-rejected: all positions filled' }
+          {
+            status: 'REJECTED',
+            notes: 'Auto-rejected: all positions filled',
+            $push: {
+              statusHistory: {
+                fromStatus: 'PENDING', toStatus: 'REJECTED', changedBy: userId,
+                changedAt, changedFields: ['status', 'notes'],
+                notes: 'Auto-rejected: all positions filled'
+              }
+            }
+          }
         );
       }
 
@@ -212,12 +231,19 @@ class ApplicationService {
     } else {
       application.status = status;
       if (notes) application.notes = notes;
+      application.statusHistory.push({
+        fromStatus: oldStatus, toStatus: status, changedBy: userId,
+        changedAt, changedFields, notes
+      });
       await application.save();
     }
 
     logger.info('Application status updated', {
       applicationId,
-      status,
+      oldStatus,
+      newStatus: status,
+      changedFields,
+      changedAt: changedAt.toISOString(),
       updatedBy: userId
     });
 

@@ -15,7 +15,7 @@ const responseHelper = require('../utils/responseHelper');
  */
 exports.getDashboardOverview = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const overview = await patientDashboardService.getDashboardOverview(patientId);
 
     responseHelper.sendSuccess(res, { overview }, 'Dashboard loaded successfully');
@@ -31,7 +31,7 @@ exports.getDashboardOverview = async (req, res, next) => {
  */
 exports.getHealthSummary = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const summary = await patientDashboardService.getHealthSummary(patientId);
 
     responseHelper.sendSuccess(res, { summary }, 'Health summary loaded');
@@ -47,7 +47,7 @@ exports.getHealthSummary = async (req, res, next) => {
  */
 exports.getActiveBookings = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const bookings = await patientDashboardService.getActiveBookings(patientId);
 
     responseHelper.sendSuccess(res, { bookings }, 'Active bookings loaded');
@@ -63,7 +63,7 @@ exports.getActiveBookings = async (req, res, next) => {
  */
 exports.getBookingHistory = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { page, limit, status, startDate, endDate } = req.query;
 
     const options = {
@@ -94,7 +94,7 @@ exports.getBookingHistory = async (req, res, next) => {
  */
 exports.getMedicalTimeline = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { page, limit, startDate, endDate } = req.query;
 
     const options = {
@@ -124,7 +124,7 @@ exports.getMedicalTimeline = async (req, res, next) => {
  */
 exports.getEmergencyCard = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const card = await patientDashboardService.getEmergencyCard(patientId);
 
     if (!card) {
@@ -144,7 +144,7 @@ exports.getEmergencyCard = async (req, res, next) => {
  */
 exports.generateEmergencyQR = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { expiryHours = 24 } = req.body;
 
     const qrData = await patientDashboardService.generateEmergencyQR(patientId, expiryHours);
@@ -162,7 +162,7 @@ exports.generateEmergencyQR = async (req, res, next) => {
  */
 exports.getPatientStats = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const stats = await patientDashboardService.getPatientStats(patientId);
 
     responseHelper.sendSuccess(res, { stats }, 'Statistics loaded');

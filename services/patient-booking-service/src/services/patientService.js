@@ -7,6 +7,13 @@ const jwt = require('jsonwebtoken');
 const { Patient } = require('../models');
 const config = require('../config');
 
+// Helper to throw errors with HTTP status codes
+const createError = (message, statusCode) => {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  return err;
+};
+
 class PatientService {
   /**
    * Register a new patient
@@ -95,11 +102,11 @@ class PatientService {
     const patient = await Patient.findById(patientId);
 
     if (!patient) {
-      throw new Error('Patient not found');
+      throw createError('Patient not found', 404);
     }
 
     if (!patient.isActive) {
-      throw new Error('Account has been deactivated');
+      throw createError('Account has been deactivated', 403);
     }
 
     return patient;
@@ -130,7 +137,7 @@ class PatientService {
     );
 
     if (!patient) {
-      throw new Error('Patient not found');
+      throw createError('Patient not found', 404);
     }
 
     return patient;
@@ -143,13 +150,13 @@ class PatientService {
     const patient = await Patient.findById(patientId).select('+password');
 
     if (!patient) {
-      throw new Error('Patient not found');
+      throw createError('Patient not found', 404);
     }
 
     // Verify current password
     const isValid = await patient.comparePassword(currentPassword);
     if (!isValid) {
-      throw new Error('Current password is incorrect');
+      throw createError('Current password is incorrect', 401);
     }
 
     // Update password
@@ -166,7 +173,7 @@ class PatientService {
     const patient = await Patient.findById(patientId);
 
     if (!patient) {
-      throw new Error('Patient not found');
+      throw createError('Patient not found', 404);
     }
 
     // If this is set as default, unset other defaults
@@ -189,7 +196,7 @@ class PatientService {
     const patient = await Patient.findById(patientId);
 
     if (!patient) {
-      throw new Error('Patient not found');
+      throw createError('Patient not found', 404);
     }
 
     return {

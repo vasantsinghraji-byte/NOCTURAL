@@ -203,40 +203,51 @@ class HealthMetricService {
 
   /**
    * Get health alerts (recent abnormal values)
+   * Uses MongoDB aggregation to group by metric type at the DB level
    */
   async getHealthAlerts(patientId) {
-    const last7Days = {
-      startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    };
+    const mongoose = require('mongoose');
+    const patientObjectId = new mongoose.Types.ObjectId(patientId);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    const abnormalMetrics = await this.getAbnormalMetrics(patientId, last7Days);
-
-    // Group by metric type
-    const alertsByType = {};
-    for (const metric of abnormalMetrics) {
-      if (!alertsByType[metric.metricType]) {
-        alertsByType[metric.metricType] = [];
+    // Single aggregation: group abnormal metrics by type, get latest per type + count
+    const grouped = await HealthMetric.aggregate([
+      {
+        $match: {
+          patient: patientObjectId,
+          isAbnormal: true,
+          measuredAt: { $gte: sevenDaysAgo }
+        }
+      },
+      { $sort: { measuredAt: -1 } },
+      {
+        $group: {
+          _id: '$metricType',
+          latestValue: { $first: '$value' },
+          unit: { $first: '$unit' },
+          abnormalityLevel: { $first: '$abnormalityLevel' },
+          measuredAt: { $first: '$measuredAt' },
+          occurrences: { $sum: 1 }
+        }
       }
-      alertsByType[metric.metricType].push(metric);
-    }
+    ]);
 
-    // Build alerts summary
-    const alerts = [];
-    for (const [metricType, metrics] of Object.entries(alertsByType)) {
-      const latestMetric = metrics[0]; // Already sorted by date desc
+    // Build alerts with messages and normal ranges
+    const alerts = grouped.map(g => {
+      const metricType = g._id;
       const normalRange = NORMAL_RANGES[metricType];
 
-      alerts.push({
+      return {
         metricType,
-        latestValue: latestMetric.value,
-        unit: latestMetric.unit,
-        abnormalityLevel: latestMetric.abnormalityLevel,
-        measuredAt: latestMetric.measuredAt,
-        occurrences: metrics.length,
+        latestValue: g.latestValue,
+        unit: g.unit,
+        abnormalityLevel: g.abnormalityLevel,
+        measuredAt: g.measuredAt,
+        occurrences: g.occurrences,
         normalRange,
-        message: this.getAlertMessage(metricType, latestMetric.value, latestMetric.abnormalityLevel, normalRange)
-      });
-    }
+        message: this.getAlertMessage(metricType, g.latestValue, g.abnormalityLevel, normalRange)
+      };
+    });
 
     // Sort by severity (CRITICAL first)
     alerts.sort((a, b) => {

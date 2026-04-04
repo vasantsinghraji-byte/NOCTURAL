@@ -27,6 +27,12 @@ const notificationSchema = new mongoose.Schema({
       'DOCUMENT_VERIFIED',
       'DOCUMENT_REJECTED',
       'PROFILE_INCOMPLETE',
+      'INTAKE_REQUIRED',
+      'INTAKE_SUBMITTED',
+      'INTAKE_ASSIGNED',
+      'INTAKE_APPROVED',
+      'INTAKE_CHANGES_REQUIRED',
+      'INTAKE_REJECTED',
       'MESSAGE_RECEIVED',
       'SYSTEM_ANNOUNCEMENT'
     ],

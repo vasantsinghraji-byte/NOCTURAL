@@ -17,7 +17,7 @@ const responseHelper = require('../utils/responseHelper');
  */
 exports.getIntakeStatus = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const status = await healthIntakeService.getIntakeStatus(patientId);
 
     responseHelper.sendSuccess(res, { intake: status }, 'Intake status loaded');
@@ -33,7 +33,7 @@ exports.getIntakeStatus = async (req, res, next) => {
  */
 exports.getIntakeForm = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const form = await healthIntakeService.getIntakeForm(patientId);
 
     responseHelper.sendSuccess(res, { form }, 'Intake form loaded');
@@ -49,7 +49,7 @@ exports.getIntakeForm = async (req, res, next) => {
  */
 exports.saveIntakeDraft = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const draftData = req.body;
 
     const draft = await healthIntakeService.saveIntakeDraft(patientId, draftData);
@@ -67,7 +67,7 @@ exports.saveIntakeDraft = async (req, res, next) => {
  */
 exports.submitIntake = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const intakeData = req.body;
 
     const record = await healthIntakeService.submitIntake(patientId, intakeData);
@@ -87,7 +87,7 @@ exports.submitIntake = async (req, res, next) => {
  */
 exports.getMyPendingIntakes = async (req, res, next) => {
   try {
-    const doctorId = req.user._id;
+    const doctorId = req.user.id;
     const { page, limit } = req.query;
 
     const options = {
@@ -116,7 +116,7 @@ exports.getMyPendingIntakes = async (req, res, next) => {
 exports.getIntakeDetails = async (req, res, next) => {
   try {
     const { intakeId } = req.params;
-    const doctorId = req.user._id;
+    const doctorId = req.user.id;
 
     const record = await healthIntakeService.getIntakeDetails(intakeId, doctorId);
 
@@ -134,7 +134,7 @@ exports.getIntakeDetails = async (req, res, next) => {
 exports.approveIntake = async (req, res, next) => {
   try {
     const { intakeId } = req.params;
-    const doctorId = req.user._id;
+    const doctorId = req.user.id;
     const { reviewNotes } = req.body;
 
     const record = await healthIntakeService.approveIntake(intakeId, doctorId, reviewNotes);
@@ -153,7 +153,7 @@ exports.approveIntake = async (req, res, next) => {
 exports.requestChanges = async (req, res, next) => {
   try {
     const { intakeId } = req.params;
-    const doctorId = req.user._id;
+    const doctorId = req.user.id;
     const { changesRequired, notes } = req.body;
 
     const record = await healthIntakeService.requestChanges(intakeId, doctorId, changesRequired, notes);
@@ -172,7 +172,7 @@ exports.requestChanges = async (req, res, next) => {
 exports.rejectIntake = async (req, res, next) => {
   try {
     const { intakeId } = req.params;
-    const doctorId = req.user._id;
+    const doctorId = req.user.id;
     const { rejectionReason } = req.body;
 
     const record = await healthIntakeService.rejectIntake(intakeId, doctorId, rejectionReason);
@@ -222,7 +222,7 @@ exports.assignReviewer = async (req, res, next) => {
   try {
     const { intakeId } = req.params;
     const { doctorId } = req.body;
-    const adminId = req.user._id;
+    const adminId = req.user.id;
 
     const record = await healthIntakeService.assignReviewer(intakeId, doctorId, adminId);
 

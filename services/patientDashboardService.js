@@ -11,6 +11,7 @@ const HealthRecord = require('../models/healthRecord');
 const HealthMetric = require('../models/healthMetric');
 const DoctorNote = require('../models/doctorNote');
 const EmergencySummary = require('../models/emergencySummary');
+const User = require('../models/user');
 const healthMetricService = require('./healthMetricService');
 const emergencySummaryService = require('./emergencySummaryService');
 const logger = require('../utils/logger');
@@ -68,8 +69,8 @@ class PatientDashboardService {
     // Get latest health record
     const healthRecord = await HealthRecord.getLatestApproved(patientId);
 
-    // Get latest metrics
-    const latestMetrics = await HealthMetric.getLatestByType(patientId);
+    // Get latest metrics (only fields needed for vitals display)
+    const latestMetrics = await HealthMetric.getLatestByType(patientId, 'value unit measuredAt isAbnormal abnormalityLevel');
 
     // Count active conditions and allergies
     const snapshot = healthRecord?.healthSnapshot || {};
@@ -261,111 +262,176 @@ class PatientDashboardService {
 
   /**
    * Get medical timeline
+   * Uses $unionWith aggregation to sort and paginate across collections at the DB level
    */
   async getMedicalTimeline(patientId, options = {}) {
     const { page = 1, limit = 20, startDate, endDate } = options;
     const skip = (page - 1) * limit;
 
-    // Get events from multiple sources
-    const dateFilter = {};
-    if (startDate) dateFilter.$gte = new Date(startDate);
-    if (endDate) dateFilter.$lte = new Date(endDate);
+    const mongoose = require('mongoose');
+    const patientObjectId = new mongoose.Types.ObjectId(patientId);
 
-    const [bookings, healthRecords, doctorNotes] = await Promise.all([
-      // Completed bookings
-      NurseBooking.find({
-        patient: patientId,
+    // Build date filters per collection
+    const bookingDateFilter = {};
+    const recordDateFilter = {};
+    if (startDate) {
+      bookingDateFilter['statusTimestamps.completedAt'] = { $gte: new Date(startDate) };
+      recordDateFilter.createdAt = { $gte: new Date(startDate) };
+    }
+    if (endDate) {
+      bookingDateFilter['statusTimestamps.completedAt'] = {
+        ...bookingDateFilter['statusTimestamps.completedAt'],
+        $lte: new Date(endDate)
+      };
+      recordDateFilter.createdAt = {
+        ...recordDateFilter.createdAt,
+        $lte: new Date(endDate)
+      };
+    }
+
+    // Count totals in parallel (fast with indexes, accurate pagination)
+    const [bookingCount, recordCount, noteCount] = await Promise.all([
+      NurseBooking.countDocuments({
+        patient: patientObjectId,
         status: 'COMPLETED',
-        ...(Object.keys(dateFilter).length ? { 'statusTimestamps.completedAt': dateFilter } : {})
-      })
-        .sort({ 'statusTimestamps.completedAt': -1 })
-        .limit(50)
-        .lean(),
-
-      // Health record versions
-      HealthRecord.find({
-        patient: patientId,
+        ...bookingDateFilter
+      }),
+      HealthRecord.countDocuments({
+        patient: patientObjectId,
         status: 'APPROVED',
-        ...(Object.keys(dateFilter).length ? { createdAt: dateFilter } : {})
-      })
-        .sort({ createdAt: -1 })
-        .limit(50)
-        .lean(),
-
-      // Doctor notes (non-confidential)
-      DoctorNote.find({
-        patient: patientId,
+        ...recordDateFilter
+      }),
+      DoctorNote.countDocuments({
+        patient: patientObjectId,
         isConfidential: false,
         isActive: true,
-        ...(Object.keys(dateFilter).length ? { createdAt: dateFilter } : {})
+        ...recordDateFilter
       })
-        .sort({ createdAt: -1 })
-        .limit(50)
-        .populate('doctor', 'name')
-        .lean()
     ]);
 
-    // Merge into unified timeline
-    const events = [];
+    const total = bookingCount + recordCount + noteCount;
 
-    // Add bookings
-    for (const booking of bookings) {
-      events.push({
-        type: 'BOOKING',
-        date: booking.statusTimestamps?.completedAt || booking.scheduledDate,
-        title: `${booking.serviceType} Service`,
-        description: booking.actualService?.serviceReport?.observations || 'Service completed',
-        data: {
-          bookingId: booking._id,
-          serviceType: booking.serviceType,
-          hasVitals: !!(booking.actualService?.serviceReport?.vitalsChecked)
+    // Single aggregation pipeline with $unionWith for DB-level sort + paginate
+    const events = await NurseBooking.aggregate([
+      // Bookings: completed for this patient
+      {
+        $match: {
+          patient: patientObjectId,
+          status: 'COMPLETED',
+          ...bookingDateFilter
         }
-      });
-    }
-
-    // Add health records
-    for (const record of healthRecords) {
-      events.push({
-        type: 'HEALTH_RECORD',
-        date: record.createdAt,
-        title: record.recordType === 'BASELINE' ? 'Initial Health Record' : 'Health Record Update',
-        description: `Version ${record.version}`,
-        data: {
-          recordId: record._id,
-          version: record.version,
-          recordType: record.recordType
+      },
+      {
+        $project: {
+          type: { $literal: 'BOOKING' },
+          date: { $ifNull: ['$statusTimestamps.completedAt', '$scheduledDate'] },
+          title: { $concat: ['$serviceType', ' Service'] },
+          description: { $ifNull: ['$actualService.serviceReport.observations', 'Service completed'] },
+          data: {
+            bookingId: '$_id',
+            serviceType: '$serviceType',
+            hasVitals: {
+              $cond: [{ $ifNull: ['$actualService.serviceReport.vitalsChecked', false] }, true, false]
+            }
+          }
         }
-      });
-    }
-
-    // Add doctor notes
-    for (const note of doctorNotes) {
-      events.push({
-        type: 'DOCTOR_NOTE',
-        date: note.createdAt,
-        title: note.title,
-        description: note.noteType,
-        data: {
-          noteId: note._id,
-          noteType: note.noteType,
-          doctorName: note.doctor?.name
+      },
+      // Union with health records
+      {
+        $unionWith: {
+          coll: 'healthrecords',
+          pipeline: [
+            {
+              $match: {
+                patient: patientObjectId,
+                status: 'APPROVED',
+                ...recordDateFilter
+              }
+            },
+            {
+              $project: {
+                type: { $literal: 'HEALTH_RECORD' },
+                date: '$createdAt',
+                title: {
+                  $cond: [
+                    { $eq: ['$recordType', 'BASELINE'] },
+                    'Initial Health Record',
+                    'Health Record Update'
+                  ]
+                },
+                description: { $concat: ['Version ', { $toString: '$version' }] },
+                data: {
+                  recordId: '$_id',
+                  version: '$version',
+                  recordType: '$recordType'
+                }
+              }
+            }
+          ]
         }
-      });
+      },
+      // Union with doctor notes
+      {
+        $unionWith: {
+          coll: 'doctornotes',
+          pipeline: [
+            {
+              $match: {
+                patient: patientObjectId,
+                isConfidential: false,
+                isActive: true,
+                ...recordDateFilter
+              }
+            },
+            {
+              $project: {
+                type: { $literal: 'DOCTOR_NOTE' },
+                date: '$createdAt',
+                title: '$title',
+                description: '$noteType',
+                data: {
+                  noteId: '$_id',
+                  noteType: '$noteType',
+                  doctorId: '$doctor'
+                }
+              }
+            }
+          ]
+        }
+      },
+      { $sort: { date: -1 } },
+      { $skip: skip },
+      { $limit: limit }
+    ]);
+
+    // Hydrate doctor names for DOCTOR_NOTE events
+    const doctorIds = events
+      .filter(e => e.type === 'DOCTOR_NOTE' && e.data?.doctorId)
+      .map(e => e.data.doctorId);
+
+    if (doctorIds.length > 0) {
+      const doctors = await User.find(
+        { _id: { $in: doctorIds } },
+        { name: 1 }
+      ).lean();
+
+      const doctorMap = new Map(doctors.map(d => [d._id.toString(), d.name]));
+
+      for (const event of events) {
+        if (event.type === 'DOCTOR_NOTE' && event.data?.doctorId) {
+          event.data.doctorName = doctorMap.get(event.data.doctorId.toString()) || null;
+          delete event.data.doctorId;
+        }
+      }
     }
-
-    // Sort by date descending
-    events.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    // Paginate
-    const paginatedEvents = events.slice(skip, skip + limit);
 
     return {
-      events: paginatedEvents,
+      events,
       pagination: {
         page,
         limit,
-        total: events.length,
-        pages: Math.ceil(events.length / limit)
+        total,
+        pages: Math.ceil(total / limit)
       }
     };
   }

@@ -84,7 +84,7 @@ class AnalyticsService {
       possibleReasons: []
     };
 
-    if (acceptedApp && userApp) {
+    if (acceptedApp && acceptedApp.applicant && userApp) {
       // Compare with accepted applicant
       if (acceptedApp.applicant.rating > user.rating) {
         insights.possibleReasons.push({
@@ -101,6 +101,7 @@ class AnalyticsService {
       }
 
       // Check response time
+      if (duty.createdAt && userApp.createdAt && acceptedApp.createdAt) {
       const userResponseTime = (new Date(userApp.createdAt) - new Date(duty.createdAt)) / 60000;
       const acceptedResponseTime = (new Date(acceptedApp.createdAt) - new Date(duty.createdAt)) / 60000;
 
@@ -109,6 +110,7 @@ class AnalyticsService {
           reason: 'Faster response time by other applicant',
           detail: `Applied ${Math.round(userResponseTime)} min after posting`
         });
+      }
       }
     }
 

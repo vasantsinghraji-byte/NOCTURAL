@@ -16,7 +16,7 @@ const responseHelper = require('../utils/responseHelper');
  */
 exports.getTrends = async (req, res, next) => {
   try {
-    const patientId = req.healthAccess?.patientId || req.user._id;
+    const patientId = req.healthAccess?.patientId || req.user.id;
     const { metricTypes, period, startDate, endDate } = req.query;
 
     // Parse metric types
@@ -60,16 +60,13 @@ exports.getTrends = async (req, res, next) => {
  */
 exports.getMetricTrend = async (req, res, next) => {
   try {
-    const patientId = req.healthAccess?.patientId || req.user._id;
+    const patientId = req.healthAccess?.patientId || req.user.id;
     const { metricType } = req.params;
     const { period, startDate, endDate } = req.query;
 
     // Validate metric type
     if (!Object.values(METRIC_TYPES).includes(metricType)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid metric type: ${metricType}`
-      });
+      return responseHelper.sendBadRequest(res, `Invalid metric type: ${metricType}`);
     }
 
     // Determine date range
@@ -100,7 +97,7 @@ exports.getMetricTrend = async (req, res, next) => {
  */
 exports.getHealthAlerts = async (req, res, next) => {
   try {
-    const patientId = req.healthAccess?.patientId || req.user._id;
+    const patientId = req.healthAccess?.patientId || req.user.id;
 
     const alerts = await healthMetricService.getHealthAlerts(patientId);
 
@@ -117,7 +114,7 @@ exports.getHealthAlerts = async (req, res, next) => {
  */
 exports.getComparison = async (req, res, next) => {
   try {
-    const patientId = req.healthAccess?.patientId || req.user._id;
+    const patientId = req.healthAccess?.patientId || req.user.id;
 
     const comparison = await healthMetricService.getComparison(patientId);
 
@@ -134,14 +131,11 @@ exports.getComparison = async (req, res, next) => {
  */
 exports.getAggregatedTrends = async (req, res, next) => {
   try {
-    const patientId = req.healthAccess?.patientId || req.user._id;
+    const patientId = req.healthAccess?.patientId || req.user.id;
     const { metricType, period, groupBy } = req.query;
 
     if (!metricType) {
-      return res.status(400).json({
-        success: false,
-        message: 'metricType is required'
-      });
+      return responseHelper.sendBadRequest(res, 'metricType is required');
     }
 
     const dateRange = healthMetricService.getDateRangeForPeriod(period || ANALYTICS_PERIODS.MONTH);

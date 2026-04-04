@@ -51,11 +51,11 @@ class CalendarService {
       user: userId
     });
 
-    // Detect conflicts
-    await event.detectConflicts();
-
-    // Check weekly hours
-    await event.checkWeeklyHours();
+    // Detect conflicts and check weekly hours in parallel
+    await Promise.all([
+      event.detectConflicts(),
+      event.checkWeeklyHours()
+    ]);
 
     await event.save();
 
@@ -90,9 +90,11 @@ class CalendarService {
 
     Object.assign(event, updates);
 
-    // Re-check conflicts after update
-    await event.detectConflicts();
-    await event.checkWeeklyHours();
+    // Re-check conflicts and weekly hours after update in parallel
+    await Promise.all([
+      event.detectConflicts(),
+      event.checkWeeklyHours()
+    ]);
 
     await event.save();
 

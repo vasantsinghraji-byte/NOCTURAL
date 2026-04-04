@@ -5,6 +5,7 @@
  */
 
 const mongoose = require('mongoose');
+const { BOOKING_SERVICE_TYPES, BOOKING_STATUSES } = require('../constants/enums');
 
 const NurseBookingSchema = new mongoose.Schema({
   // Patient Details
@@ -24,38 +25,7 @@ const NurseBookingSchema = new mongoose.Schema({
   // Service Type
   serviceType: {
     type: String,
-    enum: [
-      // Nursing Services
-      'INJECTION',
-      'IV_DRIP',
-      'WOUND_DRESSING',
-      'CATHETER_CARE',
-      'BED_SORE_CARE',
-      'POST_SURGERY_CARE',
-      'ELDERLY_CARE',
-      'BABY_CARE',
-      'NEBULIZATION',
-      'BLOOD_PRESSURE_CHECK',
-      'BLOOD_SUGAR_CHECK',
-      'GENERAL_NURSING',
-
-      // Physiotherapy Services
-      'PHYSIOTHERAPY_SESSION',
-      'POST_SURGERY_REHAB',
-      'SPORTS_INJURY',
-      'BACK_PAIN_THERAPY',
-      'KNEE_PAIN_THERAPY',
-      'STROKE_REHAB',
-      'GERIATRIC_PHYSIO',
-      'PEDIATRIC_PHYSIO',
-      'NEUROLOGICAL_REHAB',
-
-      // Packages
-      'ELDERLY_CARE_PACKAGE', // 30 days
-      'POST_SURGERY_PACKAGE', // 14 days
-      'PHYSIO_PACKAGE_10', // 10 sessions
-      'OTHER'
-    ],
+    enum: BOOKING_SERVICE_TYPES,
     required: true
   },
 
@@ -250,7 +220,11 @@ const NurseBookingSchema = new mongoose.Schema({
   cancellation: {
     cancelledBy: {
       type: String,
-      enum: ['PATIENT', 'NURSE', 'ADMIN', 'SYSTEM']
+      enum: ['PATIENT', 'NURSE', 'PROVIDER', 'ADMIN', 'SYSTEM']
+    },
+    cancelledByUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
     },
     reason: String,
     cancelledAt: Date,

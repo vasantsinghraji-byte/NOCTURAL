@@ -6,7 +6,6 @@
  */
 
 const bookingService = require('../services/bookingService');
-const { HTTP_STATUS } = require('../constants');
 const responseHelper = require('../utils/responseHelper');
 
 /**
@@ -31,7 +30,7 @@ exports.createBooking = async (req, res, next) => {
  */
 exports.getBooking = async (req, res, next) => {
   try {
-    const booking = await bookingService.getBookingById(req.params.id, req.user._id.toString(), req.user.role);
+    const booking = await bookingService.getBookingById(req.params.id, req.user.id, req.user.role);
 
     responseHelper.sendSuccess(res, { booking }, 'Booking fetched successfully');
   } catch (error) {
@@ -153,13 +152,10 @@ exports.assignProvider = async (req, res, next) => {
     const { providerId } = req.body;
 
     if (!providerId) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        message: 'Provider ID is required'
-      });
+      return responseHelper.sendBadRequest(res, 'Provider ID is required');
     }
 
-    const booking = await bookingService.assignProvider(req.params.id, providerId);
+    const booking = await bookingService.assignProvider(req.params.id, providerId, req.user.id);
 
     responseHelper.sendSuccess(res, { booking }, 'Provider assigned successfully');
   } catch (error) {
@@ -177,17 +173,15 @@ exports.updateStatus = async (req, res, next) => {
     const { status, note } = req.body;
 
     if (!status) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        message: 'Status is required'
-      });
+      return responseHelper.sendBadRequest(res, 'Status is required');
     }
 
     const booking = await bookingService.updateStatus(
       req.params.id,
       status,
       req.user.id,
-      note
+      note,
+      req.user.role
     );
 
     responseHelper.sendSuccess(res, { booking }, 'Booking status updated successfully');
@@ -207,7 +201,8 @@ exports.startService = async (req, res, next) => {
       req.params.id,
       'IN_PROGRESS',
       req.user.id,
-      'Service started'
+      'Service started',
+      req.user.role
     );
 
     responseHelper.sendSuccess(res, { booking }, 'Service started successfully');
@@ -245,10 +240,7 @@ exports.addReview = async (req, res, next) => {
     const { stars, comment } = req.body;
 
     if (!stars || stars < 1 || stars > 5) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        message: 'Rating must be between 1 and 5 stars'
-      });
+      return responseHelper.sendBadRequest(res, 'Rating must be between 1 and 5 stars');
     }
 
     const booking = await bookingService.addReview(
@@ -273,16 +265,14 @@ exports.cancelBooking = async (req, res, next) => {
     const { reason } = req.body;
 
     if (!reason) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        message: 'Cancellation reason is required'
-      });
+      return responseHelper.sendBadRequest(res, 'Cancellation reason is required');
     }
 
     const booking = await bookingService.cancelBooking(
       req.params.id,
       req.user.id,
-      reason
+      reason,
+      req.user.role
     );
 
     responseHelper.sendSuccess(res, { booking }, 'Booking cancelled successfully');
@@ -327,7 +317,8 @@ exports.confirmBooking = async (req, res, next) => {
       req.params.id,
       'CONFIRMED',
       req.user.id,
-      'Provider confirmed the booking'
+      'Provider confirmed the booking',
+      req.user.role
     );
 
     responseHelper.sendSuccess(res, { booking }, 'Booking confirmed successfully');
@@ -347,7 +338,8 @@ exports.markEnRoute = async (req, res, next) => {
       req.params.id,
       'EN_ROUTE',
       req.user.id,
-      'Provider is on the way'
+      'Provider is on the way',
+      req.user.role
     );
 
     responseHelper.sendSuccess(res, { booking }, 'Status updated to en route');

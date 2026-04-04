@@ -5,6 +5,7 @@
 
 const { NurseBooking, ServiceCatalog, Patient } = require('../models');
 const { createLogger } = require('@nocturnal/shared');
+const eventPublisher = require('../events/publishers/eventPublisher');
 
 const logger = createLogger({ serviceName: 'patient-booking-service' });
 
@@ -88,7 +89,14 @@ class BookingService {
         amount: booking.pricing.payableAmount
       });
 
-      // TODO: Publish booking.created event to RabbitMQ
+      // Publish booking.created event to RabbitMQ
+      try {
+        await eventPublisher.publishBookingCreated(booking);
+      } catch (publishError) {
+        logger.warn('Failed to publish booking.created event', {
+          bookingId: booking._id, error: publishError.message
+        });
+      }
 
       return booking;
     } catch (error) {

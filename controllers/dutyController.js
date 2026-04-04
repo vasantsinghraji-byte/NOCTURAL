@@ -1,18 +1,18 @@
 const dutyService = require('../services/dutyService');
-const { HTTP_STATUS, SUCCESS_MESSAGE } = require('../constants');
+const { SUCCESS_MESSAGE } = require('../constants');
+const responseHelper = require('../utils/responseHelper');
 
 // Get all duties
 exports.getDuties = async (req, res, next) => {
   try {
     const result = await dutyService.getAllDuties();
 
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
+    responseHelper.sendSuccess(res, {
       count: result.duties.length,
       duties: result.duties
     });
   } catch (error) {
-    next(error);
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -21,18 +21,9 @@ exports.getDuty = async (req, res, next) => {
   try {
     const duty = await dutyService.getDutyById(req.params.id);
 
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      duty
-    });
+    responseHelper.sendSuccess(res, { duty });
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-    next(error);
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -41,19 +32,9 @@ exports.createDuty = async (req, res, next) => {
   try {
     const duty = await dutyService.createDuty(req.body, req.user);
 
-    res.status(HTTP_STATUS.CREATED).json({
-      success: true,
-      message: SUCCESS_MESSAGE.DUTY_CREATED,
-      duty
-    });
+    responseHelper.sendCreated(res, { duty }, SUCCESS_MESSAGE.DUTY_CREATED);
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-    next(error);
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -62,19 +43,9 @@ exports.updateDuty = async (req, res, next) => {
   try {
     const duty = await dutyService.updateDuty(req.params.id, req.body, req.user);
 
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: SUCCESS_MESSAGE.DUTY_UPDATED,
-      duty
-    });
+    responseHelper.sendSuccess(res, { duty }, SUCCESS_MESSAGE.DUTY_UPDATED);
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-    next(error);
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -83,17 +54,8 @@ exports.deleteDuty = async (req, res, next) => {
   try {
     await dutyService.deleteDuty(req.params.id, req.user);
 
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: SUCCESS_MESSAGE.DUTY_DELETED
-    });
+    responseHelper.sendSuccess(res, {}, SUCCESS_MESSAGE.DUTY_DELETED);
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-    next(error);
+    responseHelper.handleServiceError(error, res, next);
   }
 };

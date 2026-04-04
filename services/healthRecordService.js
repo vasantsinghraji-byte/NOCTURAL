@@ -9,11 +9,16 @@ const HealthRecord = require('../models/healthRecord');
 const Patient = require('../models/patient');
 const EmergencySummary = require('../models/emergencySummary');
 const User = require('../models/user');
+const HealthDataAccessLog = require('../models/healthDataAccessLog');
 const logger = require('../utils/logger');
 const {
   RECORD_TYPES,
   RECORD_STATUS,
-  DATA_SOURCES
+  DATA_SOURCES,
+  AUDIT_ACTIONS,
+  ALLOWED_RESOURCES,
+  ACCESS_REASONS,
+  USER_TYPES
 } = require('../constants/healthConstants');
 const { NotFoundError, ValidationError, AuthorizationError } = require('../utils/errors');
 
@@ -165,18 +170,40 @@ class HealthRecordService {
   mergeHealthData(existing, updates) {
     const merged = { ...existing };
 
-    // Array fields - add new items (don't replace)
-    const arrayFields = ['conditions', 'allergies', 'currentMedications', 'surgeries', 'familyHistory', 'immunizations'];
+    // Key functions to identify duplicates per array field
+    const keyFns = {
+      conditions: item => (item.name || '').toLowerCase().trim(),
+      allergies: item => (item.allergen || '').toLowerCase().trim(),
+      currentMedications: item => (item.name || '').toLowerCase().trim(),
+      surgeries: item => (item.name || '').toLowerCase().trim(),
+      familyHistory: item => `${(item.relation || '').toLowerCase()}:${(item.condition || '').toLowerCase().trim()}`,
+      immunizations: item => (item.name || '').toLowerCase().trim()
+    };
+
+    // Array fields - add new items, update existing duplicates
+    const arrayFields = Object.keys(keyFns);
 
     for (const field of arrayFields) {
       if (updates[field] && Array.isArray(updates[field])) {
-        merged[field] = [
-          ...(existing[field] || []),
-          ...updates[field].map(item => ({
-            ...item,
-            addedAt: new Date()
-          }))
-        ];
+        const existingItems = [...(existing[field] || [])];
+        const existingKeys = new Set(existingItems.map(item => keyFns[field](item)));
+
+        for (const newItem of updates[field]) {
+          const key = keyFns[field](newItem);
+          if (key && existingKeys.has(key)) {
+            // Update existing entry in place
+            const idx = existingItems.findIndex(item => keyFns[field](item) === key);
+            if (idx !== -1) {
+              existingItems[idx] = { ...existingItems[idx], ...newItem, updatedAt: new Date() };
+            }
+          } else {
+            // Append new entry
+            existingItems.push({ ...newItem, addedAt: new Date() });
+            if (key) existingKeys.add(key);
+          }
+        }
+
+        merged[field] = existingItems;
       }
     }
 
@@ -364,6 +391,21 @@ class HealthRecordService {
       recordId: record._id
     });
 
+    // Audit log: intake submission
+    try {
+      await HealthDataAccessLog.logAccess({
+        accessor: { userId: patientId, userModel: 'Patient', userType: USER_TYPES.PATIENT },
+        patient: patientId,
+        resourceType: ALLOWED_RESOURCES.HEALTH_RECORD,
+        resourceId: record._id,
+        action: AUDIT_ACTIONS.SUBMIT,
+        accessReason: ACCESS_REASONS.INTAKE_REVIEW,
+        resourceDetails: { recordType: RECORD_TYPES.BASELINE, status: RECORD_STATUS.PENDING_REVIEW }
+      });
+    } catch (auditError) {
+      logger.warn('Failed to write audit log for intake submission', { patientId, error: auditError.message });
+    }
+
     return record;
   }
 
@@ -410,6 +452,21 @@ class HealthRecordService {
       doctorId,
       adminId
     });
+
+    // Audit log: reviewer assignment
+    try {
+      await HealthDataAccessLog.logAccess({
+        accessor: { userId: adminId, userModel: 'User', userType: USER_TYPES.ADMIN },
+        patient: record.patient,
+        resourceType: ALLOWED_RESOURCES.HEALTH_RECORD,
+        resourceId: recordId,
+        action: AUDIT_ACTIONS.ASSIGN,
+        accessReason: ACCESS_REASONS.INTAKE_REVIEW,
+        resourceDetails: { assignedTo: doctorId }
+      });
+    } catch (auditError) {
+      logger.warn('Failed to write audit log for reviewer assignment', { recordId, error: auditError.message });
+    }
 
     return record;
   }
@@ -480,6 +537,24 @@ class HealthRecordService {
       doctorId,
       decision
     });
+
+    // Audit log: intake review decision
+    const auditAction = decision === 'APPROVED' ? AUDIT_ACTIONS.APPROVE
+      : decision === 'CHANGES_REQUESTED' ? AUDIT_ACTIONS.REQUEST_CHANGES
+      : AUDIT_ACTIONS.REJECT;
+    try {
+      await HealthDataAccessLog.logAccess({
+        accessor: { userId: doctorId, userModel: 'User', userType: USER_TYPES.DOCTOR },
+        patient: record.patient,
+        resourceType: ALLOWED_RESOURCES.HEALTH_RECORD,
+        resourceId: recordId,
+        action: auditAction,
+        accessReason: ACCESS_REASONS.INTAKE_REVIEW,
+        resourceDetails: { decision, notes, changesRequired: changesRequired.length || 0 }
+      });
+    } catch (auditError) {
+      logger.warn('Failed to write audit log for intake review', { recordId, error: auditError.message });
+    }
 
     return record;
   }

@@ -265,17 +265,22 @@ HealthMetricSchema.statics.recordBookingVitals = async function(patientId, booki
 };
 
 // Static: Get latest reading for each metric type
-HealthMetricSchema.statics.getLatestByType = async function(patientId) {
+HealthMetricSchema.statics.getLatestByType = async function(patientId, fields) {
   const metricTypes = Object.values(METRIC_TYPES);
   const results = {};
 
   for (const metricType of metricTypes) {
-    const latest = await this.findOne({
+    let query = this.findOne({
       patient: patientId,
       metricType
     })
-      .sort({ measuredAt: -1 })
-      .lean();
+      .sort({ measuredAt: -1 });
+
+    if (fields) {
+      query = query.select(fields);
+    }
+
+    const latest = await query.lean();
 
     if (latest) {
       results[metricType] = latest;

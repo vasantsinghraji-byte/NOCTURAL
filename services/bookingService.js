@@ -24,6 +24,14 @@ const healthMetricService = require('./healthMetricService');
 const healthRecordService = require('./healthRecordService');
 const doctorAccessService = require('./doctorAccessService');
 
+const resolveCancellationActor = ({ userRole, isPatient = false, isProvider = false }) => {
+  if (userRole === 'admin') return 'ADMIN';
+  if (userRole === 'system') return 'SYSTEM';
+  if (isPatient || userRole === 'patient') return 'PATIENT';
+  if (isProvider || ['doctor', 'nurse', 'physiotherapist'].includes(userRole)) return 'PROVIDER';
+  return 'SYSTEM';
+};
+
 class BookingService {
   /**
    * Create a new booking
@@ -263,9 +271,14 @@ class BookingService {
    * Assign a service provider to a booking
    * @param {String} bookingId - Booking ID
    * @param {String} providerId - Provider ID
+   * @param {String} adminId - Acting admin ID
    * @returns {Promise<Object>} Updated booking
    */
-  async assignProvider(bookingId, providerId) {
+  async assignProvider(bookingId, providerId, adminId) {
+    if (!adminId) {
+      throw new ValidationError('Admin ID is required to assign a provider');
+    }
+
     // Verify provider exists and has correct role
     const provider = await User.findById(providerId);
     if (!provider) {
@@ -310,7 +323,7 @@ class BookingService {
         accessLevel: 'READ_WRITE',
         allowedResources: ['HEALTH_RECORD', 'HEALTH_METRIC', 'DOCTOR_NOTE'],
         grantReason: `Assigned to booking ${booking._id}`,
-        adminId: providerId,
+        adminId,
         adminName: 'System'
       });
 
@@ -355,7 +368,7 @@ class BookingService {
    * @param {String} note - Optional note
    * @returns {Promise<Object>} Updated booking
    */
-  async updateStatus(bookingId, newStatus, userId, note = '') {
+  async updateStatus(bookingId, newStatus, userId, note = '', userRole) {
     const booking = await NurseBooking.findById(bookingId);
 
     if (!booking) {
@@ -379,10 +392,9 @@ class BookingService {
       throw new ValidationError(`Cannot change status from ${booking.status} to ${newStatus}`);
     }
 
-    // Authorization check
-    const user = await User.findById(userId);
+    // Authorization check — role passed from controller, no extra DB query needed
     const isProvider = booking.serviceProvider && booking.serviceProvider.toString() === userId;
-    const isAdmin = user && user.role === 'admin';
+    const isAdmin = userRole === 'admin';
 
     if (!isProvider && !isAdmin) {
       throw new AuthorizationError('Not authorized to update booking status');
@@ -396,14 +408,18 @@ class BookingService {
     if (newStatus === 'IN_PROGRESS') {
       booking.actualService.startTime = new Date();
     } else if (newStatus === 'COMPLETED') {
+      if (!booking.actualService.startTime) {
+        throw new ValidationError('Cannot complete booking without a start time. Ensure booking was marked IN_PROGRESS first.');
+      }
       booking.actualService.endTime = new Date();
-      booking.actualService.duration = booking.actualService.startTime
-        ? Math.round((booking.actualService.endTime - booking.actualService.startTime) / (1000 * 60))
-        : null;
+      booking.actualService.duration = Math.round(
+        (booking.actualService.endTime - booking.actualService.startTime) / (1000 * 60)
+      );
     } else if (newStatus === 'CANCELLED') {
       booking.cancellation = {
         cancelledAt: new Date(),
-        cancelledBy: userId,
+        cancelledBy: resolveCancellationActor({ userRole, isProvider }),
+        cancelledByUser: userId,
         reason: note
       };
     }
@@ -447,7 +463,10 @@ class BookingService {
     }
 
     // Capture health metrics BEFORE marking as completed
-    // so failure is visible and data isn't silently lost
+    // Failures are tracked and surfaced to caller, but do not block booking completion
+    // since vitals data is preserved in the serviceReport on the booking document
+    const warnings = [];
+
     if (serviceReport.vitalsChecked) {
       const vitals = [];
 
@@ -484,12 +503,13 @@ class BookingService {
             metricsCount: vitals.length
           });
         } catch (error) {
-          logger.error('Failed to capture health metrics from booking — data in service report', {
+          logger.error('Failed to capture health metrics from booking — data preserved in service report', {
             bookingId: booking._id,
             patientId: booking.patient,
             vitalsCount: vitals.length,
             error: error.message
           });
+          warnings.push({ type: 'HEALTH_METRICS_FAILED', message: 'Health metrics could not be saved to patient record. Data is preserved in the service report.', error: error.message });
         }
       }
     }
@@ -509,10 +529,11 @@ class BookingService {
           patientId: booking.patient
         });
       } catch (error) {
-        logger.error('Failed to capture booking observations — data in service report', {
+        logger.error('Failed to capture booking observations — data preserved in service report', {
           bookingId: booking._id,
           error: error.message
         });
+        warnings.push({ type: 'OBSERVATIONS_FAILED', message: 'Observations could not be saved to health record. Data is preserved in the service report.', error: error.message });
       }
     }
 
@@ -547,10 +568,13 @@ class BookingService {
     logger.info('Service Completed', {
       bookingId: booking._id,
       providerId,
-      duration
+      duration,
+      warnings: warnings.length > 0 ? warnings : undefined
     });
 
-    return booking;
+    const result = booking.toObject ? booking.toObject() : booking;
+    if (warnings.length > 0) result.warnings = warnings;
+    return result;
   }
 
   /**
@@ -625,7 +649,7 @@ class BookingService {
    * @param {String} reason - Cancellation reason
    * @returns {Promise<Object>} Updated booking
    */
-  async cancelBooking(bookingId, userId, reason) {
+  async cancelBooking(bookingId, userId, reason, userRole) {
     const booking = await NurseBooking.findById(bookingId);
 
     if (!booking) {
@@ -637,11 +661,10 @@ class BookingService {
       throw new ValidationError('Cannot cancel booking in current status');
     }
 
-    // Authorization check
+    // Authorization check — role passed from controller, no extra DB query needed
     const isPatient = booking.patient.toString() === userId;
     const isProvider = booking.serviceProvider && booking.serviceProvider.toString() === userId;
-    const user = await User.findById(userId);
-    const isAdmin = user && user.role === 'admin';
+    const isAdmin = userRole === 'admin';
 
     if (!isPatient && !isProvider && !isAdmin) {
       throw new AuthorizationError('Not authorized to cancel this booking');
@@ -651,7 +674,8 @@ class BookingService {
     booking.status = 'CANCELLED';
     booking.cancellation = {
       cancelledAt: new Date(),
-      cancelledBy: userId,
+      cancelledBy: resolveCancellationActor({ userRole, isPatient, isProvider }),
+      cancelledByUser: userId,
       reason
     };
 

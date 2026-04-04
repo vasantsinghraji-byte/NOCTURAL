@@ -13,6 +13,7 @@ const { authorize } = require('../middleware/auth');
 const { protectBoth } = require('../middleware/patientAuth');
 const { queryCache } = require('../middleware/queryCache');
 const { CACHE_TTL } = require('../constants');
+const { BOOKING_SERVICE_TYPES, BOOKING_STATUSES } = require('../constants/enums');
 const {
   createBooking,
   getBooking,
@@ -35,15 +36,7 @@ const createBookingValidation = [
   body('serviceType')
     .notEmpty()
     .withMessage('Service type is required')
-    .isIn([
-      'INJECTION', 'IV_DRIP', 'WOUND_DRESSING', 'CATHETER_CARE',
-      'POST_SURGERY_CARE', 'ELDERLY_CARE', 'BABY_CARE',
-      'PHYSIOTHERAPY_SESSION', 'BACK_PAIN_THERAPY', 'KNEE_PAIN_THERAPY',
-      'SPORTS_INJURY_THERAPY', 'STROKE_REHAB', 'POST_SURGERY_REHAB',
-      'ELDERLY_CARE_PACKAGE', 'POST_SURGERY_PACKAGE', 'PHYSIO_PACKAGE_5',
-      'PHYSIO_PACKAGE_10', 'PHYSIO_PACKAGE_15', 'HOME_NURSING_MONTHLY',
-      'NEWBORN_CARE_PACKAGE'
-    ])
+    .isIn(BOOKING_SERVICE_TYPES)
     .withMessage('Invalid service type'),
   body('scheduledDate')
     .notEmpty()
@@ -55,25 +48,25 @@ const createBookingValidation = [
     .withMessage('Scheduled time is required')
     .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
     .withMessage('Invalid time format (use HH:MM)'),
-  body('serviceLocation.street')
+  body('serviceLocation.address.street')
     .trim()
     .notEmpty()
     .withMessage('Service location street is required'),
-  body('serviceLocation.city')
+  body('serviceLocation.address.city')
     .trim()
     .notEmpty()
     .withMessage('Service location city is required'),
-  body('serviceLocation.pincode')
+  body('serviceLocation.address.pincode')
     .trim()
     .notEmpty()
     .withMessage('Pincode is required')
     .matches(/^\d{6}$/)
     .withMessage('Please provide a valid 6-digit pincode'),
-  body('serviceLocation.coordinates.lat')
+  body('serviceLocation.address.coordinates.lat')
     .optional()
     .isFloat({ min: -90, max: 90 })
     .withMessage('Invalid latitude'),
-  body('serviceLocation.coordinates.lng')
+  body('serviceLocation.address.coordinates.lng')
     .optional()
     .isFloat({ min: -180, max: 180 })
     .withMessage('Invalid longitude'),
@@ -114,7 +107,7 @@ const updateStatusValidation = [
   body('status')
     .notEmpty()
     .withMessage('Status is required')
-    .isIn(['REQUESTED', 'SEARCHING', 'ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'])
+    .isIn(BOOKING_STATUSES)
     .withMessage('Invalid status'),
   body('note')
     .optional()

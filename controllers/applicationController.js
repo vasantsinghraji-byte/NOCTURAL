@@ -8,7 +8,7 @@
  */
 
 const applicationService = require('../services/applicationService');
-const { sendPaginatedResponse } = require('../utils/pagination');
+const responseHelper = require('../utils/responseHelper');
 
 /**
  * @desc    Get my applications with pagination
@@ -23,9 +23,14 @@ exports.getMyApplications = async (req, res, next) => {
       sort: req.query.sort || { appliedAt: -1 }
     });
 
-    sendPaginatedResponse(res, result);
+    responseHelper.sendPaginated(
+      res,
+      result.data,
+      result.pagination,
+      'Applications fetched successfully'
+    );
   } catch (error) {
-    next(error);
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -46,15 +51,14 @@ exports.getDutyApplications = async (req, res, next) => {
       }
     );
 
-    sendPaginatedResponse(res, result);
+    responseHelper.sendPaginated(
+      res,
+      result.data,
+      result.pagination,
+      'Applications fetched successfully'
+    );
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-    next(error);
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -67,19 +71,9 @@ exports.applyForDuty = async (req, res, next) => {
   try {
     const application = await applicationService.applyForDuty(req.body, req.user.id);
 
-    res.status(201).json({
-      success: true,
-      message: 'Application submitted successfully',
-      application
-    });
+    responseHelper.sendCreated(res, { application }, 'Application submitted successfully');
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-    next(error);
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -99,19 +93,13 @@ exports.updateApplicationStatus = async (req, res, next) => {
       notes
     );
 
-    res.status(200).json({
-      success: true,
-      message: `Application ${status.toLowerCase()} successfully`,
-      application
-    });
+    responseHelper.sendSuccess(
+      res,
+      { application },
+      `Application ${status.toLowerCase()} successfully`
+    );
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-    next(error);
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -124,18 +112,9 @@ exports.withdrawApplication = async (req, res, next) => {
   try {
     await applicationService.withdrawApplication(req.params.id, req.user.id);
 
-    res.status(200).json({
-      success: true,
-      message: 'Application withdrawn successfully'
-    });
+    responseHelper.sendSuccess(res, {}, 'Application withdrawn successfully');
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-    next(error);
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -151,18 +130,9 @@ exports.getApplicationById = async (req, res, next) => {
       req.user.id
     );
 
-    res.status(200).json({
-      success: true,
-      application
-    });
+    responseHelper.sendSuccess(res, { application });
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-    next(error);
+    responseHelper.handleServiceError(error, res, next);
   }
 };
 
@@ -175,11 +145,8 @@ exports.getApplicationStats = async (req, res, next) => {
   try {
     const stats = await applicationService.getApplicationStats(req.user.id);
 
-    res.status(200).json({
-      success: true,
-      stats
-    });
+    responseHelper.sendSuccess(res, { stats });
   } catch (error) {
-    next(error);
+    responseHelper.handleServiceError(error, res, next);
   }
 };

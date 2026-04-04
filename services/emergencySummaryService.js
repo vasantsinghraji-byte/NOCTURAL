@@ -22,16 +22,14 @@ class EmergencySummaryService {
       throw new NotFoundError('Patient', patientId);
     }
 
-    // Get latest approved health record
+    // Get latest approved health record (may be null for new patients)
     const healthRecord = await HealthRecord.getLatestApproved(patientId);
-    if (!healthRecord) {
-      throw new ValidationError('No approved health record found');
-    }
 
-    // Update or create emergency summary
+    // Create emergency summary — uses health record if available,
+    // otherwise creates a basic summary from patient data alone
     const summary = await EmergencySummary.updateFromHealthRecord(
       patientId,
-      healthRecord,
+      healthRecord || { healthSnapshot: {} },
       patient
     );
 

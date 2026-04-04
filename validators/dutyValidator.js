@@ -5,6 +5,7 @@
 
 const { body, param, query } = require('express-validator');
 const { handleValidationErrors } = require('./authValidator');
+const { SPECIALIZATIONS, DEPARTMENTS, DUTY_STATUSES, URGENCY_LEVELS, FIELD_LIMITS } = require('../constants/enums');
 
 /**
  * Create duty validation
@@ -13,7 +14,7 @@ const validateCreateDuty = [
   body('title')
     .trim()
     .notEmpty().withMessage('Title is required')
-    .isLength({ min: 5, max: 200 }).withMessage('Title must be between 5 and 200 characters')
+    .isLength(FIELD_LIMITS.TITLE).withMessage(`Title must be between ${FIELD_LIMITS.TITLE.min} and ${FIELD_LIMITS.TITLE.max} characters`)
     .escape(),
 
   body('hospital')
@@ -28,37 +29,17 @@ const validateCreateDuty = [
 
   body('department')
     .notEmpty().withMessage('Department is required')
-    .isIn(['Emergency', 'ICU', 'OPD', 'Surgery', 'General Ward', 'Maternity', 'Pediatrics', 'Psychiatry', 'Other'])
+    .isIn(DEPARTMENTS)
     .withMessage('Invalid department'),
 
   body('specialty')
     .notEmpty().withMessage('Specialty is required')
-    .isIn([
-      'Internal Medicine',
-      'Emergency Medicine',
-      'General Surgery',
-      'Anaesthesiology',
-      'Intensive Care / Critical Care Medicine',
-      'Obstetrics & Gynaecology',
-      'Orthopaedics',
-      'Urology',
-      'Neurosurgery',
-      'ENT (Otolaryngology)',
-      'Cardiothoracic Surgery',
-      'General Paediatrics',
-      'Neonatology',
-      'General Psychiatry',
-      'Radiology',
-      'Pathology / Laboratory Medicine',
-      'Palliative Medicine',
-      'General Medicine',
-      'Other'
-    ]).withMessage('Invalid specialty'),
+    .isIn(SPECIALIZATIONS).withMessage('Invalid specialty'),
 
   body('description')
     .trim()
     .notEmpty().withMessage('Description is required')
-    .isLength({ min: 20, max: 2000 }).withMessage('Description must be between 20 and 2000 characters'),
+    .isLength(FIELD_LIMITS.DESCRIPTION).withMessage(`Description must be between ${FIELD_LIMITS.DESCRIPTION.min} and ${FIELD_LIMITS.DESCRIPTION.max} characters`),
 
   body('date')
     .notEmpty().withMessage('Date is required')
@@ -140,7 +121,7 @@ const validateCreateDuty = [
 
   body('urgency')
     .optional()
-    .isIn(['NORMAL', 'URGENT', 'EMERGENCY']).withMessage('Invalid urgency level'),
+    .isIn(URGENCY_LEVELS).withMessage('Invalid urgency level'),
 
   body('positionsNeeded')
     .optional()
@@ -165,7 +146,7 @@ const validateUpdateDuty = [
   body('description')
     .optional()
     .trim()
-    .isLength({ min: 20, max: 2000 }).withMessage('Description must be between 20 and 2000 characters'),
+    .isLength(FIELD_LIMITS.DESCRIPTION).withMessage(`Description must be between ${FIELD_LIMITS.DESCRIPTION.min} and ${FIELD_LIMITS.DESCRIPTION.max} characters`),
 
   body('hourlyRate')
     .optional()
@@ -173,7 +154,7 @@ const validateUpdateDuty = [
 
   body('status')
     .optional()
-    .isIn(['OPEN', 'FILLED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).withMessage('Invalid status'),
+    .isIn(DUTY_STATUSES).withMessage('Invalid status'),
 
   handleValidationErrors
 ];
@@ -206,41 +187,21 @@ const validateDeleteDuty = [
 const validateSearchDuties = [
   query('specialty')
     .optional()
-    .isIn([
-      'Internal Medicine',
-      'Emergency Medicine',
-      'General Surgery',
-      'Anaesthesiology',
-      'Intensive Care / Critical Care Medicine',
-      'Obstetrics & Gynaecology',
-      'Orthopaedics',
-      'Urology',
-      'Neurosurgery',
-      'ENT (Otolaryngology)',
-      'Cardiothoracic Surgery',
-      'General Paediatrics',
-      'Neonatology',
-      'General Psychiatry',
-      'Radiology',
-      'Pathology / Laboratory Medicine',
-      'Palliative Medicine',
-      'General Medicine',
-      'Other'
-    ]).withMessage('Invalid specialty'),
+    .isIn(SPECIALIZATIONS).withMessage('Invalid specialty'),
 
   query('department')
     .optional()
-    .isIn(['Emergency', 'ICU', 'OPD', 'Surgery', 'General Ward', 'Maternity', 'Pediatrics', 'Psychiatry', 'Other'])
+    .isIn(DEPARTMENTS)
     .withMessage('Invalid department'),
 
   query('status')
     .optional()
-    .isIn(['OPEN', 'FILLED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'])
+    .isIn(DUTY_STATUSES)
     .withMessage('Invalid status'),
 
   query('urgency')
     .optional()
-    .isIn(['NORMAL', 'URGENT', 'EMERGENCY'])
+    .isIn(URGENCY_LEVELS)
     .withMessage('Invalid urgency'),
 
   query('date')

@@ -24,7 +24,7 @@ const { TRACKER_TYPES } = require('../constants/healthConstants');
  */
 exports.uploadReport = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const files = req.files;
 
     if (!files || files.length === 0) {
@@ -46,7 +46,7 @@ exports.uploadReport = async (req, res, next) => {
  */
 exports.getReports = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { page, limit, reportType, status, startDate, endDate } = req.query;
 
     const result = await InvestigationReport.getPatientReports(patientId, {
@@ -71,7 +71,7 @@ exports.getReports = async (req, res, next) => {
  */
 exports.getReportDetails = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { reportId } = req.params;
 
     const report = await investigationReportService.getReportDetails(reportId, patientId);
@@ -89,7 +89,7 @@ exports.getReportDetails = async (req, res, next) => {
  */
 exports.retryAnalysis = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { reportId } = req.params;
 
     const report = await investigationReportService.retryAIAnalysis(reportId, patientId);
@@ -107,7 +107,7 @@ exports.retryAnalysis = async (req, res, next) => {
  */
 exports.requestDoctorReview = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { reportId } = req.params;
     const { assignmentType, doctorId, specialization } = req.body;
 
@@ -162,7 +162,7 @@ exports.getSpecializations = async (req, res, next) => {
  */
 exports.askQuestion = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { reportId } = req.params;
     const { question } = req.body;
 
@@ -185,7 +185,7 @@ exports.askQuestion = async (req, res, next) => {
  */
 exports.acknowledgeReport = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { reportId } = req.params;
 
     const report = await investigationReportService.acknowledgeReport(reportId, patientId);
@@ -203,7 +203,7 @@ exports.acknowledgeReport = async (req, res, next) => {
  */
 exports.deleteReport = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { reportId } = req.params;
 
     await investigationReportService.deleteReport(reportId, patientId);
@@ -221,7 +221,7 @@ exports.deleteReport = async (req, res, next) => {
  */
 exports.getReportsSummary = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const summary = await InvestigationReport.getPatientAnalyticsSummary(patientId);
 
     responseHelper.sendSuccess(res, { summary }, 'Reports summary loaded');
@@ -241,7 +241,7 @@ exports.getReportsSummary = async (req, res, next) => {
  */
 exports.recordDiabetesReading = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const result = await healthTrackerService.recordDiabetesReading(patientId, req.body);
 
     responseHelper.sendSuccess(res, result, 'Reading recorded', 201);
@@ -257,7 +257,7 @@ exports.recordDiabetesReading = async (req, res, next) => {
  */
 exports.getDiabetesChart = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { startDate, endDate, period } = req.query;
 
     const data = await healthTrackerService.getDiabetesChartData(patientId, {
@@ -279,7 +279,7 @@ exports.getDiabetesChart = async (req, res, next) => {
  */
 exports.getDiabetesSummary = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const summary = await healthTrackerService.getTrackerSummary(patientId, TRACKER_TYPES.DIABETES);
 
     responseHelper.sendSuccess(res, { summary }, 'Diabetes summary loaded');
@@ -295,7 +295,7 @@ exports.getDiabetesSummary = async (req, res, next) => {
  */
 exports.updateDiabetesTarget = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { metricType } = req.params;
 
     const tracker = await healthTrackerService.updateTrackerTarget(
@@ -320,7 +320,7 @@ exports.updateDiabetesTarget = async (req, res, next) => {
  */
 exports.resetDiabetesTarget = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { metricType } = req.params;
 
     const tracker = await healthTrackerService.resetTrackerTarget(
@@ -346,7 +346,7 @@ exports.resetDiabetesTarget = async (req, res, next) => {
  */
 exports.recordBPReading = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const result = await healthTrackerService.recordBPReading(patientId, req.body);
 
     responseHelper.sendSuccess(res, result, 'BP reading recorded', 201);
@@ -362,7 +362,7 @@ exports.recordBPReading = async (req, res, next) => {
  */
 exports.getHypertensionChart = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { startDate, endDate, period } = req.query;
 
     const data = await healthTrackerService.getHypertensionChartData(patientId, {
@@ -384,7 +384,7 @@ exports.getHypertensionChart = async (req, res, next) => {
  */
 exports.getHypertensionSummary = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const summary = await healthTrackerService.getTrackerSummary(patientId, TRACKER_TYPES.HYPERTENSION);
 
     responseHelper.sendSuccess(res, { summary }, 'Hypertension summary loaded');
@@ -400,7 +400,7 @@ exports.getHypertensionSummary = async (req, res, next) => {
  */
 exports.updateHypertensionTarget = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { metricType } = req.params;
 
     const tracker = await healthTrackerService.updateTrackerTarget(
@@ -425,7 +425,7 @@ exports.updateHypertensionTarget = async (req, res, next) => {
  */
 exports.resetHypertensionTarget = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { metricType } = req.params;
 
     const tracker = await healthTrackerService.resetTrackerTarget(
@@ -451,7 +451,7 @@ exports.resetHypertensionTarget = async (req, res, next) => {
  */
 exports.getAllTrackersSummary = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const summary = await healthTrackerService.getAllTrackersSummary(patientId);
 
     responseHelper.sendSuccess(res, { summary }, 'All trackers summary loaded');
@@ -467,7 +467,7 @@ exports.getAllTrackersSummary = async (req, res, next) => {
  */
 exports.getAnalyticsOverview = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
 
     const [reportsSummary, trackersSummary] = await Promise.all([
       InvestigationReport.getPatientAnalyticsSummary(patientId),
@@ -490,7 +490,7 @@ exports.getAnalyticsOverview = async (req, res, next) => {
  */
 exports.updateReminderSettings = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { trackerType } = req.params;
 
     if (!Object.values(TRACKER_TYPES).includes(trackerType)) {
@@ -512,7 +512,7 @@ exports.updateReminderSettings = async (req, res, next) => {
  */
 exports.toggleTracker = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { trackerType } = req.params;
     const { isEnabled } = req.body;
 
@@ -539,7 +539,7 @@ exports.toggleTracker = async (req, res, next) => {
  */
 exports.getTargets = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { trackerType } = req.params;
 
     if (!Object.values(TRACKER_TYPES).includes(trackerType)) {
@@ -561,7 +561,7 @@ exports.getTargets = async (req, res, next) => {
  */
 exports.saveTargets = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { trackerType, ranges, reminders } = req.body;
 
     if (!trackerType || !Object.values(TRACKER_TYPES).includes(trackerType)) {

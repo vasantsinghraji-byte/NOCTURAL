@@ -17,7 +17,7 @@ const responseHelper = require('../utils/responseHelper');
  */
 exports.getLatestRecord = async (req, res, next) => {
   try {
-    const patientId = req.healthAccess?.patientId || req.user._id;
+    const patientId = req.healthAccess?.patientId || req.user.id;
     const record = await healthRecordService.getLatestRecord(patientId);
 
     responseHelper.sendSuccess(res, { record }, 'Health record loaded');
@@ -33,7 +33,7 @@ exports.getLatestRecord = async (req, res, next) => {
  */
 exports.getRecordHistory = async (req, res, next) => {
   try {
-    const patientId = req.healthAccess?.patientId || req.user._id;
+    const patientId = req.healthAccess?.patientId || req.user.id;
     const { page, limit } = req.query;
 
     const options = {
@@ -61,7 +61,7 @@ exports.getRecordHistory = async (req, res, next) => {
  */
 exports.getRecordByVersion = async (req, res, next) => {
   try {
-    const patientId = req.healthAccess?.patientId || req.user._id;
+    const patientId = req.healthAccess?.patientId || req.user.id;
     const version = parseInt(req.params.version);
 
     const record = await healthRecordService.getRecordByVersion(patientId, version);
@@ -79,7 +79,7 @@ exports.getRecordByVersion = async (req, res, next) => {
  */
 exports.appendHealthUpdate = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const updates = req.body;
 
     const record = await healthRecordService.appendUpdate(patientId, updates, {
@@ -99,7 +99,7 @@ exports.appendHealthUpdate = async (req, res, next) => {
  */
 exports.getMetrics = async (req, res, next) => {
   try {
-    const patientId = req.healthAccess?.patientId || req.user._id;
+    const patientId = req.healthAccess?.patientId || req.user.id;
     const { metricType, startDate, endDate, abnormalOnly, page, limit } = req.query;
 
     const filters = {};
@@ -133,7 +133,7 @@ exports.getMetrics = async (req, res, next) => {
  */
 exports.getLatestMetrics = async (req, res, next) => {
   try {
-    const patientId = req.healthAccess?.patientId || req.user._id;
+    const patientId = req.healthAccess?.patientId || req.user.id;
     const HealthMetric = require('../models/healthMetric');
 
     const metrics = await HealthMetric.getLatestByType(patientId);
@@ -151,7 +151,7 @@ exports.getLatestMetrics = async (req, res, next) => {
  */
 exports.recordMetric = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const metricData = req.body;
 
     const metric = await healthMetricService.recordMetric(patientId, metricData, {
@@ -171,7 +171,7 @@ exports.recordMetric = async (req, res, next) => {
  */
 exports.recordMultipleMetrics = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { metrics } = req.body;
 
     const result = await healthMetricService.recordMultipleMetrics(patientId, metrics, {
@@ -191,7 +191,7 @@ exports.recordMultipleMetrics = async (req, res, next) => {
  */
 exports.getPatientNotes = async (req, res, next) => {
   try {
-    const patientId = req.user._id;
+    const patientId = req.user.id;
     const { page, limit } = req.query;
 
     const skip = ((parseInt(page) || 1) - 1) * (parseInt(limit) || 20);
