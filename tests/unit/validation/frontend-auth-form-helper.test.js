@@ -20,6 +20,7 @@ describe('Frontend Auth Form Helper', () => {
     expect(frontendSessionSrc).toContain('function resetButtonState(button, options)');
     expect(frontendSessionSrc).toContain('function getLoginErrorMessage(error, overrides)');
     expect(frontendSessionSrc).toContain('function getRegistrationErrorMessage(error, overrides)');
+    expect(frontendSessionSrc).toContain('function completeAuthSuccess(authData, options)');
     expect(frontendSessionSrc).toContain("invalidCredentialsMessage: 'Invalid email or password. Please try again.'");
     expect(frontendSessionSrc).toContain("defaultMessage: 'Registration failed. Please try again.'");
   });
@@ -30,33 +31,41 @@ describe('Frontend Auth Form Helper', () => {
     expect(landingSrc).toContain("NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match.')");
     expect(landingSrc).toContain('NocturnalSession.setButtonLoading(btn)');
     expect(landingSrc).toContain('NocturnalSession.resetButtonState(btn)');
+    expect(landingSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(landingSrc).toContain('useRoleRedirect: true');
 
     expect(sharedRegisterSrc).toContain('<script src="/js/frontend-session.js"></script>');
     expect(sharedRegisterSrc).toContain('NocturnalSession.getRegistrationErrorMessage(error');
     expect(sharedRegisterSrc).toContain("NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match')");
-    expect(sharedRegisterSrc).toContain('NocturnalSession.renderSuccessMessage(');
     expect(sharedRegisterSrc).toContain('NocturnalSession.setButtonLoading(btn)');
     expect(sharedRegisterSrc).toContain('NocturnalSession.resetButtonState(btn)');
+    expect(sharedRegisterSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(sharedRegisterSrc).toContain("redirectUrl: 'doctor-onboarding.html'");
+    expect(sharedRegisterSrc).toContain("redirectUrl: 'admin-dashboard.html'");
 
     expect(patientLoginSrc).toContain('<script src="/js/frontend-session.js"></script>');
     expect(patientLoginSrc).toContain('NocturnalSession.getLoginErrorMessage(error');
-    expect(patientLoginSrc).toContain('NocturnalSession.renderSuccessMessage(');
     expect(patientLoginSrc).toContain("NocturnalSession.setButtonLoading(btn, { clearText: true })");
     expect(patientLoginSrc).toContain("NocturnalSession.resetButtonState(btn, { textContent: 'Login' })");
+    expect(patientLoginSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(patientLoginSrc).toContain("tokenKey: 'patientToken'");
 
     expect(providerLoginSrc).toContain('<script src="/js/frontend-session.js"></script>');
     expect(providerLoginSrc).toContain('NocturnalSession.getLoginErrorMessage(error');
     expect(providerLoginSrc).toContain("{ className: 'message error' }");
-    expect(providerLoginSrc).toContain("{ className: 'message success' }");
     expect(providerLoginSrc).toContain("NocturnalSession.setButtonLoading(btn, { clearText: true })");
     expect(providerLoginSrc).toContain("NocturnalSession.resetButtonState(btn, { textContent: 'Login' })");
+    expect(providerLoginSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(providerLoginSrc).toContain("successClassName: 'message success'");
+    expect(providerLoginSrc).toContain("tokenKey: 'providerToken'");
 
     expect(patientRegisterSrc).toContain('<script src="/js/frontend-session.js"></script>');
     expect(patientRegisterSrc).toContain('NocturnalSession.getRegistrationErrorMessage(error');
     expect(patientRegisterSrc).toContain("NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match')");
     expect(patientRegisterSrc).toContain("NocturnalSession.renderFormMessage(errorDiv, 'Please enter a valid 10-digit mobile number')");
-    expect(patientRegisterSrc).toContain('NocturnalSession.renderSuccessMessage(');
     expect(patientRegisterSrc).toContain("NocturnalSession.setButtonLoading(btn, { clearText: true })");
     expect(patientRegisterSrc).toContain("NocturnalSession.resetButtonState(btn, { textContent: 'Create Account' })");
+    expect(patientRegisterSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(patientRegisterSrc).toContain("redirectUrl: 'patient-dashboard.html'");
   });
 });

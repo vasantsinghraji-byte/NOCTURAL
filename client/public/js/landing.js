@@ -195,7 +195,6 @@ document.addEventListener('DOMContentLoaded', function () {
       var btn = e.target.querySelector('button[type="submit"]');
       var errorDiv = document.getElementById('registerError');
       errorDiv.innerHTML = '';
-      btn.classList.add('loading');
 
       var name = document.getElementById('registerName').value;
       var email = document.getElementById('registerEmail').value;

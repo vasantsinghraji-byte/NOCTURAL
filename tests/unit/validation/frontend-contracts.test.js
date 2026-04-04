@@ -29,7 +29,8 @@ describe('Frontend Contract Reconciliation', () => {
     expect(frontendSessionSrc).toContain('? routes.doctorDashboard');
     expect(frontendSessionSrc).toContain(': routes.doctorOnboarding');
     expect(frontendSessionSrc).toContain("window.location.href = routes.adminDashboard");
-    expect(landingSrc).toContain('NocturnalSession.redirectForUser(data.user, ROUTE_MAP)');
+    expect(landingSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(landingSrc).toContain('routeOverrides: ROUTE_MAP');
   });
 
   it('should persist dashboard session fields expected by doctor pages', () => {
