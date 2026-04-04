@@ -268,36 +268,36 @@
             const messageDiv = document.getElementById('messageDiv');
             const btn = document.getElementById('submitBtn');
 
-            messageDiv.innerHTML = '';
+            NocturnalSession.clearFormMessage(messageDiv);
 
             NocturnalSession.setButtonLoading(btn, { clearText: true });
 
             try {
-                const response = await AppConfig.fetch('auth/login', {
+                const data = await AppConfig.fetch('auth/login', {
                     method: 'POST',
+                    skipAuth: true,
+                    parseJson: true,
                     body: JSON.stringify({ email, password })
                 });
-
-                const data = await response.json();
-
-                if (data.success && data.token) {
-                    // Check if user is a nurse or physiotherapist
-                    if (!['nurse', 'physiotherapist'].includes(data.user.role)) {
-                        throw new Error('This portal is only for nurses and physiotherapists');
+                var authData = NocturnalSession.expectJsonSuccess(data, 'Login failed', {
+                    isSuccess: function (payload) {
+                        return !!(payload && payload.success && payload.token && payload.user);
                     }
+                });
 
-                    NocturnalSession.completeAuthSuccess(data, {
-                        tokenKey: 'providerToken',
-                        userKey: 'provider',
-                        successContainer: messageDiv,
-                        successMessage: 'Login successful! Redirecting...',
-                        successClassName: 'message success',
-                        redirectUrl: 'provider-dashboard.html',
-                        redirectDelayMs: 1000
-                    });
-                } else {
-                    throw new Error(data.message || 'Login failed');
+                if (!['nurse', 'physiotherapist'].includes(authData.user.role)) {
+                    throw new Error('This portal is only for nurses and physiotherapists');
                 }
+
+                NocturnalSession.completeAuthSuccess(authData, {
+                    tokenKey: 'providerToken',
+                    userKey: 'provider',
+                    successContainer: messageDiv,
+                    successMessage: 'Login successful! Redirecting...',
+                    successClassName: 'message success',
+                    redirectUrl: 'provider-dashboard.html',
+                    redirectDelayMs: 1000
+                });
             } catch (error) {
                 console.error('Login error:', error);
                 NocturnalSession.renderFormMessage(

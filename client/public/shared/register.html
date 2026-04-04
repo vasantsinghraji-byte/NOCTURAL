@@ -432,13 +432,13 @@
 
         // Password validation functions
         function validatePassword(password, prefix) {
-            const requirements = {
-                length: password.length >= 8,
-                uppercase: /[A-Z]/.test(password),
-                lowercase: /[a-z]/.test(password),
-                number: /\d/.test(password),
-                special: /[@$!%*?&]/.test(password)
-            };
+            const requirements = NocturnalSession.getPasswordStrengthState(password);
+            requirements.isValid =
+                requirements.length &&
+                requirements.uppercase &&
+                requirements.lowercase &&
+                requirements.number &&
+                requirements.special;
 
             document.getElementById(`${prefix}Req1`).className = requirements.length ? 'valid' : 'invalid';
             document.getElementById(`${prefix}Req2`).className = requirements.uppercase ? 'valid' : 'invalid';
@@ -446,7 +446,7 @@
             document.getElementById(`${prefix}Req4`).className = requirements.number ? 'valid' : 'invalid';
             document.getElementById(`${prefix}Req5`).className = requirements.special ? 'valid' : 'invalid';
 
-            return Object.values(requirements).every(v => v);
+            return requirements.isValid;
         }
 
         // Doctor password validation
@@ -465,7 +465,7 @@
 
             const btn = document.getElementById('doctorSubmitBtn');
             const errorDiv = document.getElementById('doctorError');
-            errorDiv.innerHTML = '';
+            NocturnalSession.clearFormMessage(errorDiv);
 
             const name = document.getElementById('doctorName').value.trim();
             const email = document.getElementById('doctorEmail').value.trim();
@@ -475,43 +475,49 @@
             const confirmPassword = document.getElementById('doctorConfirmPassword').value;
 
             // Validation
-            if (!role) {
-                errorDiv.innerHTML = '<div class="error-message">Please select your role (Doctor or Nurse)</div>';
+            if (!NocturnalSession.validateRequiredValue(
+                role,
+                errorDiv,
+                'Please select your role (Doctor or Nurse)'
+            )) {
                 return;
             }
 
             if (!validatePassword(password, 'doctor')) {
-                errorDiv.innerHTML = '<div class="error-message">Password does not meet requirements</div>';
+                NocturnalSession.validatePasswordStrength(password, errorDiv);
                 return;
             }
 
-            if (password !== confirmPassword) {
-                NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match');
+            if (!NocturnalSession.validatePasswordMatch(password, confirmPassword, errorDiv, {
+                message: 'Passwords do not match'
+            })) {
                 return;
             }
 
             NocturnalSession.setButtonLoading(btn);
 
             try {
-                const response = await AppConfig.fetch('auth/register', {
+                const data = await AppConfig.fetch('auth/register', {
                     method: 'POST',
+                    skipAuth: true,
+                    parseJson: true,
                     body: JSON.stringify({ name, email, phone, password, role })
                 });
-
-                const data = await response.json();
-
-                if (data.success && data.token) {
-                    NocturnalSession.completeAuthSuccess(data, {
+                NocturnalSession.completeAuthSuccess(
+                    NocturnalSession.expectJsonSuccess(data, 'Registration failed', {
+                        isSuccess: function (payload) {
+                            return !!(payload && payload.success && payload.token);
+                        }
+                    }),
+                    {
                         userTypeKey: 'userType',
                         userType: role,
                         successContainer: errorDiv,
                         successMessage: 'Registration successful! Redirecting to onboarding...',
                         redirectUrl: 'doctor-onboarding.html',
                         redirectDelayMs: 1500
-                    });
-                } else {
-                    throw new Error(data.message || 'Registration failed');
-                }
+                    }
+                );
             } catch (error) {
                 console.error('Registration error:', error);
                 NocturnalSession.renderFormMessage(
@@ -531,7 +537,7 @@
 
             const btn = document.getElementById('hospitalSubmitBtn');
             const errorDiv = document.getElementById('hospitalError');
-            errorDiv.innerHTML = '';
+            NocturnalSession.clearFormMessage(errorDiv);
 
             const hospitalName = document.getElementById('hospitalName').value.trim();
             const name = document.getElementById('hospitalContactName').value.trim();
@@ -542,20 +548,23 @@
             const confirmPassword = document.getElementById('hospitalConfirmPassword').value;
 
             if (!validatePassword(password, 'hospital')) {
-                errorDiv.innerHTML = '<div class="error-message">Password does not meet requirements</div>';
+                NocturnalSession.validatePasswordStrength(password, errorDiv);
                 return;
             }
 
-            if (password !== confirmPassword) {
-                NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match');
+            if (!NocturnalSession.validatePasswordMatch(password, confirmPassword, errorDiv, {
+                message: 'Passwords do not match'
+            })) {
                 return;
             }
 
             NocturnalSession.setButtonLoading(btn);
 
             try {
-                const response = await AppConfig.fetch('auth/register', {
+                const data = await AppConfig.fetch('auth/register', {
                     method: 'POST',
+                    skipAuth: true,
+                    parseJson: true,
                     body: JSON.stringify({
                         name,
                         email,
@@ -566,21 +575,21 @@
                         location
                     })
                 });
-
-                const data = await response.json();
-
-                if (data.success && data.token) {
-                    NocturnalSession.completeAuthSuccess(data, {
+                NocturnalSession.completeAuthSuccess(
+                    NocturnalSession.expectJsonSuccess(data, 'Registration failed', {
+                        isSuccess: function (payload) {
+                            return !!(payload && payload.success && payload.token);
+                        }
+                    }),
+                    {
                         userTypeKey: 'userType',
                         userType: 'hospital',
                         successContainer: errorDiv,
                         successMessage: 'Registration successful! Redirecting to dashboard...',
                         redirectUrl: 'admin-dashboard.html',
                         redirectDelayMs: 1500
-                    });
-                } else {
-                    throw new Error(data.message || 'Registration failed');
-                }
+                    }
+                );
             } catch (error) {
                 console.error('Registration error:', error);
                 NocturnalSession.renderFormMessage(

@@ -21,9 +21,12 @@ describe('Frontend Endpoint Resolution', () => {
     expect(indexHtmlSrc).toContain('<script src="js/frontend-session.js"></script>');
     expect(indexHtmlSrc).toContain('<script src="js/landing.js"></script>');
     expect(indexUnifiedHtmlSrc).toContain('<script src="js/frontend-session.js"></script>');
-    expect(frontendSessionSrc).toContain("AppConfig.fetch('auth/me')");
+    expect(frontendSessionSrc).toContain("AppConfig.fetch('auth/me', {");
+    expect(frontendSessionSrc).toContain('parseJson: true');
     expect(landingSrc).toContain('NocturnalSession.getActiveUser()');
     expect(landingSrc).toContain("AppConfig.fetch('auth/login', {");
+    expect(landingSrc).toContain('skipAuth: true');
+    expect(landingSrc).toContain('parseJson: true');
     expect(landingSrc).toContain("AppConfig.fetch('auth/register', {");
     expect(landingSrc).not.toContain('http://localhost:5000');
     expect(landingSrc).not.toContain("fetch('/api");

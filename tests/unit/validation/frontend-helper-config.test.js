@@ -11,6 +11,7 @@ const notificationCenterSrc = readProjectFile('client/public/js/notification-cen
 const unifiedNavSrc = readProjectFile('client/public/js/unified-nav.js');
 const paginationSrc = readProjectFile('client/public/js/pagination.js');
 const utilsSrc = readProjectFile('client/public/js/utils.js');
+const configSrc = readProjectFile('client/public/js/config.js');
 
 describe('Frontend Helper Configuration', () => {
   it('should resolve shared API helpers through AppConfig or same-origin fallbacks instead of localhost', () => {
@@ -24,6 +25,11 @@ describe('Frontend Helper Configuration', () => {
     expect(apiHelperSrc).toContain("typeof AppConfig.fetch === 'function'");
     expect(apiHelperSrc).toContain("typeof AppConfig.api === 'function'");
     expect(apiHelperSrc).toContain('return AppConfig.fetch(normalizedEndpoint, options);');
+    expect(apiHelperSrc).toContain('parseJson: true');
+    expect(apiHelperSrc).toContain('const shouldParseJson = requestOptions.parseJson === true;');
+    expect(apiHelperSrc).toContain('const shouldParseText = requestOptions.parseText === true;');
+    expect(apiHelperSrc).toContain('delete requestOptions.parseJson;');
+    expect(apiHelperSrc).toContain('delete requestOptions.parseText;');
     expect(apiHelperSrc).toContain('return AppConfig.api(normalizedEndpoint);');
     expect(apiHelperSrc).toContain('return `/api/v1/${normalizedEndpoint}`;');
   });
@@ -32,8 +38,14 @@ describe('Frontend Helper Configuration', () => {
     expect(authHelperSrc).toContain('static buildApiUrl(endpoint)');
     expect(authHelperSrc).toContain('static request(endpoint, options = {})');
     expect(authHelperSrc).toContain("return AppConfig.fetch(normalizedEndpoint, options);");
-    expect(authHelperSrc).toContain("const response = await this.request('auth/login', {");
-    expect(authHelperSrc).toContain("const response = await this.request('auth/register', {");
+    expect(authHelperSrc).toContain("const data = await this.request('auth/login', {");
+    expect(authHelperSrc).toContain("const data = await this.request('auth/register', {");
+    expect(authHelperSrc).toContain('const shouldParseJson = requestOptions.parseJson === true;');
+    expect(authHelperSrc).toContain('const shouldParseText = requestOptions.parseText === true;');
+    expect(authHelperSrc).toContain('delete requestOptions.parseJson;');
+    expect(authHelperSrc).toContain('delete requestOptions.parseText;');
+    expect(authHelperSrc).toContain('skipAuth: true');
+    expect(authHelperSrc).toContain('parseJson: true');
     expect(authHelperSrc).not.toContain('static API_URL');
   });
 
@@ -59,5 +71,25 @@ describe('Frontend Helper Configuration', () => {
 
     expect(utilsSrc).toContain("typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function'");
     expect(utilsSrc).toContain('await AppConfig.fetch(toStandardApiEndpoint(url), mergedOptions)');
+  });
+
+  it('should let AppConfig.fetch handle FormData uploads without forcing JSON content type', () => {
+    expect(configSrc).toContain('const parseJsonBody = async (response) => {');
+    expect(configSrc).toContain('const parseTextBody = async (response) => {');
+    expect(configSrc).toContain('getAuthHeaders: function(options = {})');
+    expect(configSrc).toContain("if (token && !options.skipAuth)");
+    expect(configSrc).toContain('const requestOptions = { ...options };');
+    expect(configSrc).toContain('const shouldParseJson = requestOptions.parseJson === true;');
+    expect(configSrc).toContain('const shouldParseText = requestOptions.parseText === true;');
+    expect(configSrc).toContain('const defaultHeaders = this.getAuthHeaders(requestOptions);');
+    expect(configSrc).toContain('delete requestOptions.skipAuth;');
+    expect(configSrc).toContain('delete requestOptions.parseJson;');
+    expect(configSrc).toContain('delete requestOptions.parseText;');
+    expect(configSrc).toContain("requestOptions.body instanceof FormData");
+    expect(configSrc).toContain("delete defaultHeaders['Content-Type'];");
+    expect(configSrc).toContain('if (!shouldParseJson) {');
+    expect(configSrc).toContain('if (!shouldParseText) {');
+    expect(configSrc).toContain('const text = await parseTextBody(response);');
+    expect(configSrc).toContain('const data = await parseJsonBody(response);');
   });
 });

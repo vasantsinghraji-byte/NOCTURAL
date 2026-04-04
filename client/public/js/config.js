@@ -51,6 +51,24 @@ const getApiUrl = (endpoint) => {
 // Full API URL (for backward compatibility)
 const API_URL = `${API_CONFIG.BASE_URL}/api/${API_CONFIG.API_VERSION}`;
 
+const parseJsonBody = async (response) => {
+    const responseText = await response.text();
+
+    if (!responseText) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(responseText);
+    } catch (error) {
+        throw new Error('Invalid JSON response');
+    }
+};
+
+const parseTextBody = async (response) => {
+    return response.text();
+};
+
 // AppConfig object (backward compatibility with existing code)
 const AppConfig = {
     API_URL: API_URL,
@@ -71,10 +89,10 @@ const AppConfig = {
     },
 
     // Get auth headers for API calls
-    getAuthHeaders: function() {
+    getAuthHeaders: function(options = {}) {
         const token = this.getToken();
         const headers = { 'Content-Type': 'application/json' };
-        if (token) {
+        if (token && !options.skipAuth) {
             headers['Authorization'] = `Bearer ${token}`;
         }
         return headers;
@@ -82,20 +100,56 @@ const AppConfig = {
 
     // Make authenticated API call with timeout
     fetch: async function(endpoint, options = {}) {
+        const requestOptions = { ...options };
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT);
+        const shouldParseJson = requestOptions.parseJson === true;
+        const shouldParseText = requestOptions.parseText === true;
+        const isFormDataBody =
+            typeof FormData !== 'undefined' &&
+            requestOptions.body instanceof FormData;
+        const defaultHeaders = this.getAuthHeaders(requestOptions);
+
+        delete requestOptions.skipAuth;
+        delete requestOptions.parseJson;
+        delete requestOptions.parseText;
+
+        if (isFormDataBody) {
+            delete defaultHeaders['Content-Type'];
+        }
 
         try {
             const response = await fetch(getApiUrl(endpoint), {
-                ...options,
+                ...requestOptions,
                 headers: {
-                    ...this.getAuthHeaders(),
-                    ...options.headers
+                    ...defaultHeaders,
+                    ...requestOptions.headers
                 },
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
-            return response;
+
+            if (!shouldParseJson) {
+                if (!shouldParseText) {
+                    return response;
+                }
+
+                const text = await parseTextBody(response);
+
+                if (!response.ok) {
+                    throw new Error(text || 'Request failed');
+                }
+
+                return text;
+            }
+
+            const data = await parseJsonBody(response);
+
+            if (!response.ok) {
+                throw new Error((data && data.message) || 'Request failed');
+            }
+
+            return data;
         } catch (error) {
             clearTimeout(timeoutId);
             if (error.name === 'AbortError') {

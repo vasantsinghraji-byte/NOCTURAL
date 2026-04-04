@@ -63,12 +63,14 @@ if (typeof AppConfig === 'undefined') {
     }
 
     try {
-      var response = await AppConfig.fetch('auth/me');
-      var data = await response.json();
-
-      if (data.success && data.user) {
-        return data.user;
-      }
+      var data = await AppConfig.fetch('auth/me', {
+        parseJson: true
+      });
+      return expectJsonSuccess(data, 'Failed to load active user', {
+        isSuccess: function (payload) {
+          return !!(payload && payload.success && payload.user);
+        }
+      }).user;
     } catch (error) {
       return null;
     }
@@ -96,6 +98,12 @@ if (typeof AppConfig === 'undefined') {
     renderFormMessage(container, message, config);
   }
 
+  function clearFormMessage(container) {
+    if (container) {
+      container.innerHTML = '';
+    }
+  }
+
   function setButtonLoading(button, options) {
     if (!button) {
       return;
@@ -109,10 +117,16 @@ if (typeof AppConfig === 'undefined') {
       button.dataset.originalText = button.textContent;
     }
 
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+
     button.classList.add('loading');
     button.disabled = true;
 
-    if (config.clearText) {
+    if (config.loadingHtml) {
+      button.innerHTML = config.loadingHtml;
+    } else if (config.clearText) {
       button.textContent = '';
     }
   }
@@ -128,7 +142,33 @@ if (typeof AppConfig === 'undefined') {
 
     button.classList.remove('loading');
     button.disabled = false;
-    button.textContent = config.textContent;
+
+    if (config.htmlContent) {
+      button.innerHTML = config.htmlContent;
+      return;
+    }
+
+    if (config.textContent !== undefined && config.textContent !== null) {
+      button.textContent = config.textContent;
+      return;
+    }
+
+    if (button.dataset.originalHtml) {
+      button.innerHTML = button.dataset.originalHtml;
+      return;
+    }
+
+    button.textContent = button.dataset.originalText || button.textContent;
+  }
+
+  function handleValidationFailure(container, message, config) {
+    if (typeof config.onInvalid === 'function') {
+      config.onInvalid(message, config);
+      return false;
+    }
+
+    renderFormMessage(container, message, config);
+    return false;
   }
 
   function getLoginErrorMessage(error, overrides) {
@@ -175,6 +215,84 @@ if (typeof AppConfig === 'undefined') {
     }
 
     return message;
+  }
+
+  function expectJsonSuccess(data, fallbackMessage, options) {
+    var config = Object.assign({
+      isSuccess: function (payload) {
+        return !!(payload && payload.success);
+      }
+    }, options || {});
+
+    if (config.isSuccess(data)) {
+      return data;
+    }
+
+    throw new Error((data && data.message) || fallbackMessage || 'Request failed');
+  }
+
+  function validateRequiredValue(value, container, message, options) {
+    if (value) {
+      return true;
+    }
+
+    return handleValidationFailure(container, message, options || {});
+  }
+
+  function validatePasswordMatch(password, confirmPassword, container, options) {
+    var config = Object.assign({
+      message: 'Passwords do not match',
+      onInvalid: null
+    }, options || {});
+
+    if (password === confirmPassword) {
+      return true;
+    }
+
+    return handleValidationFailure(container, config.message, config);
+  }
+
+  function validatePhoneNumber(phone, container, options) {
+    var config = Object.assign({
+      pattern: /^[6-9][0-9]{9}$/,
+      message: 'Please enter a valid 10-digit mobile number',
+      onInvalid: null
+    }, options || {});
+
+    if (config.pattern.test(phone)) {
+      return true;
+    }
+
+    return handleValidationFailure(container, config.message, config);
+  }
+
+  function getPasswordStrengthState(password) {
+    var value = password || '';
+
+    return {
+      length: value.length >= 8,
+      uppercase: /[A-Z]/.test(value),
+      lowercase: /[a-z]/.test(value),
+      number: /\d/.test(value),
+      special: /[@$!%*?&]/.test(value),
+      isValid: false
+    };
+  }
+
+  function validatePasswordStrength(password, container, options) {
+    var config = Object.assign({
+      message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character.',
+      onInvalid: null
+    }, options || {});
+
+    var state = getPasswordStrengthState(password);
+    state.isValid = state.length && state.uppercase && state.lowercase && state.number && state.special;
+
+    if (state.isValid) {
+      return true;
+    }
+
+    return handleValidationFailure(container, config.message, config);
   }
 
   function getAuthUser(authData) {
@@ -250,10 +368,17 @@ if (typeof AppConfig === 'undefined') {
     getActiveUser: getActiveUser,
     renderFormMessage: renderFormMessage,
     renderSuccessMessage: renderSuccessMessage,
+    clearFormMessage: clearFormMessage,
     setButtonLoading: setButtonLoading,
     resetButtonState: resetButtonState,
     getLoginErrorMessage: getLoginErrorMessage,
     getRegistrationErrorMessage: getRegistrationErrorMessage,
+    expectJsonSuccess: expectJsonSuccess,
+    validateRequiredValue: validateRequiredValue,
+    validatePasswordMatch: validatePasswordMatch,
+    validatePhoneNumber: validatePhoneNumber,
+    getPasswordStrengthState: getPasswordStrengthState,
+    validatePasswordStrength: validatePasswordStrength,
     completeAuthSuccess: completeAuthSuccess,
     routes: Object.assign({}, DEFAULT_ROUTES)
   };

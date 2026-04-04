@@ -226,30 +226,32 @@
             const errorDiv = document.getElementById('errorDiv');
             const btn = document.getElementById('submitBtn');
 
-            errorDiv.innerHTML = '';
+            NocturnalSession.clearFormMessage(errorDiv);
 
             NocturnalSession.setButtonLoading(btn, { clearText: true });
 
             try {
-                const response = await AppConfig.fetch('patients/login', {
+                const data = await AppConfig.fetch('patients/login', {
                     method: 'POST',
+                    skipAuth: true,
+                    parseJson: true,
                     body: JSON.stringify({ email, password })
                 });
-
-                const data = await response.json();
-
-                if (data.success && data.token) {
-                    NocturnalSession.completeAuthSuccess(data, {
+                NocturnalSession.completeAuthSuccess(
+                    NocturnalSession.expectJsonSuccess(data, 'Login failed', {
+                        isSuccess: function (payload) {
+                            return !!(payload && payload.success && payload.token);
+                        }
+                    }),
+                    {
                         tokenKey: 'patientToken',
                         userKey: 'patient',
                         successContainer: errorDiv,
                         successMessage: 'Login successful! Redirecting...',
                         redirectUrl: 'patient-dashboard.html',
                         redirectDelayMs: 1000
-                    });
-                } else {
-                    throw new Error(data.message || 'Login failed');
-                }
+                    }
+                );
             } catch (error) {
                 console.error('Login error:', error);
                 NocturnalSession.renderFormMessage(
