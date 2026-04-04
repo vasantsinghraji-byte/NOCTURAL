@@ -58,7 +58,11 @@ This document outlines the disaster recovery procedures for the Nocturnal platfo
 - **Storage**: AWS S3 with versioning enabled
 
 ```bash
-# Automated via cron (every hour)
+# Automated via GitHub Actions (daily at 02:00 UTC)
+# See .github/workflows/backup.yml — runs mongodump, compresses, uploads to S3
+# Manual trigger: gh workflow run backup.yml -f environment=production
+
+# Cron alternative (for non-GitHub deployments — every hour)
 0 * * * * /app/scripts/backup.sh production
 ```
 
@@ -496,6 +500,6 @@ redis-cli ping
 
 ---
 
-**Last Updated**: 2025-01-15
-**Next Review**: 2025-04-15
+**Last Updated**: 2026-03-01
+**Next Review**: 2026-06-01
 **Document Owner**: DevOps Team

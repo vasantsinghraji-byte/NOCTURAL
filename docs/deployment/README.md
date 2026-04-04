@@ -8,6 +8,10 @@
 
 Nocturnal supports multiple deployment strategies:
 
+Related deployment notes:
+
+- [Environment Loading Audit](./ENV_LOADING_AUDIT.md) - documents which wrappers rely on shell or container environment versus delegated Node `.env` loading
+
 1. **PM2 (Traditional Server)** - Single/multi-server deployment with process management
 2. **Docker Compose** - Containerized deployment for development and small production
 3. **Kubernetes** - Enterprise-scale orchestration with auto-scaling
