@@ -43,7 +43,7 @@ const baseConfig = {
 
     // Database
     database: {
-        uri: process.env.MONGODB_URI,
+        uri: process.env.MONGODB_URI || (NODE_ENV === 'development' ? 'mongodb://localhost:27017/nocturnal_dev' : undefined),
         options: {
             maxPoolSize: 10,
             minPoolSize: 2,
@@ -109,6 +109,15 @@ const baseConfig = {
     firebase: {
         enabled: process.env.FIREBASE_AUTH_ENABLED === 'true',
         credentials: process.env.GOOGLE_APPLICATION_CREDENTIALS
+    },
+
+    // OpenTelemetry / Distributed Tracing
+    // Enable with: npm install @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node
+    tracing: {
+        enabled: process.env.OTEL_ENABLED === 'true',
+        serviceName: process.env.OTEL_SERVICE_NAME || 'nocturnal-api',
+        exporterEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318',
+        sampleRate: parseFloat(process.env.OTEL_SAMPLE_RATE) || 0.1
     }
 };
 
@@ -182,6 +191,11 @@ const stagingConfig = {
         strictSSL: true
     },
 
+    tracing: {
+        ...baseConfig.tracing,
+        sampleRate: parseFloat(process.env.OTEL_SAMPLE_RATE) || 0.5 // Higher sample rate for staging debugging
+    },
+
     // Staging-specific features
     debug: false,
     detailedErrors: true, // Still show errors for testing
@@ -198,15 +212,15 @@ const productionConfig = {
         ...baseConfig.database,
         options: {
             ...baseConfig.database.options,
-            maxPoolSize: 20,
-            minPoolSize: 5,
+            maxPoolSize: parseInt(process.env.MONGODB_MAX_POOL_SIZE) || 50,
+            minPoolSize: parseInt(process.env.MONGODB_MIN_POOL_SIZE) || 10,
             replicaSet: process.env.MONGODB_REPLICA_SET
         }
     },
 
     logging: {
         ...baseConfig.logging,
-        level: 'error',
+        level: process.env.LOG_LEVEL || 'warn',
         console: false,
         file: true,
         sentry: process.env.SENTRY_DSN
@@ -223,6 +237,11 @@ const productionConfig = {
         strictSSL: true,
         helmet: true,
         hsts: true
+    },
+
+    tracing: {
+        ...baseConfig.tracing,
+        sampleRate: parseFloat(process.env.OTEL_SAMPLE_RATE) || 0.05 // Conservative 5% sample rate in production
     },
 
     // Production-specific features

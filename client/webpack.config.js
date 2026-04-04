@@ -14,9 +14,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 module.exports = {
     mode: isProduction ? 'production' : 'development',
     entry: {
-        main: './public/app.js',
+        main: './public/js/config.js',
         api: './public/api.js',
-        'firebase-config': './public/firebase-config.js'
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
@@ -129,7 +128,7 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: './public/index.html',
             filename: 'index.html',
-            chunks: ['main', 'firebase-config', 'api'],
+            chunks: ['main', 'api'],
             minify: isProduction ? {
                 removeComments: true,
                 collapseWhitespace: true,

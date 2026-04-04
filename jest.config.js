@@ -70,13 +70,15 @@ module.exports = {
   // Detect open handles
   detectOpenHandles: true,
 
+  // Per-test timeout (30 s default, can be overridden per-test)
+  testTimeout: 30000,
+
   // Max workers (parallel test execution)
   maxWorkers: '50%',
 
   // Transform (if using babel/typescript)
-  transform: {}
+  transform: {},
 
-  // Global setup/teardown
-  // globalSetup: '<rootDir>/tests/global-setup.js',
-  // globalTeardown: '<rootDir>/tests/global-teardown.js',
+  // Global teardown — close DB connections, clear timers
+  globalTeardown: '<rootDir>/tests/global-teardown.js',
 };

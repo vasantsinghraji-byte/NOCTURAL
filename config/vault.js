@@ -32,8 +32,13 @@ class VaultManager {
     }
 
     try {
-      // Lazy load vault module (install with: npm install node-vault)
-      const vault = require('node-vault');
+      // Lazy load vault module (optional dependency)
+      let vault;
+      try {
+        vault = require('node-vault');
+      } catch (e) {
+        throw new Error('node-vault package is required when VAULT_ENABLED=true. Install it with: npm install node-vault');
+      }
 
       this.client = vault({
         apiVersion: 'v1',

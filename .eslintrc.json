@@ -13,10 +13,25 @@
     "no-eval": "error",
     "no-implied-eval": "error",
     "no-buffer-constructor": "error",
+    "no-param-reassign": ["error", {
+      "props": true,
+      "ignorePropertyModificationsFor": ["req", "res", "next", "user", "booking", "duty", "app", "schema"]
+    }],
+    "unused-imports/no-unused-imports": "error",
     "security/detect-possible-timing-attacks": "warn",
     "security/detect-non-literal-fs-filename": "warn"
   },
   "plugins": [
-    "security"
+    "security",
+    "unused-imports"
+  ],
+  "overrides": [
+    {
+      "files": ["tests/**/*.js"],
+      "env": { "jest": true },
+      "rules": {
+        "no-console": "off"
+      }
+    }
   ]
 }

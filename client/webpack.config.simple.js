@@ -9,8 +9,9 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 module.exports = {
     mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
 
-    // Simple entry - just for webpack to work
-    entry: path.resolve(__dirname, 'public/app.js'),
+    // Keep a neutral entrypoint so the copy-only build no longer points at
+    // deprecated Firebase-era frontend scripts.
+    entry: path.resolve(__dirname, 'public/js/config.js'),
 
     output: {
         path: path.resolve(__dirname, 'dist'),

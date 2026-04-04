@@ -46,7 +46,7 @@ const REDIS_CONFIG = {
 /**
  * Initialize Redis connection
  */
-const connectRedis = () => {
+const connectRedis = async () => {
   try {
     // Skip if Redis is disabled
     if (process.env.REDIS_ENABLED === 'false') {
@@ -56,20 +56,31 @@ const connectRedis = () => {
 
     redisClient = new Redis(REDIS_CONFIG);
 
-    // Connection events
-    redisClient.on('connect', () => {
-      logger.info('Redis client connected', {
-        host: REDIS_CONFIG.host,
-        port: REDIS_CONFIG.port,
-        db: REDIS_CONFIG.db
+    // Wait for initial connection before returning
+    await new Promise((resolve, reject) => {
+      const connectTimeout = setTimeout(() => {
+        reject(new Error('Redis connection timed out'));
+      }, REDIS_CONFIG.connectTimeout || 10000);
+
+      redisClient.once('ready', () => {
+        clearTimeout(connectTimeout);
+        resolve();
+      });
+
+      redisClient.once('error', (err) => {
+        clearTimeout(connectTimeout);
+        reject(err);
       });
     });
 
-    redisClient.on('ready', () => {
-      isConnected = true;
-      logger.info('Redis client ready');
+    isConnected = true;
+    logger.info('Redis client connected and ready', {
+      host: REDIS_CONFIG.host,
+      port: REDIS_CONFIG.port,
+      db: REDIS_CONFIG.db
     });
 
+    // Register ongoing event handlers after initial connection
     redisClient.on('error', (err) => {
       isConnected = false;
       logger.error('Redis error', {
@@ -87,9 +98,16 @@ const connectRedis = () => {
       logger.info('Redis client reconnecting...');
     });
 
+    redisClient.on('ready', () => {
+      isConnected = true;
+      logger.info('Redis client reconnected and ready');
+    });
+
     return redisClient;
   } catch (error) {
     logger.error('Failed to initialize Redis client', { error: error.message });
+    redisClient = null;
+    isConnected = false;
     return null;
   }
 };
@@ -97,9 +115,9 @@ const connectRedis = () => {
 /**
  * Get Redis client instance
  */
-const getRedisClient = () => {
+const getRedisClient = async () => {
   if (!redisClient && process.env.REDIS_ENABLED !== 'false') {
-    connectRedis();
+    await connectRedis();
   }
   return redisClient;
 };

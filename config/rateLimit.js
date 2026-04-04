@@ -3,7 +3,7 @@ const rateLimit = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis');
 const logger = require('../utils/logger');
 const monitoring = require('../utils/monitoring');
-const redisClient = require('../config/redis');
+const { getRedisClient } = require('../config/redis');
 
 // Parse and validate whitelisted IPs at startup
 const whitelistedIPs = (() => {
@@ -71,8 +71,152 @@ const adaptiveThresholds = {
   }
 };
 
-// Store blocked IPs/users with expiration
+// Store blocked IPs/users with expiration (in-memory fallback)
 const blockedEntities = new Map();
+
+// Redis-backed helpers for persistence across deploys
+const REDIS_METRICS_PREFIX = 'rl:metrics:';
+const REDIS_BLOCKED_PREFIX = 'rl:blocked:';
+let activeRedisClient = null;
+let redisHealthy = false;
+let redisListenersBound = false;
+let blockedRestoreStarted = false;
+
+const isRedisEnabled = () => process.env.REDIS_ENABLED === 'true';
+
+const bindRedisHealthListeners = (redisClient) => {
+  if (redisListenersBound || !redisClient) {
+    return;
+  }
+
+  redisListenersBound = true;
+  redisHealthy = redisClient.status === 'ready';
+
+  redisClient.on('error', () => {
+    if (redisHealthy) {
+      redisHealthy = false;
+      logger.error('Redis connection lost — rate limiting degraded to per-instance memory store. Multi-instance rate limits may be bypassed.');
+      monitoring.trackSuspiciousActivity({ type: 'rate_limit_degraded', reason: 'redis_down' });
+    }
+  });
+
+  redisClient.on('ready', () => {
+    if (!redisHealthy) {
+      redisHealthy = true;
+      logger.info('Redis connection restored — rate limiting back to distributed mode');
+    }
+  });
+};
+
+const getActiveRedisClient = async () => {
+  if (!isRedisEnabled()) {
+    return null;
+  }
+
+  if (activeRedisClient && activeRedisClient.status === 'ready') {
+    return activeRedisClient;
+  }
+
+  const redisClient = await getRedisClient();
+  if (!redisClient) {
+    return null;
+  }
+
+  activeRedisClient = redisClient;
+  bindRedisHealthListeners(redisClient);
+  return redisClient;
+};
+
+const persistMetricToRedis = async (type, mapName, key, count) => {
+  const redisClient = await getActiveRedisClient();
+  if (!redisClient) return;
+  try {
+    await redisClient.hSet(`${REDIS_METRICS_PREFIX}${type}:${mapName}`, key, count.toString());
+    await redisClient.expire(`${REDIS_METRICS_PREFIX}${type}:${mapName}`, 3600); // 1h TTL
+  } catch (err) {
+    // Non-critical — fall back to in-memory
+  }
+};
+
+const persistBlockedToRedis = async (key, until, reason) => {
+  const redisClient = await getActiveRedisClient();
+  if (!redisClient) return;
+  try {
+    const ttl = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+    if (ttl > 0) {
+      await redisClient.set(`${REDIS_BLOCKED_PREFIX}${key}`, JSON.stringify({ until, reason }), { EX: ttl });
+    }
+  } catch (err) {
+    // Non-critical — fall back to in-memory
+  }
+};
+
+const isBlockedInRedis = async (key) => {
+  const redisClient = await getActiveRedisClient();
+  if (!redisClient) return false;
+  try {
+    const data = await redisClient.get(`${REDIS_BLOCKED_PREFIX}${key}`);
+    if (!data) return false;
+    const parsed = JSON.parse(data);
+    return parsed.until > Date.now();
+  } catch (err) {
+    return false;
+  }
+};
+
+const getMetricFromRedis = async (type, mapName, key) => {
+  const redisClient = await getActiveRedisClient();
+  if (!redisClient) return 0;
+  try {
+    const val = await redisClient.hGet(`${REDIS_METRICS_PREFIX}${type}:${mapName}`, key);
+    return val ? parseInt(val, 10) : 0;
+  } catch (err) {
+    return 0;
+  }
+};
+
+// Restore blocked entities from Redis on startup
+const restoreBlockedFromRedis = async () => {
+  const redisClient = await getActiveRedisClient();
+  if (!redisClient) return;
+  try {
+    const keys = await redisClient.keys(`${REDIS_BLOCKED_PREFIX}*`);
+    for (const redisKey of keys) {
+      const entity = redisKey.replace(REDIS_BLOCKED_PREFIX, '');
+      const data = await redisClient.get(redisKey);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed.until > Date.now()) {
+          blockedEntities.set(entity, parsed);
+        }
+      }
+    }
+    if (blockedEntities.size > 0) {
+      logger.info('Restored blocked entities from Redis', { count: blockedEntities.size });
+    }
+  } catch (err) {
+    logger.warn('Failed to restore blocked entities from Redis', { error: err.message });
+  }
+};
+
+// Restore on module load
+if (isRedisEnabled()) {
+  getActiveRedisClient()
+    .then((redisClient) => {
+      if (!redisClient) {
+        logger.error('REDIS_ENABLED=true but Redis client is unavailable — rate limiting will use memory store only (multi-instance bypass risk)');
+        return;
+      }
+
+      if (!blockedRestoreStarted) {
+        blockedRestoreStarted = true;
+        restoreBlockedFromRedis();
+      }
+    })
+    .catch((err) => {
+      logger.error('Failed to initialize Redis for rate limiting', { error: err.message });
+    });
+}
 
 // Helper to check if an entity (IP or userId) is in strict mode
 const isInStrictMode = (key, type) => {
@@ -84,11 +228,16 @@ const isInStrictMode = (key, type) => {
   return blocks >= adaptiveThresholds[type].blockThreshold;
 };
 
-// Helper to set entry with timestamp
-const setMetricEntry = (map, key, increment = 1) => {
+// Helper to set entry with timestamp (also persists to Redis)
+const setMetricEntry = (map, key, increment = 1, type = null, mapName = null) => {
   const existing = map.get(key);
   const count = (existing?.count || 0) + increment;
   map.set(key, { count, lastUpdated: Date.now() });
+
+  // Persist to Redis for cross-deploy persistence
+  if (type && mapName) {
+    persistMetricToRedis(type, mapName, key, count);
+  }
 
   // Emergency cleanup if map gets too large
   if (map.size > CLEANUP_CONFIG.mapMaxSize) {
@@ -111,15 +260,15 @@ const createRateLimitHandler = (type) => {
     const userId = req.user ? req.user._id : 'anonymous';
     const endpoint = req.path;
 
-    // Update metrics with timestamps
+    // Update metrics with timestamps (persisted to Redis when available)
     const metrics = rateLimitMetrics[type];
     metrics.blocked++;
-    setMetricEntry(metrics.ips, ip);
+    setMetricEntry(metrics.ips, ip, 1, type, 'ips');
     if (userId !== 'anonymous') {
-      setMetricEntry(metrics.userIds, userId);
+      setMetricEntry(metrics.userIds, userId, 1, type, 'userIds');
     }
     if (type === 'api') {
-      setMetricEntry(metrics.endpoints, endpoint);
+      setMetricEntry(metrics.endpoints, endpoint, 1, type, 'endpoints');
     }
 
     // Log and monitor
@@ -142,11 +291,11 @@ const createRateLimitHandler = (type) => {
         blockCount: ipCount
       });
 
-      // Add to blocked entities with expiration
-      blockedEntities.set(ip, {
-        until: Date.now() + 3600000, // 1 hour block
-        reason: 'Excessive rate limit violations'
-      });
+      // Add to blocked entities with expiration (persisted to Redis)
+      const blockUntil = Date.now() + 3600000; // 1 hour block
+      const blockReason = 'Excessive rate limit violations';
+      blockedEntities.set(ip, { until: blockUntil, reason: blockReason });
+      persistBlockedToRedis(ip, blockUntil, blockReason);
     }
 
     // Send response
@@ -159,8 +308,6 @@ const createRateLimitHandler = (type) => {
 };
 
 // Determine if Redis is available for distributed rate limiting
-const USE_REDIS = process.env.REDIS_ENABLED === 'true' && redisClient;
-
 // Create base limiter with monitoring
 const createMonitoredLimiter = (options) => {
   const { type, window, max, message } = options;
@@ -170,9 +317,17 @@ const createMonitoredLimiter = (options) => {
     max: (req) => {
       // Use IP address for checking strict mode (since we're using default keyGenerator)
       const key = req.ip;
-      return isInStrictMode(key, type) ?
+      const baseMax = isInStrictMode(key, type) ?
         adaptiveThresholds[type].strictMax :
         adaptiveThresholds[type].normalMax;
+
+      // When Redis is down in a multi-instance setup, each instance counts independently.
+      // Divide limits by expected instance count to maintain effective global limits.
+      if (isRedisEnabled() && !redisHealthy) {
+        const instanceCount = parseInt(process.env.INSTANCE_COUNT) || 2;
+        return Math.max(1, Math.floor(baseMax / instanceCount));
+      }
+      return baseMax;
     },
     message,
     handler: createRateLimitHandler(type),
@@ -186,13 +341,18 @@ const createMonitoredLimiter = (options) => {
   };
 
   // Use Redis store if available (for distributed rate limiting across multiple instances)
-  if (USE_REDIS) {
+  if (isRedisEnabled()) {
+    limiterConfig.passOnStoreError = true;
     limiterConfig.store = new RedisStore({
-      // @ts-expect-error - Known issue with RedisStore types
-      client: redisClient,
       prefix: `rate-limit:${type}:`,
       // Send command to reset (if needed) and respond immediately
-      sendCommand: (...args) => redisClient.sendCommand(args)
+      sendCommand: async (...args) => {
+        const redisClient = await getActiveRedisClient();
+        if (!redisClient) {
+          throw new Error('Redis client unavailable for rate limiting');
+        }
+        return redisClient.sendCommand(args);
+      }
     });
 
     logger.info(`Rate limiter for ${type} using Redis store (distributed)`);
@@ -252,11 +412,9 @@ const cleanupOldEntries = (map, maxAge) => {
 };
 
 // Periodic cleanup of metrics and blocked entities (runs every 5 minutes)
-// Skip in test environment to prevent Jest from hanging
-let cleanupInterval = null;
-if (process.env.NODE_ENV !== 'test') {
-  cleanupInterval = setInterval(() => {
-    const now = Date.now();
+// Uses .unref() so the timer does not keep the Node.js event loop alive (prevents Jest hangs)
+const cleanupInterval = setInterval(() => {
+  const now = Date.now();
 
   // Clean up old blocked entities
   let blockedRemoved = 0;
@@ -293,8 +451,8 @@ if (process.env.NODE_ENV !== 'test') {
       }
     });
   }
-  }, CLEANUP_CONFIG.interval);
-}
+}, CLEANUP_CONFIG.interval);
+cleanupInterval.unref();
 
 // Export metrics for monitoring
 const getRateLimitMetrics = () => {

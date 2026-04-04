@@ -2,9 +2,13 @@ const multer = require('multer');
 const path = require('path');
 const logger = require('../utils/logger');
 
-// Determine storage backend based on environment
-const USE_GCS = process.env.USE_GCS === 'true' || process.env.NODE_ENV === 'production';
+// Determine storage backend — only use GCS when explicitly enabled and configured
+const USE_GCS = process.env.USE_GCS === 'true' && !!process.env.GCS_BUCKET;
 const USE_LOCAL = !USE_GCS;
+
+if (process.env.NODE_ENV === 'production' && !USE_GCS) {
+  logger.warn('Production environment using local storage — set USE_GCS=true and GCS_BUCKET to enable cloud storage');
+}
 
 // Google Cloud Storage Client Configuration
 let gcsClient = null;
@@ -29,7 +33,11 @@ if (USE_GCS && process.env.GCS_BUCKET) {
         gcsConfig.credentials = credentials;
         gcsConfig.projectId = credentials.project_id;
       } catch (e) {
-        logger.error('Failed to parse GCS_CREDENTIALS', { error: e.message });
+        const errMsg = 'Failed to parse GCS_CREDENTIALS — check that the value is valid Base64-encoded JSON';
+        logger.error(errMsg, { error: e.message });
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error(errMsg + ': ' + e.message);
+        }
       }
     }
 

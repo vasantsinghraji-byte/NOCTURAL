@@ -8,7 +8,9 @@
 const ROLES = {
   DOCTOR: 'doctor',
   NURSE: 'nurse',
-  ADMIN: 'admin'
+  PHYSIOTHERAPIST: 'physiotherapist',
+  ADMIN: 'admin',
+  PATIENT: 'patient'
 };
 
 // Array of all valid roles for validation

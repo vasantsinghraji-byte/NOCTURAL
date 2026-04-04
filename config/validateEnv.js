@@ -56,6 +56,13 @@ const REQUIRED_VARS = {
       if (/^(secret|test|123|abc)/i.test(value)) {
         return 'JWT_SECRET appears to be a weak/default value';
       }
+      // Reject known default secrets shipped with the codebase
+      const KNOWN_DEFAULT_SECRETS = [
+        '98623d6147646fb5cbe3f9d2531d4b16d91af1ef765be8651411280f7f47355e'
+      ];
+      if (process.env.NODE_ENV === 'production' && KNOWN_DEFAULT_SECRETS.includes(value)) {
+        return 'JWT_SECRET is using the default development value. Generate a unique secret for production: openssl rand -hex 32';
+      }
       return null;
     },
     description: 'JWT signing secret (min 64 characters for HS256)'
@@ -68,6 +75,13 @@ const REQUIRED_VARS = {
       // AES-256 requires exactly 32 bytes = 64 hex characters
       if (!/^[a-f0-9]{64}$/i.test(value)) {
         return 'ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes for AES-256). Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"';
+      }
+      // Reject known default keys shipped with the codebase
+      const KNOWN_DEFAULT_KEYS = [
+        '5802b4cb0239f40dbb2a9032766869c0750ec961544f2ad5a3f8e388de169d4e'
+      ];
+      if (process.env.NODE_ENV === 'production' && KNOWN_DEFAULT_KEYS.includes(value)) {
+        return 'ENCRYPTION_KEY is using the default development value. Generate a unique key for production: openssl rand -hex 32';
       }
       return null;
     },
