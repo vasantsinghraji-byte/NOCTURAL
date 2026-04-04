@@ -490,8 +490,7 @@
                 return;
             }
 
-            btn.classList.add('loading');
-            btn.disabled = true;
+            NocturnalSession.setButtonLoading(btn);
 
             try {
                 const response = await AppConfig.fetch('auth/register', {
@@ -502,15 +501,14 @@
                 const data = await response.json();
 
                 if (data.success && data.token) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                    localStorage.setItem('userType', role);
-
-                    errorDiv.innerHTML = '<div class="success-message">Registration successful! Redirecting to onboarding...</div>';
-
-                    setTimeout(() => {
-                        window.location.href = 'doctor-onboarding.html';
-                    }, 1500);
+                    NocturnalSession.completeAuthSuccess(data, {
+                        userTypeKey: 'userType',
+                        userType: role,
+                        successContainer: errorDiv,
+                        successMessage: 'Registration successful! Redirecting to onboarding...',
+                        redirectUrl: 'doctor-onboarding.html',
+                        redirectDelayMs: 1500
+                    });
                 } else {
                     throw new Error(data.message || 'Registration failed');
                 }
@@ -523,8 +521,7 @@
                     })
                 );
             } finally {
-                btn.classList.remove('loading');
-                btn.disabled = false;
+                NocturnalSession.resetButtonState(btn);
             }
         });
 
@@ -554,8 +551,7 @@
                 return;
             }
 
-            btn.classList.add('loading');
-            btn.disabled = true;
+            NocturnalSession.setButtonLoading(btn);
 
             try {
                 const response = await AppConfig.fetch('auth/register', {
@@ -574,15 +570,14 @@
                 const data = await response.json();
 
                 if (data.success && data.token) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                    localStorage.setItem('userType', 'hospital');
-
-                    errorDiv.innerHTML = '<div class="success-message">Registration successful! Redirecting to dashboard...</div>';
-
-                    setTimeout(() => {
-                        window.location.href = 'admin-dashboard.html';
-                    }, 1500);
+                    NocturnalSession.completeAuthSuccess(data, {
+                        userTypeKey: 'userType',
+                        userType: 'hospital',
+                        successContainer: errorDiv,
+                        successMessage: 'Registration successful! Redirecting to dashboard...',
+                        redirectUrl: 'admin-dashboard.html',
+                        redirectDelayMs: 1500
+                    });
                 } else {
                     throw new Error(data.message || 'Registration failed');
                 }
@@ -595,8 +590,7 @@
                     })
                 );
             } finally {
-                btn.classList.remove('loading');
-                btn.disabled = false;
+                NocturnalSession.resetButtonState(btn);
             }
         });
     </script>

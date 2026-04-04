@@ -228,9 +228,7 @@
 
             errorDiv.innerHTML = '';
 
-            btn.classList.add('loading');
-            btn.disabled = true;
-            btn.textContent = '';
+            NocturnalSession.setButtonLoading(btn, { clearText: true });
 
             try {
                 const response = await AppConfig.fetch('patients/login', {
@@ -241,14 +239,14 @@
                 const data = await response.json();
 
                 if (data.success && data.token) {
-                    localStorage.setItem('patientToken', data.token);
-                    localStorage.setItem('patient', JSON.stringify(data.patient));
-
-                    errorDiv.innerHTML = '<div class="success-message">Login successful! Redirecting...</div>';
-
-                    setTimeout(() => {
-                        window.location.href = 'patient-dashboard.html';
-                    }, 1000);
+                    NocturnalSession.completeAuthSuccess(data, {
+                        tokenKey: 'patientToken',
+                        userKey: 'patient',
+                        successContainer: errorDiv,
+                        successMessage: 'Login successful! Redirecting...',
+                        redirectUrl: 'patient-dashboard.html',
+                        redirectDelayMs: 1000
+                    });
                 } else {
                     throw new Error(data.message || 'Login failed');
                 }
@@ -261,9 +259,7 @@
                     })
                 );
             } finally {
-                btn.classList.remove('loading');
-                btn.disabled = false;
-                btn.textContent = 'Login';
+                NocturnalSession.resetButtonState(btn, { textContent: 'Login' });
             }
         });
     </script>

@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var btn = e.target.querySelector('button[type="submit"]');
       var errorDiv = document.getElementById('loginError');
       errorDiv.innerHTML = '';
-      btn.classList.add('loading');
+      NocturnalSession.setButtonLoading(btn);
 
       var email = document.getElementById('loginEmail').value;
       var password = document.getElementById('loginPassword').value;
@@ -165,8 +165,10 @@ document.addEventListener('DOMContentLoaded', function () {
         var data = await response.json();
 
         if (data.success && data.token) {
-          localStorage.setItem('token', data.token);
-          NocturnalSession.redirectForUser(data.user, ROUTE_MAP);
+          NocturnalSession.completeAuthSuccess(data, {
+            useRoleRedirect: true,
+            routeOverrides: ROUTE_MAP
+          });
         } else {
           throw new Error(data.message || 'Login failed');
         }
@@ -176,7 +178,8 @@ document.addEventListener('DOMContentLoaded', function () {
           errorDiv,
           NocturnalSession.getLoginErrorMessage(error)
         );
-        btn.classList.remove('loading');
+      } finally {
+        NocturnalSession.resetButtonState(btn);
       }
     });
   }
@@ -201,9 +204,11 @@ document.addEventListener('DOMContentLoaded', function () {
       var role = document.getElementById('registerRole').value;
       var agreeToTerms = document.getElementById('registerAgreeTerms').checked;
 
+      NocturnalSession.setButtonLoading(btn);
+
       if (password !== confirmPassword) {
         NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match.');
-        btn.classList.remove('loading');
+        NocturnalSession.resetButtonState(btn);
         return;
       }
 
@@ -223,8 +228,10 @@ document.addEventListener('DOMContentLoaded', function () {
         var data = await response.json();
 
         if (data.success && data.token) {
-          localStorage.setItem('token', data.token);
-          NocturnalSession.redirectForUser(data.user, ROUTE_MAP);
+          NocturnalSession.completeAuthSuccess(data, {
+            useRoleRedirect: true,
+            routeOverrides: ROUTE_MAP
+          });
         } else {
           throw new Error(data.message || 'Registration failed');
         }
@@ -236,7 +243,8 @@ document.addEventListener('DOMContentLoaded', function () {
             duplicateMessage: 'This email is already registered. Please login instead.'
           })
         );
-        btn.classList.remove('loading');
+      } finally {
+        NocturnalSession.resetButtonState(btn);
       }
     });
   }

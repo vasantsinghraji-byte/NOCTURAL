@@ -88,6 +88,49 @@ if (typeof AppConfig === 'undefined') {
     container.innerHTML = '<div class="' + config.className + '">' + message + '</div>';
   }
 
+  function renderSuccessMessage(container, message, options) {
+    var config = Object.assign({
+      className: 'success-message'
+    }, options || {});
+
+    renderFormMessage(container, message, config);
+  }
+
+  function setButtonLoading(button, options) {
+    if (!button) {
+      return;
+    }
+
+    var config = Object.assign({
+      clearText: false
+    }, options || {});
+
+    if (!button.dataset.originalText) {
+      button.dataset.originalText = button.textContent;
+    }
+
+    button.classList.add('loading');
+    button.disabled = true;
+
+    if (config.clearText) {
+      button.textContent = '';
+    }
+  }
+
+  function resetButtonState(button, options) {
+    if (!button) {
+      return;
+    }
+
+    var config = Object.assign({
+      textContent: button.dataset.originalText || button.textContent
+    }, options || {});
+
+    button.classList.remove('loading');
+    button.disabled = false;
+    button.textContent = config.textContent;
+  }
+
   function getLoginErrorMessage(error, overrides) {
     var config = Object.assign({
       defaultMessage: 'Login failed. Please try again.',
@@ -134,14 +177,84 @@ if (typeof AppConfig === 'undefined') {
     return message;
   }
 
+  function getAuthUser(authData) {
+    return authData.user || authData.patient || null;
+  }
+
+  function completeAuthSuccess(authData, options) {
+    var config = Object.assign({
+      tokenKey: 'token',
+      userKey: 'user',
+      userTypeKey: null,
+      userType: null,
+      successContainer: null,
+      successMessage: '',
+      successClassName: 'success-message',
+      redirectUrl: '',
+      redirectDelayMs: 0,
+      useRoleRedirect: false,
+      routeOverrides: null
+    }, options || {});
+
+    var user = getAuthUser(authData);
+
+    if (authData.token && config.tokenKey) {
+      localStorage.setItem(config.tokenKey, authData.token);
+    }
+
+    if (config.useRoleRedirect && user) {
+      var doRoleRedirect = function () {
+        redirectForUser(user, config.routeOverrides);
+      };
+
+      if (config.successContainer && config.successMessage) {
+        renderSuccessMessage(config.successContainer, config.successMessage, {
+          className: config.successClassName
+        });
+      }
+
+      if (config.redirectDelayMs > 0) {
+        setTimeout(doRoleRedirect, config.redirectDelayMs);
+      } else {
+        doRoleRedirect();
+      }
+
+      return;
+    }
+
+    if (user && config.userKey) {
+      localStorage.setItem(config.userKey, JSON.stringify(user));
+    }
+
+    if (config.userTypeKey && config.userType) {
+      localStorage.setItem(config.userTypeKey, config.userType);
+    }
+
+    if (config.successContainer && config.successMessage) {
+      renderSuccessMessage(config.successContainer, config.successMessage, {
+        className: config.successClassName
+      });
+    }
+
+    if (config.redirectUrl) {
+      setTimeout(function () {
+        window.location.href = config.redirectUrl;
+      }, config.redirectDelayMs);
+    }
+  }
+
   window.NocturnalSession = {
     persistSession: persistSession,
     clearSession: clearSession,
     redirectForUser: redirectForUser,
     getActiveUser: getActiveUser,
     renderFormMessage: renderFormMessage,
+    renderSuccessMessage: renderSuccessMessage,
+    setButtonLoading: setButtonLoading,
+    resetButtonState: resetButtonState,
     getLoginErrorMessage: getLoginErrorMessage,
     getRegistrationErrorMessage: getRegistrationErrorMessage,
+    completeAuthSuccess: completeAuthSuccess,
     routes: Object.assign({}, DEFAULT_ROUTES)
   };
 })(window);

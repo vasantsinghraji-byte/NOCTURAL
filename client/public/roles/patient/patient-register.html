@@ -286,13 +286,11 @@
             }
 
             if (phone.length !== 10 || !phone.match(/^[6-9][0-9]{9}$/)) {
-                errorDiv.innerHTML = '<div class="error-message">Please enter a valid 10-digit mobile number</div>';
+                NocturnalSession.renderFormMessage(errorDiv, 'Please enter a valid 10-digit mobile number');
                 return;
             }
 
-            btn.classList.add('loading');
-            btn.disabled = true;
-            btn.textContent = '';
+            NocturnalSession.setButtonLoading(btn, { clearText: true });
 
             try {
                 const response = await AppConfig.fetch('patients/register', {
@@ -303,14 +301,14 @@
                 const data = await response.json();
 
                 if (data.success && data.token) {
-                    localStorage.setItem('patientToken', data.token);
-                    localStorage.setItem('patient', JSON.stringify(data.patient));
-
-                    errorDiv.innerHTML = '<div class="success-message">Registration successful! Redirecting...</div>';
-
-                    setTimeout(() => {
-                        window.location.href = 'patient-dashboard.html';
-                    }, 1500);
+                    NocturnalSession.completeAuthSuccess(data, {
+                        tokenKey: 'patientToken',
+                        userKey: 'patient',
+                        successContainer: errorDiv,
+                        successMessage: 'Registration successful! Redirecting...',
+                        redirectUrl: 'patient-dashboard.html',
+                        redirectDelayMs: 1500
+                    });
                 } else {
                     throw new Error(data.message || 'Registration failed');
                 }
@@ -323,9 +321,7 @@
                     })
                 );
             } finally {
-                btn.classList.remove('loading');
-                btn.disabled = false;
-                btn.textContent = 'Create Account';
+                NocturnalSession.resetButtonState(btn, { textContent: 'Create Account' });
             }
         });
 

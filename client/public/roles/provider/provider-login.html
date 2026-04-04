@@ -270,9 +270,7 @@
 
             messageDiv.innerHTML = '';
 
-            btn.classList.add('loading');
-            btn.disabled = true;
-            btn.textContent = '';
+            NocturnalSession.setButtonLoading(btn, { clearText: true });
 
             try {
                 const response = await AppConfig.fetch('auth/login', {
@@ -288,14 +286,15 @@
                         throw new Error('This portal is only for nurses and physiotherapists');
                     }
 
-                    localStorage.setItem('providerToken', data.token);
-                    localStorage.setItem('provider', JSON.stringify(data.user));
-
-                    messageDiv.innerHTML = '<div class="message success">Login successful! Redirecting...</div>';
-
-                    setTimeout(() => {
-                        window.location.href = 'provider-dashboard.html';
-                    }, 1000);
+                    NocturnalSession.completeAuthSuccess(data, {
+                        tokenKey: 'providerToken',
+                        userKey: 'provider',
+                        successContainer: messageDiv,
+                        successMessage: 'Login successful! Redirecting...',
+                        successClassName: 'message success',
+                        redirectUrl: 'provider-dashboard.html',
+                        redirectDelayMs: 1000
+                    });
                 } else {
                     throw new Error(data.message || 'Login failed');
                 }
@@ -307,9 +306,7 @@
                     { className: 'message error' }
                 );
             } finally {
-                btn.classList.remove('loading');
-                btn.disabled = false;
-                btn.textContent = 'Login';
+                NocturnalSession.resetButtonState(btn, { textContent: 'Login' });
             }
         });
 
