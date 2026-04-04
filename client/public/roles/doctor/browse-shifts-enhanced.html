@@ -608,7 +608,7 @@
         async function loadUser() {
             const token = checkAuth();
             try {
-                const response = await fetch(`${API_URL}/auth/me`, {
+                const response = await fetch(AppConfig.api('auth/me'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
@@ -624,7 +624,7 @@
         async function loadShifts() {
             const token = checkAuth();
             try {
-                const response = await fetch(`${API_URL}/duties?status=OPEN`, {
+                const response = await fetch(AppConfig.api('duties?status=OPEN'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
@@ -823,7 +823,7 @@
             if (!token) return;
 
             try {
-                const response = await fetch(`${API_URL}/applications`, {
+                const response = await fetch(AppConfig.api('applications'), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,

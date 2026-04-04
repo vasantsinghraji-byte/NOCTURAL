@@ -241,29 +241,6 @@
         </div>
     </div>
 
-    <script type="module">
-        import { auth, signOut, onAuthStateChanged } from './firebase-config.js';
-        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-        const db = getFirestore();
-        window.firebaseAuth = auth;
-        window.firebaseSignOut = signOut;
-
-        onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                const token = localStorage.getItem('token');
-                if (!token) {
-                    localStorage.clear();
-                    window.location.href = 'index.html';
-                }
-            } else {
-                user.getIdToken().then(token => {
-                    localStorage.setItem('token', token);
-                });
-            }
-        });
-    </script>
-
     <script>
         function checkAuth() {
             const token = localStorage.getItem('token');
@@ -273,13 +250,13 @@
 
             if (!token) {
                 console.log('❌ No token found, redirecting to index.html');
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
                 return false;
             }
 
             if (userType !== 'hospital') {
                 console.log('❌ Not a hospital admin, redirecting to index.html');
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
                 return false;
             }
 
@@ -290,13 +267,10 @@
         async function logout() {
             try {
                 localStorage.clear();
-                if (window.firebaseAuth && window.firebaseSignOut) {
-                    await window.firebaseSignOut(window.firebaseAuth);
-                }
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             } catch (error) {
                 console.error('Logout error:', error);
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             }
         }
 
@@ -315,7 +289,7 @@
 
         async function loadHospitalInfo(userId) {
             try {
-                const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+                const response = await fetch(AppConfig.api(`users/${userId}`), {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
                 const data = await response.json();
@@ -334,7 +308,7 @@
 
             try {
                 // Load duties stats
-                const dutiesRes = await fetch('http://localhost:5000/api/duties/my-duties', {
+                const dutiesRes = await fetch(AppConfig.api('duties/my-duties'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const dutiesData = await dutiesRes.json();
@@ -346,7 +320,7 @@
                 }
 
                 // Load applications stats
-                const appsRes = await fetch('http://localhost:5000/api/applications/received', {
+                const appsRes = await fetch(AppConfig.api('applications/received'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const appsData = await appsRes.json();

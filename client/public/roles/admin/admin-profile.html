@@ -345,27 +345,6 @@
         </div>
     </div>
 
-    <script type="module">
-        import { auth, signOut, onAuthStateChanged } from './firebase-config.js';
-
-        window.firebaseAuth = auth;
-        window.firebaseSignOut = signOut;
-
-        onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                const token = localStorage.getItem('token');
-                if (!token) {
-                    localStorage.clear();
-                    window.location.href = 'index.html';
-                }
-            } else {
-                user.getIdToken().then(token => {
-                    localStorage.setItem('token', token);
-                });
-            }
-        });
-    </script>
-
     <script>
         let isEditing = false;
         let originalData = {};
@@ -375,7 +354,7 @@
             const userType = localStorage.getItem('userType');
 
             if (!token || userType !== 'hospital') {
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
                 return false;
             }
             return token;
@@ -384,13 +363,10 @@
         async function logout() {
             try {
                 localStorage.clear();
-                if (window.firebaseAuth && window.firebaseSignOut) {
-                    await window.firebaseSignOut(window.firebaseAuth);
-                }
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             } catch (error) {
                 console.error('Logout error:', error);
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             }
         }
 
@@ -408,7 +384,7 @@
             const userEmail = localStorage.getItem('userEmail');
 
             try {
-                const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+                const response = await fetch(AppConfig.api(`users/${userId}`), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
@@ -491,7 +467,7 @@
             saveBtn.textContent = 'Saving...';
 
             try {
-                const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+                const response = await fetch(AppConfig.api(`users/${userId}`), {
                     method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${token}`,

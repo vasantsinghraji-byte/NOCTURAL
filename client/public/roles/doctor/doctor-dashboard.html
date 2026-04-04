@@ -444,10 +444,7 @@
             const userType = localStorage.getItem('userType');
 
             if (!token || userType !== 'doctor') {
-                console.log('No valid JWT token found, redirecting to login...');
-                window.location.href = 'index.html';
-            } else {
-                console.log('JWT token found, user authenticated');
+                window.location.href = '/index.html';
             }
         })();
     </script>
@@ -462,7 +459,7 @@
             const userType = localStorage.getItem('userType');
 
             if (!token || userType !== 'doctor') {
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
                 return false;
             }
             return token;
@@ -476,13 +473,14 @@
                 localStorage.removeItem('userType');
                 localStorage.removeItem('userId');
                 localStorage.removeItem('userName');
+                localStorage.removeItem('user');
 
                 // Clear localStorage and redirect to landing page
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             } catch (error) {
                 console.error('Logout error:', error);
                 // Force redirect anyway
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             }
         }
 
@@ -494,13 +492,43 @@
             document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
         }
 
+        function formatLocation(location) {
+            if (!location) return 'Not specified';
+            if (typeof location === 'string') return location;
+
+            const parts = [
+                location.address,
+                location.city,
+                location.state
+            ].filter(Boolean);
+
+            return parts.length > 0 ? parts.join(', ') : 'Not specified';
+        }
+
+        function getProfilePreferences(user) {
+            const prefs = [];
+            const professional = user.professional || {};
+
+            if (professional.preferredShiftTimes && professional.preferredShiftTimes.length > 0) {
+                prefs.push(`Shifts: ${professional.preferredShiftTimes.join(', ')}`);
+            }
+            if (professional.minimumRate) {
+                prefs.push(`Min Rate: INR ${professional.minimumRate}/hr`);
+            }
+            if (professional.serviceRadius) {
+                prefs.push(`Service Radius: ${professional.serviceRadius} km`);
+            }
+
+            return prefs.length > 0 ? prefs.join(' | ') : 'Not set';
+        }
+
         // Fetch and display full user profile
         async function fetchUserProfile() {
             const token = checkAuth();
             if (!token) return;
 
             try {
-                const response = await fetch(`${API_URL}/auth/me`, {
+                const response = await fetch(AppConfig.api('auth/me'), {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -509,14 +537,17 @@
 
                 if (data.success && data.user) {
                     const user = data.user;
-                    console.log('User profile data:', user);
+                    const professional = user.professional || {};
+                    const qualifications = professional.secondarySpecializations && professional.secondarySpecializations.length > 0
+                        ? professional.secondarySpecializations.join(', ')
+                        : 'Not specified';
 
                     // Update profile information section
-                    document.getElementById('userSpecialty').textContent = user.specialty || 'Not specified';
-                    document.getElementById('userHospital').textContent = user.hospital || 'Not specified';
-                    document.getElementById('userLocation').textContent = user.location || 'Not specified';
-                    document.getElementById('userExperience').textContent = user.experience ? `${user.experience} years` : 'Not specified';
-                    document.getElementById('userQualifications').textContent = user.qualifications || 'Not specified';
+                    document.getElementById('userSpecialty').textContent = user.specialty || professional.primarySpecialization || 'Not specified';
+                    document.getElementById('userHospital').textContent = user.hospital || user.hospitalName || 'Not specified';
+                    document.getElementById('userLocation').textContent = formatLocation(user.location);
+                    document.getElementById('userExperience').textContent = professional.yearsOfExperience ? `${professional.yearsOfExperience} years` : 'Not specified';
+                    document.getElementById('userQualifications').textContent = qualifications;
                     document.getElementById('userPhone').textContent = user.phone || 'Not specified';
                     document.getElementById('userEmail').textContent = user.email || 'Not specified';
                     document.getElementById('profileStrength').textContent = user.profileStrength ? `${user.profileStrength}%` : 'Not calculated';
@@ -541,6 +572,8 @@
                         document.getElementById('userPreferences').textContent = 'Not set';
                     }
 
+                    document.getElementById('userPreferences').textContent = getProfilePreferences(user);
+
                     // Show profile section
                     document.getElementById('profileInfo').style.display = 'block';
 
@@ -560,37 +593,49 @@
 
             try {
                 // Fetch available duties count
-                const dutiesResponse = await fetch(`${API_URL}/duties`, {
+                const dutiesResponse = await fetch(AppConfig.api('duties'), {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
                 });
                 const dutiesData = await dutiesResponse.json();
-                document.getElementById('availableDuties').textContent = dutiesData.length || 0;
+                document.getElementById('availableDuties').textContent = dutiesData.success ? (dutiesData.count || 0) : 0;
 
                 // Fetch user's applications
-                const appsResponse = await fetch(`${API_URL}/applications/my-applications`, {
+                const appsResponse = await fetch(AppConfig.api('applications'), {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
                 });
                 const appsData = await appsResponse.json();
-                
-                if (appsData.success && appsData.applications) {
-                    const pending = appsData.applications.filter(app => app.status === 'pending').length;
-                    const accepted = appsData.applications.filter(app => app.status === 'accepted').length;
-                    
+
+                if (appsData.success && appsData.data) {
+                    const normalizedApplications = appsData.data.map(app => ({
+                        ...app,
+                        duty: app.duty ? {
+                            ...app.duty,
+                            compensation: {
+                                totalAmount: app.duty.totalCompensation || app.duty.netPayment || 0
+                            }
+                        } : app.duty
+                    }));
+
+                    const pending = appsData.data.filter(app => app.status === 'PENDING').length;
+                    const accepted = appsData.data.filter(app => app.status === 'ACCEPTED').length;
+
                     document.getElementById('pendingApps').textContent = pending;
                     document.getElementById('acceptedApps').textContent = accepted;
 
-                    // Calculate total earnings (example: sum of accepted duties pay)
-                    const totalEarnings = appsData.applications
-                        .filter(app => app.status === 'accepted')
-                        .reduce((sum, app) => sum + (app.duty?.pay || 0), 0);
+                    // Calculate total earnings from accepted duties
+                    const totalEarnings = appsData.data
+                        .filter(app => app.status === 'ACCEPTED')
+                        .reduce((sum, app) => sum + (app.duty?.totalCompensation || app.duty?.netPayment || 0), 0);
                     document.getElementById('totalEarnings').textContent = `₹${totalEarnings.toLocaleString()}`;
 
+                    document.getElementById('totalEarnings').textContent = `INR ${totalEarnings.toLocaleString()}`;
+
                     // Display recent applications
-                    displayRecentApplications(appsData.applications.slice(0, 5));
+                    displayRecentApplications(normalizedApplications.slice(0, 5));
                 }
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
@@ -613,9 +658,9 @@
                 <div class="application-item">
                     <div class="application-info">
                         <h3>${app.duty?.hospitalName || 'Hospital'} - ${app.duty?.specialty || 'General'}</h3>
-                        <p>📅 ${new Date(app.duty?.date).toLocaleDateString()} | ⏰ ${app.duty?.shift || 'Night'} | 💰 ₹${app.duty?.pay || 0}</p>
+                        <p>📅 ${app.duty?.date ? new Date(app.duty.date).toLocaleDateString() : 'TBD'} | ⏰ ${app.duty?.startTime || 'TBD'} | 💰 ₹${app.duty?.compensation?.totalAmount || 0}</p>
                     </div>
-                    <span class="status-badge ${app.status}">${app.status.toUpperCase()}</span>
+                    <span class="status-badge ${app.status.toLowerCase()}">${app.status}</span>
                 </div>
             `).join('');
         }

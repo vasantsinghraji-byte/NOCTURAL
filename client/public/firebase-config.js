@@ -1,45 +1,56 @@
-// Firebase Configuration Module
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, onSnapshot, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+/*
+ * Deprecated legacy Firebase module.
+ *
+ * Production authentication now uses backend-issued JWTs only.
+ * This module remains as a quarantine stub for any stale imports and should
+ * not be used for active auth flows.
+ */
 
-// Firebase configuration - CORRECT WORKING CONFIG
-const firebaseConfig = {
-    apiKey: "AIzaSyAqfLJumqjAVp6RLueUhSlORk6x7OTDXUY",
-    authDomain: "nocturnal-49be3.firebaseapp.com",
-    projectId: "nocturnal-49be3",
-    storageBucket: "nocturnal-49be3.firebasestorage.app",
-    messagingSenderId: "936577924059",
-    appId: "1:936577924059:web:384b5e88afbe81b849c5fe",
-    measurementId: "G-PGHXQ52KC4"
+const DEPRECATED_MESSAGE =
+  'Firebase auth has been retired. Use backend JWT auth via /api/v1/auth/* instead.';
+
+const throwDeprecatedError = () => {
+  throw new Error(DEPRECATED_MESSAGE);
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const auth = null;
+const db = null;
+const signOut = throwDeprecatedError;
+const createUserWithEmailAndPassword = throwDeprecatedError;
+const signInWithEmailAndPassword = throwDeprecatedError;
+const doc = throwDeprecatedError;
+const setDoc = throwDeprecatedError;
+const getDoc = throwDeprecatedError;
+const collection = throwDeprecatedError;
+const addDoc = throwDeprecatedError;
+const query = throwDeprecatedError;
+const where = throwDeprecatedError;
+const onSnapshot = throwDeprecatedError;
+const updateDoc = throwDeprecatedError;
+const getDocs = throwDeprecatedError;
 
-// Export Firebase services
+const onAuthStateChanged = () => () => {};
+
+if (typeof window !== 'undefined') {
+  window.__NOCTURNAL_LEGACY_FIREBASE_CONFIG_DISABLED__ = true;
+}
+
 export {
-    auth,
-    db,
-    signOut,
-    onAuthStateChanged,
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    doc,
-    setDoc,
-    getDoc,
-    collection,
-    addDoc,
-    query,
-    where,
-    onSnapshot,
-    updateDoc,
-    getDocs
+  DEPRECATED_MESSAGE,
+  auth,
+  db,
+  signOut,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  addDoc,
+  query,
+  where,
+  onSnapshot,
+  updateDoc,
+  getDocs
 };
-
-// Make available globally for non-module scripts
-window.firebaseAuth = auth;
-window.firebaseDb = db;
-window.firebaseSignOut = signOut;

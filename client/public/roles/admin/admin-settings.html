@@ -501,27 +501,6 @@
         </form>
     </div>
 
-    <script type="module">
-        import { auth, signOut, onAuthStateChanged } from './firebase-config.js';
-
-        window.firebaseAuth = auth;
-        window.firebaseSignOut = signOut;
-
-        onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                const token = localStorage.getItem('token');
-                if (!token) {
-                    localStorage.clear();
-                    window.location.href = 'index.html';
-                }
-            } else {
-                user.getIdToken().then(token => {
-                    localStorage.setItem('token', token);
-                });
-            }
-        });
-    </script>
-
     <script>
         // API_URL is provided by config.js
 
@@ -530,7 +509,7 @@
             const userType = localStorage.getItem('userType');
 
             if (!token || userType !== 'hospital') {
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
                 return false;
             }
             return token;
@@ -539,13 +518,10 @@
         async function logout() {
             try {
                 localStorage.clear();
-                if (window.firebaseAuth && window.firebaseSignOut) {
-                    await window.firebaseSignOut(window.firebaseAuth);
-                }
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             } catch (error) {
                 console.error('Logout error:', error);
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             }
         }
 
@@ -560,7 +536,7 @@
             if (!token) return;
 
             try {
-                const response = await fetch(`${API_URL}/hospital-settings`, {
+                const response = await fetch(AppConfig.api('hospital-settings'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
@@ -602,7 +578,7 @@
             if (!token) return;
 
             try {
-                const response = await fetch(`${API_URL}/analytics/hospital/dashboard`, {
+                const response = await fetch(AppConfig.api('analytics/hospital/dashboard'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
@@ -653,7 +629,7 @@
             };
 
             try {
-                const response = await fetch(`${API_URL}/hospital-settings`, {
+                const response = await fetch(AppConfig.api('hospital-settings'), {
                     method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${token}`,

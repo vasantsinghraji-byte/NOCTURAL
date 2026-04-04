@@ -1,12 +1,30 @@
 class AuthService {
-    // Dynamic API URL - works in development AND production
-    static API_URL = (typeof AppConfig !== 'undefined') ? AppConfig.API_URL : 'http://localhost:5000/api/v1';
     static TOKEN_KEY = 'token';
     static USER_KEY = 'user';
 
+    static buildApiUrl(endpoint) {
+        const normalizedEndpoint = endpoint.replace(/^\//, '');
+
+        if (typeof AppConfig !== 'undefined' && typeof AppConfig.api === 'function') {
+            return AppConfig.api(normalizedEndpoint);
+        }
+
+        return `/api/v1/${normalizedEndpoint}`;
+    }
+
+    static request(endpoint, options = {}) {
+        const normalizedEndpoint = endpoint.replace(/^\//, '');
+
+        if (typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function') {
+            return AppConfig.fetch(normalizedEndpoint, options);
+        }
+
+        return fetch(this.buildApiUrl(normalizedEndpoint), options);
+    }
+
     static async login(email, password) {
         try {
-            const response = await fetch(`${this.API_URL}/auth/login`, {
+            const response = await this.request('auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
@@ -28,7 +46,7 @@ class AuthService {
 
     static async register(userData) {
         try {
-            const response = await fetch(`${this.API_URL}/auth/register`, {
+            const response = await this.request('auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(userData),

@@ -210,7 +210,7 @@
         async function loadAnalytics() {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`${API_URL}/analytics/hospital/dashboard`, {
+                const response = await fetch(AppConfig.api('analytics/hospital/dashboard'), {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }

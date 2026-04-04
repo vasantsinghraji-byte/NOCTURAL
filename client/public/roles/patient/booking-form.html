@@ -383,7 +383,7 @@
             btn.textContent = 'Creating booking...';
 
             try {
-                const response = await fetch(`${API_URL}/bookings`, {
+                const response = await fetch(AppConfig.api('bookings'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -411,7 +411,7 @@
         async function initiatePayment(booking) {
             try {
                 // Create Razorpay order
-                const orderResponse = await fetch(`${API_URL}/payments-b2c/create-order`, {
+                const orderResponse = await fetch(AppConfig.api('payments-b2c/create-order'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -470,7 +470,7 @@
         async function handlePaymentSuccess(paymentResponse, bookingId) {
             try {
                 // Verify payment on backend
-                const verifyResponse = await fetch(`${API_URL}/payments-b2c/verify`, {
+                const verifyResponse = await fetch(AppConfig.api('payments-b2c/verify'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -506,7 +506,7 @@
         async function handlePaymentFailure(response, bookingId) {
             try {
                 // Report failure to backend
-                await fetch(`${API_URL}/payments-b2c/failure`, {
+                await fetch(AppConfig.api('payments-b2c/failure'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

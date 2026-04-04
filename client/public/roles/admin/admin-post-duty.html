@@ -211,30 +211,13 @@
         </div>
     </div>
 
-    <script type="module">
-        import { auth, signOut, onAuthStateChanged } from './firebase-config.js';
-
-        window.firebaseAuth = auth;
-        window.firebaseSignOut = signOut;
-
-        onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                const token = localStorage.getItem('token');
-                if (!token) {
-                    localStorage.clear();
-                    window.location.href = 'index.html';
-                }
-            }
-        });
-    </script>
-
     <script>
         function checkAuth() {
             const token = localStorage.getItem('token');
             const userType = localStorage.getItem('userType');
 
             if (!token || userType !== 'hospital') {
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
                 return false;
             }
             return token;
@@ -243,12 +226,9 @@
         async function logout() {
             try {
                 localStorage.clear();
-                if (window.firebaseAuth && window.firebaseSignOut) {
-                    await window.firebaseSignOut(window.firebaseAuth);
-                }
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             } catch (error) {
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             }
         }
 
@@ -276,7 +256,7 @@
             };
 
             try {
-                const response = await fetch('http://localhost:5000/api/duties', {
+                const response = await fetch(AppConfig.api('duties'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

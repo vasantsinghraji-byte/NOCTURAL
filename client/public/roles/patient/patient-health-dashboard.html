@@ -711,7 +711,7 @@
         // Load dashboard overview from API
         async function loadDashboardOverview() {
             try {
-                const response = await fetch(`${API_URL}/patient-dashboard`, {
+                const response = await fetch(AppConfig.api('patient-dashboard'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -916,7 +916,7 @@
         // Load who has access
         async function loadWhoHasAccess() {
             try {
-                const response = await fetch(`${API_URL}/doctor-access/who-has-access`, {
+                const response = await fetch(AppConfig.api('doctor-access/who-has-access'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -964,7 +964,7 @@
             if (!confirm('Are you sure you want to revoke this access?')) return;
 
             try {
-                const response = await fetch(`${API_URL}/doctor-access/revoke/${tokenId}`, {
+                const response = await fetch(AppConfig.api(`doctor-access/revoke/${tokenId}`), {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -982,7 +982,7 @@
         // Generate QR Code
         async function generateQRCode() {
             try {
-                const response = await fetch(`${API_URL}/patient-dashboard/emergency-card/qr`, {
+                const response = await fetch(AppConfig.api('patient-dashboard/emergency-card/qr'), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,

@@ -555,7 +555,7 @@
         async function loadCalendarEvents() {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`${API_URL}/calendar/events`, {
+                const response = await fetch(AppConfig.api('calendar/events'), {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -744,7 +744,7 @@
             }
 
             try {
-                const response = await fetch(`${API_URL}/calendar/events`, {
+                const response = await fetch(AppConfig.api('calendar/events'), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,

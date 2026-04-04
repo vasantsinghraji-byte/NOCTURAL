@@ -178,6 +178,7 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
 </head>
 <body>
     <div class="container">
@@ -232,9 +233,8 @@
             btn.textContent = '';
 
             try {
-                const response = await fetch(`${API_URL}/patients/login`, {
+                const response = await AppConfig.fetch('patients/login', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
 
@@ -254,15 +254,12 @@
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                let errorMessage = error.message || 'Login failed. Please try again.';
-
-                if (errorMessage.includes('Invalid credentials')) {
-                    errorMessage = 'Invalid email or password. Please try again.';
-                } else if (errorMessage.includes('not found')) {
-                    errorMessage = 'Account not found. <a href="/roles/patient/patient-register.html">Register now</a>?';
-                }
-
-                errorDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
+                NocturnalSession.renderFormMessage(
+                    errorDiv,
+                    NocturnalSession.getLoginErrorMessage(error, {
+                        notFoundMessage: 'Account not found. <a href="/roles/patient/patient-register.html">Register now</a>?'
+                    })
+                );
             } finally {
                 btn.classList.remove('loading');
                 btn.disabled = false;

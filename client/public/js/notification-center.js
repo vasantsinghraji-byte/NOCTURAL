@@ -5,13 +5,44 @@
 
 class NotificationCenter {
     constructor(options = {}) {
-        this.API_URL = options.apiUrl || 'http://localhost:5000/api/v1';
+        this.apiUrl = options.apiUrl || null;
         this.notifications = [];
         this.unreadCount = 0;
         this.isOpen = false;
         this.pollingInterval = null;
 
         this.init();
+    }
+
+    buildApiUrl(endpoint) {
+        const normalizedEndpoint = endpoint.replace(/^\//, '');
+
+        if (this.apiUrl) {
+            return `${this.apiUrl.replace(/\/$/, '')}/${normalizedEndpoint}`;
+        }
+
+        if (typeof AppConfig !== 'undefined' && typeof AppConfig.api === 'function') {
+            return AppConfig.api(normalizedEndpoint);
+        }
+
+        return `/api/v1/${normalizedEndpoint}`;
+    }
+
+    async fetchApi(endpoint, options = {}) {
+        const normalizedEndpoint = endpoint.replace(/^\//, '');
+        const token = localStorage.getItem('token');
+
+        if (!this.apiUrl && typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function') {
+            return AppConfig.fetch(normalizedEndpoint, options);
+        }
+
+        return fetch(this.buildApiUrl(normalizedEndpoint), {
+            ...options,
+            headers: {
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                ...options.headers
+            }
+        });
     }
 
     init() {
@@ -328,9 +359,7 @@ class NotificationCenter {
         if (!token) return;
 
         try {
-            const response = await fetch(`${this.API_URL}/notifications?limit=10`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await this.fetchApi('notifications?limit=10');
 
             const data = await response.json();
             if (data.success) {
@@ -431,9 +460,8 @@ class NotificationCenter {
         if (!token) return;
 
         try {
-            await fetch(`${this.API_URL}/notifications/${notificationId}/read`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` }
+            await this.fetchApi(`notifications/${notificationId}/read`, {
+                method: 'PUT'
             });
 
             // Update local state
@@ -453,9 +481,8 @@ class NotificationCenter {
         if (!token) return;
 
         try {
-            await fetch(`${this.API_URL}/notifications/read-all`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` }
+            await this.fetchApi('notifications/read-all', {
+                method: 'PUT'
             });
 
             // Update local state

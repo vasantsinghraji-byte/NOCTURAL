@@ -529,7 +529,7 @@
         async function loadAchievements() {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`${API_URL}/achievements`, {
+                const response = await fetch(AppConfig.api('achievements'), {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -594,7 +594,7 @@
         async function loadLeaderboard() {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`${API_URL}/achievements/leaderboard?category=${currentCategory}&period=${currentPeriod}`, {
+                const response = await fetch(AppConfig.api(`achievements/leaderboard?category=${currentCategory}&period=${currentPeriod}`), {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -670,7 +670,7 @@
         async function claimReward(achievementId) {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`${API_URL}/achievements/${achievementId}/claim`, {
+                const response = await fetch(AppConfig.api(`achievements/${achievementId}/claim`), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -694,7 +694,7 @@
         async function shareAchievement(achievementId) {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`${API_URL}/achievements/${achievementId}/share`, {
+                const response = await fetch(AppConfig.api(`achievements/${achievementId}/share`), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,

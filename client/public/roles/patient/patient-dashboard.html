@@ -457,7 +457,7 @@
         // Fetch patient stats
         async function loadStats() {
             try {
-                const response = await fetch(`${API_URL}/patients/me/stats`, {
+                const response = await fetch(AppConfig.api('patients/me/stats'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -474,7 +474,7 @@
         // Fetch bookings
         async function loadBookings() {
             try {
-                const response = await fetch(`${API_URL}/bookings/patient/me`, {
+                const response = await fetch(AppConfig.api('bookings/patient/me'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 

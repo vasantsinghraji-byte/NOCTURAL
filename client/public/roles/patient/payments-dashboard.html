@@ -607,7 +607,7 @@
         async function loadUser() {
             const token = checkAuth();
             try {
-                const response = await fetch(`${API_URL}/auth/me`, {
+                const response = await fetch(AppConfig.api('auth/me'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
@@ -624,7 +624,7 @@
         async function loadEarningsSummary() {
             const token = checkAuth();
             try {
-                const response = await fetch(`${API_URL}/payments/earnings`, {
+                const response = await fetch(AppConfig.api('payments/earnings'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
@@ -640,7 +640,7 @@
         async function loadPaymentHistory() {
             const token = checkAuth();
             try {
-                const response = await fetch(`${API_URL}/payments/history`, {
+                const response = await fetch(AppConfig.api('payments/history'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
@@ -769,7 +769,7 @@
             const year = document.getElementById('taxYearFilter').value;
 
             try {
-                const response = await fetch(`${API_URL}/payments/earnings/monthly/${year}`, {
+                const response = await fetch(AppConfig.api(`payments/earnings/monthly/${year}`), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();

@@ -2542,7 +2542,7 @@
             showLoading(true);
             try {
                 const data = collectAllData();
-                const response = await fetch(`${API_URL}/health-intake/medical-history-draft`, {
+                const response = await fetch(AppConfig.api('health-intake/medical-history-draft'), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -2571,7 +2571,7 @@
             showLoading(true);
             try {
                 const data = collectAllData();
-                const response = await fetch(`${API_URL}/health-intake/medical-history-submit`, {
+                const response = await fetch(AppConfig.api('health-intake/medical-history-submit'), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -2597,7 +2597,7 @@
         async function loadDraft() {
             // Load any existing draft data
             try {
-                const response = await fetch(`${API_URL}/health-intake/medical-history-draft`, {
+                const response = await fetch(AppConfig.api('health-intake/medical-history-draft'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 

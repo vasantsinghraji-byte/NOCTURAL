@@ -501,32 +501,6 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { auth, signOut, onAuthStateChanged } from './firebase-config.js';
-
-        // Make auth available globally
-        window.firebaseAuth = auth;
-        window.firebaseSignOut = signOut;
-
-        // Monitor auth state
-        onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                // Only redirect if there's no token (user actually logged out)
-                const token = localStorage.getItem('token');
-                if (!token) {
-                    localStorage.clear();
-                    window.location.href = 'index.html';
-                }
-            } else {
-                // User is logged in, update token if needed
-                user.getIdToken().then(token => {
-                    localStorage.setItem('token', token);
-                });
-            }
-        });
-    </script>
-
     <script>
         // API Base URL
         // API_URL is provided by config.js
@@ -539,7 +513,7 @@
             const userType = localStorage.getItem('userType');
 
             if (!token || userType !== 'doctor') {
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
                 return false;
             }
             return token;
@@ -550,21 +524,17 @@
             try {
                 // Clear localStorage
                 localStorage.removeItem('token');
+                localStorage.removeItem('user');
                 localStorage.removeItem('userType');
                 localStorage.removeItem('userId');
                 localStorage.removeItem('userName');
 
-                // Sign out from Firebase if available
-                if (window.firebaseAuth && window.firebaseSignOut) {
-                    await window.firebaseSignOut(window.firebaseAuth);
-                }
-
                 // Redirect to landing page
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             } catch (error) {
                 console.error('Logout error:', error);
                 // Force redirect anyway
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             }
         }
 
@@ -581,7 +551,7 @@
             if (!token) return;
 
             try {
-                const response = await fetch(`${API_URL}/duties`, {
+                const response = await fetch(AppConfig.api('duties'), {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -607,7 +577,7 @@
             if (!token) return;
 
             try {
-                const response = await fetch(`${API_URL}/applications/my-applications`, {
+                const response = await fetch(AppConfig.api('applications/my-applications'), {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -782,7 +752,7 @@
             button.textContent = 'Applying...';
 
             try {
-                const response = await fetch(`${API_URL}/applications/apply`, {
+                const response = await fetch(AppConfig.api('applications/apply'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

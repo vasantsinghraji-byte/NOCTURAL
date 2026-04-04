@@ -275,6 +275,7 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
 </head>
 <body>
     <div class="container">
@@ -485,7 +486,7 @@
             }
 
             if (password !== confirmPassword) {
-                errorDiv.innerHTML = '<div class="error-message">Passwords do not match</div>';
+                NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match');
                 return;
             }
 
@@ -493,9 +494,8 @@
             btn.disabled = true;
 
             try {
-                const response = await fetch(`${API_URL}/auth/register`, {
+                const response = await AppConfig.fetch('auth/register', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, email, phone, password, role })
                 });
 
@@ -516,11 +516,12 @@
                 }
             } catch (error) {
                 console.error('Registration error:', error);
-                let errorMessage = error.message || 'Registration failed. Please try again.';
-                if (errorMessage.includes('already exists')) {
-                    errorMessage = 'This email is already registered. <a href="/index.html">Login instead</a>?';
-                }
-                errorDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
+                NocturnalSession.renderFormMessage(
+                    errorDiv,
+                    NocturnalSession.getRegistrationErrorMessage(error, {
+                        duplicateMessage: 'This email is already registered. <a href="/index.html">Login instead</a>?'
+                    })
+                );
             } finally {
                 btn.classList.remove('loading');
                 btn.disabled = false;
@@ -549,7 +550,7 @@
             }
 
             if (password !== confirmPassword) {
-                errorDiv.innerHTML = '<div class="error-message">Passwords do not match</div>';
+                NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match');
                 return;
             }
 
@@ -557,9 +558,8 @@
             btn.disabled = true;
 
             try {
-                const response = await fetch(`${API_URL}/auth/register`, {
+                const response = await AppConfig.fetch('auth/register', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         name,
                         email,
@@ -588,11 +588,12 @@
                 }
             } catch (error) {
                 console.error('Registration error:', error);
-                let errorMessage = error.message || 'Registration failed. Please try again.';
-                if (errorMessage.includes('already exists')) {
-                    errorMessage = 'This email is already registered. <a href="/index.html">Login instead</a>?';
-                }
-                errorDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
+                NocturnalSession.renderFormMessage(
+                    errorDiv,
+                    NocturnalSession.getRegistrationErrorMessage(error, {
+                        duplicateMessage: 'This email is already registered. <a href="/index.html">Login instead</a>?'
+                    })
+                );
             } finally {
                 btn.classList.remove('loading');
                 btn.disabled = false;

@@ -674,7 +674,7 @@
             if (!token) return;
 
             try {
-                const response = await fetch(`${API_URL}/auth/me`, {
+                const response = await fetch(AppConfig.api('auth/me'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -840,7 +840,7 @@
             formData.append('profilePhoto', file);
 
             try {
-                const response = await fetch(`${API_URL}/uploads/profile-photo`, {
+                const response = await fetch(AppConfig.api('uploads/profile-photo'), {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: formData

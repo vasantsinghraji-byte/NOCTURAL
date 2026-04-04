@@ -558,7 +558,7 @@
         async function loadEarningsDashboard() {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`${API_URL}/earnings/dashboard`, {
+                const response = await fetch(AppConfig.api('earnings/dashboard'), {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -697,7 +697,7 @@
         async function loadEarningsOptimizer() {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`${API_URL}/earnings/optimizer`, {
+                const response = await fetch(AppConfig.api('earnings/optimizer'), {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -753,7 +753,7 @@
 
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`${API_URL}/earnings/${earningId}/dispute`, {
+                const response = await fetch(AppConfig.api(`earnings/${earningId}/dispute`), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,

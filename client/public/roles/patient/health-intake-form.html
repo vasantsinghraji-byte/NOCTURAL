@@ -600,7 +600,7 @@
         // Load existing draft
         async function loadDraft() {
             try {
-                const response = await fetch(`${API_URL}/health-intake/form`, {
+                const response = await fetch(AppConfig.api('health-intake/form'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -880,7 +880,7 @@
                     currentMedications: formData.currentMedications.filter(m => m.name).map(({ id, ...rest }) => rest)
                 };
 
-                const response = await fetch(`${API_URL}/health-intake/draft`, {
+                const response = await fetch(AppConfig.api('health-intake/draft'), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -914,7 +914,7 @@
                     currentMedications: formData.currentMedications.filter(m => m.name).map(({ id, ...rest }) => rest)
                 };
 
-                const response = await fetch(`${API_URL}/health-intake/submit`, {
+                const response = await fetch(AppConfig.api('health-intake/submit'), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,

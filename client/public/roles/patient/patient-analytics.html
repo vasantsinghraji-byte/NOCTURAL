@@ -1091,7 +1091,7 @@
 
         async function apiCall(endpoint, options = {}) {
             const token = getToken();
-            const baseUrl = typeof AppConfig !== 'undefined' ? AppConfig.api(endpoint) : `http://localhost:5000/api/v1${endpoint}`;
+            const baseUrl = AppConfig.api(endpoint);
 
             const response = await fetch(baseUrl, {
                 ...options,

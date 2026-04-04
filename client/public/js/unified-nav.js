@@ -9,6 +9,26 @@ class UnifiedNavigation {
         this.init();
     }
 
+    buildApiUrl(endpoint) {
+        const normalizedEndpoint = endpoint.replace(/^\//, '');
+
+        if (typeof AppConfig !== 'undefined' && typeof AppConfig.api === 'function') {
+            return AppConfig.api(normalizedEndpoint);
+        }
+
+        return `/api/v1/${normalizedEndpoint}`;
+    }
+
+    request(endpoint, options = {}) {
+        const normalizedEndpoint = endpoint.replace(/^\//, '');
+
+        if (typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function') {
+            return AppConfig.fetch(normalizedEndpoint, options);
+        }
+
+        return fetch(this.buildApiUrl(normalizedEndpoint), options);
+    }
+
     async init() {
         await this.loadUser();
         this.injectStyles();
@@ -21,12 +41,7 @@ class UnifiedNavigation {
         if (!token) return;
 
         try {
-            // Use config.js API_URL if available
-            const apiUrl = (typeof API_CONFIG !== 'undefined')
-                ? `${API_CONFIG.BASE_URL}/api/${API_CONFIG.API_VERSION}`
-                : 'http://localhost:5000/api/v1';
-
-            const response = await fetch(`${apiUrl}/auth/me`, {
+            const response = await this.request('auth/me', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
@@ -449,7 +464,9 @@ class UnifiedNavigation {
 
     getUserAvatar() {
         if (this.currentUser?.profilePhoto?.url) {
-            const baseUrl = (typeof API_CONFIG !== 'undefined') ? API_CONFIG.BASE_URL : 'http://localhost:5000';
+            const baseUrl = (typeof AppConfig !== 'undefined' && AppConfig.BASE_URL)
+                ? AppConfig.BASE_URL
+                : window.location.origin;
             return `<img src="${baseUrl}${this.currentUser.profilePhoto.url}" class="nav-user-avatar" alt="Profile">`;
         }
         const initial = this.currentUser?.name?.charAt(0).toUpperCase() || 'U';

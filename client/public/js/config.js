@@ -3,23 +3,30 @@
  * Load this BEFORE any other scripts that make API calls
  */
 
+const isLocalDevelopmentHost = (hostname) => hostname === 'localhost' || hostname === '127.0.0.1';
+
+const getConfiguredApiOrigin = () => {
+    const metaTag = document.querySelector('meta[name="nocturnal-api-origin"]');
+    const runtimeOverride =
+        (typeof window !== 'undefined' && window.__NOCTURNAL_API_ORIGIN__) ||
+        (metaTag && metaTag.content);
+
+    return runtimeOverride ? runtimeOverride.replace(/\/$/, '') : '';
+};
+
 // Determine the correct API base URL
 const getBaseUrl = () => {
-    const hostname = window.location.hostname;
+    const configuredOrigin = getConfiguredApiOrigin();
+    if (configuredOrigin) {
+        return configuredOrigin;
+    }
 
-    // Development
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    if (isLocalDevelopmentHost(window.location.hostname)) {
         return 'http://localhost:5000';
     }
 
-    // Production - Render deployment
-    // Frontend: nocturnal-frontend-208z.onrender.com
-    // Backend: nocturnal-api.onrender.com
-    if (hostname.includes('nocturnal-frontend') || hostname.includes('render.com')) {
-        return 'https://nocturnal-api.onrender.com';
-    }
-
-    // Fallback: Same origin (for when frontend is served from backend)
+    // In non-local environments, rely on same-origin /api rewrites so custom
+    // domains and preview deployments do not need frontend code changes.
     return window.location.origin;
 };
 
@@ -30,8 +37,8 @@ const API_CONFIG = {
     TIMEOUT: 10000,
 
     // Environment detection
-    isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
-    isProduction: !(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    isDevelopment: isLocalDevelopmentHost(window.location.hostname),
+    isProduction: !isLocalDevelopmentHost(window.location.hostname)
 };
 
 // Helper to build API URLs

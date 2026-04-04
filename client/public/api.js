@@ -1,5 +1,23 @@
-// Dynamic API URL - works in development AND production
-const API_URL = (typeof AppConfig !== 'undefined') ? AppConfig.API_URL : 'http://localhost:5000/api/v1';
+const getApiUrl = (endpoint) => {
+  const normalizedEndpoint = endpoint.replace(/^\//, '');
+
+  if (typeof AppConfig !== 'undefined' && typeof AppConfig.api === 'function') {
+    return AppConfig.api(normalizedEndpoint);
+  }
+
+  return `/api/v1/${normalizedEndpoint}`;
+};
+
+const requestWithAppConfig = (endpoint, options = {}) => {
+  const normalizedEndpoint = endpoint.replace(/^\//, '');
+
+  if (typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function') {
+    return AppConfig.fetch(normalizedEndpoint, options);
+  }
+
+  return fetch(getApiUrl(normalizedEndpoint), options);
+};
+
 let authToken = null;
 
 export const setAuthToken = (token) => {
@@ -28,7 +46,7 @@ const apiCall = async (endpoint, options = {}) => {
   };
 
   try {
-    const response = await fetch(`${API_URL}${endpoint}`, config);
+    const response = await requestWithAppConfig(endpoint, config);
     const data = await response.json();
 
     if (!response.ok) {

@@ -403,7 +403,7 @@
 
         async function loadBookings() {
             try {
-                const response = await fetch(`${API_URL}/bookings/provider/me`, {
+                const response = await fetch(AppConfig.api('bookings/provider/me'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -556,7 +556,7 @@
             if (!confirm('Accept this booking?')) return;
 
             try {
-                const response = await fetch(`${API_URL}/bookings/${bookingId}/confirm`, {
+                const response = await fetch(AppConfig.api(`bookings/${bookingId}/confirm`), {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -579,7 +579,7 @@
 
         async function markEnRoute(bookingId) {
             try {
-                const response = await fetch(`${API_URL}/bookings/${bookingId}/en-route`, {
+                const response = await fetch(AppConfig.api(`bookings/${bookingId}/en-route`), {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -602,7 +602,7 @@
 
         async function startService(bookingId) {
             try {
-                const response = await fetch(`${API_URL}/bookings/${bookingId}/start`, {
+                const response = await fetch(AppConfig.api(`bookings/${bookingId}/start`), {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',

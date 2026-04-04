@@ -246,6 +246,16 @@ const handleApiError = (error, showNotification = true) => {
 };
 
 // Fetch wrapper with automatic error handling
+const isAbsoluteApiUrl = (url) => /^https?:\/\//i.test(url) || url.startsWith('//');
+
+const toStandardApiEndpoint = (url) => {
+    if (url.startsWith('/api/')) {
+        return url.replace(/^\/api\/(?:v\d+\/)?/, '');
+    }
+
+    return url.replace(/^\//, '');
+};
+
 const apiFetch = async (url, options = {}) => {
     const token = localStorage.getItem('token');
     const defaultHeaders = {
@@ -259,7 +269,10 @@ const apiFetch = async (url, options = {}) => {
     };
 
     try {
-        const response = await fetch(url, mergedOptions);
+        const response =
+            !isAbsoluteApiUrl(url) && typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function'
+                ? await AppConfig.fetch(toStandardApiEndpoint(url), mergedOptions)
+                : await fetch(url, mergedOptions);
         const data = await response.json();
 
         if (!response.ok) {

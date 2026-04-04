@@ -190,6 +190,7 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
 </head>
 <body>
     <div class="container">
@@ -274,9 +275,8 @@
             btn.textContent = '';
 
             try {
-                const response = await fetch(`${API_URL}/auth/login`, {
+                const response = await AppConfig.fetch('auth/login', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
 
@@ -301,13 +301,11 @@
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                let errorMessage = error.message || 'Login failed. Please try again.';
-
-                if (errorMessage.includes('Invalid credentials')) {
-                    errorMessage = 'Invalid email or password. Please try again.';
-                }
-
-                messageDiv.innerHTML = `<div class="message error">${errorMessage}</div>`;
+                NocturnalSession.renderFormMessage(
+                    messageDiv,
+                    NocturnalSession.getLoginErrorMessage(error),
+                    { className: 'message error' }
+                );
             } finally {
                 btn.classList.remove('loading');
                 btn.disabled = false;

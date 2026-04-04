@@ -525,7 +525,7 @@
         // Load booking details
         async function loadBooking() {
             try {
-                const response = await fetch(`${API_URL}/bookings/${bookingId}`, {
+                const response = await fetch(AppConfig.api(`bookings/${bookingId}`), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -694,7 +694,7 @@
             const comment = document.getElementById('reviewText').value.trim();
 
             try {
-                const response = await fetch(`${API_URL}/bookings/${bookingId}/review`, {
+                const response = await fetch(AppConfig.api(`bookings/${bookingId}/review`), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -723,7 +723,7 @@
             }
 
             try {
-                const response = await fetch(`${API_URL}/bookings/${bookingId}/cancel`, {
+                const response = await fetch(AppConfig.api(`bookings/${bookingId}/cancel`), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

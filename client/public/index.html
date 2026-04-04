@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Note: X-Frame-Options should be set via HTTP headers in production -->
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' http://localhost:5000 https://*.onrender.com https://*.railway.app;">
+    <!-- Security headers (CSP, X-Content-Type-Options, etc.) are set via HTTP headers by helmet in middleware/security.js.
+         A meta CSP is intentionally omitted to avoid a stricter duplicate policy that would block CDN scripts allowed by the header. -->
     <meta name="description" content="Nocturnal - A modern healthcare staffing platform connecting professionals with facilities">
     <meta name="keywords" content="healthcare, staffing, medical professionals, nurses, doctors">
     <meta name="robots" content="index, follow">
@@ -21,15 +20,15 @@
                 <img src="images/logo.png" alt="Nocturnal" class="logo-img">
             </div>
             <div class="nav-buttons">
-                <button class="btn btn-outline" onclick="showLoginOptions()" style="position: relative;">
+                <button class="btn btn-outline" data-action="toggle-login-dropdown" style="position: relative;">
                     Login
                     <div id="loginDropdown" style="display: none; position: absolute; top: 100%; right: 0; background: white; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-top: 10px; min-width: 180px; z-index: 1000;">
                         <a href="/roles/patient/patient-login.html" style="display: block; padding: 12px 20px; color: #333; text-decoration: none; border-bottom: 1px solid #eee;">Patient Login</a>
                         <a href="/roles/provider/provider-login.html" style="display: block; padding: 12px 20px; color: #333; text-decoration: none; border-bottom: 1px solid #eee;">Provider Login</a>
-                        <a href="#" onclick="event.preventDefault(); openLoginModal(); hideLoginOptions();" style="display: block; padding: 12px 20px; color: #333; text-decoration: none;">Staff Login</a>
+                        <a href="#" data-action="open-staff-login" style="display: block; padding: 12px 20px; color: #333; text-decoration: none;">Staff Login</a>
                     </div>
                 </button>
-                <button class="btn btn-primary" onclick="window.location.href='/roles/patient/patient-register.html'">Book Service</button>
+                <button class="btn btn-primary" data-action="navigate" data-href="/roles/patient/patient-register.html">Book Service</button>
             </div>
         </div>
     </nav>
@@ -47,7 +46,7 @@
                         <li>book services in minutes - from injections to physiotherapy</li>
                         <li>transparent pricing with secure payment - no hidden charges</li>
                     </ul>
-                    <button class="btn btn-primary" onclick="window.location.href='/roles/patient/patient-register.html'" style="margin-top: 15px;">Book a Service</button>
+                    <button class="btn btn-primary" data-action="navigate" data-href="/roles/patient/patient-register.html" style="margin-top: 15px;">Book a Service</button>
                 </div>
                 <div class="benefits-column">
                     <h3>For Healthcare Professionals</h3>
@@ -56,7 +55,7 @@
                         <li>set your rates, preferences & choose the shifts that suit you</li>
                         <li>say goodbye to time-consuming admin, paper timesheets & agency mistakes</li>
                     </ul>
-                    <button class="btn btn-outline" onclick="openRegisterModal()" style="margin-top: 15px;">Join as Provider</button>
+                    <button class="btn btn-outline" data-action="open-register" style="margin-top: 15px;">Join as Provider</button>
                 </div>
                 <div class="benefits-column">
                     <h3>For Healthcare Facilities</h3>
@@ -65,7 +64,7 @@
                         <li>one-click apply to hundreds of shifts across the country</li>
                         <li>get paid on time, every time - timesheets submitted, tracked & approved online</li>
                     </ul>
-                    <button class="btn btn-outline" onclick="openRegisterModal()" style="margin-top: 15px;">Register Facility</button>
+                    <button class="btn btn-outline" data-action="open-register" style="margin-top: 15px;">Register Facility</button>
                 </div>
             </div>
 
@@ -75,7 +74,7 @@
             </div>
 
             <div class="cta-button">
-                <button class="btn btn-primary btn-lg" onclick="openRegisterModal()" style="font-size: 1.1rem; padding: 15px 40px;">find out more</button>
+                <button class="btn btn-primary btn-lg" data-action="open-register" style="font-size: 1.1rem; padding: 15px 40px;">find out more</button>
             </div>
         </div>
     </section>
@@ -110,7 +109,7 @@
             </div>
 
             <div style="text-align: center;">
-                <button class="btn btn-primary" onclick="window.location.href='/roles/patient/patient-register.html'" style="background: white; color: #667eea; font-size: 1.1rem; padding: 15px 40px; border: none;">Browse All Services</button>
+                <button class="btn btn-primary" data-action="navigate" data-href="/roles/patient/patient-register.html" style="background: white; color: #667eea; font-size: 1.1rem; padding: 15px 40px; border: none;">Browse All Services</button>
             </div>
         </div>
     </section>
@@ -204,7 +203,7 @@
             <p style="font-weight: 600; margin-top: 30px;">that's it.</p>
             <p style="margin-top: 20px;">Nocturnal has nationwide coverage and is working with many of the best known primary and urgent care providers, GP federations, social care providers and care homes in both the NHS and private sector.</p>
             <p class="bold-text">got all your documentation to hand? you can start booking shifts today.</p>
-            <button class="btn btn-primary btn-lg" onclick="openRegisterModal()" style="font-size: 1.1rem; padding: 15px 40px; margin-top: 20px;">get started</button>
+            <button class="btn btn-primary btn-lg" data-action="open-register" style="font-size: 1.1rem; padding: 15px 40px; margin-top: 20px;">get started</button>
         </div>
     </section>
 
@@ -216,11 +215,11 @@
             <a href="#" title="Twitter">🐦</a>
         </div>
         <div class="footer-links">
-            <a href="#" onclick="alert('Help Center coming soon'); return false;">HELP CENTER</a>
-            <a href="#" onclick="alert('Careers page coming soon'); return false;">CAREERS</a>
-            <a href="#" onclick="alert('Privacy Policy coming soon'); return false;">PRIVACY</a>
-            <a href="#" onclick="alert('Terms of Use coming soon'); return false;">TERMS OF USE</a>
-            <a href="#" onclick="alert('Contact page coming soon'); return false;">CONTACT</a>
+            <a href="#" data-action="coming-soon" data-message="Help Center coming soon">HELP CENTER</a>
+            <a href="#" data-action="coming-soon" data-message="Careers page coming soon">CAREERS</a>
+            <a href="#" data-action="coming-soon" data-message="Privacy Policy coming soon">PRIVACY</a>
+            <a href="#" data-action="coming-soon" data-message="Terms of Use coming soon">TERMS OF USE</a>
+            <a href="#" data-action="coming-soon" data-message="Contact page coming soon">CONTACT</a>
         </div>
         <p style="margin-top: 20px;">&copy; 2025 Nocturnal. All rights reserved.</p>
     </footer>
@@ -228,7 +227,7 @@
     <!-- Login Modal -->
     <div id="loginModal" class="modal">
         <div class="modal-content">
-            <button class="close-modal" onclick="closeLoginModal()">&times;</button>
+            <button class="close-modal" data-action="close-login-modal">&times;</button>
             <h2>Welcome Back</h2>
             <div id="loginError"></div>
             <form id="loginForm">
@@ -243,7 +242,7 @@
                 <button type="submit" class="btn btn-primary">Login</button>
             </form>
             <div class="modal-footer">
-                <p>Don't have an account? <a onclick="closeLoginModal(); openRegisterModal();">Sign up</a></p>
+                <p>Don't have an account? <a data-action="switch-to-register" style="cursor: pointer;">Sign up</a></p>
             </div>
         </div>
     </div>
@@ -251,7 +250,7 @@
     <!-- Register Modal -->
     <div id="registerModal" class="modal">
         <div class="modal-content">
-            <button class="close-modal" onclick="closeRegisterModal()">&times;</button>
+            <button class="close-modal" data-action="close-register-modal">&times;</button>
             <h2>Get Started</h2>
             <div id="registerError"></div>
             <form id="registerForm">
@@ -265,7 +264,11 @@
                 </div>
                 <div class="form-group">
                     <label for="registerPassword">Password</label>
-                    <input type="password" id="registerPassword" required minlength="6">
+                    <input type="password" id="registerPassword" required minlength="8">
+                </div>
+                <div class="form-group">
+                    <label for="registerConfirmPassword">Confirm Password</label>
+                    <input type="password" id="registerConfirmPassword" required minlength="8">
                 </div>
                 <div class="form-group">
                     <label for="registerRole">I am a...</label>
@@ -273,211 +276,23 @@
                         <option value="">Select your role</option>
                         <option value="doctor">Doctor / GP</option>
                         <option value="nurse">Nurse (RGN/RMN)</option>
-                        <option value="admin">Hospital Administrator</option>
+                        <option value="physiotherapist">Physiotherapist</option>
                     </select>
+                </div>
+                <div class="form-group" style="display: flex; align-items: flex-start; gap: 8px;">
+                    <input type="checkbox" id="registerAgreeTerms" required style="margin-top: 4px;">
+                    <label for="registerAgreeTerms" style="font-size: 0.9rem;">I agree to the <a href="#" data-action="coming-soon" data-message="Terms coming soon">Terms and Conditions</a></label>
                 </div>
                 <button type="submit" class="btn btn-primary">Create Account</button>
             </form>
             <div class="modal-footer">
-                <p>Already have an account? <a onclick="closeRegisterModal(); openLoginModal();">Login</a></p>
+                <p>Already have an account? <a data-action="switch-to-login" style="cursor: pointer;">Login</a></p>
             </div>
         </div>
     </div>
 
-    <!-- JWT-based Authentication (Firebase removed for security) -->
-    <script>
-        // Check if user is already logged in
-        window.addEventListener('DOMContentLoaded', async () => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                try {
-                    // Verify token with backend
-                    const response = await fetch('http://localhost:5000/api/auth/me', {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    const data = await response.json();
-
-                    if (data.success && data.user) {
-                        const userData = data.user;
-                        localStorage.setItem('user', JSON.stringify(userData));
-
-                        if (userData.role === 'doctor' || userData.role === 'nurse') {
-                            if (userData.onboardingCompleted) {
-                                window.location.href = 'doctor-dashboard.html';
-                            } else {
-                                window.location.href = 'doctor-onboarding.html';
-                            }
-                        } else if (userData.role === 'admin') {
-                            window.location.href = 'admin-dashboard.html';
-                        }
-                    } else {
-                        // Token invalid, clear it
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('user');
-                    }
-                } catch (error) {
-                    console.log('No valid session');
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                }
-            }
-        });
-
-        // Login Form Handler
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button[type="submit"]');
-            const errorDiv = document.getElementById('loginError');
-            errorDiv.innerHTML = '';
-
-            btn.classList.add('loading');
-
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-
-            try {
-                // Login using secure JWT-based backend API
-                const response = await fetch('http://localhost:5000/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-
-                const data = await response.json();
-
-                if (data.success && data.token) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-
-                    if (data.user.role === 'doctor' || data.user.role === 'nurse') {
-                        localStorage.setItem('userType', 'doctor');
-                        // Check if onboarding is completed
-                        if (data.user.onboardingCompleted) {
-                            window.location.href = 'doctor-dashboard.html';
-                        } else {
-                            window.location.href = 'doctor-onboarding.html';
-                        }
-                    } else if (data.user.role === 'admin') {
-                        localStorage.setItem('userType', 'hospital');
-                        window.location.href = 'admin-dashboard.html';
-                    }
-                } else {
-                    throw new Error(data.message || 'Login failed');
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                errorDiv.innerHTML = '<div class="error-message">Invalid email or password. Please try again.</div>';
-                btn.classList.remove('loading');
-            }
-        });
-
-        // Register Form Handler
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button[type="submit"]');
-            const errorDiv = document.getElementById('registerError');
-            errorDiv.innerHTML = '';
-
-            btn.classList.add('loading');
-
-            const name = document.getElementById('registerName').value;
-            const email = document.getElementById('registerEmail').value;
-            const password = document.getElementById('registerPassword').value;
-            const role = document.getElementById('registerRole').value;
-
-            try {
-                // Register using secure JWT-based backend API
-                const response = await fetch('http://localhost:5000/api/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password, role })
-                });
-
-                const data = await response.json();
-
-                if (data.success && data.token) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-
-                    if (role === 'doctor' || role === 'nurse') {
-                        localStorage.setItem('userType', 'doctor');
-                        window.location.href = 'doctor-onboarding.html';
-                    } else if (role === 'admin') {
-                        localStorage.setItem('userType', 'hospital');
-                        window.location.href = 'admin-dashboard.html';
-                    }
-                } else {
-                    throw new Error(data.message || 'Registration failed');
-                }
-            } catch (error) {
-                console.error('Registration error:', error);
-                let errorMessage = 'Registration failed. Please try again.';
-                if (error.message && error.message.includes('already exists')) {
-                    errorMessage = 'This email is already registered. Please login instead.';
-                } else if (error.message && error.message.includes('password')) {
-                    errorMessage = 'Password must be at least 8 characters with uppercase, lowercase, number, and special character.';
-                }
-                errorDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
-                btn.classList.remove('loading');
-            }
-        });
-    </script>
-
-    <script>
-        // Login Dropdown Functions
-        function showLoginOptions() {
-            const dropdown = document.getElementById('loginDropdown');
-            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function hideLoginOptions() {
-            document.getElementById('loginDropdown').style.display = 'none';
-        }
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
-            const dropdown = document.getElementById('loginDropdown');
-            const loginBtn = event.target.closest('button');
-
-            if (!loginBtn || !loginBtn.textContent.includes('Login')) {
-                dropdown.style.display = 'none';
-            }
-        });
-
-        // Modal Functions
-        function openLoginModal() {
-            document.getElementById('loginModal').style.display = 'block';
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeLoginModal() {
-            document.getElementById('loginModal').style.display = 'none';
-            document.body.style.overflow = 'auto';
-            document.getElementById('loginError').innerHTML = '';
-        }
-
-        function openRegisterModal() {
-            // Redirect to unified landing page for registration
-            window.location.href = 'index-unified.html';
-        }
-
-        function closeRegisterModal() {
-            document.getElementById('registerModal').style.display = 'none';
-            document.body.style.overflow = 'auto';
-            document.getElementById('registerError').innerHTML = '';
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const loginModal = document.getElementById('loginModal');
-            const registerModal = document.getElementById('registerModal');
-            if (event.target === loginModal) {
-                closeLoginModal();
-            }
-            if (event.target === registerModal) {
-                closeRegisterModal();
-            }
-        }
-    </script>
+    <script src="js/frontend-session.js"></script>
+    <!-- Landing page logic (extracted for CSP compliance) -->
+    <script src="js/landing.js"></script>
 </body>
 </html>

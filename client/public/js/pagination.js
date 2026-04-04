@@ -19,6 +19,41 @@
  * @param {Object} options.filters - Additional filters
  * @returns {Promise<Object>} - { data, pagination, success }
  */
+function isAbsoluteUrl(url) {
+  return /^https?:\/\//i.test(url) || url.startsWith('//');
+}
+
+function toAppConfigEndpoint(endpoint) {
+  if (endpoint.startsWith('/api/')) {
+    return endpoint.replace(/^\/api\/(?:v\d+\/)?/, '');
+  }
+
+  return endpoint.replace(/^\//, '');
+}
+
+async function fetchWithStandardConfig(endpoint, options = {}) {
+  const token = localStorage.getItem('token');
+
+  if (!isAbsoluteUrl(endpoint) && typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function') {
+    return AppConfig.fetch(toAppConfigEndpoint(endpoint), {
+      ...options,
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...options.headers
+      }
+    });
+  }
+
+  return fetch(endpoint, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...options.headers
+    }
+  });
+}
+
 async function fetchPaginated(endpoint, options = {}) {
   const {
     page = 1,
@@ -41,13 +76,7 @@ async function fetchPaginated(endpoint, options = {}) {
   const url = `${endpoint}?${params}`;
 
   try {
-    const token = localStorage.getItem('token');
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetchWithStandardConfig(url);
 
     const result = await response.json();
 
@@ -89,13 +118,7 @@ async function fetchCursorPaginated(endpoint, options = {}) {
   const url = `${endpoint}?${params}`;
 
   try {
-    const token = localStorage.getItem('token');
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetchWithStandardConfig(url);
 
     const result = await response.json();
 
