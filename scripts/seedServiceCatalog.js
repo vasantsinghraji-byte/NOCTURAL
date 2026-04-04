@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 /**
  * Seed Service Catalog
  *
@@ -6,7 +8,6 @@
 
 const mongoose = require('mongoose');
 const ServiceCatalog = require('../models/serviceCatalog');
-require('dotenv').config();
 
 const services = [
   // NURSING SERVICES

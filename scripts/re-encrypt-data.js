@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 /**
  * Data Re-encryption Script
  * Re-encrypts sensitive data with new encryption key after rotation
@@ -8,7 +10,6 @@
 
 const mongoose = require('mongoose');
 const crypto = require('crypto');
-require('dotenv').config();
 
 // Colors for console output
 const colors = {

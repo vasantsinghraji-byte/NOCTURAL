@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 /**
  * Recreate Development and Production Users
  * Using Admin Credentials

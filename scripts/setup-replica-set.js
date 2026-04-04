@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 /**
  * MongoDB Replica Set Setup Script
  *

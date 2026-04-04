@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 /**
  * MongoDB User Creation Script
  *

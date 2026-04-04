@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const { getConnectionStatus, checkDatabaseHealth } = require('../config/database');
 const logger = require('../utils/logger');
 const monitoring = require('../utils/monitoring');

@@ -1,7 +1,8 @@
+require('dotenv').config();
+
 const mongoose = require('mongoose');
 const User = require('./models/user');
 const Duty = require('./models/duty');
-require('dotenv').config();
 
 mongoose.connect(process.env.MONGODB_URI);
 

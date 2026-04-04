@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const { getRateLimitMetrics } = require('../config/rateLimit');
 const logger = require('../utils/logger');
 const monitoring = require('../utils/monitoring');
