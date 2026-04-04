@@ -127,6 +127,11 @@ if [ -n "$staged_files" ]; then
       continue
     fi
 
+    # Skip test files (may contain mock/fixture connection strings)
+    if echo "$file" | grep -qE '\.test\.(js|ts)$|\.spec\.(js|ts)$|__tests__/'; then
+      continue
+    fi
+
     # Get the staged content of the file
     staged_content=$(git diff --cached -p -- "$file" 2>/dev/null | grep '^+' | grep -v '^+++' || true)
 
