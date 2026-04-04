@@ -31,9 +31,61 @@ spec:
       labels:
         app: mongodb
     spec:
+      initContainers:
+      - name: init-replicaset
+        image: mongo:8
+        command:
+        - bash
+        - -c
+        - |
+          # Only run on pod-0 (primary)
+          if [[ "$(hostname)" != "mongodb-0" ]]; then
+            echo "Not primary pod, skipping rs.initiate()"
+            exit 0
+          fi
+          echo "Waiting for all replicas to be reachable..."
+          for host in mongodb-0.mongodb-service mongodb-1.mongodb-service mongodb-2.mongodb-service; do
+            until mongosh --host "$host" --port 27017 \
+              -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" \
+              --authenticationDatabase admin --eval "db.adminCommand('ping')" --quiet; do
+              echo "Waiting for $host..."
+              sleep 5
+            done
+          done
+          echo "All replicas reachable. Initializing replica set..."
+          mongosh --host mongodb-0.mongodb-service --port 27017 \
+            -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" \
+            --authenticationDatabase admin --eval '
+            if (rs.status().ok !== 1) {
+              rs.initiate({
+                _id: "rs0",
+                members: [
+                  { _id: 0, host: "mongodb-0.mongodb-service:27017", priority: 2 },
+                  { _id: 1, host: "mongodb-1.mongodb-service:27017", priority: 1 },
+                  { _id: 2, host: "mongodb-2.mongodb-service:27017", priority: 1 }
+                ]
+              });
+              print("Replica set initiated");
+            } else {
+              print("Replica set already initialized");
+            }
+          '
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: nocturnal-secrets
+              key: mongo-root-username
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nocturnal-secrets
+              key: mongo-root-password
       containers:
       - name: mongodb
         image: mongo:8
+        command: ["mongod"]
+        args: ["--replSet", "rs0", "--bind_ip_all", "--keyFile", "/etc/mongodb/keyfile"]
         ports:
         - containerPort: 27017
           name: mongodb
@@ -51,6 +103,9 @@ spec:
         volumeMounts:
         - name: mongodb-data
           mountPath: /data/db
+        - name: mongodb-keyfile
+          mountPath: /etc/mongodb
+          readOnly: true
         resources:
           requests:
             memory: "1Gi"
@@ -78,12 +133,19 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
+      volumes:
+      - name: mongodb-keyfile
+        secret:
+          secretName: mongodb-keyfile
+          defaultMode: 0400
   volumeClaimTemplates:
   - metadata:
       name: mongodb-data
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      storageClassName: "fast-ssd"
+      # Uses cluster default StorageClass. Override per environment:
+      # storageClassName: "fast-ssd"  # GKE SSD
+      # storageClassName: "gp3"       # AWS EBS gp3
       resources:
         requests:
           storage: 50Gi

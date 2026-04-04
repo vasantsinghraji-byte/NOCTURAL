@@ -44,8 +44,6 @@ services:
       # Optional Services
       - key: REDIS_ENABLED
         value: false
-      - key: FIREBASE_AUTH_ENABLED
-        value: false
       - key: LOG_LEVEL
         value: warn
     autoDeploy: true
@@ -76,6 +74,8 @@ services:
         name: Cache-Control
         value: no-cache, no-store, must-revalidate
     routes:
+      # Frontend code should use same-origin /api/* requests via AppConfig.api().
+      # This rewrite is the deployment source of truth for custom domains and previews.
       - type: rewrite
         source: /api/*
         destination: https://nocturnal-api.onrender.com/api/*

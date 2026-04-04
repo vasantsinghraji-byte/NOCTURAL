@@ -87,8 +87,8 @@ spec:
 
       containers:
       - name: app
-        image: ghcr.io/yourusername/nocturnal:latest
-        imagePullPolicy: Always
+        image: ghcr.io/yourusername/nocturnal:${IMAGE_TAG:-v1.0.0}
+        imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

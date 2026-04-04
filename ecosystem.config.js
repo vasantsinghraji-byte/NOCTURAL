@@ -44,12 +44,18 @@ module.exports = {
       listen_timeout: 10000, // Time to wait for app to listen (10 seconds)
       shutdown_with_message: true, // Enable graceful shutdown with IPC messages
 
-      // Process Management
+      // Process Management & Log Rotation
+      // Requires pm2-logrotate module: pm2 install pm2-logrotate
+      // Configure with: pm2 set pm2-logrotate:max_size 50M
+      //                  pm2 set pm2-logrotate:retain 10
+      //                  pm2 set pm2-logrotate:compress true
+      //                  pm2 set pm2-logrotate:rotateInterval '0 0 * * *'
       merge_logs: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: './logs/pm2-error.log',
       out_file: './logs/pm2-out.log',
       log_file: './logs/pm2-combined.log',
+      max_size: '50M', // Rotate when log file exceeds 50MB
 
       // Environment Variables - Development
       env: {

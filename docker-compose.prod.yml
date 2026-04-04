@@ -216,8 +216,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "50m"
+        max-file: "5"
     deploy:
       mode: replicated
       replicas: 4
@@ -273,8 +273,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "50m"
+        max-file: "5"
     deploy:
       resources:
         limits:
@@ -285,13 +285,12 @@ services:
           memory: 128M
 
   # =================================
-  # Monitoring: Prometheus (Optional)
+  # Monitoring: Prometheus
   # =================================
   prometheus:
     image: prom/prometheus:latest
     container_name: nocturnal-prometheus
     restart: unless-stopped
-    profiles: ["monitoring"]
     ports:
       - "9090:9090"
     volumes:
@@ -313,13 +312,12 @@ services:
           memory: 256M
 
   # =================================
-  # Monitoring: Grafana (Optional)
+  # Monitoring: Grafana
   # =================================
   grafana:
     image: grafana/grafana:latest
     container_name: nocturnal-grafana
     restart: unless-stopped
-    profiles: ["monitoring"]
     ports:
       - "3000:3000"
     environment:

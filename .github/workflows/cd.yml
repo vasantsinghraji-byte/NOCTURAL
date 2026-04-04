@@ -14,6 +14,18 @@ on:
         options:
           - staging
           - production
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        default: deploy
+        options:
+          - deploy
+          - rollback
+      rollback_version:
+        description: 'Tag to roll back to (e.g., v1.2.0). Required for rollback.'
+        required: false
+        type: string
 
 env:
   NODE_VERSION: '18.x'
@@ -25,7 +37,7 @@ jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
+    if: (github.ref == 'refs/heads/main' || (github.event.inputs.environment == 'staging' && github.event.inputs.action != 'rollback'))
     environment:
       name: staging
       url: https://staging.nocturnal.com
@@ -59,20 +71,27 @@ jobs:
           echo "Deployment package created: nocturnal-staging.tar.gz"
 
       - name: Run database migrations
-        run: |
-          echo "Running database migrations..."
-          # npm run migrate:staging
+        run: npm run migrate:staging
 
       - name: Smoke tests
         run: |
           echo "Running smoke tests on staging..."
-          # curl -f https://staging.nocturnal.com/api/v1/health
+          for i in 1 2 3 4 5; do
+            if curl -sf --max-time 10 https://staging.nocturnal.com/api/v1/health; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Smoke tests failed after 5 attempts"
+          exit 1
 
   # Deploy to Production
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production'
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event.inputs.environment == 'production' && github.event.inputs.action != 'rollback')
     environment:
       name: production
       url: https://nocturnal.com
@@ -114,14 +133,21 @@ jobs:
           echo "Deployment package created: nocturnal-production.tar.gz"
 
       - name: Run database migrations
-        run: |
-          echo "Running database migrations..."
-          # npm run migrate:production
+        run: npm run migrate:production
 
       - name: Smoke tests
         run: |
           echo "Running smoke tests on production..."
-          # curl -f https://nocturnal.com/api/v1/health
+          for i in 1 2 3 4 5; do
+            if curl -sf --max-time 10 https://nocturnal.com/api/v1/health; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Smoke tests failed after 5 attempts"
+          exit 1
 
       - name: Notify deployment success
         run: |
@@ -132,23 +158,67 @@ jobs:
   rollback:
     name: Rollback Deployment
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'rollback'
     environment:
       name: ${{ github.event.inputs.environment }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Restore previous backup
+      - name: Validate rollback version
         run: |
-          echo "Rolling back to previous version..."
-          # Add rollback commands here
+          if [ -z "${{ github.event.inputs.rollback_version }}" ]; then
+            echo "Error: rollback_version is required for rollback action"
+            exit 1
+          fi
+          echo "Rolling back ${{ github.event.inputs.environment }} to ${{ github.event.inputs.rollback_version }}"
+
+      - name: Checkout target version
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.rollback_version }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --production
+
+      - name: Create rollback deployment package
+        run: |
+          mkdir -p deploy
+          cp -r . deploy/
+          cd deploy
+          rm -rf .git .github node_modules coverage tests
+          tar -czf ../nocturnal-rollback.tar.gz .
+
+      - name: Deploy rollback package
+        run: |
+          echo "Deploying ${{ github.event.inputs.rollback_version }} to ${{ github.event.inputs.environment }}..."
+          # Add your deployment commands here (same as deploy step, using rollback package)
+          echo "Rollback package created: nocturnal-rollback.tar.gz"
+
+      - name: Run database migrations for target version
+        run: npm run migrate:${{ github.event.inputs.environment }}
 
       - name: Verify rollback
         run: |
-          echo "Verifying rollback success..."
-          # Add health check commands
+          HEALTH_URL="https://nocturnal.com/api/v1/health"
+          if [ "${{ github.event.inputs.environment }}" = "staging" ]; then
+            HEALTH_URL="https://staging.nocturnal.com/api/v1/health"
+          fi
+          echo "Verifying rollback at $HEALTH_URL..."
+          for i in 1 2 3 4 5; do
+            if curl -sf --max-time 10 "$HEALTH_URL"; then
+              echo "Rollback health check passed"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Rollback verification failed after 5 attempts"
+          exit 1
 
   # Upload artifacts
   artifacts:
