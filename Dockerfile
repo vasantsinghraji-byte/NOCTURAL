@@ -29,8 +29,11 @@ RUN npm prune --production
 # Stage 2: Production stage
 FROM node:22-alpine
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install dumb-init and upgrade all Alpine packages to pick up security patches
+RUN apk add --no-cache dumb-init && apk upgrade --no-cache
+
+# Upgrade npm to fix bundled dependency CVEs (picomatch etc.)
+RUN npm install -g npm@latest
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
