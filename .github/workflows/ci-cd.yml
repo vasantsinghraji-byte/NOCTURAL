@@ -189,7 +189,7 @@ jobs:
       - name: Sign Docker image
         run: |
           cosign sign --yes \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}@${{ steps.build-push.outputs.digest }}
         env:
           COSIGN_EXPERIMENTAL: "true"
 
