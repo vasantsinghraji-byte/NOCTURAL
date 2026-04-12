@@ -62,7 +62,7 @@ global.testUtils = {
     PORT: '5000',
     MONGODB_URI: 'mongodb://fixtureUser:fixturePassword@127.0.0.1:27017/nocturnal_fixture?authSource=admin',
     JWT_SECRET: 'prod-smoke-jwt-secret-value-with-64-plus-characters-for-validation-pass-001',
-    ENCRYPTION_KEY: '0123456789abcdeffedcba98765432100123456789abcdeffedcba9876543210',
+    ENCRYPTION_KEY: require('crypto').createHash('sha256').update('test-fixture-encryption-key').digest('hex'),
     ALLOWED_ORIGINS: 'https://127.0.0.1',
     AWS_S3_ENABLED: 'false',
     RAZORPAY_ENABLED: 'false',
