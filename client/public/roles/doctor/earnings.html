@@ -58,6 +58,10 @@
             color: var(--success);
         }
 
+        .nav-links a.active {
+            color: var(--success);
+        }
+
         .container {
             max-width: 1400px;
             margin: 40px auto;
@@ -402,6 +406,45 @@
             color: var(--gray);
         }
 
+        .loading-spinner-icon {
+            font-size: 3rem;
+        }
+
+        .is-hidden {
+            display: none;
+        }
+
+        .progress-fill-empty {
+            width: 0%;
+        }
+
+        .optimizer-summary {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .optimizer-potential-earnings {
+            font-size: 1.5rem;
+        }
+
+        .warning-message {
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        .breakdown-icon-success {
+            color: var(--success);
+        }
+
+        .breakdown-icon-warning {
+            color: var(--warning);
+        }
+
+        .breakdown-icon-danger {
+            color: var(--danger);
+        }
+
         @media (max-width: 968px) {
             .chart-grid {
                 grid-template-columns: 1fr;
@@ -421,6 +464,8 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
 </head>
 <body>
     <!-- Header -->
@@ -428,11 +473,11 @@
         <div class="logo">🌙 Nocturnal</div>
         <div class="nav-links">
             <a href="/roles/doctor/doctor-dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
-            <a href="/roles/doctor/browse-duties.html"><i class="fas fa-briefcase"></i> Browse</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html"><i class="fas fa-briefcase"></i> Browse</a>
             <a href="/roles/doctor/calendar.html"><i class="fas fa-calendar"></i> Calendar</a>
-            <a href="/roles/doctor/earnings.html" style="color: var(--success);"><i class="fas fa-dollar-sign"></i> Earnings</a>
+            <a href="/roles/doctor/earnings.html" class="active"><i class="fas fa-dollar-sign"></i> Earnings</a>
             <a href="/roles/doctor/achievements.html"><i class="fas fa-trophy"></i> Achievements</a>
-            <a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            <a href="#" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </div>
 
@@ -445,12 +490,12 @@
 
         <!-- Loading State -->
         <div id="loading" class="loading">
-            <i class="fas fa-spinner fa-spin" style="font-size: 3rem;"></i>
+            <i class="fas fa-spinner fa-spin loading-spinner-icon"></i>
             <p>Loading earnings data...</p>
         </div>
 
         <!-- Main Content (Hidden until loaded) -->
-        <div id="mainContent" style="display: none;">
+        <div id="mainContent" class="is-hidden">
             <!-- Stats Cards -->
             <div class="stats-grid">
                 <div class="stat-card success">
@@ -481,19 +526,19 @@
                     <div class="stat-value" id="goalProgress">0%</div>
                     <div class="stat-label">Monthly Goal Progress</div>
                     <div class="progress-bar">
-                        <div class="progress-fill" id="goalProgressBar" style="width: 0%"></div>
+                        <div class="progress-fill progress-fill-empty" id="goalProgressBar"></div>
                     </div>
                 </div>
             </div>
 
             <!-- Earnings Optimizer -->
-            <div class="card optimizer-card" id="optimizerCard" style="display: none;">
+            <div class="card optimizer-card is-hidden" id="optimizerCard">
                 <h3><i class="fas fa-lightbulb"></i> Earnings Optimizer</h3>
                 <p>Here are the best opportunities to maximize your income this week:</p>
                 <div class="suggestion-grid" id="suggestionsList"></div>
-                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
-                    <strong>Potential Weekly Earnings:</strong> <span id="potentialEarnings" style="font-size: 1.5rem;">₹0</span>
-                    <div id="warningMessage" style="margin-top: 10px; font-size: 0.9rem;"></div>
+                <div class="optimizer-summary">
+                    <strong>Potential Weekly Earnings:</strong> <span class="optimizer-potential-earnings" id="potentialEarnings">₹0</span>
+                    <div class="warning-message" id="warningMessage"></div>
                 </div>
             </div>
 
@@ -509,21 +554,21 @@
                     <div id="breakdownList">
                         <div class="breakdown-item">
                             <span class="breakdown-label">
-                                <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                                <i class="fas fa-check-circle breakdown-icon-success"></i>
                                 Paid
                             </span>
                             <span class="breakdown-value paid" id="paidAmount">₹0</span>
                         </div>
                         <div class="breakdown-item">
                             <span class="breakdown-label">
-                                <i class="fas fa-clock" style="color: var(--warning);"></i>
+                                <i class="fas fa-clock breakdown-icon-warning"></i>
                                 Pending
                             </span>
                             <span class="breakdown-value pending" id="pendingAmount">₹0</span>
                         </div>
                         <div class="breakdown-item">
                             <span class="breakdown-label">
-                                <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+                                <i class="fas fa-exclamation-triangle breakdown-icon-danger"></i>
                                 Overdue
                             </span>
                             <span class="breakdown-value overdue" id="overdueAmount">₹0</span>
@@ -540,247 +585,7 @@
         </div>
     </div>
 
-    <script>
-        // API_URL is provided by config.js
-        let earningsChart;
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.href = 'index.html';
-                return;
-            }
-
-            loadEarningsDashboard();
-            loadEarningsOptimizer();
-        });
-
-        async function loadEarningsDashboard() {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(AppConfig.api('earnings/dashboard'), {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    displayEarningsData(data.data);
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('mainContent').style.display = 'block';
-                }
-            } catch (error) {
-                console.error('Error loading earnings:', error);
-                document.getElementById('loading').innerHTML = '<p style="color: var(--danger);">Error loading earnings data. Please try again.</p>';
-            }
-        }
-
-        function displayEarningsData(data) {
-            // Update stats cards
-            document.getElementById('totalEarnings').textContent = `₹${data.currentMonth.totalEarnings.toLocaleString()}`;
-            document.getElementById('hoursWorked').textContent = `${data.currentMonth.hoursWorked} hrs`;
-            document.getElementById('avgRate').textContent = `₹${data.currentMonth.avgRate.toLocaleString()}/hr`;
-            document.getElementById('goalProgress').textContent = `${data.currentMonth.goalProgress}%`;
-            document.getElementById('goalProgressBar').style.width = `${data.currentMonth.goalProgress}%`;
-            document.getElementById('shiftsCount').textContent = `${data.currentMonth.shiftsCompleted} shifts completed`;
-
-            // Earnings change
-            const change = data.comparison.change;
-            const changeEl = document.getElementById('earningsChange');
-            if (change > 0) {
-                changeEl.className = 'stat-change positive';
-                changeEl.innerHTML = `<i class="fas fa-arrow-up"></i> ${change}% vs last month`;
-            } else if (change < 0) {
-                changeEl.className = 'stat-change negative';
-                changeEl.innerHTML = `<i class="fas fa-arrow-down"></i> ${Math.abs(change)}% vs last month`;
-            } else {
-                changeEl.className = 'stat-change';
-                changeEl.innerHTML = 'No change vs last month';
-            }
-
-            // Breakdown
-            document.getElementById('paidAmount').textContent = `₹${data.breakdown.paid.toLocaleString()}`;
-            document.getElementById('pendingAmount').textContent = `₹${data.breakdown.pending.toLocaleString()}`;
-            document.getElementById('overdueAmount').textContent = `₹${data.breakdown.overdue.toLocaleString()}`;
-
-            // Payment timeline
-            displayPaymentTimeline(data.paymentTimeline);
-
-            // Create chart
-            createEarningsChart(data);
-        }
-
-        function displayPaymentTimeline(timeline) {
-            const timelineEl = document.getElementById('paymentTimeline');
-            let html = '';
-
-            // Overdue payments
-            if (timeline.overdue && timeline.overdue.length > 0) {
-                timeline.overdue.forEach(payment => {
-                    html += `
-                        <div class="timeline-item overdue">
-                            <div class="timeline-date">Due: ${new Date(payment.expectedPaymentDate).toLocaleDateString()}</div>
-                            <div class="timeline-title">${payment.hospital}</div>
-                            <div class="timeline-amount">₹${payment.netAmount.toLocaleString()}</div>
-                            <button class="btn btn-danger" style="margin-top: 10px; font-size: 0.85rem;" onclick="disputePayment('${payment._id}')">
-                                <i class="fas fa-exclamation-circle"></i> Raise Dispute
-                            </button>
-                        </div>
-                    `;
-                });
-            }
-
-            // Upcoming payments
-            if (timeline.upcoming && timeline.upcoming.length > 0) {
-                timeline.upcoming.forEach(payment => {
-                    html += `
-                        <div class="timeline-item pending">
-                            <div class="timeline-date">Expected: ${new Date(payment.expectedPaymentDate).toLocaleDateString()}</div>
-                            <div class="timeline-title">${payment.hospital}</div>
-                            <div class="timeline-amount">₹${payment.netAmount.toLocaleString()}</div>
-                        </div>
-                    `;
-                });
-            }
-
-            if (html === '') {
-                html = '<p style="text-align: center; color: var(--gray); padding: 20px;">No pending payments</p>';
-            }
-
-            timelineEl.innerHTML = html;
-        }
-
-        function createEarningsChart(data) {
-            const ctx = document.getElementById('earningsChart').getContext('2d');
-
-            // Mock data for last 6 months
-            const months = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
-            const earnings = [180000, 195000, 213000, 245000, 213000, data.currentMonth.totalEarnings];
-
-            earningsChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: months,
-                    datasets: [{
-                        label: 'Monthly Earnings (₹)',
-                        data: earnings,
-                        borderColor: '#5B8DBE',
-                        backgroundColor: 'rgba(91, 141, 190, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return '₹' + (value/1000) + 'k';
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        async function loadEarningsOptimizer() {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(AppConfig.api('earnings/optimizer'), {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success && data.data.suggestions.length > 0) {
-                    displayOptimizer(data.data);
-                }
-            } catch (error) {
-                console.error('Error loading optimizer:', error);
-            }
-        }
-
-        function displayOptimizer(data) {
-            const card = document.getElementById('optimizerCard');
-            const list = document.getElementById('suggestionsList');
-
-            let html = '';
-            data.suggestions.forEach(duty => {
-                html += `
-                    <div class="suggestion-item">
-                        <div class="suggestion-header">
-                            <div class="suggestion-title">${duty.title}</div>
-                            <div class="suggestion-pay">₹${duty.totalCompensation.toLocaleString()}</div>
-                        </div>
-                        <div class="suggestion-details">
-                            ${duty.hospital} • ${new Date(duty.date).toLocaleDateString()} • ${duty.startTime} - ${duty.endTime}
-                        </div>
-                        <button class="btn btn-success" style="margin-top: 10px; font-size: 0.85rem;" onclick="location.href='duty-details.html?id=${duty._id}'">
-                            View Details
-                        </button>
-                    </div>
-                `;
-            });
-
-            list.innerHTML = html;
-            document.getElementById('potentialEarnings').textContent = `₹${data.potential.totalEarnings.toLocaleString()}`;
-
-            if (data.potential.exceedsLimit) {
-                document.getElementById('warningMessage').innerHTML = `
-                    <i class="fas fa-exclamation-triangle"></i> ${data.potential.warning}
-                `;
-            }
-
-            card.style.display = 'block';
-        }
-
-        async function disputePayment(earningId) {
-            const reason = prompt('Please provide a reason for the dispute:');
-            if (!reason) return;
-
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(AppConfig.api(`earnings/${earningId}/dispute`), {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ reason })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    alert('Dispute raised successfully. Admin will review shortly.');
-                    loadEarningsDashboard();
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            } catch (error) {
-                console.error('Error raising dispute:', error);
-                alert('Failed to raise dispute');
-            }
-        }
-
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'index.html';
-        }
-    </script>
+    <script src="/js/doctor-earnings.js"></script>
     <!-- Unified Navigation & Notifications -->
     <script src="/js/auto-inject-nav.js"></script>
 </body>

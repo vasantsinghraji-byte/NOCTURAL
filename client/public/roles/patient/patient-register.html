@@ -41,6 +41,12 @@
             margin-bottom: 5px;
         }
 
+        .logo-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
         .logo p {
             color: #666;
             font-size: 14px;
@@ -202,7 +208,7 @@
 <body>
     <div class="container">
         <div class="logo">
-            <a href="/index.html" style="text-decoration: none; color: inherit; display: block;">
+            <a href="/index.html" class="logo-link">
                 <h1>Nocturnal Healthcare</h1>
                 <p>Book Nurses & Physiotherapists at Home</p>
             </a>
@@ -263,80 +269,6 @@
         </div>
     </div>
 
-    <script>
-        // API_URL is provided by config.js
-
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const name = document.getElementById('name').value.trim();
-            const phone = document.getElementById('phone').value.trim();
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const errorDiv = document.getElementById('errorDiv');
-            const btn = document.getElementById('submitBtn');
-
-            NocturnalSession.clearFormMessage(errorDiv);
-
-            // Validation
-            if (!NocturnalSession.validatePasswordStrength(password, errorDiv)) {
-                return;
-            }
-
-            if (!NocturnalSession.validatePasswordMatch(password, confirmPassword, errorDiv, {
-                message: 'Passwords do not match'
-            })) {
-                return;
-            }
-
-            if (!NocturnalSession.validatePhoneNumber(phone, errorDiv, {
-                message: 'Please enter a valid 10-digit mobile number'
-            })) {
-                return;
-            }
-
-            NocturnalSession.setButtonLoading(btn, { clearText: true });
-
-            try {
-                const data = await AppConfig.fetch('patients/register', {
-                    method: 'POST',
-                    skipAuth: true,
-                    parseJson: true,
-                    body: JSON.stringify({ name, email, phone, password })
-                });
-                NocturnalSession.completeAuthSuccess(
-                    NocturnalSession.expectJsonSuccess(data, 'Registration failed', {
-                        isSuccess: function (payload) {
-                            return !!(payload && payload.success && payload.token);
-                        }
-                    }),
-                    {
-                        tokenKey: 'patientToken',
-                        userKey: 'patient',
-                        successContainer: errorDiv,
-                        successMessage: 'Registration successful! Redirecting...',
-                        redirectUrl: 'patient-dashboard.html',
-                        redirectDelayMs: 1500
-                    }
-                );
-            } catch (error) {
-                console.error('Registration error:', error);
-                NocturnalSession.renderFormMessage(
-                    errorDiv,
-                    NocturnalSession.getRegistrationErrorMessage(error, {
-                        duplicateMessage: 'This email or phone is already registered. <a href="/roles/patient/patient-login.html">Login instead</a>?'
-                    })
-                );
-            } finally {
-                NocturnalSession.resetButtonState(btn, { textContent: 'Create Account' });
-            }
-        });
-
-        // Phone number validation
-        document.getElementById('phone').addEventListener('input', function(e) {
-            this.value = this.value.replace(/[^0-9]/g, '').substring(0, 10);
-        });
-    </script>
+    <script src="/js/patient-register.js"></script>
 </body>
 </html>

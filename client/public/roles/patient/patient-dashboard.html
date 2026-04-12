@@ -232,6 +232,19 @@
             font-weight: 600;
         }
 
+        .tab-link {
+            color: white;
+            border-radius: 8px;
+        }
+
+        .tab-link-health {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .tab-link-analytics {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
         .tab:hover {
             color: #667eea;
         }
@@ -251,8 +264,14 @@
         .empty-state p {
             color: #666;
         }
+
+        .is-hidden {
+            display: none;
+        }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/patient-session.js"></script>
 </head>
 <body>
     <div class="header">
@@ -262,7 +281,7 @@
             </div>
             <div class="user-menu">
                 <span class="user-name" id="userName">Patient</span>
-                <button class="btn-logout" onclick="logout()">Logout</button>
+                <button class="btn-logout" id="logoutBtn">Logout</button>
             </div>
         </div>
     </div>
@@ -289,10 +308,10 @@
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('services')">Browse Services</button>
-            <button class="tab" onclick="showTab('bookings')">My Bookings</button>
-            <button class="tab" onclick="location.href='patient-health-dashboard.html'" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 8px;">Health Dashboard</button>
-            <button class="tab" onclick="location.href='patient-analytics.html'" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px;">Analytics</button>
+            <button class="tab active" data-tab="services">Browse Services</button>
+            <button class="tab" data-tab="bookings">My Bookings</button>
+            <button class="tab tab-link tab-link-health" data-route="patient-health-dashboard.html">Health Dashboard</button>
+            <button class="tab tab-link tab-link-analytics" data-route="patient-analytics.html">Analytics</button>
         </div>
 
         <div id="servicesTab">
@@ -302,7 +321,7 @@
             </div>
         </div>
 
-        <div id="bookingsTab" style="display: none;">
+        <div id="bookingsTab" class="is-hidden">
             <h2 class="section-title">📋 My Bookings</h2>
             <div id="bookingsList">
                 <div class="loading">Loading bookings...</div>
@@ -310,237 +329,7 @@
         </div>
     </div>
 
-    <script>
-        // API_URL is provided by config.js
-        let currentTab = 'services';
-
-        // Check authentication
-        const token = localStorage.getItem('patientToken');
-        if (!token) {
-            window.location.href = 'patient-login.html';
-        }
-
-        // Load patient data
-        const patient = JSON.parse(localStorage.getItem('patient') || '{}');
-        if (patient.name) {
-            document.getElementById('userName').textContent = patient.name;
-            document.getElementById('welcomeMessage').textContent = `Welcome back, ${patient.name.split(' ')[0]}!`;
-        }
-
-        // Fetch services
-        async function loadServices() {
-            try {
-                // For now, display hardcoded services since we have them seeded
-                const services = [
-                    {
-                        name: 'IM Injection',
-                        description: 'Professional intramuscular injection administration at home',
-                        price: 299,
-                        category: 'NURSING',
-                        icon: '💉',
-                        serviceType: 'INJECTION'
-                    },
-                    {
-                        name: 'IV Drip at Home',
-                        description: 'IV fluid infusion therapy in the comfort of your home',
-                        price: 799,
-                        category: 'NURSING',
-                        icon: '💧',
-                        serviceType: 'IV_DRIP'
-                    },
-                    {
-                        name: 'Wound Dressing',
-                        description: 'Professional wound care and dressing changes',
-                        price: 499,
-                        category: 'NURSING',
-                        icon: '🩹',
-                        serviceType: 'WOUND_DRESSING'
-                    },
-                    {
-                        name: 'Catheter Care',
-                        description: 'Urinary catheter insertion and maintenance care',
-                        price: 899,
-                        category: 'NURSING',
-                        icon: '🏥',
-                        serviceType: 'CATHETER_CARE'
-                    },
-                    {
-                        name: 'Post-Surgery Care',
-                        description: 'Comprehensive post-operative nursing care at home',
-                        price: 1499,
-                        category: 'NURSING',
-                        icon: '🔬',
-                        serviceType: 'POST_SURGERY_CARE'
-                    },
-                    {
-                        name: 'Elderly Daily Care',
-                        description: 'Daily nursing care for elderly patients',
-                        price: 999,
-                        category: 'NURSING',
-                        icon: '👴',
-                        serviceType: 'ELDERLY_CARE'
-                    },
-                    {
-                        name: 'Physiotherapy Session',
-                        description: 'Professional physiotherapy treatment at your home',
-                        price: 799,
-                        category: 'PHYSIOTHERAPY',
-                        icon: '🧘',
-                        serviceType: 'PHYSIOTHERAPY_SESSION'
-                    },
-                    {
-                        name: 'Back Pain Therapy',
-                        description: 'Specialized treatment for back pain relief',
-                        price: 899,
-                        category: 'PHYSIOTHERAPY',
-                        icon: '🔙',
-                        serviceType: 'BACK_PAIN_THERAPY'
-                    },
-                    {
-                        name: 'Knee Pain Therapy',
-                        description: 'Targeted therapy for knee pain and mobility',
-                        price: 899,
-                        category: 'PHYSIOTHERAPY',
-                        icon: '🦵',
-                        serviceType: 'KNEE_PAIN_THERAPY'
-                    },
-                    {
-                        name: 'Post-Surgery Rehab',
-                        description: 'Rehabilitation after surgical procedures',
-                        price: 1299,
-                        category: 'PHYSIOTHERAPY',
-                        icon: '🏋️',
-                        serviceType: 'POST_SURGERY_REHAB'
-                    },
-                    {
-                        name: 'Stroke Rehabilitation',
-                        description: 'Comprehensive stroke recovery program',
-                        price: 1499,
-                        category: 'PHYSIOTHERAPY',
-                        icon: '🧠',
-                        serviceType: 'STROKE_REHAB'
-                    },
-                    {
-                        name: '10-Session Physio Package',
-                        description: '10 physiotherapy sessions - Save ₹2000!',
-                        price: 6999,
-                        category: 'PACKAGE',
-                        icon: '📦',
-                        serviceType: 'PHYSIO_PACKAGE_10'
-                    }
-                ];
-
-                displayServices(services);
-            } catch (error) {
-                console.error('Error loading services:', error);
-                document.getElementById('servicesGrid').innerHTML =
-                    '<div class="empty-state"><h3>Failed to load services</h3><p>Please try again later</p></div>';
-            }
-        }
-
-        function displayServices(services) {
-            const grid = document.getElementById('servicesGrid');
-            grid.innerHTML = services.map(service => `
-                <div class="service-card" onclick="bookService('${service.serviceType}', '${service.name}', ${service.price})">
-                    <div class="category-badge">${service.category}</div>
-                    <div class="service-icon">${service.icon}</div>
-                    <h3>${service.name}</h3>
-                    <p>${service.description}</p>
-                    <div class="service-price">
-                        <span class="price">₹${service.price}</span>
-                        <button class="btn-book">Book Now</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Fetch patient stats
-        async function loadStats() {
-            try {
-                const response = await fetch(AppConfig.api('patients/me/stats'), {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('totalBookings').textContent = data.stats.totalBookings || 0;
-                    document.getElementById('totalSpent').textContent = `₹${data.stats.totalSpent || 0}`;
-                }
-            } catch (error) {
-                console.error('Error loading stats:', error);
-            }
-        }
-
-        // Fetch bookings
-        async function loadBookings() {
-            try {
-                const response = await fetch(AppConfig.api('bookings/patient/me'), {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    displayBookings(data.data || []);
-                } else {
-                    throw new Error('Failed to load bookings');
-                }
-            } catch (error) {
-                console.error('Error loading bookings:', error);
-                document.getElementById('bookingsList').innerHTML =
-                    '<div class="empty-state"><h3>No bookings yet</h3><p>Book your first service to get started!</p></div>';
-            }
-        }
-
-        function displayBookings(bookings) {
-            const list = document.getElementById('bookingsList');
-
-            if (bookings.length === 0) {
-                list.innerHTML = '<div class="empty-state"><h3>No bookings yet</h3><p>Book your first service to get started!</p></div>';
-                return;
-            }
-
-            list.innerHTML = bookings.map(booking => `
-                <div class="service-card">
-                    <div class="category-badge">${booking.status}</div>
-                    <h3>${booking.serviceType}</h3>
-                    <p><strong>Date:</strong> ${new Date(booking.scheduledDate).toLocaleDateString()}</p>
-                    <p><strong>Time:</strong> ${booking.scheduledTime}</p>
-                    <div class="service-price">
-                        <span class="price">₹${booking.pricing.payableAmount.toFixed(2)}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function showTab(tab) {
-            const tabs = document.querySelectorAll('.tab');
-            tabs.forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
-
-            document.getElementById('servicesTab').style.display = tab === 'services' ? 'block' : 'none';
-            document.getElementById('bookingsTab').style.display = tab === 'bookings' ? 'block' : 'none';
-
-            currentTab = tab;
-            if (tab === 'bookings') {
-                loadBookings();
-            }
-        }
-
-        function bookService(serviceType, serviceName, price) {
-            localStorage.setItem('selectedService', JSON.stringify({ serviceType, serviceName, price }));
-            window.location.href = 'booking-form.html';
-        }
-
-        function logout() {
-            localStorage.removeItem('patientToken');
-            localStorage.removeItem('patient');
-            window.location.href = 'patient-login.html';
-        }
-
-        // Initialize
-        loadServices();
-        loadStats();
-    </script>
+    <script src="/js/patient-dashboard.js"></script>
     <script src="/js/auto-inject-nav.js"></script>
 </body>
 </html>

@@ -438,6 +438,72 @@
             color: var(--gray);
         }
 
+        .is-hidden {
+            display: none;
+        }
+
+        .loading-icon {
+            font-size: 3rem;
+        }
+
+        .forecast-warning {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .recommendations-list {
+            margin-top: 20px;
+        }
+
+        .chart-frame {
+            position: relative;
+        }
+
+        .chart-frame-lg {
+            height: 300px;
+        }
+
+        .chart-frame-md {
+            height: 250px;
+        }
+
+        .financial-summary {
+            margin-bottom: 20px;
+        }
+
+        .financial-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+        }
+
+        .financial-row-bordered {
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .text-gray {
+            color: var(--gray);
+        }
+
+        .text-primary {
+            color: var(--primary);
+        }
+
+        .text-danger {
+            color: var(--danger);
+        }
+
+        .text-success {
+            color: var(--success);
+        }
+
+        .section-note {
+            color: var(--gray);
+            margin-bottom: 20px;
+        }
+
         @media (max-width: 1200px) {
             .chart-grid {
                 grid-template-columns: 1fr;

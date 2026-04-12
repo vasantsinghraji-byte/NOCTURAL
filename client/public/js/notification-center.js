@@ -30,7 +30,10 @@ class NotificationCenter {
 
     async fetchApi(endpoint, options = {}) {
         const normalizedEndpoint = endpoint.replace(/^\//, '');
-        const token = localStorage.getItem('token');
+        const token =
+            typeof AppConfig !== 'undefined' && typeof AppConfig.getToken === 'function'
+                ? AppConfig.getToken()
+                : localStorage.getItem('token');
 
         if (!this.apiUrl && typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function') {
             return AppConfig.fetch(normalizedEndpoint, options);
@@ -87,6 +90,10 @@ class NotificationCenter {
                 border-radius: 10px;
                 min-width: 18px;
                 text-align: center;
+            }
+
+            .notification-badge.is-hidden {
+                display: none;
             }
 
             .notification-panel {
@@ -254,15 +261,8 @@ class NotificationCenter {
                 text-align: center;
             }
 
-            .notification-view-all {
-                color: #5B8DBE;
-                text-decoration: none;
-                font-weight: 600;
-                font-size: 0.9rem;
-            }
-
-            .notification-view-all:hover {
-                text-decoration: underline;
+            .notification-footer-btn {
+                width: 100%;
             }
 
             @media (max-width: 768px) {
@@ -282,7 +282,7 @@ class NotificationCenter {
         container.innerHTML = `
             <div class="notification-bell" id="notificationBell">
                 <i class="fas fa-bell"></i>
-                <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                <span class="notification-badge is-hidden" id="notificationBadge">0</span>
             </div>
             <div class="notification-panel" id="notificationPanel">
                 <div class="notification-header">
@@ -297,9 +297,9 @@ class NotificationCenter {
                     <!-- Notifications will be inserted here -->
                 </div>
                 <div class="notification-footer">
-                    <a href="notifications.html" class="notification-view-all">
-                        View All Notifications
-                    </a>
+                    <button type="button" class="notification-action-btn notification-footer-btn" id="closeNotificationsBtn">
+                        Close
+                    </button>
                 </div>
             </div>
         `;
@@ -329,11 +329,30 @@ class NotificationCenter {
             });
         }
 
+        const closeBtn = document.getElementById('closeNotificationsBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                this.closePanel();
+            });
+        }
+
+        const notificationList = document.getElementById('notificationList');
+        if (notificationList) {
+            notificationList.addEventListener('click', (event) => {
+                const notificationItem = event.target.closest('[data-notification-id]');
+                if (!notificationItem) {
+                    return;
+                }
+
+                this.handleNotificationClick(notificationItem.dataset.notificationId);
+            });
+        }
+
         // Close panel when clicking outside
         document.addEventListener('click', (e) => {
             const panel = document.getElementById('notificationPanel');
             const bell = document.getElementById('notificationBell');
-            if (this.isOpen && !panel.contains(e.target) && !bell.contains(e.target)) {
+            if (this.isOpen && panel && bell && !panel.contains(e.target) && !bell.contains(e.target)) {
                 this.closePanel();
             }
         });
@@ -377,9 +396,9 @@ class NotificationCenter {
         const badge = document.getElementById('notificationBadge');
         if (this.unreadCount > 0) {
             badge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount;
-            badge.style.display = 'block';
+            badge.classList.remove('is-hidden');
         } else {
-            badge.style.display = 'none';
+            badge.classList.add('is-hidden');
         }
 
         // Update notification list
@@ -401,7 +420,7 @@ class NotificationCenter {
 
             return `
                 <div class="notification-item ${!notif.read ? 'unread' : ''}"
-                     onclick="notificationCenter.handleNotificationClick('${notif._id}', '${notif.actionUrl || ''}')">
+                     data-notification-id="${notif._id}">
                     <div class="notification-icon ${iconClass}">
                         ${this.getIcon(notif.type)}
                     </div>
@@ -443,9 +462,12 @@ class NotificationCenter {
         return date.toLocaleDateString();
     }
 
-    async handleNotificationClick(notificationId, actionUrl) {
+    async handleNotificationClick(notificationId) {
         // Mark as read
         await this.markAsRead(notificationId);
+
+        const notification = this.notifications.find((notif) => notif._id === notificationId);
+        const actionUrl = notification && notification.actionUrl ? notification.actionUrl : '';
 
         // Navigate if there's an action URL
         if (actionUrl) {

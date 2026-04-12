@@ -10,6 +10,26 @@ const CleanCSS = require('clean-css');
 const terser = require('terser');
 const crypto = require('crypto');
 
+// Directories and files excluded from production builds
+const BUILD_EXCLUDES = [
+  path.join('test', path.sep),
+  path.join('shared', 'auth-setup.html'),
+  path.join('js', 'auth-setup.js')
+];
+
+function isExcludedFromBuild(filePath, sourceDir) {
+  var relative = path.relative(sourceDir, filePath);
+  if (relative.endsWith('.original')) {
+    return true;
+  }
+  for (var i = 0; i < BUILD_EXCLUDES.length; i++) {
+    if (relative.startsWith(BUILD_EXCLUDES[i]) || relative === BUILD_EXCLUDES[i]) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const CONFIG = {
   sourceDir: path.join(__dirname, 'public'),
   buildDir: path.join(__dirname, 'dist'),
@@ -47,6 +67,11 @@ const CONFIG = {
 // Asset version manifest
 let assetManifest = {};
 
+function createBuildFailure(step, sourceFile, details) {
+  const message = Array.isArray(details) ? details.join('; ') : details;
+  return { step, sourceFile, message };
+}
+
 /**
  * Generate hash for asset versioning
  */
@@ -82,8 +107,10 @@ async function minifyCSS(sourceFile, destFile) {
     const result = new CleanCSS(CONFIG.minifyCSS).minify(content);
 
     if (result.errors.length > 0) {
-      console.error(`CSS minification errors in ${sourceFile}:`, result.errors);
-      return false;
+      return {
+        success: false,
+        failure: createBuildFailure('css-minify', sourceFile, result.errors)
+      };
     }
 
     const versionedName = getVersionedFilename(path.basename(destFile), result.styles);
@@ -96,13 +123,15 @@ async function minifyCSS(sourceFile, destFile) {
     const relativeVersioned = path.relative(CONFIG.buildDir, versionedPath);
     assetManifest[relativePath.replace(/\\/g, '/')] = relativeVersioned.replace(/\\/g, '/');
 
-    console.log(`✓ Minified CSS: ${sourceFile} -> ${versionedPath}`);
+    console.log(`CSS minified: ${sourceFile} -> ${versionedPath}`);
     console.log(`  Original: ${content.length} bytes, Minified: ${result.styles.length} bytes (${Math.round((1 - result.styles.length / content.length) * 100)}% reduction)`);
 
-    return true;
+    return { success: true };
   } catch (error) {
-    console.error(`Error minifying CSS ${sourceFile}:`, error);
-    return false;
+    return {
+      success: false,
+      failure: createBuildFailure('css-minify', sourceFile, error.message)
+    };
   }
 }
 
@@ -115,8 +144,10 @@ async function minifyJS(sourceFile, destFile) {
     const result = await terser.minify(content, CONFIG.minifyJS);
 
     if (result.error) {
-      console.error(`JS minification error in ${sourceFile}:`, result.error);
-      return false;
+      return {
+        success: false,
+        failure: createBuildFailure('js-minify', sourceFile, result.error.message || result.error)
+      };
     }
 
     const versionedName = getVersionedFilename(path.basename(destFile), result.code);
@@ -129,13 +160,15 @@ async function minifyJS(sourceFile, destFile) {
     const relativeVersioned = path.relative(CONFIG.buildDir, versionedPath);
     assetManifest[relativePath.replace(/\\/g, '/')] = relativeVersioned.replace(/\\/g, '/');
 
-    console.log(`✓ Minified JS: ${sourceFile} -> ${versionedPath}`);
+    console.log(`JS minified: ${sourceFile} -> ${versionedPath}`);
     console.log(`  Original: ${content.length} bytes, Minified: ${result.code.length} bytes (${Math.round((1 - result.code.length / content.length) * 100)}% reduction)`);
 
-    return true;
+    return { success: true };
   } catch (error) {
-    console.error(`Error minifying JS ${sourceFile}:`, error);
-    return false;
+    return {
+      success: false,
+      failure: createBuildFailure('js-minify', sourceFile, error.message)
+    };
   }
 }
 
@@ -156,13 +189,15 @@ async function minifyHTMLFile(sourceFile, destFile) {
 
     await fs.writeFile(destFile, result);
 
-    console.log(`✓ Minified HTML: ${sourceFile} -> ${destFile}`);
+    console.log(`HTML minified: ${sourceFile} -> ${destFile}`);
     console.log(`  Original: ${content.length} bytes, Minified: ${result.length} bytes (${Math.round((1 - result.length / content.length) * 100)}% reduction)`);
 
-    return true;
+    return { success: true };
   } catch (error) {
-    console.error(`Error minifying HTML ${sourceFile}:`, error);
-    return false;
+    return {
+      success: false,
+      failure: createBuildFailure('html-minify', sourceFile, error.message)
+    };
   }
 }
 
@@ -172,11 +207,13 @@ async function minifyHTMLFile(sourceFile, destFile) {
 async function processImage(sourceFile, destFile) {
   try {
     await fs.copyFile(sourceFile, destFile);
-    console.log(`✓ Copied image: ${sourceFile}`);
-    return true;
+    console.log(`Image copied: ${sourceFile}`);
+    return { success: true };
   } catch (error) {
-    console.error(`Error copying image ${sourceFile}:`, error);
-    return false;
+    return {
+      success: false,
+      failure: createBuildFailure('image-copy', sourceFile, error.message)
+    };
   }
 }
 
@@ -216,17 +253,30 @@ async function getFiles(dir, fileList = []) {
  * Main build function
  */
 async function build() {
-  console.log('🚀 Starting frontend build...\n');
+  console.log('Starting frontend build...\n');
 
   const startTime = Date.now();
+  const failures = [];
+
+  function trackFailure(result) {
+    if (!result || result.success !== false || !result.failure) {
+      return;
+    }
+
+    failures.push(result.failure);
+    console.error(`Build step failed [${result.failure.step}] ${result.failure.sourceFile}: ${result.failure.message}`);
+  }
 
   try {
+    assetManifest = {};
+
     // Clean build directory
     await fs.rm(CONFIG.buildDir, { recursive: true, force: true });
     await ensureDir(CONFIG.buildDir);
 
-    // Get all source files
-    const files = await getFiles(CONFIG.sourceDir);
+    // Get all source files, excluding test/debug/auth-bypass pages
+    const allFiles = await getFiles(CONFIG.sourceDir);
+    const files = allFiles.filter(f => !isExcludedFromBuild(f, CONFIG.sourceDir));
 
     // Categorize files
     const cssFiles = files.filter(f => f.endsWith('.css'));
@@ -240,70 +290,76 @@ async function build() {
       !imageFiles.includes(f)
     );
 
-    console.log(`📊 Found ${files.length} files:`);
+    console.log(`Found ${files.length} files:`);
     console.log(`   - ${cssFiles.length} CSS files`);
     console.log(`   - ${jsFiles.length} JS files`);
     console.log(`   - ${htmlFiles.length} HTML files`);
     console.log(`   - ${imageFiles.length} images`);
     console.log(`   - ${otherFiles.length} other files\n`);
 
-    // Process CSS files
-    console.log('📦 Minifying CSS files...');
+    console.log('Minifying CSS files...');
     for (const file of cssFiles) {
       const relativePath = path.relative(CONFIG.sourceDir, file);
       const destPath = path.join(CONFIG.buildDir, relativePath);
       await ensureDir(path.dirname(destPath));
-      await minifyCSS(file, destPath);
+      trackFailure(await minifyCSS(file, destPath));
     }
 
-    // Process JS files
-    console.log('\n📦 Minifying JavaScript files...');
+    console.log('\nMinifying JavaScript files...');
     for (const file of jsFiles) {
       const relativePath = path.relative(CONFIG.sourceDir, file);
       const destPath = path.join(CONFIG.buildDir, relativePath);
       await ensureDir(path.dirname(destPath));
-      await minifyJS(file, destPath);
+      trackFailure(await minifyJS(file, destPath));
     }
 
-    // Process HTML files (last, to update asset references)
-    console.log('\n📦 Minifying HTML files...');
+    console.log('\nMinifying HTML files...');
     for (const file of htmlFiles) {
       const relativePath = path.relative(CONFIG.sourceDir, file);
       const destPath = path.join(CONFIG.buildDir, relativePath);
       await ensureDir(path.dirname(destPath));
-      await minifyHTMLFile(file, destPath);
+      trackFailure(await minifyHTMLFile(file, destPath));
     }
 
-    // Copy images
-    console.log('\n📦 Copying images...');
+    console.log('\nCopying images...');
     for (const file of imageFiles) {
       const relativePath = path.relative(CONFIG.sourceDir, file);
       const destPath = path.join(CONFIG.buildDir, relativePath);
       await ensureDir(path.dirname(destPath));
-      await processImage(file, destPath);
+      trackFailure(await processImage(file, destPath));
     }
 
-    // Copy other files
-    console.log('\n📦 Copying other files...');
+    console.log('\nCopying other files...');
     for (const file of otherFiles) {
       const relativePath = path.relative(CONFIG.sourceDir, file);
       const destPath = path.join(CONFIG.buildDir, relativePath);
       await ensureDir(path.dirname(destPath));
-      await fs.copyFile(file, destPath);
-      console.log(`✓ Copied: ${file}`);
+      try {
+        await fs.copyFile(file, destPath);
+        console.log(`File copied: ${file}`);
+      } catch (error) {
+        trackFailure({
+          success: false,
+          failure: createBuildFailure('file-copy', file, error.message)
+        });
+      }
     }
 
-    // Save asset manifest
+    if (failures.length > 0) {
+      const error = new Error(`Frontend build failed with ${failures.length} asset processing error(s).`);
+      error.failures = failures;
+      throw error;
+    }
+
     const manifestPath = path.join(CONFIG.buildDir, 'asset-manifest.json');
     await fs.writeFile(manifestPath, JSON.stringify(assetManifest, null, 2));
-    console.log(`\n✓ Asset manifest saved: ${manifestPath}`);
+    console.log(`\nAsset manifest saved: ${manifestPath}`);
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`\n✅ Build completed in ${duration}s`);
-    console.log(`📁 Output directory: ${CONFIG.buildDir}`);
-
+    console.log(`\nBuild completed in ${duration}s`);
+    console.log(`Output directory: ${CONFIG.buildDir}`);
   } catch (error) {
-    console.error('\n❌ Build failed:', error);
+    console.error('\nBuild failed:', error);
     process.exit(1);
   }
 }
@@ -313,4 +369,4 @@ if (require.main === module) {
   build();
 }
 
-module.exports = { build, CONFIG };
+module.exports = { build, CONFIG, createBuildFailure };

@@ -60,6 +60,10 @@
             color: var(--success);
         }
 
+        .nav-links a.active {
+            color: var(--success);
+        }
+
         .container {
             max-width: 1400px;
             margin: 40px auto;
@@ -305,6 +309,11 @@
             font-weight: 700;
         }
 
+        .rank-encouragement {
+            margin-top: 10px;
+            opacity: 0.9;
+        }
+
         .leaderboard {
             background: white;
             border-radius: 15px;
@@ -423,6 +432,8 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
 </head>
 <body>
     <!-- Header -->
@@ -430,11 +441,11 @@
         <div class="logo">🌙 Nocturnal</div>
         <div class="nav-links">
             <a href="/roles/doctor/doctor-dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
-            <a href="/roles/doctor/browse-duties.html"><i class="fas fa-briefcase"></i> Browse</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html"><i class="fas fa-briefcase"></i> Browse</a>
             <a href="/roles/doctor/calendar.html"><i class="fas fa-calendar"></i> Calendar</a>
             <a href="/roles/doctor/earnings.html"><i class="fas fa-dollar-sign"></i> Earnings</a>
-            <a href="/roles/doctor/achievements.html" style="color: var(--success);"><i class="fas fa-trophy"></i> Achievements</a>
-            <a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            <a href="/roles/doctor/achievements.html" class="active"><i class="fas fa-trophy"></i> Achievements</a>
+            <a href="#" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </div>
 
@@ -447,10 +458,10 @@
 
         <!-- Tabs -->
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('achievements')">
+            <button class="tab active" data-tab="achievements">
                 <i class="fas fa-medal"></i> My Achievements
             </button>
-            <button class="tab" onclick="switchTab('leaderboard')">
+            <button class="tab" data-tab="leaderboard">
                 <i class="fas fa-trophy"></i> Leaderboard
             </button>
         </div>
@@ -465,18 +476,18 @@
             <div class="your-rank-card">
                 <h3>Your Current Rank</h3>
                 <div class="rank-display">#<span id="yourRank">-</span></div>
-                <p style="margin-top: 10px; opacity: 0.9;">Keep up the great work!</p>
+                <p class="rank-encouragement">Keep up the great work!</p>
             </div>
 
             <div class="leaderboard-controls">
                 <div class="filter-group">
-                    <button class="filter-btn active" onclick="changeCategory('shifts')">Most Shifts</button>
-                    <button class="filter-btn" onclick="changeCategory('earnings')">Top Earners</button>
-                    <button class="filter-btn" onclick="changeCategory('rating')">Highest Rated</button>
+                    <button class="filter-btn active" data-category="shifts">Most Shifts</button>
+                    <button class="filter-btn" data-category="earnings">Top Earners</button>
+                    <button class="filter-btn" data-category="rating">Highest Rated</button>
                 </div>
                 <div class="filter-group">
-                    <button class="filter-btn active" onclick="changePeriod('month')">This Month</button>
-                    <button class="filter-btn" onclick="changePeriod('alltime')">All Time</button>
+                    <button class="filter-btn active" data-period="month">This Month</button>
+                    <button class="filter-btn" data-period="alltime">All Time</button>
                 </div>
             </div>
 
@@ -493,236 +504,7 @@
         </div>
     </div>
 
-    <script>
-        // API_URL is provided by config.js
-        let currentCategory = 'shifts';
-        let currentPeriod = 'month';
-        let currentUserId = null;
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.href = 'index.html';
-                return;
-            }
-
-            // Get current user ID from token
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            currentUserId = payload.id;
-
-            loadAchievements();
-            loadLeaderboard();
-        });
-
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-
-            event.target.classList.add('active');
-            document.getElementById(tabName + 'Tab').classList.add('active');
-
-            if (tabName === 'leaderboard') {
-                loadLeaderboard();
-            }
-        }
-
-        async function loadAchievements() {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(AppConfig.api('achievements'), {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    displayAchievements(data.data);
-                }
-            } catch (error) {
-                console.error('Error loading achievements:', error);
-            }
-        }
-
-        function displayAchievements(achievements) {
-            const list = document.getElementById('achievementsList');
-
-            if (achievements.length === 0) {
-                list.innerHTML = '<p style="text-align: center; color: var(--gray); grid-column: 1/-1;">No achievements yet. Start completing shifts to earn badges!</p>';
-                return;
-            }
-
-            let html = '';
-            achievements.forEach(achievement => {
-                const isEarned = achievement.earnedAt;
-                const progressPercent = (achievement.progress.current / achievement.progress.target) * 100;
-
-                html += `
-                    <div class="achievement-card ${isEarned ? '' : 'locked'}">
-                        ${achievement.tier ? `<div class="achievement-tier tier-${achievement.tier.toLowerCase()}">${achievement.tier}</div>` : ''}
-                        <div class="achievement-icon">${achievement.icon}</div>
-                        <div class="achievement-title">${achievement.title}</div>
-                        <div class="achievement-description">${achievement.description}</div>
-
-                        ${!isEarned ? `
-                            <div class="achievement-progress">
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${progressPercent}%"></div>
-                                </div>
-                                <div class="progress-text">${achievement.progress.current} / ${achievement.progress.target} ${achievement.progress.unit}</div>
-                            </div>
-                        ` : ''}
-
-                        ${achievement.reward === 'BONUS' && achievement.rewardAmount ?
-                            `<div class="reward-badge">Reward: ₹${achievement.rewardAmount.toLocaleString()}</div>` : ''}
-
-                        ${isEarned && achievement.reward === 'BONUS' && !achievement.rewardClaimed ?
-                            `<button class="claim-btn" onclick="claimReward('${achievement._id}')">Claim Reward</button>` : ''}
-
-                        ${isEarned ?
-                            `<button class="share-btn" onclick="shareAchievement('${achievement._id}')"><i class="fab fa-linkedin"></i> Share</button>` : ''}
-
-                        ${isEarned ? `<p style="margin-top: 15px; font-size: 0.85rem; color: var(--success);">Earned: ${new Date(achievement.earnedAt).toLocaleDateString()}</p>` : ''}
-                    </div>
-                `;
-            });
-
-            list.innerHTML = html;
-        }
-
-        async function loadLeaderboard() {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(AppConfig.api(`achievements/leaderboard?category=${currentCategory}&period=${currentPeriod}`), {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    displayLeaderboard(data.data);
-                }
-            } catch (error) {
-                console.error('Error loading leaderboard:', error);
-            }
-        }
-
-        function displayLeaderboard(data) {
-            const list = document.getElementById('leaderboardList');
-            document.getElementById('yourRank').textContent = data.userRank || '-';
-
-            let html = '';
-            data.leaderboard.forEach((entry, index) => {
-                const isCurrentUser = entry.user._id === currentUserId;
-                const rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
-                const rowClass = index < 3 ? 'top-three' : '';
-                const userClass = isCurrentUser ? 'current-user' : '';
-
-                const initials = entry.user.name.split(' ').map(n => n[0]).join('').toUpperCase();
-
-                html += `
-                    <div class="leaderboard-item ${rowClass} ${userClass}">
-                        <div class="rank ${rankClass}">#${entry.rank}</div>
-                        <div class="user-info">
-                            <div class="user-avatar">${initials}</div>
-                            <div class="user-details">
-                                <h4>${entry.user.name} ${isCurrentUser ? '(You)' : ''}</h4>
-                                <p>${entry.user.specialty || 'Doctor'}</p>
-                            </div>
-                        </div>
-                        <div class="stat-value">${entry.shifts}</div>
-                        <div class="stat-value">₹${(entry.earnings/1000).toFixed(0)}k</div>
-                        <div class="badge-display">
-                            <span style="font-size: 1.2rem;">${entry.badges} 🏆</span>
-                        </div>
-                    </div>
-                `;
-            });
-
-            list.innerHTML = html;
-        }
-
-        function changeCategory(category) {
-            currentCategory = category;
-            document.querySelectorAll('.filter-group .filter-btn').forEach(btn => {
-                if (btn.textContent.includes('Shifts') || btn.textContent.includes('Earners') || btn.textContent.includes('Rated')) {
-                    btn.classList.remove('active');
-                }
-            });
-            event.target.classList.add('active');
-            loadLeaderboard();
-        }
-
-        function changePeriod(period) {
-            currentPeriod = period;
-            document.querySelectorAll('.filter-group .filter-btn').forEach(btn => {
-                if (btn.textContent.includes('Month') || btn.textContent.includes('Time')) {
-                    btn.classList.remove('active');
-                }
-            });
-            event.target.classList.add('active');
-            loadLeaderboard();
-        }
-
-        async function claimReward(achievementId) {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(AppConfig.api(`achievements/${achievementId}/claim`), {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    alert('Reward claimed successfully!');
-                    loadAchievements();
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            } catch (error) {
-                console.error('Error claiming reward:', error);
-                alert('Failed to claim reward');
-            }
-        }
-
-        async function shareAchievement(achievementId) {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(AppConfig.api(`achievements/${achievementId}/share`), {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ platform: 'LINKEDIN' })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    const shareUrl = data.data.shareableUrl;
-                    const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
-                    window.open(linkedInUrl, '_blank');
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            } catch (error) {
-                console.error('Error sharing achievement:', error);
-                alert('Failed to share achievement');
-            }
-        }
-
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'index.html';
-        }
-    </script>
+    <script src="/js/doctor-achievements.js"></script>
     <script src="/js/auto-inject-nav.js"></script>
 </body>
 </html>

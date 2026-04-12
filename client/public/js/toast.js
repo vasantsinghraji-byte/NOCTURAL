@@ -30,10 +30,17 @@ const Toast = {
         toast.innerHTML = `
             <span class="toast-icon">${icons[type] || icons.info}</span>
             <span class="toast-message">${message}</span>
-            <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            <button type="button" class="toast-close">×</button>
         `;
 
         this.container.appendChild(toast);
+
+        const closeButton = toast.querySelector('.toast-close');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                toast.remove();
+            });
+        }
 
         // Auto remove after duration
         if (duration > 0) {

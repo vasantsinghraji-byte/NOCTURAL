@@ -6,7 +6,19 @@
 class UnifiedNavigation {
     constructor() {
         this.currentUser = null;
+        this.routes =
+            typeof AppConfig !== 'undefined' && AppConfig.routes
+                ? AppConfig.routes
+                : null;
         this.init();
+    }
+
+    getPageRoute(pathKey, fallbackPath, queryParams) {
+        if (this.routes && typeof this.routes.page === 'function') {
+            return this.routes.page(pathKey, queryParams);
+        }
+
+        return fallbackPath;
     }
 
     buildApiUrl(endpoint) {
@@ -37,7 +49,10 @@ class UnifiedNavigation {
     }
 
     async loadUser() {
-        const token = localStorage.getItem('token');
+        const token =
+            typeof AppConfig !== 'undefined' && typeof AppConfig.getToken === 'function'
+                ? AppConfig.getToken()
+                : localStorage.getItem('token');
         if (!token) return;
 
         try {
@@ -304,18 +319,18 @@ class UnifiedNavigation {
 
         if (role === 'doctor') {
             menuItems = [
-                { icon: 'fa-home', text: 'Dashboard', href: '/roles/doctor/doctor-dashboard.html' },
-                { icon: 'fa-search', text: 'Browse Shifts', href: '/roles/doctor/browse-shifts-enhanced.html' },
-                { icon: 'fa-calendar', text: 'My Calendar', href: '/roles/doctor/calendar.html' },
-                { icon: 'fa-file-alt', text: 'Applications', href: '/roles/doctor/my-applications.html' },
-                { icon: 'fa-wallet', text: 'Earnings', href: '/roles/doctor/earnings.html' },
+                { icon: 'fa-home', text: 'Dashboard', href: this.getPageRoute('doctor.dashboard', '/roles/doctor/doctor-dashboard.html') },
+                { icon: 'fa-search', text: 'Browse Shifts', href: this.getPageRoute('doctor.browseShifts', '/roles/doctor/browse-shifts-enhanced.html') },
+                { icon: 'fa-calendar', text: 'My Calendar', href: this.getPageRoute('doctor.calendar', '/roles/doctor/calendar.html') },
+                { icon: 'fa-file-alt', text: 'Applications', href: this.getPageRoute('doctor.applications', '/roles/doctor/my-applications.html') },
+                { icon: 'fa-wallet', text: 'Earnings', href: this.getPageRoute('doctor.earnings', '/roles/doctor/earnings.html') },
                 {
                     icon: 'fa-ellipsis-h',
                     text: 'More',
                     dropdown: [
-                        { icon: 'fa-user', text: 'My Profile', href: '/roles/doctor/doctor-profile-enhanced.html' },
-                        { icon: 'fa-trophy', text: 'Achievements', href: '/roles/doctor/achievements.html' },
-                        { icon: 'fa-clock', text: 'Availability', href: '/roles/doctor/availability.html' },
+                        { icon: 'fa-user', text: 'My Profile', href: this.getPageRoute('doctor.profileEnhanced', '/roles/doctor/doctor-profile-enhanced.html') },
+                        { icon: 'fa-trophy', text: 'Achievements', href: this.getPageRoute('doctor.achievements', '/roles/doctor/achievements.html') },
+                        { icon: 'fa-clock', text: 'Availability', href: this.getPageRoute('doctor.availability', '/roles/doctor/availability.html') },
                         { divider: true },
                         { icon: 'fa-cog', text: 'Settings', href: '#' },
                         { icon: 'fa-question-circle', text: 'Help', href: '#' }
@@ -324,16 +339,16 @@ class UnifiedNavigation {
             ];
         } else if (role === 'admin' || role === 'nurse') {
             menuItems = [
-                { icon: 'fa-home', text: 'Dashboard', href: '/roles/admin/admin-dashboard.html' },
-                { icon: 'fa-plus-circle', text: 'Post Shift', href: '/roles/admin/admin-post-duty.html' },
-                { icon: 'fa-users', text: 'Applications', href: '/roles/admin/admin-applications.html' },
-                { icon: 'fa-chart-bar', text: 'Analytics', href: '/roles/admin/admin-analytics.html' },
+                { icon: 'fa-home', text: 'Dashboard', href: this.getPageRoute('admin.dashboard', '/roles/admin/admin-dashboard.html') },
+                { icon: 'fa-plus-circle', text: 'Post Shift', href: this.getPageRoute('admin.postDuty', '/roles/admin/admin-post-duty.html') },
+                { icon: 'fa-users', text: 'Applications', href: this.getPageRoute('admin.applications', '/roles/admin/admin-applications.html') },
+                { icon: 'fa-chart-bar', text: 'Analytics', href: this.getPageRoute('admin.analytics', '/roles/admin/admin-analytics.html') },
                 {
                     icon: 'fa-ellipsis-h',
                     text: 'More',
                     dropdown: [
-                        { icon: 'fa-user', text: 'Profile', href: '/roles/admin/admin-profile.html' },
-                        { icon: 'fa-cog', text: 'Settings', href: '/roles/admin/admin-settings.html' },
+                        { icon: 'fa-user', text: 'Profile', href: this.getPageRoute('admin.profile', '/roles/admin/admin-profile.html') },
+                        { icon: 'fa-cog', text: 'Settings', href: this.getPageRoute('admin.settings', '/roles/admin/admin-settings.html') },
                         { icon: 'fa-wallet', text: 'Payments', href: '#' },
                         { divider: true },
                         { icon: 'fa-question-circle', text: 'Help', href: '#' }
@@ -342,17 +357,16 @@ class UnifiedNavigation {
             ];
         } else if (role === 'patient') {
             menuItems = [
-                { icon: 'fa-home', text: 'Dashboard', href: '/roles/patient/patient-dashboard.html' },
-                { icon: 'fa-calendar-plus', text: 'Book Service', href: '/roles/patient/booking-form.html' },
-                { icon: 'fa-list-alt', text: 'My Bookings', href: '/roles/patient/booking-details.html' },
-                { icon: 'fa-heartbeat', text: 'Health', href: '/roles/patient/patient-health-dashboard.html' },
-                { icon: 'fa-chart-line', text: 'Analytics', href: '/roles/patient/patient-analytics.html' },
+                { icon: 'fa-home', text: 'Dashboard', href: this.getPageRoute('patient.dashboard', '/roles/patient/patient-dashboard.html') },
+                { icon: 'fa-calendar-plus', text: 'Book Service', href: this.getPageRoute('patient.bookingForm', '/roles/patient/booking-form.html') },
+                { icon: 'fa-list-alt', text: 'My Bookings', href: this.getPageRoute('patient.bookingDetails', '/roles/patient/booking-details.html') },
+                { icon: 'fa-heartbeat', text: 'Health', href: this.getPageRoute('patient.healthDashboard', '/roles/patient/patient-health-dashboard.html') },
+                { icon: 'fa-chart-line', text: 'Analytics', href: this.getPageRoute('patient.analytics', '/roles/patient/patient-analytics.html') },
                 {
                     icon: 'fa-ellipsis-h',
                     text: 'More',
                     dropdown: [
                         { icon: 'fa-user', text: 'My Profile', href: '#' },
-                        { icon: 'fa-wallet', text: 'Payments', href: '/roles/patient/payments-dashboard.html' },
                         { icon: 'fa-history', text: 'History', href: '#' },
                         { icon: 'fa-cog', text: 'Settings', href: '#' },
                         { divider: true },
@@ -363,10 +377,10 @@ class UnifiedNavigation {
         }
 
         // Determine dashboard URL based on role
-        const dashboardUrl = role === 'doctor' ? '/roles/doctor/doctor-dashboard.html'
-            : role === 'patient' ? '/roles/patient/patient-dashboard.html'
-            : role === 'admin' || role === 'nurse' ? '/roles/admin/admin-dashboard.html'
-            : '/index.html';
+        const dashboardUrl = role === 'doctor' ? this.getPageRoute('doctor.dashboard', '/roles/doctor/doctor-dashboard.html')
+            : role === 'patient' ? this.getPageRoute('patient.dashboard', '/roles/patient/patient-dashboard.html')
+            : role === 'admin' || role === 'nurse' ? this.getPageRoute('admin.dashboard', '/roles/admin/admin-dashboard.html')
+            : this.getPageRoute('home', '/index.html');
 
         const nav = document.createElement('nav');
         nav.className = 'unified-navbar';
@@ -380,7 +394,7 @@ class UnifiedNavigation {
                     ${role ? `<span class="nav-role-badge">${role.charAt(0).toUpperCase() + role.slice(1)}</span>` : ''}
                 </a>
 
-                <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+                <button class="mobile-menu-toggle" type="button" data-nav-action="toggle-mobile-menu">
                     <i class="fas fa-bars"></i>
                 </button>
 
@@ -389,7 +403,7 @@ class UnifiedNavigation {
                         if (item.dropdown) {
                             return `
                                 <li class="nav-item nav-dropdown">
-                                    <button class="nav-dropdown-toggle" onclick="toggleDropdown(event)">
+                                    <button class="nav-dropdown-toggle" type="button" data-nav-action="toggle-dropdown">
                                         <i class="fas ${item.icon}"></i>
                                         <span>${item.text}</span>
                                         <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
@@ -425,7 +439,7 @@ class UnifiedNavigation {
                     </li>
 
                     <li class="nav-item nav-dropdown">
-                        <button class="nav-dropdown-toggle" onclick="toggleDropdown(event)">
+                        <button class="nav-dropdown-toggle" type="button" data-nav-action="toggle-dropdown">
                             <div class="nav-user">
                                 ${this.getUserAvatar()}
                                 <div class="nav-user-info">
@@ -436,11 +450,11 @@ class UnifiedNavigation {
                             <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
                         </button>
                         <div class="nav-dropdown-menu">
-                            <a href="${role === 'doctor' ? '/roles/doctor/doctor-profile-enhanced.html' : role === 'patient' ? '/roles/patient/patient-dashboard.html' : '/roles/admin/admin-profile.html'}" class="nav-dropdown-item">
+                            <a href="${role === 'doctor' ? this.getPageRoute('doctor.profileEnhanced', '/roles/doctor/doctor-profile-enhanced.html') : role === 'patient' ? this.getPageRoute('patient.dashboard', '/roles/patient/patient-dashboard.html') : this.getPageRoute('admin.profile', '/roles/admin/admin-profile.html')}" class="nav-dropdown-item">
                                 <i class="fas fa-user"></i>
                                 <span>My Profile</span>
                             </a>
-                            <a href="${role === 'patient' ? '/roles/patient/booking-details.html' : '/roles/doctor/earnings.html'}" class="nav-dropdown-item">
+                            <a href="${role === 'patient' ? this.getPageRoute('patient.bookingDetails', '/roles/patient/booking-details.html') : this.getPageRoute('doctor.earnings', '/roles/doctor/earnings.html')}" class="nav-dropdown-item">
                                 <i class="fas ${role === 'patient' ? 'fa-calendar-check' : 'fa-wallet'}"></i>
                                 <span>${role === 'patient' ? 'My Bookings' : 'Earnings'}</span>
                             </a>
@@ -449,7 +463,7 @@ class UnifiedNavigation {
                                 <span>Settings</span>
                             </a>
                             <div class="nav-dropdown-divider"></div>
-                            <a href="#" class="nav-dropdown-item" onclick="logout(event)">
+                            <a href="#" class="nav-dropdown-item" data-nav-action="logout">
                                 <i class="fas fa-sign-out-alt"></i>
                                 <span>Logout</span>
                             </a>
@@ -460,6 +474,32 @@ class UnifiedNavigation {
         `;
 
         existingNav.replaceWith(nav);
+        this.attachNavEventListeners(nav);
+    }
+
+    attachNavEventListeners(navElement) {
+        navElement.addEventListener('click', (event) => {
+            const actionElement = event.target.closest('[data-nav-action]');
+            if (!actionElement) {
+                return;
+            }
+
+            const action = actionElement.dataset.navAction;
+
+            if (action === 'toggle-mobile-menu') {
+                this.toggleMobileMenu();
+                return;
+            }
+
+            if (action === 'toggle-dropdown') {
+                this.toggleDropdown(event, actionElement);
+                return;
+            }
+
+            if (action === 'logout') {
+                this.logout(event);
+            }
+        });
     }
 
     getUserAvatar() {
@@ -491,34 +531,40 @@ class UnifiedNavigation {
             }
         });
     }
+    toggleMobileMenu() {
+        const menu = document.getElementById('navMenu');
+        if (menu) {
+            menu.classList.toggle('active');
+        }
+    }
+
+    toggleDropdown(event, triggerElement) {
+        if (window.innerWidth <= 1024) {
+            event.preventDefault();
+            const dropdown = triggerElement.closest('.nav-dropdown');
+            if (dropdown) {
+                dropdown.classList.toggle('active');
+            }
+        }
+    }
+
+    logout(event) {
+        if (event && event.preventDefault) {
+            event.preventDefault();
+        }
+        if (confirm('Are you sure you want to logout?')) {
+            if (typeof AppConfig !== 'undefined' && typeof AppConfig.clearToken === 'function') {
+                AppConfig.clearToken();
+            } else {
+                localStorage.removeItem('token');
+                localStorage.removeItem('patientToken');
+            }
+            localStorage.removeItem('user');
+            localStorage.removeItem('patient');
+            window.location.href = this.getPageRoute('home', '/index.html');
+        }
+    }
 }
-
-// Global functions for mobile menu and dropdowns
-window.toggleMobileMenu = function() {
-    const menu = document.getElementById('navMenu');
-    menu.classList.toggle('active');
-};
-
-window.toggleDropdown = function(event) {
-    if (window.innerWidth <= 1024) {
-        event.preventDefault();
-        const dropdown = event.target.closest('.nav-dropdown');
-        dropdown.classList.toggle('active');
-    }
-};
-
-window.logout = function(event) {
-    if (event && event.preventDefault) {
-        event.preventDefault();
-    }
-    if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('patientToken');
-        localStorage.removeItem('patient');
-        window.location.href = '/index.html';
-    }
-};
 
 // Initialize navigation when DOM is ready
 if (document.readyState === 'loading') {

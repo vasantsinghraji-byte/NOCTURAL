@@ -42,6 +42,10 @@
 
   // Show update notification to user
   function showUpdateNotification() {
+    if (document.getElementById('sw-update-banner')) {
+      return;
+    }
+
     const updateBanner = document.createElement('div');
     updateBanner.id = 'sw-update-banner';
     updateBanner.innerHTML = `
@@ -61,7 +65,7 @@
         <p style="margin: 0 0 12px 0; font-weight: 600;">
           New version available!
         </p>
-        <button onclick="window.location.reload()" style="
+        <button type="button" data-sw-action="reload" style="
           background: white;
           color: #4CAF50;
           border: none;
@@ -72,7 +76,7 @@
         ">
           Update Now
         </button>
-        <button onclick="this.closest('div').parentElement.remove()" style="
+        <button type="button" data-sw-action="dismiss" style="
           background: transparent;
           color: white;
           border: 1px solid white;
@@ -100,8 +104,26 @@
         }
       }
     `;
-    document.head.appendChild(style);
+    if (!document.getElementById('sw-register-styles')) {
+      style.id = 'sw-register-styles';
+      document.head.appendChild(style);
+    }
     document.body.appendChild(updateBanner);
+
+    const reloadButton = updateBanner.querySelector('[data-sw-action="reload"]');
+    const dismissButton = updateBanner.querySelector('[data-sw-action="dismiss"]');
+
+    if (reloadButton) {
+      reloadButton.addEventListener('click', function() {
+        window.location.reload();
+      });
+    }
+
+    if (dismissButton) {
+      dismissButton.addEventListener('click', function() {
+        updateBanner.remove();
+      });
+    }
   }
 
   // Handle service worker controller change

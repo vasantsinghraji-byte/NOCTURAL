@@ -10,7 +10,7 @@ module.exports = {
     mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
 
     // Keep a neutral entrypoint so the copy-only build no longer points at
-    // deprecated Firebase-era frontend scripts.
+    // Deprecated legacy frontend scripts.
     entry: path.resolve(__dirname, 'public/js/config.js'),
 
     output: {
@@ -27,7 +27,13 @@ module.exports = {
                     from: 'public',
                     to: '.',
                     globOptions: {
-                        ignore: ['**/node_modules/**']
+                        ignore: [
+                            '**/node_modules/**',
+                            '**/test/**',
+                            '**/shared/auth-setup.html',
+                            '**/js/auth-setup.js',
+                            '**/*.original'
+                        ]
                     }
                 }
             ]

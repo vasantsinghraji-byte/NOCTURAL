@@ -95,6 +95,7 @@
             0%, 100% {
                 opacity: 1;
             }
+
             50% {
                 opacity: 0.5;
             }
@@ -108,13 +109,13 @@
 </head>
 <body>
     <div class="offline-container">
-        <div class="offline-icon">📡</div>
+        <div class="offline-icon">!</div>
         <h1>You're Offline</h1>
         <p>
             It looks like you've lost your internet connection.
             Please check your network settings and try again.
         </p>
-        <button class="retry-button" onclick="location.reload()">
+        <button class="retry-button" id="retryButton" type="button">
             Try Again
         </button>
         <div id="status" class="status">
@@ -122,33 +123,6 @@
         </div>
     </div>
 
-    <script>
-        function updateConnectionStatus() {
-            const status = document.getElementById('status');
-
-            if (navigator.onLine) {
-                status.textContent = '✓ Connection restored! Redirecting...';
-                status.className = 'status online';
-
-                // Redirect to home after 2 seconds
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 2000);
-            } else {
-                status.textContent = '⚠ Still offline. Waiting for connection...';
-                status.className = 'status checking';
-            }
-        }
-
-        // Check connection status periodically
-        setInterval(updateConnectionStatus, 2000);
-
-        // Listen for online/offline events
-        window.addEventListener('online', updateConnectionStatus);
-        window.addEventListener('offline', updateConnectionStatus);
-
-        // Initial check
-        updateConnectionStatus();
-    </script>
+    <script src="/js/offline.js"></script>
 </body>
 </html>

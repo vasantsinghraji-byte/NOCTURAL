@@ -10,10 +10,11 @@ if (typeof AppConfig === 'undefined') {
 }
 
 var ROUTE_MAP = {
-  doctorDashboard: '/roles/doctor/doctor-dashboard.html',
-  doctorOnboarding: '/roles/doctor/doctor-onboarding.html',
-  adminDashboard: '/roles/admin/admin-dashboard.html',
-  unifiedRegister: '/index-unified.html'
+  doctorDashboard: AppConfig.routes.page('doctor.dashboard'),
+  doctorOnboarding: AppConfig.routes.page('doctor.onboarding'),
+  adminDashboard: AppConfig.routes.page('admin.dashboard'),
+  patientDashboard: AppConfig.routes.page('patient.dashboard'),
+  unifiedRegister: AppConfig.routes.page('sharedRegister')
 };
 
 // ============================================================================
@@ -157,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var password = document.getElementById('loginPassword').value;
 
       try {
-        var data = await AppConfig.fetch('auth/login', {
+        var data = await AppConfig.fetchRoute('auth.login', {
           method: 'POST',
           skipAuth: true,
           parseJson: true,
@@ -220,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       try {
-        var data = await AppConfig.fetch('auth/register', {
+        var data = await AppConfig.fetchRoute('auth.register', {
           method: 'POST',
           skipAuth: true,
           parseJson: true,
