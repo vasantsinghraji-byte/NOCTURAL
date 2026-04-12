@@ -14,7 +14,8 @@ COPY packages/ ./packages/
 
 # Install dependencies (including dev dependencies for build)
 # Use --legacy-peer-deps to handle Express 5 compatibility
-RUN npm ci --legacy-peer-deps
+# Use --ignore-scripts to skip the prepare hook (git not available in Alpine)
+RUN npm ci --legacy-peer-deps --ignore-scripts
 
 # Copy application code
 COPY . .
