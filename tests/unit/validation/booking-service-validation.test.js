@@ -30,7 +30,7 @@ jest.mock('../../../utils/errors', () => ({
     constructor(m) { super(m); this.name = 'AuthorizationError'; }
   },
   NotFoundError: class NotFoundError extends Error {
-    constructor(t, id) { super(`${t} not found`); this.name = 'NotFoundError'; }
+    constructor(t, _id) { super(`${t} not found`); this.name = 'NotFoundError'; }
   }
 }));
 jest.mock('../../../services/healthIntakeService', () => ({ startIntakeProcess: jest.fn() }));

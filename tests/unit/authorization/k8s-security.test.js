@@ -83,8 +83,6 @@ describe('Phase 3 — Kubernetes Security (Static YAML Analysis)', () => {
     it('should NOT contain base64-encoded secret data', () => {
       // Standard K8s Secret with data: would have base64 values
       // Should NOT match `kind: Secret` with `data:` field containing base64
-      const hasPlaintextSecret = /kind:\s*Secret\b/.test(secretsYaml) &&
-        !/kind:\s*ExternalSecret/.test(secretsYaml.match(/kind:\s*Secret\b[\s\S]{0,200}/)?.[0] || '');
       // The file should use ExternalSecret, not plain Secret
       expect(secretsYaml).toMatch(/kind:\s*(ExternalSecret|SecretStore)/);
     });

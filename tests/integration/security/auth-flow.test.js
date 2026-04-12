@@ -11,7 +11,7 @@
 
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-const { protect, authorize, generateToken } = require('../../../middleware/auth');
+const { generateToken } = require('../../../middleware/auth');
 const { sanitizeInput } = require('../../../middleware/validation');
 const { sanitizationMiddleware } = require('../../../utils/sanitization');
 const { mockRequest, mockResponse, mockNext } = require('../../helpers');

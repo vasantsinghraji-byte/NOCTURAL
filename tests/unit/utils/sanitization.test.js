@@ -11,8 +11,7 @@ const {
   sanitizeKeyName,
   detectMongoOperators,
   validateSanitization,
-  MAX_RECURSION_DEPTH,
-  DANGEROUS_KEYS
+  MAX_RECURSION_DEPTH
 } = require('../../../utils/sanitization');
 
 describe('NoSQL Sanitization', () => {

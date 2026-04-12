@@ -27,7 +27,7 @@ jest.mock('../../../utils/errors', () => ({
     constructor(m) { super(m); this.name = 'ValidationError'; }
   },
   NotFoundError: class NotFoundError extends Error {
-    constructor(t, id) { super(`${t} not found`); this.name = 'NotFoundError'; }
+    constructor(t, _id) { super(`${t} not found`); this.name = 'NotFoundError'; }
   },
   AuthorizationError: class AuthorizationError extends Error {
     constructor(m) { super(m); this.name = 'AuthorizationError'; }
@@ -69,7 +69,7 @@ describe('Phase 2 — Health Record & Metrics', () => {
       ]);
       Patient.findByIdAndUpdate.mockResolvedValue(true);
 
-      const result = await healthMetricService.recordMultipleMetrics('patient1', [
+      await healthMetricService.recordMultipleMetrics('patient1', [
         { metricType: 'BP_SYSTOLIC', value: 120 },
         { metricType: 'HEART_RATE', value: 72 }
       ]);
@@ -103,7 +103,7 @@ describe('Phase 2 — Health Record & Metrics', () => {
       // Mock HealthRecord constructor
       jest.spyOn(HealthRecord.prototype || HealthRecord, 'constructor').mockImplementation(() => {});
       // Since HealthRecord is mocked, mock the creation
-      const HealthRecordOriginal = jest.requireActual('../../../models/healthRecord');
+      jest.requireActual('../../../models/healthRecord');
       // We need to mock the `new HealthRecord()` call — use a different approach
       // Mock HealthRecord as a constructor that returns mockRecord
       HealthRecord.mockImplementation(() => mockRecord);

@@ -3,9 +3,7 @@
  * Tests all Duty model functionality including validation, methods, and hooks
  */
 
-const mongoose = require('mongoose');
 const Duty = require('../../../models/duty');
-const User = require('../../../models/user');
 const {
   connectTestDB,
   disconnectTestDB,
@@ -13,7 +11,7 @@ const {
   createHospitalUser,
   createTestUser
 } = require('../../helpers');
-const { dutyFactory, doctorFactory, urgentDutyFactory } = require('../../factories');
+const { dutyFactory, urgentDutyFactory } = require('../../factories');
 
 // Connect to test database
 beforeAll(async () => {
