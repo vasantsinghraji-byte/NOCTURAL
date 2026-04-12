@@ -9,6 +9,7 @@ on:
     branches: [ main ]
 
 env:
+  NODE_VERSION: '22.x'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
@@ -23,6 +24,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: node ./node_modules/playwright/cli.js install --with-deps chromium
+
+      - name: Run deployment gate validation
+        run: npm run test:deploy-gate
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

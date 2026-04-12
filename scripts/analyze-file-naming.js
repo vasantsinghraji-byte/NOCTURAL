@@ -185,7 +185,7 @@ Object.entries(allResults).forEach(([dir, styles]) => {
   if (isFrontend) {
     [...styles.camelCase, ...styles.mixed, ...styles.PascalCase].forEach(file => {
       // Skip if already reasonable
-      if (file === 'api.js' || file === 'app.js' || file.startsWith('firebase-')) return;
+      if (file === 'api.js' || file === 'app.js') return;
 
       const suggestions = suggestRename(file);
       if (suggestions.kebab !== file) {

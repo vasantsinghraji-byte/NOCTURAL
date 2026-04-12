@@ -18,8 +18,7 @@ if (USE_GCS && process.env.GCS_BUCKET) {
   try {
     const { Storage } = require('@google-cloud/storage');
 
-    // Initialize GCS client
-    // Uses GOOGLE_APPLICATION_CREDENTIALS env var for auth, or inline credentials
+    // Initialize GCS client using application default credentials or inline credentials
     const gcsConfig = {};
 
     if (process.env.GCS_PROJECT_ID) {

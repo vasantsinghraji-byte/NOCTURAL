@@ -325,14 +325,6 @@ const secrets = {
     return await vaultManager.getSecret('database', 'MONGODB_PASSWORD');
   },
 
-  async getFirebaseCredentials() {
-    return {
-      apiKey: await vaultManager.getSecret('firebase', 'API_KEY'),
-      authDomain: await vaultManager.getSecret('firebase', 'AUTH_DOMAIN'),
-      projectId: await vaultManager.getSecret('firebase', 'PROJECT_ID')
-    };
-  },
-
   async getRazorpayCredentials() {
     return {
       keyId: await vaultManager.getSecret('razorpay', 'KEY_ID'),

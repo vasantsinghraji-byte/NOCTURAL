@@ -165,14 +165,14 @@ function rotateDatabasePassword(env) {
   return env;
 }
 
-// Rotate Firebase credentials
-function rotateFirebaseCredentials(env) {
-  log.warn('Firebase credential rotation must be done manually:');
-  log.info('1. Go to Firebase Console');
-  log.info('2. Project Settings → Service Accounts');
-  log.info('3. Generate new private key');
-  log.info('4. Update FIREBASE_* environment variables');
-  log.info('5. Delete old service account key');
+// Rotate Google Cloud Storage credentials
+function rotateGcsCredentials(env) {
+  log.warn('Google Cloud Storage credential rotation must be done manually:');
+  log.info('1. Go to Google Cloud Console');
+  log.info('2. IAM & Admin -> Service Accounts');
+  log.info('3. Rotate or create a new service account key');
+  log.info('4. Update GCS_CREDENTIALS and GCS_BUCKET if needed');
+  log.info('5. Revoke the old service account key after rollout');
 
   return env;
 }
@@ -266,8 +266,8 @@ async function rotateSecrets(options) {
     changes = true;
   }
 
-  if (options.firebase || options.all) {
-    rotateFirebaseCredentials(env);
+  if (options.gcs || options.all) {
+    rotateGcsCredentials(env);
   }
 
   if (options.razorpay || options.all) {
@@ -334,7 +334,7 @@ const options = {
   jwt: args.includes('--jwt'),
   encryption: args.includes('--encryption'),
   database: args.includes('--database'),
-  firebase: args.includes('--firebase'),
+  gcs: args.includes('--gcs'),
   razorpay: args.includes('--razorpay')
 };
 
@@ -346,7 +346,7 @@ if (!Object.values(options).some(v => v)) {
   console.log('  --jwt         Rotate JWT secret only');
   console.log('  --encryption  Rotate encryption key only');
   console.log('  --database    Rotate database password only');
-  console.log('  --firebase    Show Firebase rotation instructions');
+  console.log('  --gcs         Show Google Cloud Storage rotation instructions');
   console.log('  --razorpay    Show Razorpay rotation instructions\n');
   process.exit(0);
 }
@@ -356,3 +356,4 @@ rotateSecrets(options).catch(error => {
   log.error(`Rotation failed: ${error.message}`);
   process.exit(1);
 });
+

@@ -20,7 +20,7 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 
 # Build frontend assets
-RUN cd client && npm ci && npm run build:optimize && cd ..
+RUN cd client && npm ci && npm run build && cd ..
 
 # Remove dev dependencies
 RUN npm prune --production
