@@ -20,7 +20,7 @@ describe('Frontend build artifact contract', () => {
     expect(rootPackage.scripts['start:all']).toBe('concurrently "npm start" "npm --prefix client run serve"');
     expect(rootPackage.scripts.frontend).toBe('npm --prefix client run serve');
     expect(rootPackage.scripts.build).toBe('npm run build:prod');
-    expect(rootPackage.scripts['build:frontend']).toBe('npm --prefix client run build');
+    expect(rootPackage.scripts['build:frontend']).toBe('npm --prefix client ci --include=dev && npm --prefix client run build');
     expect(rootPackage.scripts['build:client']).toBe('npm run build:frontend');
     expect(rootPackage.scripts['build:prod']).toBe('cross-env NODE_ENV=production npm run build:frontend');
     expect(rootPackage.scripts.optimize).toBe('npm run build:frontend');
