@@ -5,6 +5,7 @@
  * Handles applying for duties, managing applications, and status updates
  */
 
+const mongoose = require('mongoose');
 const Application = require('../models/application');
 const Duty = require('../models/duty');
 const { paginate } = require('../utils/pagination');
@@ -19,9 +20,15 @@ class ApplicationService {
    * @returns {Promise<Object>} Paginated applications
    */
   async getMyApplications(userId, options = {}) {
+    const query = { applicant: userId };
+
+    if (options.status) {
+      query.status = options.status;
+    }
+
     const result = await paginate(
       Application,
-      { applicant: userId },
+      query,
       {
         page: options.page || 1,
         limit: options.limit || 20,
@@ -64,11 +71,59 @@ class ApplicationService {
         page: options.page || 1,
         limit: options.limit || 20,
         sort: options.sort || { appliedAt: -1 },
-        populate: 'applicant:name specialty rating completedDuties'
+        populate: 'applicant:name email specialty rating completedDuties'
       }
     );
 
     return result;
+  }
+
+  /**
+   * Get applications received for duties posted by an admin
+   * @param {String} userId - Admin user ID
+   * @param {Object} options - Pagination options
+   * @returns {Promise<Object>} Paginated applications
+   */
+  async getReceivedApplications(userId, options = {}) {
+    const dutyIds = await Duty.find({ postedBy: userId }).distinct('_id');
+
+    const page = options.page || 1;
+    const limit = options.limit || 20;
+
+    if (!dutyIds.length) {
+      return {
+        success: true,
+        data: [],
+        pagination: {
+          total: 0,
+          count: 0,
+          page,
+          limit,
+          pages: 0,
+          hasNext: false,
+          hasPrev: false,
+          nextPage: null,
+          prevPage: null
+        }
+      };
+    }
+
+    return paginate(
+      Application,
+      { duty: { $in: dutyIds } },
+      {
+        page,
+        limit,
+        sort: options.sort || { appliedAt: -1 },
+        populate: [
+          { path: 'applicant', select: 'name email specialty rating completedDuties' },
+          {
+            path: 'duty',
+            select: 'title date startTime endTime status totalCompensation netPayment hourlyRate hospital hospitalName'
+          }
+        ]
+      }
+    );
   }
 
   /**
@@ -334,15 +389,55 @@ class ApplicationService {
    * @returns {Promise<Object>} Application statistics
    */
   async getApplicationStats(userId) {
-    const [total, pending, accepted, rejected, withdrawn] = await Promise.all([
+    const applicantMatchId = mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : userId;
+
+    const [total, pending, accepted, rejected, withdrawn, earningsResult] = await Promise.all([
       Application.countDocuments({ applicant: userId }),
       Application.countDocuments({ applicant: userId, status: 'PENDING' }),
       Application.countDocuments({ applicant: userId, status: 'ACCEPTED' }),
       Application.countDocuments({ applicant: userId, status: 'REJECTED' }),
-      Application.countDocuments({ applicant: userId, status: 'WITHDRAWN' })
+      Application.countDocuments({ applicant: userId, status: 'WITHDRAWN' }),
+      Application.aggregate([
+        {
+          $match: {
+            applicant: applicantMatchId,
+            status: 'ACCEPTED'
+          }
+        },
+        {
+          $lookup: {
+            from: Duty.collection.name,
+            localField: 'duty',
+            foreignField: '_id',
+            as: 'duty'
+          }
+        },
+        {
+          $unwind: {
+            path: '$duty',
+            preserveNullAndEmptyArrays: false
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalEarnings: {
+              $sum: {
+                $ifNull: [
+                  '$duty.totalCompensation',
+                  { $ifNull: ['$duty.netPayment', 0] }
+                ]
+              }
+            }
+          }
+        }
+      ])
     ]);
 
     const acceptanceRate = total > 0 ? Math.round((accepted / total) * 100) : 0;
+    const totalEarnings = earningsResult[0] ? earningsResult[0].totalEarnings : 0;
 
     return {
       total,
@@ -350,7 +445,8 @@ class ApplicationService {
       accepted,
       rejected,
       withdrawn,
-      acceptanceRate
+      acceptanceRate,
+      totalEarnings
     };
   }
 }

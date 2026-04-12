@@ -13,6 +13,7 @@ const mime = require('mime-types');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const logger = require('./utils/logger');
+const { resolveFrontendStaticDir } = require('./utils/frontendStatic');
 const metricsRouter = require('./routes/admin/metrics');
 
 // Enhanced security imports
@@ -203,8 +204,8 @@ if (!isTest) {
   });
 }
 
-// Serve frontend HTML files only (public assets)
-app.use(express.static('client/public'));
+// Prefer optimized frontend assets in production containers, but keep local/public fallback.
+app.use(express.static(resolveFrontendStaticDir()));
 
 // Authenticated file access middleware
 const authenticatedFileAccess = require('./middleware/auth').protect;

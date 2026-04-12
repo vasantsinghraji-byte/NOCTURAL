@@ -16,6 +16,24 @@ exports.getDuties = async (req, res, next) => {
   }
 };
 
+// Get duties posted by the authenticated admin
+exports.getMyDuties = async (req, res, next) => {
+  try {
+    const result = await dutyService.getDutiesByHospital(req.user.id, {
+      page: parseInt(req.query.page) || 1,
+      limit: parseInt(req.query.limit) || 100
+    });
+
+    responseHelper.sendSuccess(res, {
+      count: result.duties.length,
+      duties: result.duties,
+      pagination: result.pagination
+    });
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
 // Get single duty
 exports.getDuty = async (req, res, next) => {
   try {

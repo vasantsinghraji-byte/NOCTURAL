@@ -313,6 +313,45 @@ const validateUpdateProfile = [
     .trim()
     .matches(FIELD_LIMITS.PHONE_E164).withMessage('Invalid phone number format'),
 
+  body('hospital')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 200 }).withMessage('Hospital name must be between 1 and 200 characters')
+    .escape(),
+
+  body('location')
+    .optional()
+    .custom((value) => {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed.length < 1 || trimmed.length > 200) {
+          throw new Error('Location must be between 1 and 200 characters');
+        }
+        return true;
+      }
+
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error('Location must be a string or an object');
+      }
+
+      const city = typeof value.city === 'string' ? value.city.trim() : '';
+      const state = typeof value.state === 'string' ? value.state.trim() : '';
+
+      if (!city && !state) {
+        throw new Error('Location must include at least a city or state');
+      }
+
+      if (city && city.length > 100) {
+        throw new Error('Location city must not exceed 100 characters');
+      }
+
+      if (state && state.length > 100) {
+        throw new Error('Location state must not exceed 100 characters');
+      }
+
+      return true;
+    }),
+
   body('bio')
     .optional()
     .trim()

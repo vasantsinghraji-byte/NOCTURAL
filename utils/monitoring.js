@@ -148,6 +148,13 @@ const monitoring = {
         errorCounts[key] = 0;
       });
     }
+  },
+
+  cleanup: () => {
+    if (resetInterval) {
+      clearInterval(resetInterval);
+      resetInterval = null;
+    }
   }
 };
 
