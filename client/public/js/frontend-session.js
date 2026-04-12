@@ -360,8 +360,6 @@ if (typeof AppConfig === 'undefined') {
     } catch (error) {
       return null;
     }
-
-    return null;
   }
 
   function renderFormMessage(container, message, options) {

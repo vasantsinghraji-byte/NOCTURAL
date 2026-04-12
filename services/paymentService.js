@@ -507,10 +507,9 @@ class PaymentService {
       }
     };
 
-    let updatedBooking = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        updatedBooking = await Booking.findByIdAndUpdate(
+        await Booking.findByIdAndUpdate(
           bookingId,
           refundUpdate,
           { new: true }

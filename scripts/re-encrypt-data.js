@@ -262,7 +262,7 @@ async function reEncryptAllData() {
     log.info(`Total records re-encrypted: ${stats.totalSuccess}`);
     log.info(`Total errors: ${stats.totalErrors}`);
     log.info(`Duration: ${duration} seconds`);
-    log.info(`Verification: ${verified ? 'PASSED' : 'FAILED'}\n');
+    log.info(`Verification: ${verified ? 'PASSED' : 'FAILED'}\n`);
 
     if (verified && stats.totalErrors === 0) {
       log.success('All data successfully re-encrypted!');

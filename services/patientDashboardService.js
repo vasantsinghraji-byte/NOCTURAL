@@ -10,7 +10,6 @@ const NurseBooking = require('../models/nurseBooking');
 const HealthRecord = require('../models/healthRecord');
 const HealthMetric = require('../models/healthMetric');
 const DoctorNote = require('../models/doctorNote');
-const EmergencySummary = require('../models/emergencySummary');
 const User = require('../models/user');
 const healthMetricService = require('./healthMetricService');
 const emergencySummaryService = require('./emergencySummaryService');
@@ -439,16 +438,15 @@ class PatientDashboardService {
   /**
    * Get health trends for charts
    */
-  async getHealthTrends(patientId, metricTypes = [], period = ANALYTICS_PERIODS.MONTH) {
-    if (metricTypes.length === 0) {
-      // Default to primary metrics
-      metricTypes = ['BP_SYSTOLIC', 'BP_DIASTOLIC', 'HEART_RATE', 'BLOOD_SUGAR'];
-    }
+  async getHealthTrends(patientId, metricTypes, period = ANALYTICS_PERIODS.MONTH) {
+    const types = metricTypes && metricTypes.length > 0
+      ? metricTypes
+      : ['BP_SYSTOLIC', 'BP_DIASTOLIC', 'HEART_RATE', 'BLOOD_SUGAR'];
 
     const dateRange = healthMetricService.getDateRangeForPeriod(period);
     const trends = {};
 
-    for (const metricType of metricTypes) {
+    for (const metricType of types) {
       const trendData = await healthMetricService.getTrends(patientId, metricType, dateRange);
       if (trendData.metrics.length > 0) {
         trends[metricType] = {

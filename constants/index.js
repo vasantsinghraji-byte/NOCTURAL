@@ -167,7 +167,7 @@ const THRESHOLD = {
 
 // Regular Expressions
 const REGEX = {
-  EMAIL: /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/,
+  EMAIL: /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/,
   PHONE: /^[6-9]\d{9}$/,
   IFSC: /^[A-Z]{4}0[A-Z0-9]{6}$/,
   PAN: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/

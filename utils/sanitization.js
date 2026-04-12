@@ -158,19 +158,20 @@ function sanitizeData(obj, depth = 0) {
 function sanitizeString(str) {
   // Check for common injection patterns in string values
   // This is a basic check - input validation should be primary defense
+  let sanitized = str;
 
   // Remove null bytes
-  if (str.includes('\0')) {
-    str = str.replace(/\0/g, '');
+  if (sanitized.includes('\0')) {
+    sanitized = sanitized.replace(/\0/g, '');
   }
 
   // Check for JavaScript function injection attempts
-  if (str.includes('function') || str.includes('=>')) {
+  if (sanitized.includes('function') || sanitized.includes('=>')) {
     // This is suspicious in user input, but we'll allow it with logging
     // Real validation should happen at the route/controller level
   }
 
-  return str;
+  return sanitized;
 }
 
 /**

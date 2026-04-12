@@ -1066,9 +1066,9 @@
                     closeTargetModal();
                     // Refresh charts to reflect new targets
                     if (currentTargetType === 'diabetes') {
-                        loadDiabetesData();
+                        loadDiabetesData(); // eslint-disable-line no-undef
                     } else {
-                        loadHypertensionData();
+                        loadHypertensionData(); // eslint-disable-line no-undef
                     }
                 } else {
                     throw new Error(result?.error || 'Failed to save targets');
@@ -1102,10 +1102,6 @@
                 document.getElementById('diastolicHigh2').value = 90;
             }
             showToast('Reset to default values', 'info');
-        }
-
-        function viewReport(reportId) {
-            window.location.href = AppConfig.routes.page('patient.reportDetails', { id: reportId });
         }
 
         function bindUiEvents() {

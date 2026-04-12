@@ -196,7 +196,7 @@ function generateReport(alerts, target) {
   alerts.forEach(alert => {
     const risk = alert.risk.toLowerCase();
 
-    if (summary.hasOwnProperty(risk)) {
+    if (Object.prototype.hasOwnProperty.call(summary, risk)) {
       summary[risk]++;
       categorized[risk].push({
         name: alert.alert,

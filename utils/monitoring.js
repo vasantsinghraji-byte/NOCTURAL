@@ -63,9 +63,9 @@ const ERROR_THRESHOLDS = {
 const RESET_INTERVAL = 60 * 60 * 1000; // 1 hour
 
 // Reset error counts periodically (skip in test environment)
-let resetInterval = null;
+let _resetInterval = null;
 if (process.env.NODE_ENV !== 'test') {
-  resetInterval = setInterval(() => {
+  _resetInterval = setInterval(() => {
     Object.keys(errorCounts).forEach(key => {
       errorCounts[key] = 0;
     });
@@ -151,9 +151,9 @@ const monitoring = {
   },
 
   cleanup: () => {
-    if (resetInterval) {
-      clearInterval(resetInterval);
-      resetInterval = null;
+    if (_resetInterval) {
+      clearInterval(_resetInterval);
+      _resetInterval = null;
     }
   }
 };

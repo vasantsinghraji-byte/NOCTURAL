@@ -214,8 +214,8 @@
   window.reinitLazyLoad = init;
 
   // Export for module systems
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { init, loadImage, CONFIG };
+  if (typeof module !== 'undefined' && module.exports) { // eslint-disable-line no-undef
+    module.exports = { init, loadImage, CONFIG }; // eslint-disable-line no-undef
   }
 
   // Expose globally

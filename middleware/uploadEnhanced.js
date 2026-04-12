@@ -80,7 +80,7 @@ async function checkUserQuota(userId) {
     let fileCount = 0;
 
     // Recursively calculate user's total upload size
-    function calculateUserFiles(dir) {
+    const calculateUserFiles = (dir) => {
       const files = fs.readdirSync(dir);
 
       files.forEach(file => {

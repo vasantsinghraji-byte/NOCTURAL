@@ -258,7 +258,7 @@ const detectSuspiciousRequests = (req, res, next) => {
   }
 
   // Check for path traversal
-  const traversalPattern = /\.\.[\/\\]/;
+  const traversalPattern = /\.\.[/\\]/;
   if (traversalPattern.test(req.url)) {
     suspicious.push('PATH_TRAVERSAL_ATTEMPT');
   }

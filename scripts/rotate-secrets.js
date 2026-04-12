@@ -220,7 +220,7 @@ async function rotateSecrets(options) {
 
   // Read current environment
   log.step('Reading current environment...');
-  const env = readEnvFile(envPath);
+  let env = readEnvFile(envPath);
   if (!env) {
     process.exit(1);
   }

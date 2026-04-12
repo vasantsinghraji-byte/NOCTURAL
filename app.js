@@ -5,7 +5,6 @@
 
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
 const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
