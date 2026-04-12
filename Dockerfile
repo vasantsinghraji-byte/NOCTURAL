@@ -32,8 +32,9 @@ FROM node:22-alpine
 # Install dumb-init and upgrade all Alpine packages to pick up security patches
 RUN apk add --no-cache dumb-init && apk upgrade --no-cache
 
-# Upgrade npm to fix bundled dependency CVEs (picomatch etc.)
-RUN npm install -g npm@latest
+# Remove npm from production image — not needed at runtime (app runs via
+# node directly), and eliminates Trivy CVE flags from npm's bundled deps
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
