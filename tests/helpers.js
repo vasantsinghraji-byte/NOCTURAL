@@ -248,13 +248,13 @@ function mockNext() {
 
 // Check if object has required fields
 function hasRequiredFields(obj, fields) {
-  return fields.every(field => obj.hasOwnProperty(field) && obj[field] != null);
+  return fields.every(field => Object.prototype.hasOwnProperty.call(obj, field) && obj[field] != null);
 }
 
 // Check if response matches expected structure
 function validateResponseStructure(response, expectedStructure) {
   for (const [key, type] of Object.entries(expectedStructure)) {
-    if (!response.hasOwnProperty(key)) {
+    if (!Object.prototype.hasOwnProperty.call(response, key)) {
       throw new Error(`Missing expected field: ${key}`);
     }
     if (typeof response[key] !== type) {

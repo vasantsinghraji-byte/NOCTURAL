@@ -134,6 +134,26 @@
             color: var(--success);
         }
 
+        .helper-text {
+            font-size: 0.9rem;
+        }
+
+        .helper-text-muted {
+            color: #666;
+        }
+
+        .helper-text-subtle {
+            color: #999;
+        }
+
+        .helper-text-bottom {
+            margin-bottom: 10px;
+        }
+
+        .helper-text-top {
+            margin-top: 5px;
+        }
+
         .form-card {
             background: white;
             border-radius: 15px;
@@ -398,6 +418,7 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
 </head>
 <body>
     <div class="container">
@@ -467,7 +488,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="password" class="required">Password</label>
-                            <input type="password" id="password" class="form-control" placeholder="Min. 6 characters" required>
+                            <input type="password" id="password" class="form-control" placeholder="Min. 8 chars with uppercase, number & symbol" required>
                         </div>
                         <div class="form-group">
                             <label for="confirmPassword" class="required">Confirm Password</label>
@@ -476,7 +497,7 @@
                     </div>
 
                     <div class="btn-group">
-                        <button type="button" class="btn btn-primary" onclick="nextStep()">Next Step <i class="fas fa-arrow-right"></i></button>
+                        <button type="button" class="btn btn-primary" data-action="next-step">Next Step <i class="fas fa-arrow-right"></i></button>
                     </div>
                 </div>
             </div>
@@ -550,15 +571,15 @@
 
                     <div class="form-group">
                         <label>Procedural Skills</label>
-                        <p style="font-size: 0.9rem; color: #666; margin-bottom: 10px;">Select all that apply</p>
+                        <p class="helper-text helper-text-muted helper-text-bottom">Select all that apply</p>
                         <div class="skill-selection" id="skillsSelection">
                             <!-- Will be populated by JavaScript -->
                         </div>
                     </div>
 
                     <div class="btn-group">
-                        <button type="button" class="btn btn-secondary" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Back</button>
-                        <button type="button" class="btn btn-primary" onclick="nextStep()">Next Step <i class="fas fa-arrow-right"></i></button>
+                        <button type="button" class="btn btn-secondary" data-action="prev-step"><i class="fas fa-arrow-left"></i> Back</button>
+                        <button type="button" class="btn btn-primary" data-action="next-step">Next Step <i class="fas fa-arrow-right"></i></button>
                     </div>
                 </div>
             </div>
@@ -576,63 +597,63 @@
 
                     <div class="form-group">
                         <label class="required">MCI Registration Certificate</label>
-                        <div class="file-upload-area" onclick="document.getElementById('mciCertFile').click()">
+                        <div class="file-upload-area" data-file-trigger="mciCertFile">
                             <i class="fas fa-cloud-upload-alt"></i>
                             <p><strong>Click to upload</strong> or drag and drop</p>
-                            <p style="font-size: 0.9rem; color: #999;">JPG, PNG or PDF (Max 5MB)</p>
+                            <p class="helper-text helper-text-subtle">JPG, PNG or PDF (Max 5MB)</p>
                             <input type="file" id="mciCertFile" accept=".jpg,.jpeg,.png,.pdf">
                         </div>
                         <div class="file-preview" id="mciCertPreview">
                             <span><i class="fas fa-file-check"></i> <span id="mciCertName"></span></span>
-                            <button type="button" class="btn-remove" onclick="removeFile('mciCert')">Remove</button>
+                            <button type="button" class="btn-remove" data-remove-file="mciCert">Remove</button>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="required">Photo ID (Aadhaar/PAN)</label>
-                        <div class="file-upload-area" onclick="document.getElementById('photoIdFile').click()">
+                        <div class="file-upload-area" data-file-trigger="photoIdFile">
                             <i class="fas fa-id-card"></i>
                             <p><strong>Click to upload</strong> or drag and drop</p>
-                            <p style="font-size: 0.9rem; color: #999;">JPG, PNG or PDF (Max 5MB)</p>
+                            <p class="helper-text helper-text-subtle">JPG, PNG or PDF (Max 5MB)</p>
                             <input type="file" id="photoIdFile" accept=".jpg,.jpeg,.png,.pdf">
                         </div>
                         <div class="file-preview" id="photoIdPreview">
                             <span><i class="fas fa-file-check"></i> <span id="photoIdName"></span></span>
-                            <button type="button" class="btn-remove" onclick="removeFile('photoId')">Remove</button>
+                            <button type="button" class="btn-remove" data-remove-file="photoId">Remove</button>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="required">MBBS Degree Certificate</label>
-                        <div class="file-upload-area" onclick="document.getElementById('mbbsDegreeFile').click()">
+                        <div class="file-upload-area" data-file-trigger="mbbsDegreeFile">
                             <i class="fas fa-graduation-cap"></i>
                             <p><strong>Click to upload</strong> or drag and drop</p>
-                            <p style="font-size: 0.9rem; color: #999;">JPG, PNG or PDF (Max 5MB)</p>
+                            <p class="helper-text helper-text-subtle">JPG, PNG or PDF (Max 5MB)</p>
                             <input type="file" id="mbbsDegreeFile" accept=".jpg,.jpeg,.png,.pdf">
                         </div>
                         <div class="file-preview" id="mbbsDegreePreview">
                             <span><i class="fas fa-file-check"></i> <span id="mbbsDegName"></span></span>
-                            <button type="button" class="btn-remove" onclick="removeFile('mbbsDegree')">Remove</button>
+                            <button type="button" class="btn-remove" data-remove-file="mbbsDegree">Remove</button>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="required">Professional Photo</label>
-                        <div class="file-upload-area" onclick="document.getElementById('profilePhotoFile').click()">
+                        <div class="file-upload-area" data-file-trigger="profilePhotoFile">
                             <i class="fas fa-camera"></i>
                             <p><strong>Click to upload</strong> your profile photo</p>
-                            <p style="font-size: 0.9rem; color: #999;">JPG or PNG (Max 5MB)</p>
+                            <p class="helper-text helper-text-subtle">JPG or PNG (Max 5MB)</p>
                             <input type="file" id="profilePhotoFile" accept=".jpg,.jpeg,.png">
                         </div>
                         <div class="file-preview" id="profilePhotoPreview">
                             <span><i class="fas fa-file-check"></i> <span id="profilePhotoName"></span></span>
-                            <button type="button" class="btn-remove" onclick="removeFile('profilePhoto')">Remove</button>
+                            <button type="button" class="btn-remove" data-remove-file="profilePhoto">Remove</button>
                         </div>
                     </div>
 
                     <div class="btn-group">
-                        <button type="button" class="btn btn-secondary" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Back</button>
-                        <button type="button" class="btn btn-primary" onclick="nextStep()">Next Step <i class="fas fa-arrow-right"></i></button>
+                        <button type="button" class="btn btn-secondary" data-action="prev-step"><i class="fas fa-arrow-left"></i> Back</button>
+                        <button type="button" class="btn btn-primary" data-action="next-step">Next Step <i class="fas fa-arrow-right"></i></button>
                     </div>
                 </div>
             </div>
@@ -645,7 +666,7 @@
 
                     <div class="form-group">
                         <label>Preferred Shift Times</label>
-                        <p style="font-size: 0.9rem; color: #666; margin-bottom: 10px;">Select all that work for you</p>
+                        <p class="helper-text helper-text-muted helper-text-bottom">Select all that work for you</p>
                         <div class="shift-preferences" id="shiftPreferences">
                             <!-- Will be populated by JavaScript -->
                         </div>
@@ -655,7 +676,7 @@
                         <div class="form-group">
                             <label for="serviceRadius">Service Radius (km)</label>
                             <input type="number" id="serviceRadius" class="form-control" placeholder="20" min="5" max="100" value="20">
-                            <p style="font-size: 0.9rem; color: #666; margin-top: 5px;">How far are you willing to travel?</p>
+                            <p class="helper-text helper-text-muted helper-text-top">How far are you willing to travel?</p>
                         </div>
                         <div class="form-group">
                             <label for="minimumRate">Minimum Expected Rate (₹/hour)</label>
@@ -670,7 +691,7 @@
 
                     <div class="form-group">
                         <label class="required">Bank Account Details</label>
-                        <p style="font-size: 0.9rem; color: #666; margin-bottom: 10px;">For receiving payments</p>
+                        <p class="helper-text helper-text-muted helper-text-bottom">For receiving payments</p>
                         <div class="form-row">
                             <div class="form-group">
                                 <input type="text" id="accountNumber" class="form-control" placeholder="Account Number" required>
@@ -690,7 +711,7 @@
                     </div>
 
                     <div class="btn-group">
-                        <button type="button" class="btn btn-secondary" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Back</button>
+                        <button type="button" class="btn btn-secondary" data-action="prev-step"><i class="fas fa-arrow-left"></i> Back</button>
                         <button type="submit" class="btn btn-primary">Complete Onboarding <i class="fas fa-check"></i></button>
                     </div>
                 </div>
@@ -698,396 +719,6 @@
         </form>
     </div>
 
-    <script type="module">
-        // Secure JWT-based authentication (Firebase removed for security)
-        // API_URL is provided by config.js
-        let currentStep = 1;
-        let formData = {};
-        let uploadedFiles = {};
-
-        // Check if user already registered and pre-fill data
-        const existingUser = localStorage.getItem('user');
-        const existingToken = localStorage.getItem('token');
-
-        if (existingUser && existingToken) {
-            try {
-                const userData = JSON.parse(existingUser);
-                // Pre-fill and disable already registered fields
-                setTimeout(() => {
-                    const emailField = document.getElementById('email');
-                    const phoneField = document.getElementById('phone');
-                    const nameField = document.getElementById('fullName');
-                    const passwordField = document.getElementById('password');
-                    const confirmPasswordField = document.getElementById('confirmPassword');
-
-                    if (emailField && userData.email) {
-                        emailField.value = userData.email;
-                        emailField.readOnly = true;
-                        emailField.style.backgroundColor = '#e9ecef';
-                    }
-                    if (phoneField && userData.phone) {
-                        phoneField.value = userData.phone;
-                        phoneField.readOnly = true;
-                        phoneField.style.backgroundColor = '#e9ecef';
-                    }
-                    if (nameField && userData.name) {
-                        nameField.value = userData.name;
-                    }
-                    // Hide password fields since user already registered
-                    if (passwordField && confirmPasswordField) {
-                        passwordField.closest('.form-group').style.display = 'none';
-                        confirmPasswordField.closest('.form-group').style.display = 'none';
-                        // Set dummy values to pass validation
-                        passwordField.value = 'already-registered';
-                        confirmPasswordField.value = 'already-registered';
-                    }
-                }, 100);
-            } catch (error) {
-                console.error('Error loading user data:', error);
-            }
-        }
-
-        // Common skills list
-        const skills = [
-            'CPR', 'ACLS', 'BLS', 'Intubation', 'Central Line Insertion',
-            'Arterial Line', 'Chest Tube Insertion', 'Lumbar Puncture',
-            'Ventilator Management', 'ECG Interpretation', 'Ultrasound (POCUS)',
-            'Suturing', 'Wound Management', 'IV Cannulation'
-        ];
-
-        // Shift preferences
-        const shiftTimes = ['Morning', 'Evening', 'Night', 'Weekend', '24hr'];
-
-        // Populate skills
-        const skillsSelection = document.getElementById('skillsSelection');
-        skills.forEach(skill => {
-            skillsSelection.innerHTML += `
-                <div class="skill-item">
-                    <input type="checkbox" id="skill-${skill.replace(/\s+/g, '-')}" value="${skill}">
-                    <label for="skill-${skill.replace(/\s+/g, '-')}">${skill}</label>
-                </div>
-            `;
-        });
-
-        // Populate shift preferences
-        const shiftPreferences = document.getElementById('shiftPreferences');
-        shiftTimes.forEach(time => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'preference-btn';
-            btn.textContent = time;
-            btn.onclick = () => {
-                btn.classList.toggle('active');
-            };
-            shiftPreferences.appendChild(btn);
-        });
-
-        // File upload handlers
-        ['mciCert', 'photoId', 'mbbsDegree', 'profilePhoto'].forEach(type => {
-            const input = document.getElementById(type + 'File');
-            if (input) {
-                input.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const preview = document.getElementById(type + 'Preview');
-                        const nameSpan = document.getElementById(type + 'Name');
-                        if (nameSpan) {
-                            nameSpan.textContent = file.name;
-                        }
-                        if (preview) {
-                            preview.classList.add('show');
-                        }
-                        uploadedFiles[type] = file;
-                    }
-                });
-            }
-        });
-
-        window.removeFile = function(type) {
-            const input = document.getElementById(type + 'File');
-            const preview = document.getElementById(type + 'Preview');
-            input.value = '';
-            preview.classList.remove('show');
-            delete uploadedFiles[type];
-        };
-
-        window.nextStep = function() {
-            if (validateStep(currentStep)) {
-                saveStepData(currentStep);
-                currentStep++;
-                updateUI();
-            }
-        };
-
-        window.prevStep = function() {
-            currentStep--;
-            updateUI();
-        };
-
-        function validateStep(step) {
-            const currentFormStep = document.querySelector(`.form-step[data-step="${step}"]`);
-            const inputs = currentFormStep.querySelectorAll('input[required], select[required]');
-            let isValid = true;
-
-            inputs.forEach(input => {
-                if (!input.value.trim()) {
-                    input.style.borderColor = 'var(--danger)';
-                    isValid = false;
-                } else {
-                    input.style.borderColor = '#e0e0e0';
-                }
-            });
-
-            if (step === 1) {
-                const password = document.getElementById('password').value;
-                const confirmPassword = document.getElementById('confirmPassword').value;
-
-                // Skip password validation if user already registered
-                const existingToken = localStorage.getItem('token');
-                if (!existingToken) {
-                    if (password !== confirmPassword) {
-                        showAlert('Passwords do not match', 'danger');
-                        return false;
-                    }
-                    if (password.length < 6) {
-                        showAlert('Password must be at least 6 characters', 'danger');
-                        return false;
-                    }
-                }
-            }
-
-            if (step === 3) {
-                if (!uploadedFiles.mciCert || !uploadedFiles.photoId || !uploadedFiles.mbbsDegree || !uploadedFiles.profilePhoto) {
-                    showAlert('Please upload all required documents', 'danger');
-                    return false;
-                }
-            }
-
-            if (!isValid) {
-                showAlert('Please fill in all required fields', 'danger');
-            }
-
-            return isValid;
-        }
-
-        function saveStepData(step) {
-            if (step === 1) {
-                formData.name = document.getElementById('fullName').value;
-                formData.email = document.getElementById('email').value;
-                formData.phone = document.getElementById('phone').value;
-
-                // Only include password if user is registering (not already registered)
-                const existingToken = localStorage.getItem('token');
-                if (!existingToken) {
-                    formData.password = document.getElementById('password').value;
-                }
-            } else if (step === 2) {
-                formData.professional = {
-                    mciNumber: document.getElementById('mciNumber').value,
-                    stateMedicalCouncil: document.getElementById('stateMedicalCouncil').value,
-                    primarySpecialization: document.getElementById('primarySpecialization').value,
-                    yearsOfExperience: parseInt(document.getElementById('yearsOfExperience').value),
-                    currentEmploymentStatus: document.getElementById('employmentStatus').value,
-                    proceduralSkills: Array.from(document.querySelectorAll('#skillsSelection input:checked')).map(cb => cb.value)
-                };
-            } else if (step === 4) {
-                formData.professional.preferredShiftTimes = Array.from(document.querySelectorAll('.preference-btn.active')).map(btn => btn.textContent);
-                formData.professional.serviceRadius = parseInt(document.getElementById('serviceRadius').value);
-                formData.professional.minimumRate = parseInt(document.getElementById('minimumRate').value);
-                formData.location = {
-                    city: document.getElementById('city').value
-                };
-                formData.bankDetails = {
-                    accountNumber: document.getElementById('accountNumber').value,
-                    ifscCode: document.getElementById('ifscCode').value,
-                    bankName: document.getElementById('bankName').value,
-                    accountHolderName: document.getElementById('accountHolderName').value
-                };
-            }
-        }
-
-        function updateUI() {
-            // Update form steps
-            document.querySelectorAll('.form-step').forEach(step => {
-                step.classList.remove('active');
-            });
-            document.querySelector(`.form-step[data-step="${currentStep}"]`).classList.add('active');
-
-            // Update progress steps
-            document.querySelectorAll('.step').forEach(step => {
-                const stepNum = parseInt(step.dataset.step);
-                step.classList.remove('active', 'completed');
-                if (stepNum < currentStep) {
-                    step.classList.add('completed');
-                } else if (stepNum === currentStep) {
-                    step.classList.add('active');
-                }
-            });
-
-            // Scroll to top
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function showAlert(message, type) {
-            const alert = document.getElementById('alert');
-            alert.className = `alert alert-${type} show`;
-            alert.textContent = message;
-            setTimeout(() => {
-                alert.classList.remove('show');
-            }, 5000);
-        }
-
-        // Form submission
-        document.getElementById('onboardingForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            if (!validateStep(4)) {
-                showAlert('Please fill in all required fields', 'danger');
-                return;
-            }
-            saveStepData(4);
-
-            // Disable submit button to prevent double submission
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            const originalBtnText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-
-            try {
-                showAlert('Saving your profile...', 'success');
-
-                // Get existing token (user already registered from landing page)
-                const existingToken = localStorage.getItem('token');
-
-                if (!existingToken) {
-                    // If no token, register new user
-                    formData.role = 'doctor';
-
-                    const response = await fetch(AppConfig.api('auth/register'), {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(formData)
-                    });
-
-                    const data = await response.json();
-                    console.log('Registration response:', data);
-
-                    if (data.success && data.token) {
-                        localStorage.setItem('token', data.token);
-                        localStorage.setItem('user', JSON.stringify(data.user));
-                    } else {
-                        throw new Error(data.message || 'Registration failed');
-                    }
-                } else {
-                    // User already exists, just update their profile
-                    // CRITICAL: Mark onboarding as completed so user goes to dashboard on next login
-                    formData.onboardingCompleted = true;
-
-                    console.log('Updating profile with data:', formData);
-
-                    const response = await fetch(AppConfig.api('auth/me'), {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${existingToken}`
-                        },
-                        body: JSON.stringify(formData)
-                    });
-
-                    const data = await response.json();
-                    console.log('Update response:', data);
-
-                    if (!data.success) {
-                        throw new Error(data.message || 'Failed to update profile');
-                    }
-
-                    // Update user in localStorage
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                }
-
-                // Upload documents
-                const token = existingToken || localStorage.getItem('token');
-                console.log('Uploading documents...');
-                await uploadDocuments(token);
-
-                showAlert('Onboarding completed successfully! Redirecting...', 'success');
-
-                setTimeout(() => {
-                    window.location.href = 'doctor-dashboard.html';
-                }, 2000);
-            } catch (error) {
-                console.error('Onboarding error:', error);
-                showAlert(error.message || 'Onboarding failed. Please try again.', 'danger');
-
-                // Re-enable submit button
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalBtnText;
-            }
-        });
-
-        async function uploadDocuments(token) {
-            console.log('Starting document uploads...', uploadedFiles);
-
-            for (const [type, file] of Object.entries(uploadedFiles)) {
-                const formData = new FormData();
-
-                // Map frontend field names to backend field names
-                let fieldName = '';
-                let endpoint = '';
-
-                if (type === 'profilePhoto') {
-                    fieldName = 'profilePhoto';
-                    endpoint = '/uploads/profile-photo';
-                } else if (type === 'mciCert') {
-                    fieldName = 'mciCertificate';
-                    endpoint = '/uploads/mci-certificate';
-                } else if (type === 'photoId') {
-                    fieldName = 'photoId';
-                    endpoint = '/uploads/photo-id';
-                } else if (type === 'mbbsDegree') {
-                    fieldName = 'mbbsDegree';
-                    endpoint = '/uploads/mbbs-degree';
-                }
-
-                formData.append(fieldName, file);
-
-                console.log(`Uploading ${type} to ${endpoint}...`);
-
-                const response = await fetch(`${API_URL}${endpoint}`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
-                });
-
-                const result = await response.json();
-                console.log(`Upload ${type} result:`, result);
-
-                if (!response.ok || !result.success) {
-                    throw new Error(`Failed to upload ${type}: ${result.message || 'Upload failed'}`);
-                }
-            }
-
-            console.log('All documents uploaded successfully!');
-        }
-
-        // Global error handler to catch all errors
-        window.addEventListener('error', (event) => {
-            console.error('Global error caught:', event.error);
-            showAlert('An error occurred: ' + event.error.message, 'danger');
-            event.preventDefault();
-        });
-
-        window.addEventListener('unhandledrejection', (event) => {
-            console.error('Unhandled promise rejection:', event.reason);
-            showAlert('An error occurred: ' + (event.reason?.message || event.reason), 'danger');
-            event.preventDefault();
-        });
-
-        // Make functions globally available
-        window.nextStep = nextStep;
-        window.prevStep = prevStep;
-    </script>
+    <script type="module" src="/js/doctor-onboarding.js"></script>
 </body>
 </html>

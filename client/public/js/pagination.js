@@ -186,10 +186,11 @@ function createPaginationControls(pagination, onPageChange, options = {}) {
   // Previous button
   html += `
     <button
+      type="button"
       class="${buttonClass} ${!hasPrev ? disabledClass : ''}"
       ${!hasPrev ? 'disabled' : ''}
       data-page="${prevPage}"
-      onclick="(${onPageChange.toString()})(${prevPage})"
+      data-pagination-action="page-change"
     >
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
         <path d="M10 12l-4-4 4-4"/>
@@ -208,9 +209,10 @@ function createPaginationControls(pagination, onPageChange, options = {}) {
       } else {
         html += `
           <button
+            type="button"
             class="${buttonClass} ${pageNum === page ? activeClass : ''}"
             data-page="${pageNum}"
-            onclick="(${onPageChange.toString()})(${pageNum})"
+            data-pagination-action="page-change"
           >
             ${pageNum}
           </button>
@@ -222,10 +224,11 @@ function createPaginationControls(pagination, onPageChange, options = {}) {
   // Next button
   html += `
     <button
+      type="button"
       class="${buttonClass} ${!hasNext ? disabledClass : ''}"
       ${!hasNext ? 'disabled' : ''}
       data-page="${nextPage}"
-      onclick="(${onPageChange.toString()})(${nextPage})"
+      data-pagination-action="page-change"
     >
       Next
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -312,6 +315,20 @@ function renderPaginationControls(container, pagination, onPageChange, options =
 
   const html = createPaginationControls(pagination, onPageChange, options);
   element.innerHTML = html;
+  bindPaginationControlEvents(element, onPageChange);
+}
+
+function bindPaginationControlEvents(container, onPageChange) {
+  if (typeof onPageChange !== 'function') return;
+
+  container.querySelectorAll('[data-pagination-action="page-change"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const page = parseInt(button.dataset.page, 10);
+      if (Number.isInteger(page)) {
+        onPageChange(page);
+      }
+    });
+  });
 }
 
 /**
@@ -328,7 +345,7 @@ function createLimitSelector(currentLimit, onChange, options = [10, 20, 50, 100]
       <select
         id="items-per-page"
         class="limit-select"
-        onchange="(${onChange.toString()})(parseInt(this.value))"
+        data-pagination-action="limit-change"
       >
         ${options.map(opt => `
           <option value="${opt}" ${opt === currentLimit ? 'selected' : ''}>
@@ -338,6 +355,20 @@ function createLimitSelector(currentLimit, onChange, options = [10, 20, 50, 100]
       </select>
     </div>
   `;
+}
+
+function bindLimitSelectorEvents(container, onChange) {
+  if (typeof onChange !== 'function') return;
+
+  const select = container.querySelector('[data-pagination-action="limit-change"]');
+  if (!select) return;
+
+  select.addEventListener('change', () => {
+    const nextLimit = parseInt(select.value, 10);
+    if (Number.isInteger(nextLimit)) {
+      onChange(nextLimit);
+    }
+  });
 }
 
 // ============================================
@@ -473,6 +504,7 @@ class PaginationManager {
           this.state.limit,
           this.changeLimit.bind(this)
         );
+        bindLimitSelectorEvents(limitElement, this.changeLimit.bind(this));
       }
     }
   }
@@ -507,9 +539,16 @@ class PaginationManager {
       container.innerHTML = `
         <div class="error-state">
           <p>Error: ${message}</p>
-          <button onclick="location.reload()">Retry</button>
+          <button type="button" class="pagination-retry-btn">Retry</button>
         </div>
       `;
+
+      const retryButton = container.querySelector('.pagination-retry-btn');
+      if (retryButton) {
+        retryButton.addEventListener('click', () => {
+          window.location.reload();
+        });
+      }
     }
   }
 }

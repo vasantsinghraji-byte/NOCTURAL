@@ -30,6 +30,16 @@ jobs:
     environment: ${{ github.event.inputs.environment }}
 
     steps:
+      - name: Validate AWS secrets
+        env:
+          AWS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          if [ -z "$AWS_KEY" ] || [ -z "$AWS_SECRET" ]; then
+            echo "::error::AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY secrets must be configured before deploying"
+            exit 1
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
 

@@ -16,7 +16,7 @@ const UserSchema = new mongoose.Schema({
     required: [true, 'Please provide an email'],
     unique: true,
     lowercase: true,
-    match: [/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, 'Please provide a valid email']
+    match: [/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/, 'Please provide a valid email']
   },
   password: {
     type: String,
@@ -32,12 +32,6 @@ const UserSchema = new mongoose.Schema({
     type: String,
     enum: STAFF_ROLES,
     required: true
-  },
-
-  // Firebase Integration
-  firebaseUid: {
-    type: String,
-    sparse: true
   },
 
   // Profile Photo
@@ -368,7 +362,6 @@ UserSchema.index({ role: 1, 'professional.primarySpecialization': 1, isActive: 1
 UserSchema.index({ 'location.city': 1, 'location.state': 1, role: 1 }); // Location-based search
 UserSchema.index({ role: 1, rating: -1, completedDuties: -1 }); // Top-rated doctors
 UserSchema.index({ role: 1, isAvailableForShifts: 1, isActive: 1 }); // Available doctors
-// Note: firebaseUid sparse index created automatically by sparse: true in schema (line 39)
 UserSchema.index({ lastActive: -1 }); // Recent activity tracking
 
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema);

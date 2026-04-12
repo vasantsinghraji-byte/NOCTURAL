@@ -268,6 +268,20 @@ class BookingService {
   }
 
   /**
+   * Get assignable providers for admin booking assignment
+   * @returns {Promise<Array>} Active assignable providers
+   */
+  async getAssignableProviders() {
+    return User.find({
+      role: { $in: ['nurse', 'physiotherapist'] },
+      isActive: true
+    })
+      .select('name email phone role specialty professional.primarySpecialization professional.yearsOfExperience')
+      .sort({ role: 1, name: 1 })
+      .lean();
+  }
+
+  /**
    * Assign a service provider to a booking
    * @param {String} bookingId - Booking ID
    * @param {String} providerId - Provider ID

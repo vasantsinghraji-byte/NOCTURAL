@@ -19,7 +19,6 @@ process.env.ENCRYPTION_KEY = 'test-encryption-key-32-characters!';
 process.env.RATE_LIMIT_ENABLED = 'false';
 
 // Disable external services
-process.env.FIREBASE_AUTH_ENABLED = 'false';
 process.env.AWS_S3_ENABLED = 'false';
 process.env.RAZORPAY_ENABLED = 'false';
 
@@ -56,5 +55,18 @@ global.testUtils = {
     const date = new Date();
     date.setDate(date.getDate() - days);
     return date;
-  }
+  },
+
+  productionFixtureEnv: (overrides = {}) => ({
+    NODE_ENV: 'production',
+    PORT: '5000',
+    MONGODB_URI: 'mongodb://fixtureUser:fixturePassword@127.0.0.1:27017/nocturnal_fixture?authSource=admin',
+    JWT_SECRET: 'prod-smoke-jwt-secret-value-with-64-plus-characters-for-validation-pass-001',
+    ENCRYPTION_KEY: require('crypto').createHash('sha256').update('test-fixture-encryption-key').digest('hex'),
+    ALLOWED_ORIGINS: 'https://127.0.0.1',
+    AWS_S3_ENABLED: 'false',
+    RAZORPAY_ENABLED: 'false',
+    RATE_LIMIT_ENABLED: 'false',
+    ...overrides
+  })
 };

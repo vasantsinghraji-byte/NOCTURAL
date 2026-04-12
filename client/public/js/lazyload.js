@@ -46,7 +46,7 @@
       // Regular image
       const imageToLoad = new Image();
 
-      imageToLoad.onload = function() {
+      imageToLoad.addEventListener('load', function() {
         if (src) {
           img.src = src;
           img.removeAttribute(CONFIG.placeholderDataAttr);
@@ -59,13 +59,13 @@
 
         img.classList.remove(CONFIG.loadingClass);
         img.classList.add(CONFIG.loadedClass);
-      };
+      });
 
-      imageToLoad.onerror = function() {
+      imageToLoad.addEventListener('error', function() {
         img.classList.remove(CONFIG.loadingClass);
         img.classList.add(CONFIG.errorClass);
         console.error('Failed to load image:', src || bgImage);
-      };
+      });
 
       imageToLoad.src = src;
       if (srcset) {
@@ -214,8 +214,8 @@
   window.reinitLazyLoad = init;
 
   // Export for module systems
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { init, loadImage, CONFIG };
+  if (typeof module !== 'undefined' && module.exports) { // eslint-disable-line no-undef
+    module.exports = { init, loadImage, CONFIG }; // eslint-disable-line no-undef
   }
 
   // Expose globally

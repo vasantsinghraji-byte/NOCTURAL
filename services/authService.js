@@ -14,10 +14,14 @@ const ALLOWED_PROFILE_FIELDS = [
   'name',
   'phone',
   'location',
+  'hospital',
   'professional',
   'notificationSettings',
   'isAvailableForShifts',
-  'specialty'
+  'specialty',
+  'licenseNumber',
+  'bankDetails',
+  'onboardingCompleted'
 ];
 
 class AuthService {

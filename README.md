@@ -187,16 +187,17 @@ LOG_LEVEL=info
 ENABLE_MONITORING=true
 ```
 
-### 2. Firebase Configuration (Optional)
+### 2. Cloud Storage Configuration (Optional)
 
-If using Firebase for notifications:
+If using Google Cloud Storage-backed uploads:
 
-1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-2. Download service account key
-3. Save as `firebase-service-account.json` in project root
-4. Add to `.env`:
+1. Create a service account with bucket access
+2. Export the credentials as a Base64 JSON string
+3. Add the bucket settings to `.env`:
 ```env
-FIREBASE_PROJECT_ID=your-project-id
+USE_GCS=true
+GCS_BUCKET=your-bucket-name
+GCS_CREDENTIALS=base64-encoded-service-account-json
 ```
 
 ## Running the Application

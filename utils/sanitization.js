@@ -46,6 +46,11 @@ function sanitizeData(obj, depth = 0) {
     return obj;
   }
 
+  // Handle functions (should never be in user input, but sanitize anyway)
+  if (typeof obj === 'function') {
+    return undefined; // Remove functions entirely
+  }
+
   // Handle primitives (string, number, boolean)
   if (typeof obj !== 'object') {
     // Sanitize strings that might contain injection attempts
@@ -53,11 +58,6 @@ function sanitizeData(obj, depth = 0) {
       return sanitizeString(obj);
     }
     return obj;
-  }
-
-  // Handle functions (should never be in user input, but sanitize anyway)
-  if (typeof obj === 'function') {
-    return undefined; // Remove functions entirely
   }
 
   // Handle Date objects (return as-is, they're safe)
@@ -132,9 +132,11 @@ function sanitizeData(obj, depth = 0) {
 
     // Skip if value is an empty object that only contained MongoDB operators
     if (typeof sanitizedValue === 'object' &&
+        sanitizedValue !== null &&
         !Array.isArray(sanitizedValue) &&
         !(sanitizedValue instanceof Date) &&
         Object.keys(sanitizedValue).length === 0 &&
+        obj[key] &&
         typeof obj[key] === 'object' &&
         Object.keys(obj[key]).length > 0 &&
         Object.keys(obj[key]).every(k => k.startsWith('$') || DANGEROUS_KEYS.includes(k))) {
@@ -156,19 +158,20 @@ function sanitizeData(obj, depth = 0) {
 function sanitizeString(str) {
   // Check for common injection patterns in string values
   // This is a basic check - input validation should be primary defense
+  let sanitized = str;
 
   // Remove null bytes
-  if (str.includes('\0')) {
-    str = str.replace(/\0/g, '');
+  if (sanitized.includes('\0')) {
+    sanitized = sanitized.replace(/\0/g, '');
   }
 
   // Check for JavaScript function injection attempts
-  if (str.includes('function') || str.includes('=>')) {
+  if (sanitized.includes('function') || sanitized.includes('=>')) {
     // This is suspicious in user input, but we'll allow it with logging
     // Real validation should happen at the route/controller level
   }
 
-  return str;
+  return sanitized;
 }
 
 /**
@@ -180,6 +183,7 @@ function hasDangerousCharacters(key) {
   // Check for various dangerous patterns
   return (
     key.includes('$') ||           // MongoDB operators
+    key.includes('.') ||           // Dot notation traversal
     key.includes('\0') ||          // Null bytes
     key.includes('..') ||          // Path traversal
     key.includes('\\') ||          // Escape characters
@@ -259,12 +263,18 @@ function validateSanitization(obj) {
     return obj.every(item => validateSanitization(item));
   }
 
+  // Reject objects whose prototype was tampered with via __proto__ payloads.
+  if (Object.getPrototypeOf(obj) !== Object.prototype && Object.getPrototypeOf(obj) !== null) {
+    return false;
+  }
+
   for (const key of Object.keys(obj)) {
     // Check for any remaining dangerous keys
     if (key.startsWith('$') ||
         DANGEROUS_KEYS.includes(key) ||
         key.includes('.') ||
-        key.includes('\0')) {
+        key.includes('\0') ||
+        typeof obj[key] === 'function') {
       return false;
     }
 

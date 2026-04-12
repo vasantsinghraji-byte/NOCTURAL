@@ -25,7 +25,7 @@
             background: white;
             padding: 3rem;
             border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
             max-width: 600px;
             width: 100%;
         }
@@ -55,6 +55,10 @@
             margin-bottom: 0.5rem;
         }
 
+        .info-box-spaced {
+            margin-top: 2rem;
+        }
+
         .info-box p {
             color: #475569;
             line-height: 1.6;
@@ -74,6 +78,11 @@
             padding: 1.5rem;
             border-radius: 8px;
             margin-bottom: 2rem;
+        }
+
+        .status-section-title {
+            margin-bottom: 1rem;
+            color: #1e40af;
         }
 
         .status-item {
@@ -171,21 +180,30 @@
             color: #78350f;
             line-height: 1.6;
         }
+
+        .code-sample {
+            background: white;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+        }
     </style>
     <script src="/js/config.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>🔧 Authentication Setup</h1>
+        <h1>Authentication Setup</h1>
         <p class="subtitle">Fix the login redirect issue</p>
 
         <div class="info-box">
-            <h3>📋 Current Status</h3>
+            <h3>Current Status</h3>
             <p>Your doctor pages are redirecting to the landing page because authentication data is missing.</p>
         </div>
 
         <div class="status-section">
-            <h3 style="margin-bottom: 1rem; color: #1e40af;">LocalStorage Check:</h3>
+            <h3 class="status-section-title">LocalStorage Check:</h3>
             <div class="status-item">
                 <span class="status-label">Token:</span>
                 <span class="status-value" id="tokenStatus"></span>
@@ -201,98 +219,39 @@
         </div>
 
         <div class="warning-box">
-            <h3>⚠️ Testing Mode</h3>
-            <p>Click "Setup Test Login" to bypass authentication and test the pages. Remember to fix your actual login/register flow for production!</p>
+            <h3>Testing Mode</h3>
+            <p>Click "Setup Test Login" to bypass authentication and test the pages. Remember to fix your actual login/register flow for production.</p>
         </div>
 
         <div class="button-group">
-            <button class="btn btn-success" onclick="setupTestAuth()">
-                ✅ Setup Test Login (For Testing Only)
+            <button class="btn btn-success" id="setupTestAuthBtn" type="button">
+                Setup Test Login (For Testing Only)
             </button>
-            <button class="btn btn-primary" onclick="goToDashboard()">
-                📊 Go to Doctor Dashboard
+            <button class="btn btn-primary" id="goToDashboardBtn" type="button">
+                Go to Doctor Dashboard
             </button>
-            <button class="btn btn-secondary" onclick="clearAuth()">
-                🗑️ Clear Authentication
+            <button class="btn btn-secondary" id="clearAuthBtn" type="button">
+                Clear Authentication
             </button>
         </div>
 
-        <div class="info-box" style="margin-top: 2rem;">
-            <h3>🔧 How to Fix Your Real Login:</h3>
+        <div class="info-box info-box-spaced">
+            <h3>How to Fix Your Real Login:</h3>
             <p>In your <code>login.html</code> or login JavaScript, after successful login from backend, add:</p>
             <br>
-            <pre style="background: white; padding: 1rem; border-radius: 5px; overflow-x: auto; font-size: 0.9rem;">
-<code>// After successful login API response
+            <pre class="code-sample"><code>// After successful login API response
 if (response.success) {
     localStorage.setItem('token', response.token);
     localStorage.setItem('userType', 'doctor');
     localStorage.setItem('userId', response.userId);
     localStorage.setItem('userName', response.userName);
-    
+
     // Then redirect
     window.location.href = 'doctor-dashboard.html';
 }</code></pre>
         </div>
     </div>
 
-    <script>
-        // Check current auth status
-        function checkAuthStatus() {
-            const token = localStorage.getItem('token');
-            const userType = localStorage.getItem('userType');
-            const userName = localStorage.getItem('userName');
-
-            document.getElementById('tokenStatus').textContent = token ? '✓ Present' : '✗ Missing';
-            document.getElementById('tokenStatus').className = 'status-value ' + (token ? 'success' : 'error');
-
-            document.getElementById('userTypeStatus').textContent = userType || '✗ Missing';
-            document.getElementById('userTypeStatus').className = 'status-value ' + (userType === 'doctor' ? 'success' : 'error');
-
-            document.getElementById('userNameStatus').textContent = userName || '✗ Missing';
-            document.getElementById('userNameStatus').className = 'status-value ' + (userName ? 'success' : 'error');
-        }
-
-        // Setup test authentication (for testing purposes only)
-        function setupTestAuth() {
-            // Create a dummy token for testing
-            const dummyToken = 'test_token_' + Date.now();
-            
-            localStorage.setItem('token', dummyToken);
-            localStorage.setItem('userType', 'doctor');
-            localStorage.setItem('userId', 'test_user_123');
-            localStorage.setItem('userName', 'Dr. Test User');
-
-            alert('✅ Test authentication setup complete!\n\nYou can now access all doctor pages.\n\nNote: API calls will fail without a real backend token.');
-            
-            checkAuthStatus();
-        }
-
-        // Clear authentication
-        function clearAuth() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('userType');
-            localStorage.removeItem('userId');
-            localStorage.removeItem('userName');
-
-            alert('🗑️ Authentication cleared');
-            checkAuthStatus();
-        }
-
-        // Go to dashboard
-        function goToDashboard() {
-            const token = localStorage.getItem('token');
-            const userType = localStorage.getItem('userType');
-
-            if (!token || userType !== 'doctor') {
-                alert('⚠️ Authentication not set up!\n\nClick "Setup Test Login" first, or fix your login page.');
-                return;
-            }
-
-            window.location.href = 'doctor-dashboard.html';
-        }
-
-        // Initialize on page load
-        window.addEventListener('DOMContentLoaded', checkAuthStatus);
-    </script>
+    <script src="/js/auth-setup.js"></script>
 </body>
 </html>

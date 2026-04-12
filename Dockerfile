@@ -14,13 +14,14 @@ COPY packages/ ./packages/
 
 # Install dependencies (including dev dependencies for build)
 # Use --legacy-peer-deps to handle Express 5 compatibility
-RUN npm ci --legacy-peer-deps
+# Use --ignore-scripts to skip the prepare hook (git not available in Alpine)
+RUN npm ci --legacy-peer-deps --ignore-scripts
 
 # Copy application code
 COPY . .
 
 # Build frontend assets
-RUN cd client && npm ci && npm run build:optimize && cd ..
+RUN cd client && npm ci && npm run build && cd ..
 
 # Remove dev dependencies
 RUN npm prune --production
@@ -28,8 +29,12 @@ RUN npm prune --production
 # Stage 2: Production stage
 FROM node:22-alpine
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install dumb-init and upgrade all Alpine packages to pick up security patches
+RUN apk add --no-cache dumb-init && apk upgrade --no-cache
+
+# Remove npm from production image — not needed at runtime (app runs via
+# node directly), and eliminates Trivy CVE flags from npm's bundled deps
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \

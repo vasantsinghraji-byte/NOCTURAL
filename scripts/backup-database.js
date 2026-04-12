@@ -159,7 +159,7 @@ switch (command) {
   case 'backup':
     createBackup().catch(() => process.exit(1));
     break;
-  case 'restore':
+  case 'restore': {
     const backupPath = args[1];
     if (!backupPath) {
       console.error('❌ Please specify backup path: node backup-database.js restore <path>');
@@ -168,6 +168,7 @@ switch (command) {
     }
     restoreBackup(backupPath).catch(() => process.exit(1));
     break;
+  }
   case 'list':
     listBackups();
     break;

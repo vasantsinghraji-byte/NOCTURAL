@@ -1,0 +1,1144 @@
+        // Global state
+        let currentReadingType = null;
+        let selectedFiles = [];
+        let currentTargetType = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            initTabs();
+            initFileUpload();
+            initDateDefaults();
+            loadReportsTab();
+        });
+
+        // Auth check
+        function checkAuth() {
+            if (!PatientSession.requireAuthenticatedPage({
+                redirectUrl: AppConfig.routes.page('patient.login')
+            })) {
+                window.location.href = AppConfig.routes.page('patient.login');
+            }
+        }
+
+        // Logout
+        function logout() {
+            PatientSession.logout({
+                redirectUrl: AppConfig.routes.page('home')
+            });
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            };
+
+            toast.innerHTML = `<i class="fas ${icons[type]}"></i> ${message}`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Tab functionality
+        function initTabs() {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tabId = btn.dataset.tab;
+
+                    // Update buttons
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    // Update content
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    document.getElementById(`${tabId}-tab`).classList.add('active');
+
+                    // Load tab content
+                    if (tabId === 'reports') loadReportsTab();
+                    else if (tabId === 'diabetes') loadDiabetesTab();
+                    else if (tabId === 'hypertension') loadHypertensionTab();
+                });
+            });
+        }
+
+        // File upload drag-drop
+        function initFileUpload() {
+            const dropZone = document.getElementById('fileDropZone');
+            const fileInput = document.getElementById('reportFiles');
+
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = 'var(--primary)';
+                dropZone.style.background = 'rgba(91, 141, 190, 0.1)';
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.style.borderColor = '#e0e0e0';
+                dropZone.style.background = 'var(--bg-light)';
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = '#e0e0e0';
+                dropZone.style.background = 'var(--bg-light)';
+                handleFiles(e.dataTransfer.files);
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(e.target.files);
+            });
+        }
+
+        function handleFiles(files) {
+            const fileList = document.getElementById('fileList');
+            const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+
+            Array.from(files).forEach(file => {
+                if (!validTypes.includes(file.type)) {
+                    showToast(`Invalid file type: ${file.name}`, 'error');
+                    return;
+                }
+                if (file.size > 20 * 1024 * 1024) {
+                    showToast(`File too large: ${file.name}`, 'error');
+                    return;
+                }
+                if (selectedFiles.length >= 10) {
+                    showToast('Maximum 10 files allowed', 'warning');
+                    return;
+                }
+                selectedFiles.push(file);
+            });
+
+            renderFileList();
+        }
+
+        function renderFileList() {
+            const fileList = document.getElementById('fileList');
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = '';
+                return;
+            }
+
+            fileList.innerHTML = selectedFiles.map((file, index) => `
+                <div style="display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--bg-light); border-radius: 8px; margin-bottom: 8px;">
+                    <i class="fas ${file.type === 'application/pdf' ? 'fa-file-pdf' : 'fa-file-image'}" style="color: var(--primary);"></i>
+                    <span style="flex: 1;">${file.name}</span>
+                    <span style="color: var(--text-light); font-size: 0.85rem;">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                    <button type="button" data-action="remove-file" data-file-index="${index}" style="background: none; border: none; color: var(--danger); cursor: pointer;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            renderFileList();
+        }
+
+        // Date defaults
+        function initDateDefaults() {
+            document.getElementById('reportDate').valueAsDate = new Date();
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('readingDateTime').value = now.toISOString().slice(0, 16);
+        }
+
+        // Modal functions
+        function openUploadModal() {
+            document.getElementById('uploadModal').classList.add('active');
+            selectedFiles = [];
+            document.getElementById('uploadForm').reset();
+            document.getElementById('fileList').innerHTML = '';
+            initDateDefaults();
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.remove('active');
+        }
+
+        function openReadingModal(type) {
+            currentReadingType = type;
+            const modal = document.getElementById('readingModal');
+            const title = document.getElementById('readingModalTitle');
+
+            document.getElementById('diabetesFields').style.display = type === 'diabetes' ? 'block' : 'none';
+            document.getElementById('bpFields').style.display = type === 'bp' ? 'block' : 'none';
+
+            if (type === 'diabetes') {
+                title.innerHTML = '<i class="fas fa-tint"></i> Log Blood Sugar Reading';
+            } else {
+                title.innerHTML = '<i class="fas fa-heartbeat"></i> Log Blood Pressure Reading';
+            }
+
+            modal.classList.add('active');
+            initDateDefaults();
+        }
+
+        function closeReadingModal() {
+            document.getElementById('readingModal').classList.remove('active');
+            document.getElementById('readingForm').reset();
+        }
+
+        // Update label for HbA1c
+        document.getElementById('diabetesType')?.addEventListener('change', (e) => {
+            const label = document.getElementById('diabetesValueLabel');
+            if (e.target.value === 'HBA1C') {
+                label.textContent = 'Value (%)';
+            } else {
+                label.textContent = 'Value (mg/dL)';
+            }
+        });
+
+        // API calls
+        function getToken() {
+            return PatientSession.getToken();
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            const token = getToken();
+            const baseUrl = AppConfig.api(endpoint);
+
+            const response = await fetch(baseUrl, {
+                ...options,
+                headers: {
+                    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+                    'Authorization': `Bearer ${token}`,
+                    ...options.headers
+                }
+            });
+
+            if (response.status === 401) {
+                logout();
+                return null;
+            }
+
+            return response.json();
+        }
+
+        // Submit report
+        async function submitReport() {
+            const btn = document.getElementById('submitReportBtn');
+            const originalText = btn.innerHTML;
+
+            if (selectedFiles.length === 0) {
+                showToast('Please select at least one file', 'error');
+                return;
+            }
+
+            const title = document.getElementById('reportTitle').value;
+            const type = document.getElementById('reportType').value;
+            const date = document.getElementById('reportDate').value;
+
+            if (!title || !type || !date) {
+                showToast('Please fill all required fields', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+
+            try {
+                const formData = new FormData();
+                formData.append('title', title);
+                formData.append('reportType', type);
+                formData.append('reportDate', date);
+                formData.append('description', document.getElementById('reportDescription').value);
+
+                selectedFiles.forEach(file => {
+                    formData.append('files', file);
+                });
+
+                const result = await apiCall('/patient-analytics/reports', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (result?.success) {
+                    showToast('Report uploaded successfully! AI analysis started.', 'success');
+                    closeUploadModal();
+                    loadReportsTab();
+                } else {
+                    showToast(result?.message || 'Upload failed', 'error');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showToast('Upload failed. Please try again.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        // Submit reading
+        async function submitReading() {
+            const btn = document.getElementById('submitReadingBtn');
+            const originalText = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                let endpoint, body;
+                const context = document.getElementById('readingContext').value;
+                const measuredAt = document.getElementById('readingDateTime').value;
+                const notes = document.getElementById('readingNotes').value;
+
+                if (currentReadingType === 'diabetes') {
+                    endpoint = '/patient-analytics/diabetes/readings';
+                    body = {
+                        metricType: document.getElementById('diabetesType').value,
+                        value: parseFloat(document.getElementById('diabetesValue').value),
+                        context,
+                        measuredAt,
+                        notes
+                    };
+                } else {
+                    endpoint = '/patient-analytics/hypertension/readings';
+                    body = {
+                        systolic: parseInt(document.getElementById('systolicValue').value),
+                        diastolic: parseInt(document.getElementById('diastolicValue').value),
+                        context,
+                        measuredAt,
+                        notes
+                    };
+                }
+
+                const result = await apiCall(endpoint, {
+                    method: 'POST',
+                    body: JSON.stringify(body)
+                });
+
+                if (result?.success) {
+                    showToast('Reading saved successfully!', 'success');
+                    closeReadingModal();
+
+                    if (currentReadingType === 'diabetes') {
+                        loadDiabetesTab();
+                    } else {
+                        loadHypertensionTab();
+                    }
+                } else {
+                    showToast(result?.message || 'Failed to save reading', 'error');
+                }
+            } catch (error) {
+                console.error('Save error:', error);
+                showToast('Failed to save reading', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        // Tab loaders - Will be populated by separate component files
+        async function loadReportsTab() {
+            const loading = document.getElementById('reportsLoading');
+            const content = document.getElementById('reportsContent');
+
+            loading.style.display = 'flex';
+            content.style.display = 'none';
+
+            try {
+                console.log('Loading reports overview...');
+                const result = await apiCall('/patient-analytics/overview');
+                console.log('Reports overview result:', result);
+
+                if (result?.success) {
+                    const reports = result.reports || {};
+
+                    // Update badge
+                    const pendingCount = (reports?.pendingAI || 0) + (reports?.pendingReview || 0);
+                    const badge = document.getElementById('pendingReportsBadge');
+                    if (pendingCount > 0) {
+                        badge.textContent = pendingCount;
+                        badge.style.display = 'inline';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+
+                    content.innerHTML = await renderReportsContent(reports);
+                } else {
+                    // Show error if API returned success:false
+                    const errorMsg = result?.message || 'Failed to load reports';
+                    console.error('Reports API error:', errorMsg);
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <h3>Error loading reports</h3>
+                            <p style="color: var(--text-light); margin-top: 0.5rem;">${errorMsg}</p>
+                            <button class="btn btn-primary" data-action="retry-load-reports" style="margin-top: 1rem;">
+                                <i class="fas fa-sync"></i> Retry
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading reports:', error);
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <h3>Error loading reports</h3>
+                        <p style="color: var(--text-light); margin-top: 0.5rem;">${error.message}</p>
+                        <button class="btn btn-primary" data-action="retry-load-reports" style="margin-top: 1rem;">
+                            <i class="fas fa-sync"></i> Retry
+                        </button>
+                    </div>
+                `;
+            } finally {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            }
+        }
+
+        async function loadDiabetesTab() {
+            const loading = document.getElementById('diabetesLoading');
+            const content = document.getElementById('diabetesContent');
+
+            loading.style.display = 'flex';
+            content.style.display = 'none';
+
+            try {
+                console.log('Loading diabetes data...');
+                const [summaryResult, chartResult] = await Promise.all([
+                    apiCall('/patient-analytics/diabetes/summary'),
+                    apiCall('/patient-analytics/diabetes/chart?period=day')
+                ]);
+
+                console.log('Diabetes summary result:', summaryResult);
+                console.log('Diabetes chart result:', chartResult);
+
+                if (summaryResult?.success && chartResult?.success) {
+                    content.innerHTML = renderDiabetesContent(summaryResult.summary, chartResult);
+                    initDiabetesCharts(chartResult);
+                } else {
+                    // Show error if API returned success:false
+                    const errorMsg = summaryResult?.message || chartResult?.message || 'Failed to load diabetes data';
+                    console.error('Diabetes API error:', errorMsg);
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <h3>Error loading data</h3>
+                            <p style="color: var(--text-light); margin-top: 0.5rem;">${errorMsg}</p>
+                            <button class="btn btn-primary" data-action="retry-load-diabetes" style="margin-top: 1rem;">
+                                <i class="fas fa-sync"></i> Retry
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading diabetes data:', error);
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <h3>Error loading data</h3>
+                        <p style="color: var(--text-light); margin-top: 0.5rem;">${error.message}</p>
+                        <button class="btn btn-primary" data-action="retry-load-diabetes" style="margin-top: 1rem;">
+                            <i class="fas fa-sync"></i> Retry
+                        </button>
+                    </div>
+                `;
+            } finally {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            }
+        }
+
+        async function loadHypertensionTab() {
+            const loading = document.getElementById('hypertensionLoading');
+            const content = document.getElementById('hypertensionContent');
+
+            loading.style.display = 'flex';
+            content.style.display = 'none';
+
+            try {
+                console.log('Loading hypertension data...');
+                const [summaryResult, chartResult] = await Promise.all([
+                    apiCall('/patient-analytics/hypertension/summary'),
+                    apiCall('/patient-analytics/hypertension/chart?period=day')
+                ]);
+
+                console.log('Hypertension summary result:', summaryResult);
+                console.log('Hypertension chart result:', chartResult);
+
+                if (summaryResult?.success && chartResult?.success) {
+                    content.innerHTML = renderHypertensionContent(summaryResult.summary, chartResult);
+                    initHypertensionCharts(chartResult);
+                } else {
+                    // Show error if API returned success:false
+                    const errorMsg = summaryResult?.message || chartResult?.message || 'Failed to load hypertension data';
+                    console.error('Hypertension API error:', errorMsg);
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <h3>Error loading data</h3>
+                            <p style="color: var(--text-light); margin-top: 0.5rem;">${errorMsg}</p>
+                            <button class="btn btn-primary" data-action="retry-load-hypertension" style="margin-top: 1rem;">
+                                <i class="fas fa-sync"></i> Retry
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading hypertension data:', error);
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <h3>Error loading data</h3>
+                        <p style="color: var(--text-light); margin-top: 0.5rem;">${error.message}</p>
+                        <button class="btn btn-primary" data-action="retry-load-hypertension" style="margin-top: 1rem;">
+                            <i class="fas fa-sync"></i> Retry
+                        </button>
+                    </div>
+                `;
+            } finally {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            }
+        }
+
+        // Render functions (placeholders - will be enhanced)
+        async function renderReportsContent(summary) {
+            console.log('Fetching reports list...');
+            const reportsResult = await apiCall('/patient-analytics/reports?limit=10');
+            console.log('Reports list result:', reportsResult);
+            const reports = reportsResult?.reports || [];
+
+            return `
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="card-icon"><i class="fas fa-file-medical"></i></div>
+                        <div class="card-value">${summary?.totalReports || 0}</div>
+                        <div class="card-label">Total Reports</div>
+                    </div>
+                    <div class="summary-card green">
+                        <div class="card-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="card-value">${summary?.reviewed || 0}</div>
+                        <div class="card-label">Reviewed</div>
+                    </div>
+                    <div class="summary-card orange">
+                        <div class="card-icon"><i class="fas fa-clock"></i></div>
+                        <div class="card-value">${summary?.pendingReview || 0}</div>
+                        <div class="card-label">Pending Review</div>
+                    </div>
+                    <div class="summary-card red">
+                        <div class="card-icon"><i class="fas fa-robot"></i></div>
+                        <div class="card-value">${summary?.pendingAI || 0}</div>
+                        <div class="card-label">AI Processing</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 1rem;">Recent Reports</h3>
+                ${reports.length > 0 ? `
+                    <div class="reports-list">
+                        ${reports.map(report => renderReportCard(report)).join('')}
+                    </div>
+                ` : `
+                    <div class="empty-state">
+                        <i class="fas fa-file-upload"></i>
+                        <h3>No reports yet</h3>
+                        <p>Upload your first investigation report to get started</p>
+                        <button class="btn btn-primary" data-action="open-upload-modal" style="margin-top: 1rem;">
+                            <i class="fas fa-upload"></i> Upload Report
+                        </button>
+                    </div>
+                `}
+            `;
+        }
+
+        function renderReportCard(report) {
+            const statusColors = {
+                'UPLOADED': 'pending',
+                'AI_ANALYZING': 'analyzing',
+                'AI_ANALYZED': 'analyzed',
+                'PENDING_DOCTOR_REVIEW': 'pending',
+                'REVIEWED': 'reviewed',
+                'AI_FAILED': 'failed'
+            };
+
+            const statusLabels = {
+                'UPLOADED': 'Uploaded',
+                'AI_ANALYZING': 'AI Analyzing',
+                'AI_ANALYZED': 'AI Analyzed',
+                'PENDING_DOCTOR_REVIEW': 'Awaiting Review',
+                'REVIEWED': 'Reviewed',
+                'AI_FAILED': 'Analysis Failed'
+            };
+
+            return `
+                <div style="background: var(--bg-light); padding: 1.25rem; border-radius: 12px; margin-bottom: 1rem; cursor: pointer;" data-action="view-report" data-report-id="${report._id}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                        <div>
+                            <h4 style="margin-bottom: 0.25rem;">${report.title}</h4>
+                            <p style="color: var(--text-light); font-size: 0.9rem;">
+                                ${report.reportType.replace(/_/g, ' ')} &bull; ${new Date(report.reportDate).toLocaleDateString()}
+                            </p>
+                        </div>
+                        <span class="status-badge ${statusColors[report.status] || 'pending'}">
+                            ${statusLabels[report.status] || report.status}
+                        </span>
+                    </div>
+                    ${report.aiAnalysis?.summary ? `
+                        <p style="font-size: 0.9rem; color: var(--text-dark); margin-bottom: 0.5rem;">
+                            <i class="fas fa-robot" style="color: var(--primary);"></i>
+                            ${report.aiAnalysis.summary.substring(0, 150)}...
+                        </p>
+                    ` : report.status === 'AI_FAILED' ? `
+                        <p style="font-size: 0.9rem; color: var(--danger); margin-bottom: 0.5rem;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            ${report.aiAnalysis?.error?.message || 'AI analysis failed - click to request doctor review'}
+                        </p>
+                    ` : ''}
+                    <div style="display: flex; gap: 0.5rem;">
+                        ${report.files?.map(f => `
+                            <span style="background: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">
+                                <i class="fas ${f.mimeType === 'application/pdf' ? 'fa-file-pdf' : 'fa-file-image'}"></i>
+                            </span>
+                        `).join('') || ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function viewReport(reportId) {
+            window.location.href = AppConfig.routes.page('patient.reportDetails', { id: reportId });
+        }
+
+        function renderDiabetesContent(summary, chartData) {
+            const latest = summary?.latestReadings || {};
+
+            return `
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="card-icon"><i class="fas fa-tint"></i></div>
+                        <div class="card-value">${latest.BLOOD_SUGAR_RBS?.value || '--'}</div>
+                        <div class="card-label">Latest RBS (mg/dL)</div>
+                    </div>
+                    <div class="summary-card green">
+                        <div class="card-icon"><i class="fas fa-percentage"></i></div>
+                        <div class="card-value">${latest.HBA1C?.value || '--'}</div>
+                        <div class="card-label">Latest HbA1c (%)</div>
+                    </div>
+                    <div class="summary-card orange">
+                        <div class="card-icon"><i class="fas fa-chart-line"></i></div>
+                        <div class="card-value">${summary?.weeklyStats?.BLOOD_SUGAR_RBS?.count || 0}</div>
+                        <div class="card-label">Readings This Week</div>
+                    </div>
+                    <div class="summary-card ${(summary?.monthlyStats?.abnormalPercentage || 0) > 20 ? 'red' : ''}">
+                        <div class="card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="card-value">${summary?.monthlyStats?.abnormalPercentage || 0}%</div>
+                        <div class="card-label">Out of Range</div>
+                    </div>
+                </div>
+
+                <div style="background: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
+                    <h3 style="margin-bottom: 1rem;"><i class="fas fa-chart-line"></i> Blood Sugar Trends</h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="diabetesChart"></canvas>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <button class="btn btn-success" data-action="open-reading-modal" data-reading-type="diabetes">
+                        <i class="fas fa-plus"></i> Add Reading
+                    </button>
+                    <button class="btn btn-outline" data-action="configure-targets" data-target-type="diabetes">
+                        <i class="fas fa-bullseye"></i> Set Targets
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderHypertensionContent(summary, chartData) {
+            const latest = summary?.latestReadings || {};
+            const systolic = latest.systolic?.value || '--';
+            const diastolic = latest.diastolic?.value || '--';
+
+            return `
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="card-icon"><i class="fas fa-heartbeat"></i></div>
+                        <div class="card-value">${systolic}/${diastolic}</div>
+                        <div class="card-label">Latest BP (mmHg)</div>
+                    </div>
+                    <div class="summary-card green">
+                        <div class="card-icon"><i class="fas fa-chart-line"></i></div>
+                        <div class="card-value">${summary?.weeklyStats?.BP_SYSTOLIC?.count || 0}</div>
+                        <div class="card-label">Readings This Week</div>
+                    </div>
+                    <div class="summary-card orange">
+                        <div class="card-icon"><i class="fas fa-calculator"></i></div>
+                        <div class="card-value">${summary?.weeklyStats?.BP_SYSTOLIC?.average || '--'}</div>
+                        <div class="card-label">Avg Systolic</div>
+                    </div>
+                    <div class="summary-card ${(summary?.monthlyStats?.abnormalPercentage || 0) > 20 ? 'red' : ''}">
+                        <div class="card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="card-value">${summary?.monthlyStats?.abnormalPercentage || 0}%</div>
+                        <div class="card-label">Out of Range</div>
+                    </div>
+                </div>
+
+                <div style="background: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
+                    <h3 style="margin-bottom: 1rem;"><i class="fas fa-chart-area"></i> Blood Pressure Trends</h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="bpChart"></canvas>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <button class="btn btn-danger" data-action="open-reading-modal" data-reading-type="bp">
+                        <i class="fas fa-plus"></i> Add Reading
+                    </button>
+                    <button class="btn btn-outline" data-action="configure-targets" data-target-type="hypertension">
+                        <i class="fas fa-bullseye"></i> Set Targets
+                    </button>
+                </div>
+            `;
+        }
+
+        // Chart initialization
+        let diabetesChartInstance = null;
+        let bpChartInstance = null;
+
+        function initDiabetesCharts(data) {
+            const ctx = document.getElementById('diabetesChart')?.getContext('2d');
+            if (!ctx) {
+                console.error('Diabetes chart canvas not found');
+                return;
+            }
+
+            if (diabetesChartInstance) diabetesChartInstance.destroy();
+
+            // Combine ALL blood sugar readings from different types
+            const rbsData = data.chartData?.BLOOD_SUGAR_RBS || { readings: [] };
+            const fastingData = data.chartData?.BLOOD_SUGAR_FASTING || { readings: [] };
+            const ppData = data.chartData?.BLOOD_SUGAR_PP || { readings: [] };
+            const hba1cData = data.chartData?.HBA1C || { readings: [] };
+
+            // Combine all readings into one array with type labels
+            const allReadings = [
+                ...rbsData.readings.map(r => ({ ...r, type: 'RBS', color: '#5B8DBE' })),
+                ...fastingData.readings.map(r => ({ ...r, type: 'Fasting', color: '#28a745' })),
+                ...ppData.readings.map(r => ({ ...r, type: 'PP', color: '#ffc107' }))
+            ].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // Check if there's any data
+            if (allReadings.length === 0) {
+                // Show empty state message in chart area
+                const chartContainer = ctx.canvas.parentElement;
+                chartContainer.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: var(--text-light);">
+                        <i class="fas fa-chart-line" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                        <p style="margin-bottom: 0.5rem;">No blood sugar readings yet</p>
+                        <p style="font-size: 0.9rem;">Add your first reading to see the chart</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const target = rbsData.target || fastingData.target || { min: 70, max: 140 };
+
+            // Create datasets for each type
+            const datasets = [];
+
+            if (rbsData.readings.length > 0) {
+                datasets.push({
+                    label: 'RBS (mg/dL)',
+                    data: allReadings.map(r => r.type === 'RBS' ? r.value : null),
+                    borderColor: '#5B8DBE',
+                    backgroundColor: 'rgba(91, 141, 190, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    spanGaps: true
+                });
+            }
+
+            if (fastingData.readings.length > 0) {
+                datasets.push({
+                    label: 'Fasting (mg/dL)',
+                    data: allReadings.map(r => r.type === 'Fasting' ? r.value : null),
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    spanGaps: true
+                });
+            }
+
+            if (ppData.readings.length > 0) {
+                datasets.push({
+                    label: 'Post-Prandial (mg/dL)',
+                    data: allReadings.map(r => r.type === 'PP' ? r.value : null),
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    spanGaps: true
+                });
+            }
+
+            // Add target lines
+            datasets.push({
+                label: 'Target Max',
+                data: allReadings.map(() => target.max),
+                borderColor: 'rgba(220, 53, 69, 0.5)',
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
+            });
+            datasets.push({
+                label: 'Target Min',
+                data: allReadings.map(() => target.min),
+                borderColor: 'rgba(40, 167, 69, 0.5)',
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
+            });
+
+            diabetesChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: allReadings.map(r => new Date(r.date).toLocaleDateString()),
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            suggestedMin: 50,
+                            suggestedMax: 200
+                        }
+                    }
+                }
+            });
+        }
+
+        function initHypertensionCharts(data) {
+            const ctx = document.getElementById('bpChart')?.getContext('2d');
+            if (!ctx) {
+                console.error('BP chart canvas not found');
+                return;
+            }
+
+            if (bpChartInstance) bpChartInstance.destroy();
+
+            const combined = data.chartData?.combined || [];
+            const systolicTarget = data.chartData?.systolic?.target || { min: 90, max: 120 };
+            const diastolicTarget = data.chartData?.diastolic?.target || { min: 60, max: 80 };
+
+            // Check if there's any data
+            if (combined.length === 0) {
+                // Show empty state message in chart area
+                const chartContainer = ctx.canvas.parentElement;
+                chartContainer.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: var(--text-light);">
+                        <i class="fas fa-heartbeat" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                        <p style="margin-bottom: 0.5rem;">No blood pressure readings yet</p>
+                        <p style="font-size: 0.9rem;">Add your first BP reading to see the chart</p>
+                    </div>
+                `;
+                return;
+            }
+
+            bpChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: combined.map(r => new Date(r.date).toLocaleDateString()),
+                    datasets: [
+                        {
+                            label: 'Systolic (mmHg)',
+                            data: combined.map(r => r.systolic),
+                            borderColor: '#dc3545',
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Diastolic (mmHg)',
+                            data: combined.map(r => r.diastolic),
+                            borderColor: '#5B8DBE',
+                            backgroundColor: 'rgba(91, 141, 190, 0.1)',
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Systolic Target',
+                            data: combined.map(() => systolicTarget.max),
+                            borderColor: 'rgba(220, 53, 69, 0.3)',
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Diastolic Target',
+                            data: combined.map(() => diastolicTarget.max),
+                            borderColor: 'rgba(91, 141, 190, 0.3)',
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            suggestedMin: 40,
+                            suggestedMax: 180
+                        }
+                    }
+                }
+            });
+        }
+
+        function configureTargets(type) {
+            currentTargetType = type;
+            const modal = document.getElementById('targetModal');
+            const title = document.getElementById('targetModalTitle');
+
+            // Show/hide appropriate target fields
+            document.getElementById('diabetesTargets').style.display = type === 'diabetes' ? 'block' : 'none';
+            document.getElementById('hypertensionTargets').style.display = type === 'hypertension' ? 'block' : 'none';
+
+            // Update title
+            if (type === 'diabetes') {
+                title.innerHTML = '<i class="fas fa-bullseye"></i> Diabetes Target Configuration';
+            } else {
+                title.innerHTML = '<i class="fas fa-bullseye"></i> Blood Pressure Target Configuration';
+            }
+
+            // Load existing targets
+            loadTargets(type);
+
+            modal.classList.add('active');
+        }
+
+        function closeTargetModal() {
+            document.getElementById('targetModal').classList.remove('active');
+            currentTargetType = null;
+        }
+
+        async function loadTargets(type) {
+            try {
+                const result = await apiCall(`/patient-analytics/targets/${type}`);
+
+                if (result?.success && result.target) {
+                    populateTargetForm(type, result.target);
+                }
+            } catch (error) {
+                console.error('Error loading targets:', error);
+            }
+        }
+
+        function populateTargetForm(type, target) {
+            if (type === 'diabetes') {
+                if (target.ranges) {
+                    if (target.ranges.fasting) {
+                        document.getElementById('diabetesFastingMin').value = target.ranges.fasting.min || 70;
+                        document.getElementById('diabetesFastingMax').value = target.ranges.fasting.max || 100;
+                    }
+                    if (target.ranges.rbs) {
+                        document.getElementById('diabetesRbsMin').value = target.ranges.rbs.min || 70;
+                        document.getElementById('diabetesRbsMax').value = target.ranges.rbs.max || 140;
+                    }
+                    if (target.ranges.postPrandial) {
+                        document.getElementById('diabetesPpMin').value = target.ranges.postPrandial.min || 70;
+                        document.getElementById('diabetesPpMax').value = target.ranges.postPrandial.max || 180;
+                    }
+                    if (target.ranges.hba1c) {
+                        document.getElementById('hba1cTarget').value = target.ranges.hba1c.max || 7.0;
+                        document.getElementById('hba1cGood').value = target.ranges.hba1c.good || 6.5;
+                    }
+                }
+            } else if (type === 'hypertension') {
+                if (target.ranges) {
+                    if (target.ranges.systolic) {
+                        document.getElementById('systolicMin').value = target.ranges.systolic.min || 90;
+                        document.getElementById('systolicMax').value = target.ranges.systolic.max || 120;
+                        document.getElementById('systolicElevated').value = target.ranges.systolic.elevated || 129;
+                        document.getElementById('systolicHigh1').value = target.ranges.systolic.high1 || 139;
+                    }
+                    if (target.ranges.diastolic) {
+                        document.getElementById('diastolicMin').value = target.ranges.diastolic.min || 60;
+                        document.getElementById('diastolicMax').value = target.ranges.diastolic.max || 80;
+                        document.getElementById('diastolicHigh1').value = target.ranges.diastolic.high1 || 89;
+                        document.getElementById('diastolicHigh2').value = target.ranges.diastolic.high2 || 90;
+                    }
+                }
+            }
+
+            // Reminders
+            if (target.reminders) {
+                document.getElementById('enableReminders').checked = target.reminders.enabled || false;
+                document.getElementById('reminderTimeGroup').style.display = target.reminders.enabled ? 'block' : 'none';
+                if (target.reminders.time) {
+                    document.getElementById('reminderTime').value = target.reminders.time;
+                }
+                if (target.reminders.frequency) {
+                    document.getElementById('reminderFrequency').value = target.reminders.frequency;
+                }
+            }
+        }
+
+        async function saveTargets() {
+            const btn = document.getElementById('saveTargetBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            btn.disabled = true;
+
+            try {
+                let targetData = {
+                    trackerType: currentTargetType,
+                    ranges: {},
+                    reminders: {
+                        enabled: document.getElementById('enableReminders').checked,
+                        time: document.getElementById('reminderTime').value,
+                        frequency: document.getElementById('reminderFrequency').value
+                    }
+                };
+
+                if (currentTargetType === 'diabetes') {
+                    targetData.ranges = {
+                        fasting: {
+                            min: parseFloat(document.getElementById('diabetesFastingMin').value),
+                            max: parseFloat(document.getElementById('diabetesFastingMax').value)
+                        },
+                        rbs: {
+                            min: parseFloat(document.getElementById('diabetesRbsMin').value),
+                            max: parseFloat(document.getElementById('diabetesRbsMax').value)
+                        },
+                        postPrandial: {
+                            min: parseFloat(document.getElementById('diabetesPpMin').value),
+                            max: parseFloat(document.getElementById('diabetesPpMax').value)
+                        },
+                        hba1c: {
+                            max: parseFloat(document.getElementById('hba1cTarget').value),
+                            good: parseFloat(document.getElementById('hba1cGood').value)
+                        }
+                    };
+                } else if (currentTargetType === 'hypertension') {
+                    targetData.ranges = {
+                        systolic: {
+                            min: parseInt(document.getElementById('systolicMin').value),
+                            max: parseInt(document.getElementById('systolicMax').value),
+                            elevated: parseInt(document.getElementById('systolicElevated').value),
+                            high1: parseInt(document.getElementById('systolicHigh1').value)
+                        },
+                        diastolic: {
+                            min: parseInt(document.getElementById('diastolicMin').value),
+                            max: parseInt(document.getElementById('diastolicMax').value),
+                            high1: parseInt(document.getElementById('diastolicHigh1').value),
+                            high2: parseInt(document.getElementById('diastolicHigh2').value)
+                        }
+                    };
+                }
+
+                const result = await apiCall('/patient-analytics/targets', {
+                    method: 'POST',
+                    body: JSON.stringify(targetData)
+                });
+
+                if (result?.success) {
+                    showToast('Targets saved successfully!', 'success');
+                    closeTargetModal();
+                    // Refresh charts to reflect new targets
+                    if (currentTargetType === 'diabetes') {
+                        loadDiabetesData(); // eslint-disable-line no-undef
+                    } else {
+                        loadHypertensionData(); // eslint-disable-line no-undef
+                    }
+                } else {
+                    throw new Error(result?.error || 'Failed to save targets');
+                }
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function resetToDefaults() {
+            if (currentTargetType === 'diabetes') {
+                document.getElementById('diabetesFastingMin').value = 70;
+                document.getElementById('diabetesFastingMax').value = 100;
+                document.getElementById('diabetesRbsMin').value = 70;
+                document.getElementById('diabetesRbsMax').value = 140;
+                document.getElementById('diabetesPpMin').value = 70;
+                document.getElementById('diabetesPpMax').value = 180;
+                document.getElementById('hba1cTarget').value = 7.0;
+                document.getElementById('hba1cGood').value = 6.5;
+            } else if (currentTargetType === 'hypertension') {
+                document.getElementById('systolicMin').value = 90;
+                document.getElementById('systolicMax').value = 120;
+                document.getElementById('systolicElevated').value = 129;
+                document.getElementById('systolicHigh1').value = 139;
+                document.getElementById('diastolicMin').value = 60;
+                document.getElementById('diastolicMax').value = 80;
+                document.getElementById('diastolicHigh1').value = 89;
+                document.getElementById('diastolicHigh2').value = 90;
+            }
+            showToast('Reset to default values', 'info');
+        }
+
+        function bindUiEvents() {
+            document.getElementById('logoutBtn')?.addEventListener('click', logout);
+            document.getElementById('openUploadModalBtn')?.addEventListener('click', openUploadModal);
+            document.getElementById('closeUploadModalBtn')?.addEventListener('click', closeUploadModal);
+            document.getElementById('cancelUploadModalBtn')?.addEventListener('click', closeUploadModal);
+            document.getElementById('submitReportBtn')?.addEventListener('click', submitReport);
+            document.getElementById('closeReadingModalBtn')?.addEventListener('click', closeReadingModal);
+            document.getElementById('cancelReadingModalBtn')?.addEventListener('click', closeReadingModal);
+            document.getElementById('submitReadingBtn')?.addEventListener('click', submitReading);
+            document.getElementById('closeTargetModalBtn')?.addEventListener('click', closeTargetModal);
+            document.getElementById('cancelTargetModalBtn')?.addEventListener('click', closeTargetModal);
+            document.getElementById('resetTargetDefaultsBtn')?.addEventListener('click', resetToDefaults);
+            document.getElementById('saveTargetBtn')?.addEventListener('click', saveTargets);
+
+            document.body.addEventListener('click', function(event) {
+                const actionElement = event.target.closest('[data-action]');
+                if (!actionElement) {
+                    return;
+                }
+
+                const action = actionElement.dataset.action;
+                if (action === 'remove-file') removeFile(parseInt(actionElement.dataset.fileIndex, 10));
+                else if (action === 'retry-load-reports') loadReportsTab();
+                else if (action === 'retry-load-diabetes') loadDiabetesTab();
+                else if (action === 'retry-load-hypertension') loadHypertensionTab();
+                else if (action === 'open-upload-modal') openUploadModal();
+                else if (action === 'view-report') viewReport(actionElement.dataset.reportId);
+                else if (action === 'open-reading-modal') openReadingModal(actionElement.dataset.readingType);
+                else if (action === 'configure-targets') configureTargets(actionElement.dataset.targetType);
+            });
+        }
+
+        bindUiEvents();
+
+        // Toggle reminder time fields
+        document.getElementById('enableReminders').addEventListener('change', function() {
+            document.getElementById('reminderTimeGroup').style.display = this.checked ? 'block' : 'none';
+        });

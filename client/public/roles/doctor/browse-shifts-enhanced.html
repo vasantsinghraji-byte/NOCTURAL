@@ -439,6 +439,10 @@
             margin-bottom: 1rem;
         }
 
+        .is-hidden {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .filter-grid {
                 grid-template-columns: 1fr;
@@ -450,16 +454,18 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
 </head>
 <body>
     <nav class="navbar">
         <div class="logo">🌙 Nocturnal</div>
         <div class="nav-links">
             <a href="/roles/doctor/doctor-dashboard.html">Dashboard</a>
-            <a href="/roles/doctor/browse-duties.html" class="active">Browse Shifts</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html" class="active">Browse Shifts</a>
             <a href="/roles/doctor/calendar.html">Calendar</a>
             <a href="/roles/doctor/my-applications.html">Applications</a>
-            <a href="/roles/doctor/doctor-profile.html">Profile</a>
+            <a href="/roles/doctor/doctor-profile-enhanced.html">Profile</a>
         </div>
     </nav>
 
@@ -476,18 +482,18 @@
                     <i class="fas fa-filter"></i>
                     Filters
                 </h2>
-                <button class="btn-secondary" onclick="clearFilters()">
+                <button class="btn-secondary" id="clearFiltersTopBtn">
                     <i class="fas fa-redo"></i> Clear All
                 </button>
             </div>
 
             <!-- Quick Filters -->
             <div class="quick-filters">
-                <button class="quick-filter-btn active" data-date="all" onclick="setDateFilter('all')">All Dates</button>
-                <button class="quick-filter-btn" data-date="today" onclick="setDateFilter('today')">Today</button>
-                <button class="quick-filter-btn" data-date="tomorrow" onclick="setDateFilter('tomorrow')">Tomorrow</button>
-                <button class="quick-filter-btn" data-date="week" onclick="setDateFilter('week')">This Week</button>
-                <button class="quick-filter-btn" data-date="custom" onclick="setDateFilter('custom')">Custom Date</button>
+                <button class="quick-filter-btn active" data-date="all">All Dates</button>
+                <button class="quick-filter-btn" data-date="today">Today</button>
+                <button class="quick-filter-btn" data-date="tomorrow">Tomorrow</button>
+                <button class="quick-filter-btn" data-date="week">This Week</button>
+                <button class="quick-filter-btn" data-date="custom">Custom Date</button>
             </div>
 
             <!-- Advanced Filters -->
@@ -552,10 +558,10 @@
             </div>
 
             <div class="filter-actions">
-                <button class="btn btn-primary" onclick="applyFilters()">
+                <button class="btn btn-primary" id="applyFiltersBtn">
                     <i class="fas fa-check"></i> Apply Filters
                 </button>
-                <button class="btn btn-secondary" onclick="clearFilters()">
+                <button class="btn btn-secondary" id="clearFiltersBtn">
                     <i class="fas fa-times"></i> Clear
                 </button>
             </div>
@@ -568,7 +574,7 @@
             </div>
             <div class="sort-controls">
                 <label>Sort By:</label>
-                <select id="sortBy" onchange="applyFilters()">
+                <select id="sortBy">
                     <option value="match">Best Match</option>
                     <option value="nearest">Nearest</option>
                     <option value="highest-paid">Highest Paid</option>
@@ -582,297 +588,14 @@
             <!-- Will be populated by JavaScript -->
         </div>
 
-        <div class="no-results" id="noResults" style="display: none;">
+        <div class="no-results is-hidden" id="noResults">
             <i class="fas fa-search"></i>
             <h3>No shifts found</h3>
             <p>Try adjusting your filters to see more results</p>
         </div>
     </div>
 
-    <script>
-        // API_URL is provided by config.js
-        let allShifts = [];
-        let currentUser = null;
-
-        // Check authentication
-        function checkAuth() {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.href = '/index.html';
-                return null;
-            }
-            return token;
-        }
-
-        // Load user profile
-        async function loadUser() {
-            const token = checkAuth();
-            try {
-                const response = await fetch(AppConfig.api('auth/me'), {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await response.json();
-                if (data.success) {
-                    currentUser = data.user;
-                }
-            } catch (error) {
-                console.error('Error loading user:', error);
-            }
-        }
-
-        // Load shifts
-        async function loadShifts() {
-            const token = checkAuth();
-            try {
-                const response = await fetch(AppConfig.api('duties?status=OPEN'), {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await response.json();
-                if (data.success) {
-                    allShifts = data.duties || [];
-                    applyFilters();
-                }
-            } catch (error) {
-                console.error('Error loading shifts:', error);
-            }
-        }
-
-        // Set date filter
-        window.setDateFilter = function(filter) {
-            document.querySelectorAll('.quick-filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            if (filter !== 'custom') {
-                document.getElementById('customDateFilter').value = '';
-            }
-        };
-
-        // Apply filters
-        window.applyFilters = function() {
-            let filtered = [...allShifts];
-
-            // Specialty filter
-            const specialty = document.getElementById('specialtyFilter').value;
-            if (specialty) {
-                filtered = filtered.filter(shift => shift.specialty === specialty);
-            }
-
-            // Min pay filter
-            const minPay = document.getElementById('minPayFilter').value;
-            if (minPay) {
-                filtered = filtered.filter(shift => shift.hourlyRate >= parseInt(minPay));
-            }
-
-            // Date filters
-            const activeDate = document.querySelector('.quick-filter-btn.active').dataset.date;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            if (activeDate === 'today') {
-                filtered = filtered.filter(shift => {
-                    const shiftDate = new Date(shift.date);
-                    shiftDate.setHours(0, 0, 0, 0);
-                    return shiftDate.getTime() === today.getTime();
-                });
-            } else if (activeDate === 'tomorrow') {
-                const tomorrow = new Date(today);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                filtered = filtered.filter(shift => {
-                    const shiftDate = new Date(shift.date);
-                    shiftDate.setHours(0, 0, 0, 0);
-                    return shiftDate.getTime() === tomorrow.getTime();
-                });
-            } else if (activeDate === 'week') {
-                const weekEnd = new Date(today);
-                weekEnd.setDate(weekEnd.getDate() + 7);
-                filtered = filtered.filter(shift => {
-                    const shiftDate = new Date(shift.date);
-                    return shiftDate >= today && shiftDate <= weekEnd;
-                });
-            }
-
-            // Custom date
-            const customDate = document.getElementById('customDateFilter').value;
-            if (customDate) {
-                const targetDate = new Date(customDate);
-                targetDate.setHours(0, 0, 0, 0);
-                filtered = filtered.filter(shift => {
-                    const shiftDate = new Date(shift.date);
-                    shiftDate.setHours(0, 0, 0, 0);
-                    return shiftDate.getTime() === targetDate.getTime();
-                });
-            }
-
-            // Sort
-            const sortBy = document.getElementById('sortBy').value;
-            if (sortBy === 'highest-paid') {
-                filtered.sort((a, b) => b.hourlyRate - a.hourlyRate);
-            } else if (sortBy === 'date') {
-                filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
-            } else if (sortBy === 'urgent') {
-                filtered.sort((a, b) => {
-                    const urgencyOrder = { EMERGENCY: 0, URGENT: 1, NORMAL: 2 };
-                    return (urgencyOrder[a.urgency] || 2) - (urgencyOrder[b.urgency] || 2);
-                });
-            }
-
-            displayShifts(filtered);
-        };
-
-        // Display shifts
-        function displayShifts(shifts) {
-            const grid = document.getElementById('shiftsGrid');
-            const noResults = document.getElementById('noResults');
-            const resultsCount = document.getElementById('resultsCount');
-
-            resultsCount.textContent = shifts.length;
-
-            if (shifts.length === 0) {
-                grid.style.display = 'none';
-                noResults.style.display = 'block';
-                return;
-            }
-
-            grid.style.display = 'grid';
-            noResults.style.display = 'none';
-
-            grid.innerHTML = shifts.map(shift => {
-                const date = new Date(shift.date);
-                const matchScore = Math.floor(Math.random() * 30) + 70; // Mock match score
-                const spotsLeft = (shift.positionsNeeded || 1) - (shift.positionsFilled || 0);
-
-                let matchClass = 'match-fair';
-                let matchLabel = 'Fair Match';
-                if (matchScore >= 90) {
-                    matchClass = 'match-excellent';
-                    matchLabel = `${matchScore}% Match`;
-                } else if (matchScore >= 75) {
-                    matchClass = 'match-good';
-                    matchLabel = `${matchScore}% Match`;
-                }
-
-                return `
-                    <div class="shift-card ${shift.urgency === 'URGENT' || shift.urgency === 'EMERGENCY' ? 'urgent' : ''} ${matchScore >= 90 ? 'high-match' : ''}"
-                         onclick="viewShift('${shift._id}')">
-                        <div class="shift-header">
-                            <div class="hospital-info">
-                                <div class="hospital-name">${shift.hospitalName || shift.hospital}</div>
-                                <div class="hospital-rating">
-                                    <span class="stars">⭐ 4.8</span>
-                                    <span>• 📍 2.3 km away</span>
-                                </div>
-                            </div>
-                            <div class="match-badge ${matchClass}">${matchLabel}</div>
-                        </div>
-
-                        <div class="specialty-badge">
-                            <i class="fas fa-stethoscope"></i> ${shift.specialty}
-                        </div>
-
-                        <div class="shift-details">
-                            <div class="detail-row">
-                                <i class="fas fa-calendar"></i>
-                                <span>${date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                            </div>
-                            <div class="detail-row">
-                                <i class="fas fa-clock"></i>
-                                <span>${shift.startTime} - ${shift.endTime} (${shift.duration || 12} hours)</span>
-                            </div>
-                            <div class="detail-row">
-                                <i class="fas fa-map-marker-alt"></i>
-                                <span>${shift.location}</span>
-                            </div>
-                        </div>
-
-                        <div class="compensation">
-                            <div class="comp-rate">₹${shift.hourlyRate.toLocaleString()}/hr</div>
-                            <div class="comp-total">Total: ₹${(shift.totalCompensation || shift.hourlyRate * 12).toLocaleString()}</div>
-                        </div>
-
-                        <div class="perks">
-                            ${shift.facilities?.mealsProvided?.dinner ? '<span class="perk-tag"><i class="fas fa-utensils"></i> Meals</span>' : ''}
-                            ${shift.facilities?.parking ? '<span class="perk-tag"><i class="fas fa-parking"></i> Parking</span>' : ''}
-                            <span class="perk-tag"><i class="fas fa-check"></i> Instant Confirm</span>
-                        </div>
-
-                        <div class="shift-footer">
-                            <div>
-                                ${shift.urgency === 'URGENT' ? '<span class="urgency-tag urgent-tag"><i class="fas fa-exclamation-triangle"></i> Urgent</span>' : ''}
-                                ${shift.urgency === 'EMERGENCY' ? '<span class="urgency-tag emergency-tag"><i class="fas fa-ambulance"></i> Emergency</span>' : ''}
-                                ${spotsLeft <= 2 && spotsLeft > 0 ? `<span class="spots-left">🔥 ${spotsLeft} spot${spotsLeft > 1 ? 's' : ''} left</span>` : ''}
-                            </div>
-                            <button class="btn-apply" onclick="event.stopPropagation(); applyForShift('${shift._id}')">
-                                <i class="fas fa-paper-plane"></i> Quick Apply
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // View shift details
-        window.viewShift = function(shiftId) {
-            window.location.href = `duty-details.html?id=${shiftId}`;
-        };
-
-        // Apply for shift
-        window.applyForShift = async function(dutyId) {
-            const token = checkAuth();
-            if (!token) return;
-
-            try {
-                const response = await fetch(AppConfig.api('applications'), {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        dutyId,
-                        coverLetter: 'I am interested in this position and believe I am a great fit.'
-                    })
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    alert('Application submitted successfully!');
-                } else {
-                    alert(data.message || 'Failed to apply');
-                }
-            } catch (error) {
-                console.error('Apply error:', error);
-                alert('Error submitting application');
-            }
-        };
-
-        // Clear filters
-        window.clearFilters = function() {
-            document.getElementById('specialtyFilter').value = '';
-            document.getElementById('timeFilter').value = '';
-            document.getElementById('distanceFilter').value = '';
-            document.getElementById('minPayFilter').value = '';
-            document.getElementById('ratingFilter').value = '';
-            document.getElementById('customDateFilter').value = '';
-            document.getElementById('sortBy').value = 'match';
-
-            document.querySelectorAll('.quick-filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.date === 'all') {
-                    btn.classList.add('active');
-                }
-            });
-
-            applyFilters();
-        };
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', async () => {
-            await loadUser();
-            await loadShifts();
-        });
-    </script>
+    <script src="/js/doctor-browse-shifts-enhanced.js"></script>
     <script src="/js/auto-inject-nav.js"></script>
 </body>
 </html>

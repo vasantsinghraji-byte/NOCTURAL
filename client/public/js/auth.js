@@ -19,23 +19,48 @@ class AuthService {
             return AppConfig.fetch(normalizedEndpoint, options);
         }
 
-        return fetch(this.buildApiUrl(normalizedEndpoint), options);
+        const requestOptions = { ...options };
+        const shouldParseJson = requestOptions.parseJson === true;
+        const shouldParseText = requestOptions.parseText === true;
+
+        delete requestOptions.parseJson;
+        delete requestOptions.parseText;
+
+        return fetch(this.buildApiUrl(normalizedEndpoint), requestOptions).then(async (response) => {
+            if (!shouldParseJson) {
+                if (!shouldParseText) {
+                    return response;
+                }
+
+                const text = await response.text();
+
+                if (!response.ok) {
+                    throw new Error(text || 'Request failed');
+                }
+
+                return text;
+            }
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error((data && data.message) || 'Request failed');
+            }
+
+            return data;
+        });
     }
 
     static async login(email, password) {
         try {
-            const response = await this.request('auth/login', {
+            const data = await this.request('auth/login', {
                 method: 'POST',
+                skipAuth: true,
+                parseJson: true,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
                 credentials: 'include' // For secure cookies
             });
-
-            if (!response.ok) {
-                throw new Error('Login failed');
-            }
-
-            const data = await response.json();
             this.setSession(data);
             return data;
         } catch (error) {
@@ -46,18 +71,14 @@ class AuthService {
 
     static async register(userData) {
         try {
-            const response = await this.request('auth/register', {
+            const data = await this.request('auth/register', {
                 method: 'POST',
+                skipAuth: true,
+                parseJson: true,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(userData),
                 credentials: 'include'
             });
-
-            if (!response.ok) {
-                throw new Error('Registration failed');
-            }
-
-            const data = await response.json();
             this.setSession(data);
             return data;
         } catch (error) {

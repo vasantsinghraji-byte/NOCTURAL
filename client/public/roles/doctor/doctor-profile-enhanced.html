@@ -172,6 +172,10 @@
             transition: width 0.3s;
         }
 
+        .strength-fill-empty {
+            width: 0%;
+        }
+
         .profile-stats {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -351,6 +355,10 @@
             gap: 1.5rem;
         }
 
+        .form-grid-spaced {
+            margin-top: 1.5rem;
+        }
+
         .form-group {
             display: flex;
             flex-direction: column;
@@ -454,6 +462,14 @@
             transform: translateY(-2px);
         }
 
+        .btn-save-spaced {
+            margin-top: 1.5rem;
+        }
+
+        .is-hidden {
+            display: none;
+        }
+
         @media (max-width: 1024px) {
             .profile-grid {
                 grid-template-columns: 1fr;
@@ -465,16 +481,18 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
 </head>
 <body>
     <nav class="navbar">
         <div class="logo">🌙 Nocturnal</div>
         <div class="nav-links">
             <a href="/roles/doctor/doctor-dashboard.html">Dashboard</a>
-            <a href="/roles/doctor/browse-duties.html">Browse Duties</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html">Browse Duties</a>
             <a href="/roles/doctor/calendar.html">Calendar</a>
             <a href="/roles/doctor/earnings.html">Earnings</a>
-            <a href="/roles/doctor/doctor-profile.html" class="active">Profile</a>
+            <a href="/roles/doctor/doctor-profile-enhanced.html" class="active">Profile</a>
         </div>
     </nav>
 
@@ -505,7 +523,7 @@
                             <span id="strengthValue">0%</span>
                         </div>
                         <div class="strength-bar">
-                            <div class="strength-fill" id="strengthFill" style="width: 0%"></div>
+                            <div class="strength-fill strength-fill-empty" id="strengthFill"></div>
                         </div>
                     </div>
 
@@ -543,7 +561,7 @@
                             <i class="fas fa-stethoscope"></i>
                             Professional Details
                         </h2>
-                        <button class="btn-edit" onclick="toggleEdit('professional')">
+                        <button class="btn-edit" data-section="professional">
                             <i class="fas fa-edit"></i> Edit
                         </button>
                     </div>
@@ -571,7 +589,7 @@
                                 <input type="text" id="employmentStatus" class="form-control" disabled>
                             </div>
                         </div>
-                        <button type="submit" class="btn-save" style="display: none; margin-top: 1.5rem;">
+                        <button type="submit" class="btn-save btn-save-spaced is-hidden">
                             <i class="fas fa-save"></i> Save Changes
                         </button>
                     </form>
@@ -602,7 +620,7 @@
                         <!-- Will be populated by JavaScript -->
                     </div>
 
-                    <div class="form-grid" style="margin-top: 1.5rem;">
+                    <div class="form-grid form-grid-spaced">
                         <div class="form-group">
                             <label>Service Radius</label>
                             <input type="text" id="serviceRadius" class="form-control" disabled>
@@ -621,7 +639,7 @@
                             <i class="fas fa-university"></i>
                             Bank Account Details
                         </h2>
-                        <button class="btn-edit" onclick="toggleEdit('bank')">
+                        <button class="btn-edit" data-section="bank">
                             <i class="fas fa-edit"></i> Edit
                         </button>
                     </div>
@@ -645,7 +663,7 @@
                                 <input type="text" id="bankName" class="form-control" disabled>
                             </div>
                         </div>
-                        <button type="submit" class="btn-save" style="display: none; margin-top: 1.5rem;">
+                        <button type="submit" class="btn-save btn-save-spaced is-hidden">
                             <i class="fas fa-save"></i> Save Changes
                         </button>
                     </form>
@@ -654,282 +672,7 @@
         </div>
     </div>
 
-    <script>
-        // API_URL is provided by config.js
-        let currentUser = null;
-
-        // Check authentication
-        function checkAuth() {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.href = '/index.html';
-                return null;
-            }
-            return token;
-        }
-
-        // Load profile data
-        async function loadProfile() {
-            const token = checkAuth();
-            if (!token) return;
-
-            try {
-                const response = await fetch(AppConfig.api('auth/me'), {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    currentUser = data.user;
-                    displayProfile(currentUser);
-                }
-            } catch (error) {
-                console.error('Error loading profile:', error);
-                showAlert('Error loading profile', 'danger');
-            }
-        }
-
-        // Display profile data
-        function displayProfile(user) {
-            // Profile photo
-            if (user.profilePhoto && user.profilePhoto.url) {
-                document.getElementById('profilePhoto').innerHTML = `<img src="${API_URL.replace('/api', '')}${user.profilePhoto.url}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
-            }
-
-            // Basic info
-            document.getElementById('profileName').textContent = user.name;
-            document.getElementById('profileSpecialty').textContent = user.professional?.primarySpecialization || 'Medical Professional';
-
-            // Profile strength
-            const strength = user.profileStrength || 0;
-            document.getElementById('strengthValue').textContent = `${strength}%`;
-            document.getElementById('strengthFill').style.width = `${strength}%`;
-
-            // Stats
-            document.getElementById('statRating').textContent = (user.rating || 0).toFixed(1);
-            document.getElementById('statShifts').textContent = user.completedDuties || 0;
-            document.getElementById('statRate').textContent = `${user.completionRate || 100}%`;
-
-            // Professional details
-            if (user.professional) {
-                document.getElementById('mciNumber').value = user.professional.mciNumber || '';
-                document.getElementById('stateMedicalCouncil').value = user.professional.stateMedicalCouncil || '';
-                document.getElementById('primarySpecialization').value = user.professional.primarySpecialization || '';
-                document.getElementById('yearsOfExperience').value = user.professional.yearsOfExperience || '';
-                document.getElementById('employmentStatus').value = user.professional.currentEmploymentStatus || '';
-                document.getElementById('serviceRadius').value = user.professional.serviceRadius ? `${user.professional.serviceRadius} km` : '';
-                document.getElementById('minimumRate').value = user.professional.minimumRate ? `₹${user.professional.minimumRate}` : '';
-
-                // Skills
-                const skillsGrid = document.getElementById('skillsGrid');
-                skillsGrid.innerHTML = '';
-                if (user.professional.proceduralSkills && user.professional.proceduralSkills.length > 0) {
-                    user.professional.proceduralSkills.forEach(skill => {
-                        skillsGrid.innerHTML += `
-                            <div class="skill-tag">
-                                <i class="fas fa-check-circle"></i>
-                                ${skill}
-                            </div>
-                        `;
-                    });
-                } else {
-                    skillsGrid.innerHTML = '<p style="color: #666;">No skills added yet</p>';
-                }
-
-                // Preferences
-                const preferencesGrid = document.getElementById('preferencesGrid');
-                preferencesGrid.innerHTML = '';
-                if (user.professional.preferredShiftTimes && user.professional.preferredShiftTimes.length > 0) {
-                    user.professional.preferredShiftTimes.forEach(time => {
-                        preferencesGrid.innerHTML += `<div class="preference-chip">${time}</div>`;
-                    });
-                } else {
-                    preferencesGrid.innerHTML = '<p style="color: #666;">No preferences set</p>';
-                }
-            }
-
-            // Bank details
-            if (user.bankDetails) {
-                document.getElementById('accountHolderName').value = user.bankDetails.accountHolderName || '';
-                document.getElementById('accountNumber').value = user.bankDetails.accountNumber || '';
-                document.getElementById('ifscCode').value = user.bankDetails.ifscCode || '';
-                document.getElementById('bankName').value = user.bankDetails.bankName || '';
-            }
-
-            // Documents
-            displayDocuments(user);
-        }
-
-        // Display documents
-        function displayDocuments(user) {
-            const documentsList = document.getElementById('documentsList');
-            const documents = [
-                {
-                    name: 'MCI Certificate',
-                    key: 'mciCertificate',
-                    icon: 'fa-certificate',
-                    data: user.documents?.mciCertificate
-                },
-                {
-                    name: 'Photo ID',
-                    key: 'photoId',
-                    icon: 'fa-id-card',
-                    data: user.documents?.photoId
-                },
-                {
-                    name: 'MBBS Degree',
-                    key: 'mbbsDegree',
-                    icon: 'fa-graduation-cap',
-                    data: user.documents?.mbbsDegree
-                }
-            ];
-
-            documentsList.innerHTML = '';
-            documents.forEach(doc => {
-                const hasDocument = doc.data && doc.data.url;
-                const isVerified = doc.data && doc.data.verified;
-
-                let statusHTML = '';
-                let statusClass = '';
-                if (hasDocument) {
-                    if (isVerified) {
-                        statusHTML = '<i class="fas fa-check-circle"></i> Verified';
-                        statusClass = 'status-verified';
-                    } else {
-                        statusHTML = '<i class="fas fa-clock"></i> Pending Verification';
-                        statusClass = 'status-pending';
-                    }
-                } else {
-                    statusHTML = '<i class="fas fa-exclamation-circle"></i> Not Uploaded';
-                    statusClass = 'status-missing';
-                }
-
-                documentsList.innerHTML += `
-                    <div class="document-item">
-                        <div class="document-info">
-                            <div class="document-icon">
-                                <i class="fas ${doc.icon}"></i>
-                            </div>
-                            <div class="document-details">
-                                <div class="document-name">${doc.name}</div>
-                                <div class="document-status ${statusClass}">${statusHTML}</div>
-                            </div>
-                        </div>
-                        <div class="document-actions">
-                            ${hasDocument ? `
-                                <button class="btn-icon btn-view" onclick="viewDocument('${doc.data.url}')" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            ` : ''}
-                            <button class="btn-icon btn-upload" onclick="uploadDocument('${doc.key}')" title="${hasDocument ? 'Replace' : 'Upload'}">
-                                <i class="fas fa-upload"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        // Upload profile photo
-        document.getElementById('photoInput').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const token = checkAuth();
-            const formData = new FormData();
-            formData.append('profilePhoto', file);
-
-            try {
-                const response = await fetch(AppConfig.api('uploads/profile-photo'), {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    showAlert('Profile photo updated successfully!', 'success');
-                    loadProfile();
-                } else {
-                    showAlert(data.message || 'Upload failed', 'danger');
-                }
-            } catch (error) {
-                console.error('Upload error:', error);
-                showAlert('Error uploading photo', 'danger');
-            }
-        });
-
-        // Upload document
-        window.uploadDocument = function(docType) {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.jpg,.jpeg,.png,.pdf';
-            input.onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const token = checkAuth();
-                const formData = new FormData();
-                formData.append(docType, file);
-
-                let endpoint = '';
-                if (docType === 'mciCertificate') endpoint = '/uploads/mci-certificate';
-                else if (docType === 'photoId') endpoint = '/uploads/photo-id';
-                else if (docType === 'mbbsDegree') endpoint = '/uploads/mbbs-degree';
-
-                try {
-                    const response = await fetch(`${API_URL}${endpoint}`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` },
-                        body: formData
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        showAlert('Document uploaded successfully!', 'success');
-                        loadProfile();
-                    } else {
-                        showAlert(data.message || 'Upload failed', 'danger');
-                    }
-                } catch (error) {
-                    console.error('Upload error:', error);
-                    showAlert('Error uploading document', 'danger');
-                }
-            };
-            input.click();
-        };
-
-        // View document
-        window.viewDocument = function(url) {
-            window.open(API_URL.replace('/api', '') + url, '_blank');
-        };
-
-        // Toggle edit mode
-        window.toggleEdit = function(section) {
-            const form = document.getElementById(`${section}Form`);
-            const inputs = form.querySelectorAll('.form-control');
-            const saveBtn = form.querySelector('.btn-save');
-
-            inputs.forEach(input => {
-                input.disabled = !input.disabled;
-            });
-
-            saveBtn.style.display = saveBtn.style.display === 'none' ? 'block' : 'none';
-        };
-
-        // Show alert
-        function showAlert(message, type) {
-            const alert = document.getElementById('alert');
-            alert.className = `alert alert-${type} show`;
-            alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`;
-            setTimeout(() => {
-                alert.classList.remove('show');
-            }, 5000);
-        }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', loadProfile);
-    </script>
+    <script src="/js/doctor-profile-enhanced.js"></script>
     <script src="/js/auto-inject-nav.js"></script>
 </body>
 </html>

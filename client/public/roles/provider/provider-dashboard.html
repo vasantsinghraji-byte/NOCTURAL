@@ -319,6 +319,8 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/provider-session.js"></script>
 </head>
 <body>
     <div class="header">
@@ -327,7 +329,7 @@
                 <h2 id="providerName">Provider</h2>
                 <div class="provider-role" id="providerRole">Healthcare Professional</div>
             </div>
-            <button class="btn-logout" onclick="logout()">Logout</button>
+            <button class="btn-logout" id="logoutButton" type="button">Logout</button>
         </div>
     </div>
 
@@ -351,11 +353,11 @@
         </div>
 
         <div class="tabs">
-            <button class="tab active" data-status="ASSIGNED" onclick="filterBookings('ASSIGNED')">New</button>
-            <button class="tab" data-status="CONFIRMED" onclick="filterBookings('CONFIRMED')">Confirmed</button>
-            <button class="tab" data-status="EN_ROUTE" onclick="filterBookings('EN_ROUTE')">En Route</button>
-            <button class="tab" data-status="IN_PROGRESS" onclick="filterBookings('IN_PROGRESS')">In Progress</button>
-            <button class="tab" data-status="COMPLETED" onclick="filterBookings('COMPLETED')">Completed</button>
+            <button class="tab active" data-status="ASSIGNED" type="button">New</button>
+            <button class="tab" data-status="CONFIRMED" type="button">Confirmed</button>
+            <button class="tab" data-status="EN_ROUTE" type="button">En Route</button>
+            <button class="tab" data-status="IN_PROGRESS" type="button">In Progress</button>
+            <button class="tab" data-status="COMPLETED" type="button">Completed</button>
         </div>
 
         <div id="messageDiv"></div>
@@ -370,287 +372,8 @@
             <span class="nav-icon">🏠</span>
             <div class="nav-label">Home</div>
         </div>
-        <div class="nav-item" onclick="window.location.href='provider-history.html'">
-            <span class="nav-icon">📊</span>
-            <div class="nav-label">History</div>
-        </div>
-        <div class="nav-item" onclick="window.location.href='provider-earnings.html'">
-            <span class="nav-icon">💰</span>
-            <div class="nav-label">Earnings</div>
-        </div>
-        <div class="nav-item" onclick="window.location.href='provider-profile.html'">
-            <span class="nav-icon">👤</span>
-            <div class="nav-label">Profile</div>
-        </div>
     </div>
 
-    <script>
-        // API_URL is provided by config.js
-        const token = localStorage.getItem('providerToken');
-        let allBookings = [];
-        let currentStatus = 'ASSIGNED';
-
-        if (!token) {
-            window.location.href = 'provider-login.html';
-        }
-
-        const provider = JSON.parse(localStorage.getItem('provider') || '{}');
-        if (provider.name) {
-            document.getElementById('providerName').textContent = provider.name;
-            document.getElementById('providerRole').textContent =
-                provider.role.charAt(0).toUpperCase() + provider.role.slice(1);
-        }
-
-        async function loadBookings() {
-            try {
-                const response = await fetch(AppConfig.api('bookings/provider/me'), {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                const data = await response.json();
-
-                if (data.success && data.data) {
-                    allBookings = data.data;
-                    updateStats();
-                    displayBookings(currentStatus);
-                } else {
-                    throw new Error(data.message || 'Failed to load bookings');
-                }
-            } catch (error) {
-                console.error('Error loading bookings:', error);
-                document.getElementById('bookingsList').innerHTML =
-                    '<div class="empty-state"><div class="empty-state-icon">😕</div>' +
-                    '<h3>Failed to load bookings</h3><p>Please try again later</p></div>';
-            }
-        }
-
-        function updateStats() {
-            const today = new Date().toDateString();
-            const todayBookings = allBookings.filter(b =>
-                new Date(b.scheduledDate).toDateString() === today
-            );
-            const completedToday = todayBookings.filter(b => b.status === 'COMPLETED');
-            const earnings = completedToday.reduce((sum, b) =>
-                sum + (b.providerEarnings || b.pricing.basePrice * 0.7), 0
-            );
-
-            document.getElementById('todayBookings').textContent = todayBookings.length;
-            document.getElementById('completedToday').textContent = completedToday.length;
-            document.getElementById('todayEarnings').textContent = `₹${earnings.toFixed(0)}`;
-        }
-
-        function filterBookings(status) {
-            currentStatus = status;
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.toggle('active', tab.dataset.status === status);
-            });
-            displayBookings(status);
-        }
-
-        function displayBookings(status) {
-            const filtered = allBookings.filter(b => b.status === status);
-            const list = document.getElementById('bookingsList');
-
-            if (filtered.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📭</div>
-                        <h3>No ${status.toLowerCase().replace('_', ' ')} bookings</h3>
-                        <p>You're all caught up!</p>
-                    </div>
-                `;
-                return;
-            }
-
-            list.innerHTML = filtered.map(booking => `
-                <div class="booking-card">
-                    <div class="booking-header">
-                        <div>
-                            <div class="service-type">${formatServiceType(booking.serviceType)}</div>
-                            <div class="booking-id">ID: ${booking._id.substr(-8)}</div>
-                        </div>
-                        <span class="status-badge ${booking.status.toLowerCase()}">${booking.status}</span>
-                    </div>
-
-                    <div class="booking-details">
-                        <div class="detail-row">
-                            <span class="detail-label">📅 Date</span>
-                            <span class="detail-value">${new Date(booking.scheduledDate).toLocaleDateString()}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">⏰ Time</span>
-                            <span class="detail-value">${booking.scheduledTime}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">👤 Patient</span>
-                            <span class="detail-value">${booking.patientDetails.name}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">📍 Location</span>
-                            <span class="detail-value">${booking.serviceLocation.city}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">💰 Amount</span>
-                            <span class="detail-value">₹${booking.pricing.payableAmount.toFixed(2)}</span>
-                        </div>
-                    </div>
-
-                    <div class="booking-actions">
-                        ${getActionButtons(booking)}
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function getActionButtons(booking) {
-            const buttons = [];
-
-            if (booking.status === 'ASSIGNED') {
-                buttons.push(`
-                    <button class="btn btn-success" onclick="confirmBooking('${booking._id}')">
-                        ✓ Accept
-                    </button>
-                `);
-            }
-
-            if (booking.status === 'CONFIRMED') {
-                buttons.push(`
-                    <button class="btn btn-info" onclick="markEnRoute('${booking._id}')">
-                        🚗 Start Journey
-                    </button>
-                `);
-            }
-
-            if (booking.status === 'EN_ROUTE') {
-                buttons.push(`
-                    <button class="btn btn-primary" onclick="startService('${booking._id}')">
-                        ▶️ Start Service
-                    </button>
-                `);
-            }
-
-            if (booking.status === 'IN_PROGRESS') {
-                buttons.push(`
-                    <button class="btn btn-success" onclick="completeService('${booking._id}')">
-                        ✅ Complete
-                    </button>
-                `);
-            }
-
-            buttons.push(`
-                <button class="btn btn-outline" onclick="viewDetails('${booking._id}')">
-                    👁️ View
-                </button>
-            `);
-
-            return buttons.join('');
-        }
-
-        function formatServiceType(type) {
-            return type.split('_').map(word =>
-                word.charAt(0) + word.slice(1).toLowerCase()
-            ).join(' ');
-        }
-
-        async function confirmBooking(bookingId) {
-            if (!confirm('Accept this booking?')) return;
-
-            try {
-                const response = await fetch(AppConfig.api(`bookings/${bookingId}/confirm`), {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showMessage('Booking confirmed!', 'success');
-                    loadBookings();
-                } else {
-                    throw new Error(data.message);
-                }
-            } catch (error) {
-                showMessage(error.message, 'error');
-            }
-        }
-
-        async function markEnRoute(bookingId) {
-            try {
-                const response = await fetch(AppConfig.api(`bookings/${bookingId}/en-route`), {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showMessage('Status updated to En Route', 'success');
-                    loadBookings();
-                } else {
-                    throw new Error(data.message);
-                }
-            } catch (error) {
-                showMessage(error.message, 'error');
-            }
-        }
-
-        async function startService(bookingId) {
-            try {
-                const response = await fetch(AppConfig.api(`bookings/${bookingId}/start`), {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showMessage('Service started!', 'success');
-                    loadBookings();
-                } else {
-                    throw new Error(data.message);
-                }
-            } catch (error) {
-                showMessage(error.message, 'error');
-            }
-        }
-
-        function completeService(bookingId) {
-            localStorage.setItem('completeBookingId', bookingId);
-            window.location.href = 'provider-complete.html';
-        }
-
-        function viewDetails(bookingId) {
-            window.location.href = `provider-booking-details.html?id=${bookingId}`;
-        }
-
-        function showMessage(text, type) {
-            const messageDiv = document.getElementById('messageDiv');
-            messageDiv.innerHTML = `<div class="message ${type}">${text}</div>`;
-            setTimeout(() => {
-                messageDiv.innerHTML = '';
-            }, 5000);
-        }
-
-        function logout() {
-            localStorage.removeItem('providerToken');
-            localStorage.removeItem('provider');
-            window.location.href = 'provider-login.html';
-        }
-
-        // Auto-refresh every 30 seconds
-        setInterval(loadBookings, 30000);
-
-        // Initialize
-        loadBookings();
-    </script>
+    <script src="/js/provider-dashboard.js"></script>
 </body>
 </html>

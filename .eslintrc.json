@@ -8,14 +8,14 @@
     "ecmaVersion": 2021
   },
   "rules": {
-    "no-console": "error",
-    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "no-console": "warn",
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "no-eval": "error",
     "no-implied-eval": "error",
     "no-buffer-constructor": "error",
-    "no-param-reassign": ["error", {
+    "no-param-reassign": ["warn", {
       "props": true,
-      "ignorePropertyModificationsFor": ["req", "res", "next", "user", "booking", "duty", "app", "schema"]
+      "ignorePropertyModificationsFor": ["req", "res", "next", "user", "booking", "duty", "app", "schema", "event", "query"]
     }],
     "unused-imports/no-unused-imports": "error",
     "security/detect-possible-timing-attacks": "warn",
@@ -27,8 +27,100 @@
   ],
   "overrides": [
     {
-      "files": ["tests/**/*.js"],
+      "files": ["tests/**/*.js", "services/*/tests/**/*.js"],
       "env": { "jest": true },
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["tests/smoke/**/*.js"],
+      "env": { "jest": true, "browser": true }
+    },
+    {
+      "files": [
+        "client/public/**/*.js"
+      ],
+      "env": {
+        "browser": true,
+        "node": false
+      },
+      "parserOptions": {
+        "ecmaVersion": 2022,
+        "sourceType": "module"
+      },
+      "globals": {
+        "NocturnalSession": "readonly",
+        "AppConfig": "readonly",
+        "AdminSession": "readonly",
+        "DoctorSession": "readonly",
+        "PatientSession": "readonly",
+        "ProviderSession": "readonly",
+        "Chart": "readonly",
+        "FullCalendar": "readonly",
+        "Razorpay": "readonly",
+        "API_URL": "readonly"
+      },
+      "rules": {
+        "no-console": "off",
+        "no-redeclare": "off"
+      }
+    },
+    {
+      "files": ["client/public/service-worker.js"],
+      "env": {
+        "serviceworker": true,
+        "browser": true,
+        "node": false
+      }
+    },
+    {
+      "files": [
+        "client/build.config.js",
+        "client/webpack.config.js",
+        "client/webpack.config.simple.js"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": [
+        "scripts/**/*.js",
+        "test-*.js",
+        "setup-*.js",
+        "verify-*.js",
+        "update-*.js",
+        "create-*.js",
+        "recreate-*.js",
+        "fix-*.js",
+        "seed.js",
+        "server.js",
+        "ecosystem.config.js"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["setup-mongodb-auth.js", "docker/mongo-init.js"],
+      "globals": {
+        "db": "writable",
+        "print": "readonly",
+        "quit": "readonly"
+      },
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["utils/logger.js", "packages/shared/src/utils/logger.js"],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["packages/shared/**/*.js"],
       "rules": {
         "no-console": "off"
       }

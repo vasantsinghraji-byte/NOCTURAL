@@ -140,10 +140,17 @@ const showToast = (message, type = 'info', duration = 4000) => {
     toast.innerHTML = `
         <span style="font-size:1.2rem">${icons[type] || icons.info}</span>
         <span>${message}</span>
-        <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+        <button type="button" class="toast-close">&times;</button>
     `;
 
     container.appendChild(toast);
+
+    const closeButton = toast.querySelector('.toast-close');
+    if (closeButton) {
+        closeButton.addEventListener('click', () => {
+            toast.remove();
+        });
+    }
 
     setTimeout(() => {
         toast.style.animation = 'slideOut 0.3s ease-out forwards';
@@ -220,7 +227,7 @@ const handleApiError = (error, showNotification = true) => {
             message = 'Session expired. Please login again.';
             setTimeout(() => {
                 localStorage.removeItem('token');
-                window.location.href = 'index.html';
+                window.location.href = AppConfig.routes.page('home');
             }, 2000);
         } else if (status === 403) {
             message = 'You do not have permission to perform this action.';
@@ -309,9 +316,29 @@ const confirmDialog = (message, title = 'Confirm') => {
         `;
         document.body.appendChild(overlay);
 
-        overlay.querySelector('#confirm-cancel').onclick = () => { overlay.remove(); resolve(false); };
-        overlay.querySelector('#confirm-ok').onclick = () => { overlay.remove(); resolve(true); };
-        overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(false); } };
+        const cancelButton = overlay.querySelector('#confirm-cancel');
+        const confirmButton = overlay.querySelector('#confirm-ok');
+
+        if (cancelButton) {
+            cancelButton.addEventListener('click', () => {
+                overlay.remove();
+                resolve(false);
+            });
+        }
+
+        if (confirmButton) {
+            confirmButton.addEventListener('click', () => {
+                overlay.remove();
+                resolve(true);
+            });
+        }
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.remove();
+                resolve(false);
+            }
+        });
     });
 };
 

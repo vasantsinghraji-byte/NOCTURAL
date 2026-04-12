@@ -6,6 +6,14 @@
 (function() {
   'use strict';
 
+  function getPageRoute(pathKey, fallbackPath) {
+    if (typeof AppConfig !== 'undefined' && AppConfig.routes && typeof AppConfig.routes.page === 'function') {
+      return AppConfig.routes.page(pathKey);
+    }
+
+    return fallbackPath;
+  }
+
   /**
    * Add preconnect hint for external domains
    */
@@ -84,9 +92,9 @@
     link.rel = 'stylesheet';
     link.href = href;
     link.media = 'print'; // Load as print stylesheet initially
-    link.onload = function() {
+    link.addEventListener('load', function() {
       this.media = media; // Switch to target media once loaded
-    };
+    });
 
     document.head.appendChild(link);
 
@@ -107,8 +115,8 @@
       if (async) script.async = true;
       if (defer) script.defer = true;
 
-      script.onload = () => resolve(script);
-      script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+      script.addEventListener('load', () => resolve(script));
+      script.addEventListener('error', () => reject(new Error(`Failed to load script: ${src}`)));
 
       document.body.appendChild(script);
     });
@@ -162,10 +170,10 @@
     const currentPath = window.location.pathname;
 
     const prefetchMap = {
-      '/': ['/roles/doctor/browse-duties.html', '/roles/doctor/doctor-dashboard.html'],
-      '/roles/doctor/browse-duties.html': ['/roles/doctor/duty-details.html', '/roles/doctor/my-applications.html'],
-      '/roles/doctor/doctor-dashboard.html': ['/roles/doctor/calendar.html', '/roles/doctor/earnings.html'],
-      '/roles/admin/admin-dashboard.html': ['/roles/admin/admin-analytics.html', '/roles/admin/admin-post-duty.html']
+      '/': [getPageRoute('doctor.browseDuties', '/roles/doctor/browse-shifts-enhanced.html'), getPageRoute('doctor.dashboard', '/roles/doctor/doctor-dashboard.html')],
+      [getPageRoute('doctor.browseDuties', '/roles/doctor/browse-shifts-enhanced.html')]: [getPageRoute('doctor.dutyDetails', '/roles/doctor/duty-details.html'), getPageRoute('doctor.applications', '/roles/doctor/my-applications.html')],
+      [getPageRoute('doctor.dashboard', '/roles/doctor/doctor-dashboard.html')]: [getPageRoute('doctor.calendar', '/roles/doctor/calendar.html'), getPageRoute('doctor.earnings', '/roles/doctor/earnings.html')],
+      [getPageRoute('admin.dashboard', '/roles/admin/admin-dashboard.html')]: [getPageRoute('admin.analytics', '/roles/admin/admin-analytics.html'), getPageRoute('admin.postDuty', '/roles/admin/admin-post-duty.html')]
     };
 
     const pagesToPrefetch = prefetchMap[currentPath] || [];

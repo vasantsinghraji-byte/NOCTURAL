@@ -131,6 +131,12 @@
             opacity: 0.9;
         }
 
+        .intake-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
         .btn-intake {
             background: white;
             color: #f5576c;
@@ -200,6 +206,10 @@
             border-radius: 15px;
             padding: 25px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .health-card-spaced {
+            margin-bottom: 30px;
         }
 
         .health-card h3 {
@@ -346,6 +356,14 @@
             border-radius: 15px;
             padding: 25px;
             margin-bottom: 30px;
+        }
+
+        .is-hidden {
+            display: none;
+        }
+
+        .section-spacing-top {
+            margin-top: 25px;
         }
 
         .emergency-card h3 {
@@ -573,6 +591,8 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/patient-session.js"></script>
 </head>
 <body>
     <div class="header">
@@ -582,7 +602,7 @@
             </div>
             <div class="user-menu">
                 <span class="user-name" id="userName">Patient</span>
-                <button class="btn-logout" onclick="logout()">Logout</button>
+                <button class="btn-logout" id="logoutBtn">Logout</button>
             </div>
         </div>
     </div>
@@ -590,10 +610,9 @@
     <div class="container">
         <!-- Navigation Tabs -->
         <div class="nav-tabs">
-            <button class="nav-tab" onclick="location.href='patient-dashboard.html'">Services</button>
+            <button class="nav-tab" data-route="patient-dashboard.html">Services</button>
             <button class="nav-tab active">Health Dashboard</button>
-            <button class="nav-tab" onclick="location.href='patient-analytics.html'">Analytics</button>
-            <button class="nav-tab" onclick="location.href='payments-dashboard.html'">Payments</button>
+            <button class="nav-tab" data-route="patient-analytics.html">Analytics</button>
         </div>
 
         <!-- Intake Banner -->
@@ -602,9 +621,9 @@
                 <h3 id="intakeTitle">Complete Your Health Profile</h3>
                 <p id="intakeMessage">Help us serve you better by sharing your health information</p>
             </div>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="btn-intake" onclick="location.href='health-intake-form.html'" style="background: white; color: #f5576c;">Quick Intake</button>
-                <button class="btn-intake" id="intakeBtn" onclick="goToMedicalHistory()">Complete Medical History</button>
+            <div class="intake-actions">
+                <button class="btn-intake" id="quickIntakeBtn">Quick Intake</button>
+                <button class="btn-intake" id="intakeBtn">Complete Medical History</button>
             </div>
         </div>
 
@@ -652,7 +671,7 @@
                     </div>
                 </div>
 
-                <h3 style="margin-top: 25px;">⚠️ Allergies</h3>
+                <h3 class="section-spacing-top">⚠️ Allergies</h3>
                 <div class="tag-list" id="allergiesList">
                     <div class="empty-state">
                         <p>No allergies recorded</p>
@@ -662,7 +681,7 @@
         </div>
 
         <!-- Current Medications -->
-        <div class="health-card" style="margin-bottom: 30px;">
+        <div class="health-card health-card-spaced">
             <h3>💊 Current Medications</h3>
             <div class="tag-list" id="medicationsList">
                 <div class="empty-state">
@@ -672,12 +691,12 @@
         </div>
 
         <!-- Emergency Card -->
-        <div class="emergency-card" id="emergencyCard" style="display: none;">
+        <div class="emergency-card is-hidden" id="emergencyCard">
             <h3>🆘 Emergency Health Card</h3>
             <div class="emergency-grid" id="emergencyGrid">
                 <!-- Populated dynamically -->
             </div>
-            <button class="btn-qr" onclick="generateQRCode()">Generate QR Code</button>
+            <button class="btn-qr" id="generateQrBtn">Generate QR Code</button>
         </div>
 
         <!-- Who Has Access -->
@@ -687,353 +706,7 @@
         </div>
     </div>
 
-    <script>
-        // Check authentication
-        const token = localStorage.getItem('patientToken');
-        if (!token) {
-            window.location.href = 'patient-login.html';
-        }
-
-        // Load patient data
-        const patient = JSON.parse(localStorage.getItem('patient') || '{}');
-        if (patient.name) {
-            document.getElementById('userName').textContent = patient.name;
-        }
-
-        // Initialize dashboard
-        async function initDashboard() {
-            await Promise.all([
-                loadDashboardOverview(),
-                loadWhoHasAccess()
-            ]);
-        }
-
-        // Load dashboard overview from API
-        async function loadDashboardOverview() {
-            try {
-                const response = await fetch(AppConfig.api('patient-dashboard'), {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (!response.ok) throw new Error('Failed to load dashboard');
-
-                const data = await response.json();
-                displayDashboard(data.overview);
-            } catch (error) {
-                console.error('Error loading dashboard:', error);
-                showToast('Failed to load health data', 'error');
-            }
-        }
-
-        // Display dashboard data
-        function displayDashboard(overview) {
-            // Update intake status
-            updateIntakeBanner(overview.intakeStatus);
-
-            // Update health summary
-            if (overview.healthSummary) {
-                displayVitals(overview.healthSummary.latestVitals);
-                displayConditions(overview.healthSummary.conditions);
-                displayAllergies(overview.healthSummary.allergies);
-                displayMedications(overview.healthSummary.medications);
-
-                // Show emergency card if health record exists
-                if (overview.healthSummary.hasHealthRecord) {
-                    displayEmergencyCard(overview.healthSummary);
-                }
-            }
-
-            // Update stats
-            document.getElementById('recordsCount').textContent = overview.healthSummary?.hasHealthRecord ? '1' : '0';
-
-            // Update alerts
-            const alertCount = overview.healthAlerts?.length || 0;
-            document.getElementById('alertsCount').textContent = alertCount;
-            if (alertCount > 0) {
-                document.getElementById('alertCard').classList.add('alert');
-            } else {
-                document.getElementById('alertCard').classList.add('good');
-            }
-        }
-
-        // Update intake banner based on status
-        function updateIntakeBanner(intakeStatus) {
-            const banner = document.getElementById('intakeBanner');
-            const title = document.getElementById('intakeTitle');
-            const message = document.getElementById('intakeMessage');
-            const btn = document.getElementById('intakeBtn');
-
-            if (!intakeStatus) return;
-
-            switch (intakeStatus.status) {
-                case 'APPROVED':
-                    banner.classList.add('completed');
-                    title.textContent = 'Health Profile Complete';
-                    message.textContent = 'Your health information is up to date';
-                    btn.textContent = 'View Profile';
-                    btn.onclick = () => location.href = 'health-intake-form.html?view=true';
-                    break;
-                case 'PENDING_REVIEW':
-                    title.textContent = 'Awaiting Review';
-                    message.textContent = 'Your health profile is being reviewed by a doctor';
-                    btn.textContent = 'View Status';
-                    btn.disabled = true;
-                    break;
-                case 'PENDING_PATIENT':
-                case 'CHANGES_REQUESTED':
-                    title.textContent = 'Action Required';
-                    message.textContent = 'Please complete or update your health profile';
-                    btn.textContent = 'Continue';
-                    break;
-                default:
-                    // NOT_STARTED - keep default
-                    break;
-            }
-        }
-
-        // Display vitals
-        function displayVitals(vitals) {
-            const grid = document.getElementById('vitalsGrid');
-
-            if (!vitals || Object.keys(vitals).length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1/-1;">
-                        <div class="icon">📊</div>
-                        <p>No vitals recorded yet</p>
-                    </div>
-                `;
-                return;
-            }
-
-            const vitalIcons = {
-                BP_SYSTOLIC: '🫀',
-                BP_DIASTOLIC: '🫀',
-                HEART_RATE: '💓',
-                TEMPERATURE: '🌡️',
-                OXYGEN_LEVEL: '🫁',
-                BLOOD_SUGAR: '🩸',
-                WEIGHT: '⚖️',
-                HEIGHT: '📏',
-                BMI: '📐'
-            };
-
-            const vitalLabels = {
-                BP_SYSTOLIC: 'Systolic BP',
-                BP_DIASTOLIC: 'Diastolic BP',
-                HEART_RATE: 'Heart Rate',
-                TEMPERATURE: 'Temperature',
-                OXYGEN_LEVEL: 'Oxygen',
-                BLOOD_SUGAR: 'Blood Sugar',
-                WEIGHT: 'Weight',
-                HEIGHT: 'Height',
-                BMI: 'BMI'
-            };
-
-            let html = '';
-            for (const [type, data] of Object.entries(vitals)) {
-                html += `
-                    <div class="vital-card">
-                        <div class="icon">${vitalIcons[type] || '📊'}</div>
-                        <div class="value">${data.value}</div>
-                        <div class="unit">${data.unit || ''}</div>
-                        <div class="label">${vitalLabels[type] || type}</div>
-                    </div>
-                `;
-            }
-
-            grid.innerHTML = html || '<div class="empty-state"><p>No vitals recorded</p></div>';
-        }
-
-        // Display conditions
-        function displayConditions(conditions) {
-            const list = document.getElementById('conditionsList');
-
-            if (!conditions || conditions.count === 0) {
-                list.innerHTML = '<div class="empty-state"><p>No conditions recorded</p></div>';
-                return;
-            }
-
-            list.innerHTML = conditions.items.map(c => `
-                <span class="tag condition severity-${(c.severity || 'mild').toLowerCase()}">${c.name}</span>
-            `).join('');
-        }
-
-        // Display allergies
-        function displayAllergies(allergies) {
-            const list = document.getElementById('allergiesList');
-
-            if (!allergies || allergies.count === 0) {
-                list.innerHTML = '<div class="empty-state"><p>No allergies recorded</p></div>';
-                return;
-            }
-
-            list.innerHTML = allergies.items.map(a => `
-                <span class="tag allergy severity-${(a.severity || 'mild').toLowerCase()}">${a.allergen}</span>
-            `).join('');
-        }
-
-        // Display medications
-        function displayMedications(medications) {
-            const list = document.getElementById('medicationsList');
-
-            if (!medications || medications.count === 0) {
-                list.innerHTML = '<div class="empty-state"><p>No medications recorded</p></div>';
-                return;
-            }
-
-            list.innerHTML = medications.items.map(m => `
-                <span class="tag medication">${m.name} ${m.dosage ? `(${m.dosage})` : ''}</span>
-            `).join('');
-        }
-
-        // Display emergency card
-        function displayEmergencyCard(summary) {
-            const card = document.getElementById('emergencyCard');
-            const grid = document.getElementById('emergencyGrid');
-
-            card.style.display = 'block';
-
-            grid.innerHTML = `
-                <div class="emergency-item">
-                    <div class="label">Blood Group</div>
-                    <div class="value">${summary.bloodGroup || 'Not specified'}</div>
-                </div>
-                <div class="emergency-item">
-                    <div class="label">Critical Conditions</div>
-                    <div class="value">${summary.conditions?.count || 0}</div>
-                </div>
-                <div class="emergency-item">
-                    <div class="label">Allergies</div>
-                    <div class="value">${summary.allergies?.count || 0} ${summary.allergies?.hasCritical ? '(Critical!)' : ''}</div>
-                </div>
-                <div class="emergency-item">
-                    <div class="label">Current Medications</div>
-                    <div class="value">${summary.medications?.count || 0}</div>
-                </div>
-            `;
-        }
-
-        // Load who has access
-        async function loadWhoHasAccess() {
-            try {
-                const response = await fetch(AppConfig.api('doctor-access/who-has-access'), {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (!response.ok) throw new Error('Failed to load access info');
-
-                const data = await response.json();
-                displayAccessList(data.accessTokens || []);
-                document.getElementById('accessCount').textContent = data.accessTokens?.length || 0;
-            } catch (error) {
-                console.error('Error loading access info:', error);
-                document.getElementById('accessLog').innerHTML = '<div class="empty-state"><p>Failed to load access information</p></div>';
-            }
-        }
-
-        // Display access list
-        function displayAccessList(tokens) {
-            const log = document.getElementById('accessLog');
-
-            if (tokens.length === 0) {
-                log.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">🔒</div>
-                        <h4>No one has access</h4>
-                        <p>Your health data is private. Access will be granted when you book a service.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            log.innerHTML = tokens.map(t => `
-                <div class="access-item">
-                    <div class="access-avatar">${t.grantedTo?.name?.charAt(0) || 'D'}</div>
-                    <div class="access-details">
-                        <div class="name">${t.grantedTo?.name || 'Healthcare Provider'}</div>
-                        <div class="role">${t.grantedToRole || 'Provider'} - ${t.accessLevel}</div>
-                    </div>
-                    <span class="access-status active">Active</span>
-                    <button class="btn-revoke" onclick="revokeAccess('${t._id}')">Revoke</button>
-                </div>
-            `).join('');
-        }
-
-        // Revoke access
-        async function revokeAccess(tokenId) {
-            if (!confirm('Are you sure you want to revoke this access?')) return;
-
-            try {
-                const response = await fetch(AppConfig.api(`doctor-access/revoke/${tokenId}`), {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (!response.ok) throw new Error('Failed to revoke access');
-
-                showToast('Access revoked successfully', 'success');
-                loadWhoHasAccess();
-            } catch (error) {
-                console.error('Error revoking access:', error);
-                showToast('Failed to revoke access', 'error');
-            }
-        }
-
-        // Generate QR Code
-        async function generateQRCode() {
-            try {
-                const response = await fetch(AppConfig.api('patient-dashboard/emergency-card/qr'), {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ expiryHours: 24 })
-                });
-
-                if (!response.ok) throw new Error('Failed to generate QR');
-
-                const data = await response.json();
-                showToast('QR Code generated! Valid for 24 hours.', 'success');
-                // Could display QR code in a modal
-            } catch (error) {
-                console.error('Error generating QR:', error);
-                showToast('Failed to generate QR code', 'error');
-            }
-        }
-
-        // Go to intake form
-        function goToIntake() {
-            window.location.href = 'health-intake-form.html';
-        }
-
-        // Go to complete medical history form
-        function goToMedicalHistory() {
-            window.location.href = 'patient-medical-history-form.html';
-        }
-
-        // Logout
-        function logout() {
-            localStorage.removeItem('patientToken');
-            localStorage.removeItem('patient');
-            window.location.href = 'patient-login.html';
-        }
-
-        // Show toast notification
-        function showToast(message, type = 'success') {
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-        }
-
-        // Initialize
-        initDashboard();
-    </script>
+    <script src="/js/patient-health-dashboard.js"></script>
     <script src="/js/auto-inject-nav.js"></script>
 </body>
 </html>

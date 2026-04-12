@@ -146,6 +146,18 @@
             color: #3b82f6;
         }
 
+        .stat-item.earnings .number {
+            color: #16a34a;
+        }
+
+        .stat-item.withdrawn .number {
+            color: #64748b;
+        }
+
+        .stat-item.rate .number {
+            color: #0891b2;
+        }
+
         .stat-item .label {
             color: #64748b;
             font-size: 0.9rem;
@@ -183,6 +195,13 @@
             background: #3b82f6;
             border-color: #3b82f6;
             color: white;
+        }
+
+        .stats-scope {
+            color: #475569;
+            font-size: 0.95rem;
+            margin: -1rem 0 1.5rem;
+            padding: 0 0.25rem;
         }
 
         /* Applications List */
@@ -344,6 +363,176 @@
             transform: translateY(-2px);
         }
 
+        .applications-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-preferences {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .page-size-control {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #475569;
+            font-weight: 500;
+        }
+
+        .page-size-control select {
+            padding: 0.65rem 0.9rem;
+            border: 2px solid #dbeafe;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            color: #1e293b;
+            background: white;
+        }
+
+        .reset-preferences-btn {
+            background: transparent;
+            border: none;
+            color: #2563eb;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 0.35rem 0.25rem;
+            text-decoration: underline;
+            text-underline-offset: 0.18rem;
+        }
+
+        .reset-preferences-btn:hover {
+            color: #1d4ed8;
+        }
+
+        .preferences-toast {
+            position: fixed;
+            right: 1.5rem;
+            bottom: 1.5rem;
+            background: #0f172a;
+            color: white;
+            padding: 0.8rem 1rem;
+            border-radius: 10px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
+            font-size: 0.9rem;
+            font-weight: 500;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            z-index: 1000;
+        }
+
+        .preferences-toast.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .preferences-toast.hiding {
+            animation: preferencesToastFadeOut 0.24s ease forwards;
+        }
+
+        @keyframes preferencesToastFadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateY(8px) scale(0.98);
+            }
+        }
+
+        .pagination-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .pagination-info {
+            color: #64748b;
+            font-size: 0.95rem;
+        }
+
+        .pagination-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .pagination-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.65rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .pagination-btn:hover {
+            background: #2563eb;
+        }
+
+        .pagination-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .pagination-page {
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .pagination-pages {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .pagination-number {
+            min-width: 2.5rem;
+            padding: 0.6rem 0.75rem;
+            border: 2px solid #dbeafe;
+            background: white;
+            color: #1d4ed8;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .pagination-number:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .pagination-number.active {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+        }
+
+        .pagination-ellipsis {
+            color: #64748b;
+            font-weight: 600;
+            padding: 0 0.25rem;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .navbar {
@@ -368,9 +557,39 @@
             .filter-tabs {
                 justify-content: center;
             }
+
+            .applications-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .toolbar-preferences {
+                justify-content: space-between;
+            }
+
+            .pagination-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .pagination-actions {
+                justify-content: space-between;
+            }
+
+            .pagination-pages {
+                justify-content: center;
+            }
+
+            .preferences-toast {
+                left: 1rem;
+                right: 1rem;
+                bottom: 1rem;
+            }
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
 </head>
 <body>
     <!-- Navigation -->
@@ -378,17 +597,17 @@
         <div class="logo">🌙 Nocturnal</div>
         <div class="nav-links">
             <a href="/roles/doctor/doctor-dashboard.html">Dashboard</a>
-            <a href="/roles/doctor/browse-duties.html">Browse Duties</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html">Browse Duties</a>
             <a href="/roles/doctor/calendar.html">Calendar</a>
             <a href="/roles/doctor/earnings.html">Earnings</a>
             <a href="/roles/doctor/achievements.html">Achievements</a>
             <a href="/roles/doctor/my-applications.html" class="active">My Applications</a>
-            <a href="/roles/doctor/doctor-profile.html">Profile</a>
+            <a href="/roles/doctor/doctor-profile-enhanced.html">Profile</a>
         </div>
         <div class="user-info">
             <div class="user-avatar" id="userAvatar">D</div>
             <span id="userName">Loading...</span>
-            <button class="logout-btn" onclick="logout()">Logout</button>
+            <button class="logout-btn" id="logoutBtn">Logout</button>
         </div>
     </nav>
 
@@ -418,219 +637,57 @@
                 <div class="number" id="rejectedApps">0</div>
                 <div class="label">Rejected</div>
             </div>
+            <div class="stat-item withdrawn">
+                <div class="number" id="withdrawnApps">0</div>
+                <div class="label">Withdrawn</div>
+            </div>
+            <div class="stat-item earnings">
+                <div class="number" id="acceptedEarnings">INR 0</div>
+                <div class="label">Accepted Earnings</div>
+            </div>
+            <div class="stat-item rate">
+                <div class="number" id="acceptanceRate">0%</div>
+                <div class="label">Acceptance Rate</div>
+            </div>
         </div>
+        <div class="stats-scope" id="statsScope">Showing overall totals</div>
 
         <!-- Filter Tabs -->
         <div class="filter-tabs">
-            <button class="filter-tab active" onclick="filterApplications('all')">All Applications</button>
-            <button class="filter-tab" onclick="filterApplications('pending')">Pending</button>
-            <button class="filter-tab" onclick="filterApplications('accepted')">Accepted</button>
-            <button class="filter-tab" onclick="filterApplications('rejected')">Rejected</button>
+            <button class="filter-tab active" data-status="all">All Applications</button>
+            <button class="filter-tab" data-status="pending">Pending</button>
+            <button class="filter-tab" data-status="accepted">Accepted</button>
+            <button class="filter-tab" data-status="rejected">Rejected</button>
+            <button class="filter-tab" data-status="withdrawn">Withdrawn</button>
         </div>
 
         <!-- Applications List -->
         <div class="applications-section">
+            <div class="applications-toolbar">
+                <div id="applicationsSummary" class="pagination-info">Loading applications...</div>
+                <div class="toolbar-preferences">
+                    <label class="page-size-control" for="pageSizeSelect">
+                        <span>Per page</span>
+                        <select id="pageSizeSelect">
+                            <option value="10" selected>10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </label>
+                    <button id="resetPreferencesBtn" class="reset-preferences-btn" type="button">
+                        Reset preferences
+                    </button>
+                </div>
+            </div>
             <div id="applicationsContainer">
                 <div class="loading">🔄 Loading your applications...</div>
             </div>
+            <div class="pagination-controls" id="paginationControls"></div>
         </div>
     </div>
+    <div id="preferencesToast" class="preferences-toast" role="status" aria-live="polite"></div>
 
-    <script>
-        // API Base URL
-        // API_URL is provided by config.js
-        let allApplications = [];
-        let currentFilter = 'all';
-
-        // Check authentication
-        function checkAuth() {
-            const token = localStorage.getItem('token');
-            const userType = localStorage.getItem('userType');
-
-            if (!token || userType !== 'doctor') {
-                window.location.href = '/index.html';
-                return false;
-            }
-            return token;
-        }
-
-        // Logout function
-        async function logout() {
-            try {
-                // Clear localStorage
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                localStorage.removeItem('userType');
-                localStorage.removeItem('userId');
-                localStorage.removeItem('userName');
-
-                // Redirect to landing page
-                window.location.href = '/index.html';
-            } catch (error) {
-                console.error('Logout error:', error);
-                // Force redirect anyway
-                window.location.href = '/index.html';
-            }
-        }
-
-        // Load user info
-        function loadUserInfo() {
-            const userName = localStorage.getItem('userName') || 'Doctor';
-            document.getElementById('userName').textContent = userName;
-            document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
-        }
-
-        // Fetch applications
-        async function fetchApplications() {
-            const token = checkAuth();
-            if (!token) return;
-
-            try {
-                const response = await fetch(AppConfig.api('applications/my-applications'), {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success && data.applications) {
-                    allApplications = data.applications;
-                    updateStats();
-                    displayApplications(allApplications);
-                } else {
-                    displayNoApplications();
-                }
-            } catch (error) {
-                console.error('Error fetching applications:', error);
-                document.getElementById('applicationsContainer').innerHTML = 
-                    '<div class="no-applications">Error loading applications. Please try again later.</div>';
-            }
-        }
-
-        // Update stats
-        function updateStats() {
-            const total = allApplications.length;
-            const pending = allApplications.filter(app => app.status === 'pending').length;
-            const accepted = allApplications.filter(app => app.status === 'accepted').length;
-            const rejected = allApplications.filter(app => app.status === 'rejected').length;
-
-            document.getElementById('totalApps').textContent = total;
-            document.getElementById('pendingApps').textContent = pending;
-            document.getElementById('acceptedApps').textContent = accepted;
-            document.getElementById('rejectedApps').textContent = rejected;
-        }
-
-        // Display applications
-        function displayApplications(applications) {
-            const container = document.getElementById('applicationsContainer');
-            
-            if (!applications || applications.length === 0) {
-                displayNoApplications();
-                return;
-            }
-
-            container.innerHTML = applications.map(app => {
-                const duty = app.duty || {};
-                const appliedDate = new Date(app.appliedAt || app.createdAt).toLocaleDateString('en-IN', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                });
-                const dutyDate = new Date(duty.date).toLocaleDateString('en-IN', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                });
-
-                return `
-                    <div class="application-card ${app.status}">
-                        <div class="app-header">
-                            <div class="app-title">
-                                <h3>${duty.specialty || 'General Medicine'}</h3>
-                                <div class="hospital">
-                                    <span>🏥</span>
-                                    <span>${duty.hospitalName || 'Hospital'}</span>
-                                </div>
-                            </div>
-                            <span class="status-badge ${app.status}">${app.status}</span>
-                        </div>
-
-                        <div class="app-details">
-                            <div class="detail-item">
-                                <span class="icon">📅</span>
-                                <span>${dutyDate}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="icon">⏰</span>
-                                <span>${duty.shift || 'Night'}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="icon">📍</span>
-                                <span>${duty.location || 'Location'}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="icon">💰</span>
-                                <span>₹${duty.pay?.toLocaleString() || '0'}</span>
-                            </div>
-                        </div>
-
-                        <div class="app-footer">
-                            <div class="applied-date">
-                                Applied on ${appliedDate}
-                            </div>
-                            <button class="view-btn" onclick="viewDuty('${duty._id}')">
-                                View Details
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // Display no applications message
-        function displayNoApplications() {
-            document.getElementById('applicationsContainer').innerHTML = `
-                <div class="no-applications">
-                    <div class="icon">📭</div>
-                    <h3>No applications yet</h3>
-                    <p>Start browsing available duties and apply to begin your journey!</p>
-                    <a href="/roles/doctor/browse-duties.html" class="browse-btn">Browse Duties</a>
-                </div>
-            `;
-        }
-
-        // Filter applications
-        function filterApplications(status) {
-            currentFilter = status;
-            
-            // Update active tab
-            document.querySelectorAll('.filter-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            // Filter and display
-            if (status === 'all') {
-                displayApplications(allApplications);
-            } else {
-                const filtered = allApplications.filter(app => app.status === status);
-                displayApplications(filtered);
-            }
-        }
-
-        // View duty details
-        function viewDuty(dutyId) {
-            window.location.href = `duty-details.html?id=${dutyId}`;
-        }
-
-        // Initialize page
-        window.addEventListener('DOMContentLoaded', () => {
-            checkAuth();
-            loadUserInfo();
-            fetchApplications();
-        });
-    </script>
+    <script src="/js/doctor-my-applications.js"></script>
     <!-- Unified Navigation & Notifications -->
     <script src="/js/auto-inject-nav.js"></script>
 </body>

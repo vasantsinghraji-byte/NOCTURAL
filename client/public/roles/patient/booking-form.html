@@ -187,6 +187,19 @@
             font-size: 14px;
         }
 
+        .payment-note {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9ff;
+            border-radius: 10px;
+        }
+
+        .payment-note-text {
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+        }
+
         @media (max-width: 768px) {
             .booking-layout {
                 grid-template-columns: 1fr;
@@ -198,11 +211,13 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/patient-session.js"></script>
 </head>
 <body>
     <div class="header">
         <div class="header-content">
-            <button class="btn-back" onclick="history.back()">← Back</button>
+            <button class="btn-back" id="backButton">← Back</button>
             <h1>Book Your Service</h1>
         </div>
     </div>
@@ -304,8 +319,8 @@
                     <span id="summaryTotal">₹0</span>
                 </div>
 
-                <div style="margin-top: 20px; padding: 15px; background: #f8f9ff; border-radius: 10px;">
-                    <p style="font-size: 13px; color: #666; text-align: center;">
+                <div class="payment-note">
+                    <p class="payment-note-text">
                         💳 Secure payment powered by Razorpay
                     </p>
                 </div>
@@ -313,220 +328,7 @@
         </div>
     </div>
 
-    <script>
-        // API_URL is provided by config.js
-        const token = localStorage.getItem('patientToken');
-
-        if (!token) {
-            window.location.href = 'patient-login.html';
-        }
-
-        const patient = JSON.parse(localStorage.getItem('patient') || '{}');
-        const selectedService = JSON.parse(localStorage.getItem('selectedService') || '{}');
-
-        // Set minimum date to tomorrow
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        document.getElementById('date').min = tomorrow.toISOString().split('T')[0];
-
-        // Display service info
-        if (selectedService.serviceName) {
-            document.getElementById('serviceName').textContent = selectedService.serviceName;
-            document.getElementById('servicePrice').textContent = `Base Price: ₹${selectedService.price}`;
-            updatePriceSummary(selectedService.price);
-        } else {
-            window.location.href = 'patient-dashboard.html';
-        }
-
-        function updatePriceSummary(basePrice) {
-            const platformFee = basePrice * 0.15;
-            const gst = (basePrice + platformFee) * 0.18;
-            const total = basePrice + platformFee + gst;
-
-            document.getElementById('summaryBasePrice').textContent = `₹${basePrice}`;
-            document.getElementById('summaryPlatformFee').textContent = `₹${platformFee.toFixed(2)}`;
-            document.getElementById('summaryGST').textContent = `₹${gst.toFixed(2)}`;
-            document.getElementById('summaryTotal').textContent = `₹${total.toFixed(2)}`;
-        }
-
-        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const errorDiv = document.getElementById('errorDiv');
-            const btn = document.getElementById('submitBtn');
-            errorDiv.innerHTML = '';
-
-            const bookingData = {
-                serviceType: selectedService.serviceType,
-                scheduledDate: document.getElementById('date').value,
-                scheduledTime: document.getElementById('time').value,
-                serviceLocation: {
-                    street: document.getElementById('address').value,
-                    city: document.getElementById('city').value,
-                    state: 'Karnataka',
-                    pincode: document.getElementById('pincode').value,
-                    coordinates: {
-                        lat: 12.9716,
-                        lng: 77.5946
-                    }
-                },
-                patientDetails: {
-                    name: patient.name || 'Patient',
-                    age: parseInt(document.getElementById('patientAge').value),
-                    gender: document.getElementById('patientGender').value
-                },
-                specialRequirements: document.getElementById('specialRequirements').value,
-                prescriptionUrl: document.getElementById('prescriptionUrl').value || 'https://example.com/prescription.pdf'
-            };
-
-            btn.disabled = true;
-            btn.textContent = 'Creating booking...';
-
-            try {
-                const response = await fetch(AppConfig.api('bookings'), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(bookingData)
-                });
-
-                const data = await response.json();
-
-                if (data.success && data.booking) {
-                    // Initiate Razorpay payment
-                    initiatePayment(data.booking);
-                } else {
-                    throw new Error(data.message || 'Booking failed');
-                }
-            } catch (error) {
-                console.error('Booking error:', error);
-                errorDiv.innerHTML = `<div class="error-message">${error.message}</div>`;
-                btn.disabled = false;
-                btn.textContent = 'Proceed to Payment';
-            }
-        });
-
-        async function initiatePayment(booking) {
-            try {
-                // Create Razorpay order
-                const orderResponse = await fetch(AppConfig.api('payments-b2c/create-order'), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ bookingId: booking._id })
-                });
-
-                const orderData = await orderResponse.json();
-
-                if (!orderData.success) {
-                    throw new Error(orderData.message || 'Failed to create payment order');
-                }
-
-                const options = {
-                    key: orderData.razorpayKey,
-                    amount: orderData.order.amount,
-                    currency: orderData.order.currency,
-                    name: 'Nocturnal Healthcare',
-                    description: `${selectedService.serviceName}`,
-                    order_id: orderData.order.id,
-                    handler: async function (response) {
-                        // Payment successful - verify on backend
-                        await handlePaymentSuccess(response, booking._id);
-                    },
-                    prefill: {
-                        name: patient.name,
-                        email: patient.email,
-                        contact: patient.phone
-                    },
-                    theme: {
-                        color: '#667eea'
-                    },
-                    modal: {
-                        ondismiss: function() {
-                            document.getElementById('submitBtn').disabled = false;
-                            document.getElementById('submitBtn').textContent = 'Proceed to Payment';
-                        }
-                    }
-                };
-
-                const rzp = new Razorpay(options);
-                rzp.on('payment.failed', function (response) {
-                    handlePaymentFailure(response, booking._id);
-                });
-                rzp.open();
-            } catch (error) {
-                console.error('Payment initiation error:', error);
-                document.getElementById('errorDiv').innerHTML =
-                    `<div class="error-message">${error.message}</div>`;
-                document.getElementById('submitBtn').disabled = false;
-                document.getElementById('submitBtn').textContent = 'Proceed to Payment';
-            }
-        }
-
-        async function handlePaymentSuccess(paymentResponse, bookingId) {
-            try {
-                // Verify payment on backend
-                const verifyResponse = await fetch(AppConfig.api('payments-b2c/verify'), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        razorpay_order_id: paymentResponse.razorpay_order_id,
-                        razorpay_payment_id: paymentResponse.razorpay_payment_id,
-                        razorpay_signature: paymentResponse.razorpay_signature,
-                        bookingId: bookingId
-                    })
-                });
-
-                const verifyData = await verifyResponse.json();
-
-                if (verifyData.success) {
-                    document.getElementById('errorDiv').innerHTML =
-                        '<div class="success-message">Payment successful! Redirecting to your booking...</div>';
-
-                    setTimeout(() => {
-                        window.location.href = `booking-details.html?id=${bookingId}`;
-                    }, 2000);
-                } else {
-                    throw new Error('Payment verification failed');
-                }
-            } catch (error) {
-                console.error('Payment verification error:', error);
-                document.getElementById('errorDiv').innerHTML =
-                    '<div class="error-message">Payment verification failed. Please contact support.</div>';
-            }
-        }
-
-        async function handlePaymentFailure(response, bookingId) {
-            try {
-                // Report failure to backend
-                await fetch(AppConfig.api('payments-b2c/failure'), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        bookingId: bookingId,
-                        error: response.error
-                    })
-                });
-            } catch (error) {
-                console.error('Error reporting payment failure:', error);
-            }
-
-            document.getElementById('errorDiv').innerHTML =
-                '<div class="error-message">Payment failed. Please try again.</div>';
-            document.getElementById('submitBtn').disabled = false;
-            document.getElementById('submitBtn').textContent = 'Proceed to Payment';
-        }
-    </script>
+    <script src="/js/patient-booking-form.js"></script>
     <script src="/js/auto-inject-nav.js"></script>
 </body>
 </html>

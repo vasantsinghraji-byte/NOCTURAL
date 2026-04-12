@@ -1,0 +1,12 @@
+# Build output
+client/dist/
+coverage/
+
+# Non-JS files
+*.ps1
+*.bat
+*.sh
+*.txt
+
+# Node modules
+node_modules/

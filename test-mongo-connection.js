@@ -47,7 +47,7 @@ async function testConnection() {
 
         // Test read permission
         console.log('\n✓ Testing read permission...');
-        const doc = await testCollection.findOne({ test: true });
+        await testCollection.findOne({ test: true });
         console.log('  ✓ Read successful');
 
         // Clean up test document

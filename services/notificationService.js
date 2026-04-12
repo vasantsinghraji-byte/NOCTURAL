@@ -241,8 +241,8 @@ class NotificationService {
       message: status === 'SUCCESS'
         ? `Payment of ₹${amount} received successfully.`
         : `Payment of ₹${amount} failed. Please try again.`,
-      actionUrl: `/roles/patient/payments-dashboard.html`,
-      actionLabel: 'View Payments',
+      actionUrl: `/roles/patient/patient-dashboard.html`,
+      actionLabel: 'View Dashboard',
       priority: status === 'SUCCESS' ? 'MEDIUM' : 'HIGH',
       channels: { inApp: true, email: true }
     };

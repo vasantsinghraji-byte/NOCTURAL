@@ -20,6 +20,7 @@ const {
   getAllBookings,
   getMyBookings,
   getProviderBookings,
+  getAssignableProviders,
   assignProvider,
   updateStatus,
   startService,
@@ -190,6 +191,13 @@ router.get(
   authorize('nurse', 'physiotherapist'),
   queryCache({ ttl: CACHE_TTL.SHORT }),
   getProviderBookings
+);
+
+router.get(
+  '/providers/assignable',
+  authorize('admin'),
+  queryCache({ ttl: CACHE_TTL.SHORT }),
+  getAssignableProviders
 );
 
 // Booking detail - accessible by patient, provider, or admin

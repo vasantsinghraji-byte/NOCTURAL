@@ -29,7 +29,7 @@ jest.mock('../../../utils/errors', () => ({
     constructor(m) { super(m); this.name = 'AuthorizationError'; }
   },
   NotFoundError: class NotFoundError extends Error {
-    constructor(t, id) { super(`${t} not found`); this.name = 'NotFoundError'; }
+    constructor(t, _id) { super(`${t} not found`); this.name = 'NotFoundError'; }
   }
 }));
 jest.mock('../../../services/healthIntakeService', () => ({ startIntakeProcess: jest.fn() }));
@@ -114,7 +114,6 @@ describe('Phase 3 — Duty & Booking Authorization', () => {
 
       expect(mockBooking.save).toHaveBeenCalled();
       // Verify no User.findById call was needed for role checking
-      const User = require('../../../models/user');
       // User.findById should NOT have been called during updateStatus
       // (It may have been called elsewhere, but updateStatus doesn't call it)
     });

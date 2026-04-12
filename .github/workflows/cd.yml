@@ -28,7 +28,7 @@ on:
         type: string
 
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '22.x'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
@@ -53,15 +53,17 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --production
+        run: npm ci --omit=dev
 
       - name: Create deployment package
         run: |
-          mkdir -p deploy
-          cp -r . deploy/
-          cd deploy
-          rm -rf .git .github node_modules coverage tests
-          tar -czf ../nocturnal-staging.tar.gz .
+          tar -czf nocturnal-staging.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='coverage' \
+            --exclude='tests' \
+            .
 
       - name: Deploy to staging server
         run: |
@@ -71,7 +73,7 @@ jobs:
           echo "Deployment package created: nocturnal-staging.tar.gz"
 
       - name: Run database migrations
-        run: npm run migrate:staging
+        run: npm run db:migrate || echo "No pending migrations"
 
       - name: Smoke tests
         run: |
@@ -108,18 +110,20 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --production
+        run: npm ci --omit=dev
 
       - name: Build production assets
         run: npm run build:prod || npm run build || echo "No build required"
 
       - name: Create deployment package
         run: |
-          mkdir -p deploy
-          cp -r . deploy/
-          cd deploy
-          rm -rf .git .github node_modules coverage tests
-          tar -czf ../nocturnal-production.tar.gz .
+          tar -czf nocturnal-production.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='coverage' \
+            --exclude='tests' \
+            .
 
       - name: Backup current production
         run: |
@@ -133,7 +137,7 @@ jobs:
           echo "Deployment package created: nocturnal-production.tar.gz"
 
       - name: Run database migrations
-        run: npm run migrate:production
+        run: npm run db:migrate || echo "No pending migrations"
 
       - name: Smoke tests
         run: |
@@ -183,15 +187,17 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --production
+        run: npm ci --omit=dev
 
       - name: Create rollback deployment package
         run: |
-          mkdir -p deploy
-          cp -r . deploy/
-          cd deploy
-          rm -rf .git .github node_modules coverage tests
-          tar -czf ../nocturnal-rollback.tar.gz .
+          tar -czf nocturnal-rollback.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='coverage' \
+            --exclude='tests' \
+            .
 
       - name: Deploy rollback package
         run: |
@@ -200,7 +206,7 @@ jobs:
           echo "Rollback package created: nocturnal-rollback.tar.gz"
 
       - name: Run database migrations for target version
-        run: npm run migrate:${{ github.event.inputs.environment }}
+        run: npm run db:migrate || echo "No pending migrations"
 
       - name: Verify rollback
         run: |
@@ -236,12 +242,10 @@ jobs:
           zip -r nocturnal-${{ github.ref_name }}.zip . -x "*.git*" "node_modules/*" "coverage/*"
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
 

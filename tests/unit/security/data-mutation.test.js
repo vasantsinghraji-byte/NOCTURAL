@@ -14,8 +14,6 @@ jest.mock('../../../utils/logger', () => ({
   logSecurity: jest.fn()
 }));
 
-const Patient = require('../../../models/patient');
-
 describe('Data Mutation Security Tests', () => {
   describe('SEC-013: Patient Update Field Whitelist', () => {
     // The whitelist defined in patientService.js

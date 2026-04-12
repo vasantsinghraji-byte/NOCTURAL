@@ -140,6 +140,10 @@
             background: #4b5563;
         }
 
+        .is-hidden {
+            display: none;
+        }
+
         .form-group {
             margin-bottom: 1.5rem;
         }
@@ -265,6 +269,8 @@
         }
     </style>
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/admin-session.js"></script>
 </head>
 <body>
     <nav class="navbar">
@@ -297,7 +303,7 @@
                 <h2>Hospital Information</h2>
                 <div>
                     <button id="editBtn" class="edit-btn">Edit Profile</button>
-                    <button id="cancelBtn" class="cancel-btn" style="display: none;">Cancel</button>
+                    <button id="cancelBtn" class="cancel-btn is-hidden">Cancel</button>
                 </div>
             </div>
 
@@ -324,17 +330,7 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="address">Full Address</label>
-                    <textarea id="address" name="address" rows="3" disabled placeholder="Enter complete hospital address"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="description">Hospital Description</label>
-                    <textarea id="description" name="description" rows="4" disabled placeholder="Brief description of your hospital, facilities, and services"></textarea>
-                </div>
-
-                <button type="submit" id="saveBtn" class="save-btn" style="display: none;">Save Changes</button>
+                <button type="submit" id="saveBtn" class="save-btn is-hidden">Save Changes</button>
             </form>
 
             <div class="account-info">
@@ -345,188 +341,8 @@
         </div>
     </div>
 
-    <script>
-        let isEditing = false;
-        let originalData = {};
-
-        function checkAuth() {
-            const token = localStorage.getItem('token');
-            const userType = localStorage.getItem('userType');
-
-            if (!token || userType !== 'hospital') {
-                window.location.href = '/index.html';
-                return false;
-            }
-            return token;
-        }
-
-        async function logout() {
-            try {
-                localStorage.clear();
-                window.location.href = '/index.html';
-            } catch (error) {
-                console.error('Logout error:', error);
-                window.location.href = '/index.html';
-            }
-        }
-
-        function loadUserInfo() {
-            const userName = localStorage.getItem('userName') || 'Administrator';
-            document.getElementById('userName').textContent = userName;
-            document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
-        }
-
-        async function loadProfile() {
-            const token = checkAuth();
-            if (!token) return;
-
-            const userId = localStorage.getItem('userId');
-            const userEmail = localStorage.getItem('userEmail');
-
-            try {
-                const response = await fetch(AppConfig.api(`users/${userId}`), {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await response.json();
-
-                if (data.success) {
-                    const user = data.user;
-                    originalData = { ...user };
-
-                    // Populate form fields
-                    document.getElementById('hospitalName').value = user.hospital || '';
-                    document.getElementById('location').value = user.location || '';
-                    document.getElementById('adminName').value = user.name || '';
-                    document.getElementById('phone').value = user.phone || '';
-                    document.getElementById('address').value = user.address || '';
-                    document.getElementById('description').value = user.description || '';
-
-                    // Display account info
-                    document.getElementById('emailDisplay').textContent = userEmail || user.email || '-';
-                    document.getElementById('userIdDisplay').textContent = userId || '-';
-                } else {
-                    showMessage('Failed to load profile information', 'error');
-                }
-            } catch (error) {
-                console.error('Error loading profile:', error);
-                showMessage('Unable to connect to server. Please try again later.', 'error');
-            }
-        }
-
-        function toggleEditMode(editing) {
-            isEditing = editing;
-
-            const formInputs = document.querySelectorAll('#profileForm input, #profileForm textarea');
-            formInputs.forEach(input => {
-                input.disabled = !editing;
-            });
-
-            document.getElementById('editBtn').style.display = editing ? 'none' : 'inline-block';
-            document.getElementById('cancelBtn').style.display = editing ? 'inline-block' : 'none';
-            document.getElementById('saveBtn').style.display = editing ? 'block' : 'none';
-        }
-
-        function cancelEdit() {
-            // Restore original data
-            document.getElementById('hospitalName').value = originalData.hospital || '';
-            document.getElementById('location').value = originalData.location || '';
-            document.getElementById('adminName').value = originalData.name || '';
-            document.getElementById('phone').value = originalData.phone || '';
-            document.getElementById('address').value = originalData.address || '';
-            document.getElementById('description').value = originalData.description || '';
-
-            toggleEditMode(false);
-            clearMessage();
-        }
-
-        async function saveProfile(event) {
-            event.preventDefault();
-
-            const token = checkAuth();
-            if (!token) return;
-
-            const userId = localStorage.getItem('userId');
-            const formData = {
-                hospital: document.getElementById('hospitalName').value.trim(),
-                location: document.getElementById('location').value.trim(),
-                name: document.getElementById('adminName').value.trim(),
-                phone: document.getElementById('phone').value.trim(),
-                address: document.getElementById('address').value.trim(),
-                description: document.getElementById('description').value.trim()
-            };
-
-            // Validation
-            if (!formData.hospital || !formData.location || !formData.name) {
-                showMessage('Please fill in all required fields (Hospital Name, Location, Administrator Name)', 'error');
-                return;
-            }
-
-            // Disable save button during update
-            const saveBtn = document.getElementById('saveBtn');
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Saving...';
-
-            try {
-                const response = await fetch(AppConfig.api(`users/${userId}`), {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    originalData = { ...formData };
-
-                    // Update localStorage
-                    localStorage.setItem('userName', formData.name);
-                    loadUserInfo();
-
-                    showMessage('Profile updated successfully!', 'success');
-                    toggleEditMode(false);
-                } else {
-                    showMessage(data.message || 'Failed to update profile', 'error');
-                }
-            } catch (error) {
-                console.error('Error updating profile:', error);
-                showMessage('Unable to update profile. Please try again.', 'error');
-            } finally {
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Save Changes';
-            }
-        }
-
-        function showMessage(text, type) {
-            const container = document.getElementById('messageContainer');
-            container.innerHTML = `<div class="message ${type}">${text}</div>`;
-
-            // Auto-hide success messages after 5 seconds
-            if (type === 'success') {
-                setTimeout(clearMessage, 5000);
-            }
-        }
-
-        function clearMessage() {
-            document.getElementById('messageContainer').innerHTML = '';
-        }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            checkAuth();
-            loadUserInfo();
-            loadProfile();
-
-            // Event listeners
-            document.getElementById('logout-btn').addEventListener('click', logout);
-            document.getElementById('editBtn').addEventListener('click', () => {
-                toggleEditMode(true);
-                clearMessage();
-            });
-            document.getElementById('cancelBtn').addEventListener('click', cancelEdit);
-            document.getElementById('profileForm').addEventListener('submit', saveProfile);
-        });
-    </script>
+    <script src="/js/admin-profile.js"></script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
 </body>
 </html>
