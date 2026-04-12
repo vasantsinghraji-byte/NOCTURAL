@@ -16,10 +16,10 @@
 
 | # | File | Issues Covered | Tests |
 |---|------|---------------|-------|
-| 1 | `tests/unit/validation/config-infra-validation.test.js` | VAL-012, VAL-013, VAL-014, VAL-015, ERR-007, ERR-008 | 12 |
+| 1 | `tests/unit/validation/config-infrastructure-validation.test.js` | VAL-012, VAL-013, VAL-014, VAL-015, ERR-007, ERR-008 | 12 |
 | 2 | `tests/unit/validation/service-misc-validation.test.js` | VAL-008, VAL-009, VAL-011, NULL-001, NULL-002, ERR-009 | 7 |
-| 3 | `tests/unit/validation/health-services-validation.test.js` | VAL-002, VAL-003, VAL-004, VAL-005, VAL-007, NULL-005, ERR-010 | 10 |
-| 4 | `tests/unit/validation/booking-validation.test.js` | VAL-001, VAL-016, NULL-003, NULL-004 | 7 |
+| 3 | `tests/unit/validation/service-health-validation.test.js` | VAL-002, VAL-003, VAL-004, VAL-005, VAL-007, NULL-005, ERR-010 | 10 |
+| 4 | `tests/unit/validation/booking-service-validation.test.js` | VAL-001, VAL-016, NULL-003, NULL-004 | 7 |
 | 5 | `tests/unit/validation/investigation-gemini-validation.test.js` | VAL-006, VAL-010, ERR-001, ERR-003, ERR-004 | 12 |
 
 ## Overlap Notes (Already Covered in Earlier Phases)
