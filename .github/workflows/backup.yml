@@ -23,8 +23,18 @@ jobs:
     name: Database Backup
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'production' }}
-
     steps:
+      - name: Validate MONGODB_URI secret
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          if [ -z "$MONGODB_URI" ]; then
+            echo "::error::MONGODB_URI secret is not configured. Please add it to the repository or environment secrets."
+            echo "Skipping backup - no database connection string available."
+            exit 1
+          fi
+          echo "MONGODB_URI secret is configured."
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -53,6 +63,7 @@ jobs:
 
           BACKUP_SIZE=$(du -h "/tmp/backups/${BACKUP_NAME}.tar.gz" | cut -f1)
           echo "Backup created: ${BACKUP_NAME}.tar.gz (${BACKUP_SIZE})"
+
           echo "BACKUP_FILE=/tmp/backups/${BACKUP_NAME}.tar.gz" >> $GITHUB_ENV
           echo "BACKUP_NAME=${BACKUP_NAME}" >> $GITHUB_ENV
 
@@ -71,7 +82,6 @@ jobs:
         run: |
           ENV="${{ github.event.inputs.environment || 'production' }}"
           S3_BUCKET="nocturnal-backups-${ENV}"
-
           aws s3 cp "${{ env.BACKUP_FILE }}" "s3://${S3_BUCKET}/automated/${{ env.BACKUP_NAME }}.tar.gz"
           echo "Backup uploaded to s3://${S3_BUCKET}/automated/"
 
@@ -85,7 +95,6 @@ jobs:
           ENV="${{ github.event.inputs.environment || 'production' }}"
           S3_BUCKET="nocturnal-backups-${ENV}"
           CUTOFF_DATE=$(date -d "${{ env.BACKUP_RETENTION_DAYS }} days ago" +%Y-%m-%d)
-
           echo "Removing backups older than ${CUTOFF_DATE}..."
           aws s3 ls "s3://${S3_BUCKET}/automated/" | while read -r line; do
             FILE_DATE=$(echo "$line" | awk '{print $1}')
@@ -114,4 +123,5 @@ jobs:
         run: |
           echo "::error::Database backup failed for ${{ github.event.inputs.environment || 'production' }}"
           echo "Check the backup job logs for details."
+          echo "Ensure MONGODB_URI secret is properly configured."
           echo "Manual backup can be run with: node scripts/backup-database.js"
