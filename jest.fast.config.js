@@ -3,7 +3,7 @@ const baseConfig = require('./jest.config');
 module.exports = {
   ...baseConfig,
   verbose: false,
-  forceExit: false,
+  forceExit: true,
   detectOpenHandles: false,
   testPathIgnorePatterns: [
     ...(baseConfig.testPathIgnorePatterns || []),
