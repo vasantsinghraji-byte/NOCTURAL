@@ -15,6 +15,8 @@
   "scripts": {
     "install:all": "npm install && npm run install:shared",
     "install:shared": "cd packages/shared && npm install",
+    "hooks:install": "git config core.hooksPath .githooks",
+    "hooks:path": "git config --get core.hooksPath",
     "test:shared": "npm test --workspace=@nocturnal/shared",
     "test:patient-booking": "npm test --workspace=@nocturnal/patient-booking-service",
     "start:patient-booking": "npm start --workspace=@nocturnal/patient-booking-service",
@@ -64,6 +66,8 @@
     "test:utils": "jest tests/unit/utils",
     "test:api": "jest tests/integration",
     "test:ci": "jest --ci --coverage --runInBand --forceExit",
+    "test:security-gate": "node ./node_modules/jest/bin/jest.js --runInBand --runTestsByPath tests/unit/security/auth-service-lockdown.test.js tests/integration/auth-me-profile-policy.test.js tests/integration/auth-change-password.test.js",
+    "verify:local": "npm run lint && npm test",
     "test:deploy-gate": "npm run build:prod && node ./node_modules/jest/bin/jest.js --runInBand --runTestsByPath tests/unit/validation/frontend-legacy-auth-retirement.test.js tests/unit/validation/frontend-route-helper-centralization.test.js tests/unit/validation/frontend-page-api-dependency-map.test.js tests/unit/validation/frontend-admin-doctor-api-contract.test.js tests/unit/validation/frontend-provider-admin-booking-contract.test.js tests/unit/validation/frontend-auth-flow-standardization.test.js tests/unit/validation/frontend-session-standardization.test.js tests/unit/validation/frontend-runtime-role-routing-and-doctor-dashboard-contract.test.js tests/unit/validation/frontend-build-output-csp-contract.test.js tests/unit/validation/frontend-build-artifact-contract.test.js tests/unit/validation/frontend-final-contract-closures.test.js tests/unit/validation/frontend-canonical-nav-contract.test.js tests/unit/validation/admin-route-contract.test.js tests/smoke/production-entrypoint-health.test.js tests/smoke/production-built-frontend-playwright.test.js",
     "security:scan": "node scripts/security-scan.js --target http://localhost:5000",
     "security:scan:full": "node scripts/security-scan.js --target http://localhost:5000 --mode full",

@@ -27,16 +27,25 @@ afterAll(async () => {
 const TOP_PAGES = [
   { path: '/',                                          title: 'Nocturnal' },
   { path: '/index.html',                                title: 'Nocturnal' },
+  { path: '/roles/admin/admin-dashboard.html',          title: null },
+  { path: '/roles/admin/admin-applications.html',       title: null },
+  { path: '/roles/admin/admin-profile.html',            title: null },
   { path: '/roles/patient/patient-login.html',           title: null },
   { path: '/roles/patient/patient-register.html',        title: null },
   { path: '/roles/patient/patient-dashboard.html',       title: null },
   { path: '/roles/provider/provider-login.html',         title: null },
   { path: '/roles/provider/provider-dashboard.html',     title: null },
   { path: '/roles/doctor/doctor-dashboard.html',         title: null },
+  { path: '/roles/doctor/my-applications.html',         title: null },
   { path: '/roles/admin/admin-analytics.html',           title: null }
 ];
 
-describe('Frontend Smoke – top pages load', () => {
+describe('Frontend Smoke: GET static app entry pages', () => {
+  function extractAssetPath(html, pattern) {
+    const match = html.match(pattern);
+    return match ? `/${match[1]}` : null;
+  }
+
   test.each(TOP_PAGES)('GET $path returns 200 with valid HTML', async ({ path, title }) => {
     const res = await request(app).get(path);
 
@@ -52,8 +61,8 @@ describe('Frontend Smoke – top pages load', () => {
   test('Landing page loads config.js (dependency for landing.js)', async () => {
     const res = await request(app).get('/index.html');
 
-    expect(res.text).toContain('js/config.js');
-    expect(res.text).toContain('js/landing.js');
+    expect(res.text).toMatch(/js\/config(?:\.[a-f0-9]{8})?\.js/);
+    expect(res.text).toMatch(/js\/landing(?:\.[a-f0-9]{8})?\.js/);
   });
 
   test('Landing page has no inline script blocks', async () => {
@@ -73,13 +82,22 @@ describe('Frontend Smoke – top pages load', () => {
   });
 
   test('Static assets are served', async () => {
-    const cssRes = await request(app).get('/css/index.css');
+    const indexRes = await request(app).get('/index.html');
+    const cssPath = extractAssetPath(indexRes.text, /(?:href)=["']([^"']*css\/index(?:\.[a-f0-9]{8})?\.css)["']/i);
+    const configPath = extractAssetPath(indexRes.text, /(?:src)=["']([^"']*js\/config(?:\.[a-f0-9]{8})?\.js)["']/i);
+    const landingPath = extractAssetPath(indexRes.text, /(?:src)=["']([^"']*js\/landing(?:\.[a-f0-9]{8})?\.js)["']/i);
+
+    expect(cssPath).toBeTruthy();
+    expect(configPath).toBeTruthy();
+    expect(landingPath).toBeTruthy();
+
+    const cssRes = await request(app).get(cssPath);
     expect(cssRes.status).toBe(200);
 
-    const jsRes = await request(app).get('/js/config.js');
+    const jsRes = await request(app).get(configPath);
     expect(jsRes.status).toBe(200);
 
-    const landingRes = await request(app).get('/js/landing.js');
+    const landingRes = await request(app).get(landingPath);
     expect(landingRes.status).toBe(200);
   });
 });

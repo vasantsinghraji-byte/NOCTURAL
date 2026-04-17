@@ -14,7 +14,7 @@ jest.mock('../../../utils/logger', () => ({
   logSecurity: jest.fn()
 }));
 
-describe('Data Mutation Security Tests', () => {
+describe('Security Unit: protected data mutation rules', () => {
   describe('SEC-013: Patient Update Field Whitelist', () => {
     // The whitelist defined in patientService.js
     const ALLOWED_FIELDS = [

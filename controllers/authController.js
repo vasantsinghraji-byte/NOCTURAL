@@ -65,3 +65,16 @@ exports.updateMe = async (req, res, next) => {
     responseHelper.handleServiceError(error, res, next);
   }
 };
+
+// Change password
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    await authService.updatePassword(req.user.id, currentPassword, newPassword);
+
+    responseHelper.sendSuccess(res, {}, 'Password updated successfully');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};

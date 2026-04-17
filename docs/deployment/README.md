@@ -455,43 +455,42 @@ terraform output alb_dns_name
 
 **File**: `.github/workflows/deploy.yml`
 
-```yaml
-name: Deploy to Production
+Current pipeline structure:
 
-on:
-  push:
-    branches: [main]
+- `.github/workflows/ci.yml`
+  Runs linting, tests, secret scanning, audit checks, the deployment gate, and a container smoke build.
+- `.github/workflows/deploy.yml`
+  Handles image publishing and ECS rollout.
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '22'
-      - run: npm install
-      - run: npm test
-      - run: npm run lint
+Deployment behavior:
 
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - run: docker build -t nocturnal-api:${{ github.sha }} .
-      - run: docker push your-registry/nocturnal-api:${{ github.sha }}
+- Push to `develop`: build, scan, sign, publish, and deploy to staging
+- Push tag `v*`: build, scan, sign, publish, and deploy to production
+- Manual dispatch: deploy or roll back staging or production using a specific image tag
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to Kubernetes
-        run: |
-          kubectl set image deployment/nocturnal-api \
-            nocturnal-api=your-registry/nocturnal-api:${{ github.sha }}
-          kubectl rollout status deployment/nocturnal-api
+Manual examples:
+
+```bash
+# Deploy production from the selected ref in GitHub Actions
+gh workflow run deploy.yml --ref main -f environment=production -f action=deploy
+
+# Roll back production to an existing image tag
+gh workflow run deploy.yml --ref main -f environment=production -f action=rollback -f image_tag=sha-<commit-sha>
 ```
+
+Environment-scoped GitHub variables supported by `deploy.yml`:
+
+- `AWS_REGION`
+- `ECS_CLUSTER`
+- `ECS_SERVICE`
+- `ECS_CONTAINER_NAME`
+- `DEPLOY_HEALTH_URL`
+
+If those variables are not set, the workflow defaults to:
+
+- cluster: `nocturnal-staging` or `nocturnal-production`
+- service: `nocturnal-api`
+- container: `nocturnal-api`
 
 ---
 

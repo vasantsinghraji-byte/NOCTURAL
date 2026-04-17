@@ -1,0 +1,346 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ develop ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      action:
+        description: Deployment action
+        required: true
+        type: choice
+        default: deploy
+        options:
+          - deploy
+          - rollback
+      image_tag:
+        description: Existing GHCR image tag to deploy. Required for rollback, optional for deploy.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  NODE_VERSION: '22.x'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  resolve:
+    name: Resolve Deployment Plan
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.plan.outputs.environment }}
+      action: ${{ steps.plan.outputs.action }}
+      should_build: ${{ steps.plan.outputs.should_build }}
+      requested_image_tag: ${{ steps.plan.outputs.requested_image_tag }}
+      health_url: ${{ steps.plan.outputs.health_url }}
+
+    steps:
+      - name: Determine target environment and mode
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            action="deploy"
+            requested_image_tag=""
+
+            if [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
+              environment="staging"
+            elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+              environment="production"
+            else
+              echo "::error::Unsupported push ref ${GITHUB_REF} for deployment"
+              exit 1
+            fi
+          else
+            environment="${{ github.event.inputs.environment }}"
+            action="${{ github.event.inputs.action }}"
+            requested_image_tag="${{ github.event.inputs.image_tag }}"
+          fi
+
+          if [[ "$environment" == "production" ]]; then
+            health_url="https://nocturnal.com/api/health"
+          else
+            health_url="https://staging.nocturnal.com/api/health"
+          fi
+
+          should_build="false"
+          if [[ "$action" == "rollback" && -z "$requested_image_tag" ]]; then
+            echo "::error::Rollback requires an existing image_tag input"
+            exit 1
+          fi
+
+          if [[ "$action" == "deploy" && -z "$requested_image_tag" ]]; then
+            should_build="true"
+          fi
+
+          echo "environment=$environment" >> "$GITHUB_OUTPUT"
+          echo "action=$action" >> "$GITHUB_OUTPUT"
+          echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
+          echo "requested_image_tag=$requested_image_tag" >> "$GITHUB_OUTPUT"
+          echo "health_url=$health_url" >> "$GITHUB_OUTPUT"
+
+  build-image:
+    name: Build And Publish Image
+    runs-on: ubuntu-latest
+    needs: resolve
+    if: needs.resolve.outputs.should_build == 'true'
+    timeout-minutes: 35
+    environment: ${{ needs.resolve.outputs.environment }}
+    outputs:
+      image_uri: ${{ steps.publish.outputs.image_uri }}
+      image_tag: ${{ steps.publish.outputs.image_tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set image metadata
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE_NAME_LC="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          PRIMARY_TAG="sha-${GITHUB_SHA}"
+          CHANNEL_TAG="${{ needs.resolve.outputs.environment }}-latest"
+
+          echo "image_name_lc=$IMAGE_NAME_LC" >> "$GITHUB_OUTPUT"
+          echo "primary_tag=$PRIMARY_TAG" >> "$GITHUB_OUTPUT"
+          echo "channel_tag=$CHANNEL_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.image.outputs.image_name_lc }}:${{ steps.image.outputs.primary_tag }}
+            ${{ env.REGISTRY }}/${{ steps.image.outputs.image_name_lc }}:${{ steps.image.outputs.channel_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ steps.image.outputs.image_name_lc }}:${{ steps.image.outputs.primary_tag }}
+          format: table
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign Docker image
+        shell: bash
+        run: |
+          cosign sign --yes \
+            "${{ env.REGISTRY }}/${{ steps.image.outputs.image_name_lc }}@${{ steps.build-push.outputs.digest }}"
+
+      - name: Capture published image reference
+        id: publish
+        shell: bash
+        run: |
+          echo "image_uri=${{ env.REGISTRY }}/${{ steps.image.outputs.image_name_lc }}@${{ steps.build-push.outputs.digest }}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${{ steps.image.outputs.primary_tag }}" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy To ECS
+    runs-on: ubuntu-latest
+    needs: [resolve, build-image]
+    if: always() && needs.resolve.result == 'success' && (needs.build-image.result == 'success' || needs.build-image.result == 'skipped')
+    timeout-minutes: 25
+    environment:
+      name: ${{ needs.resolve.outputs.environment }}
+      url: ${{ needs.resolve.outputs.health_url }}
+    concurrency:
+      group: deploy-${{ needs.resolve.outputs.environment }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Validate AWS secrets
+        env:
+          AWS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$AWS_KEY" || -z "$AWS_SECRET" ]]; then
+            echo "::error::AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be configured"
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Resolve deployment settings
+        id: settings
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IMAGE_NAME_LC="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+
+          if [[ -n "${{ needs.build-image.outputs.image_uri }}" ]]; then
+            IMAGE_URI="${{ needs.build-image.outputs.image_uri }}"
+          else
+            IMAGE_URI="${{ env.REGISTRY }}/${IMAGE_NAME_LC}:${{ needs.resolve.outputs.requested_image_tag }}"
+          fi
+
+          ECS_CLUSTER="${{ vars.ECS_CLUSTER }}"
+          ECS_SERVICE="${{ vars.ECS_SERVICE }}"
+          ECS_CONTAINER_NAME="${{ vars.ECS_CONTAINER_NAME }}"
+          HEALTH_URL="${{ vars.DEPLOY_HEALTH_URL }}"
+
+          if [[ -z "$ECS_CLUSTER" ]]; then
+            ECS_CLUSTER="nocturnal-${{ needs.resolve.outputs.environment }}"
+          fi
+
+          if [[ -z "$ECS_SERVICE" ]]; then
+            ECS_SERVICE="nocturnal-api"
+          fi
+
+          if [[ -z "$ECS_CONTAINER_NAME" ]]; then
+            ECS_CONTAINER_NAME="nocturnal-api"
+          fi
+
+          if [[ -z "$HEALTH_URL" ]]; then
+            HEALTH_URL="${{ needs.resolve.outputs.health_url }}"
+          fi
+
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+          echo "ecs_cluster=$ECS_CLUSTER" >> "$GITHUB_OUTPUT"
+          echo "ecs_service=$ECS_SERVICE" >> "$GITHUB_OUTPUT"
+          echo "ecs_container_name=$ECS_CONTAINER_NAME" >> "$GITHUB_OUTPUT"
+          echo "health_url=$HEALTH_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch current task definition
+        shell: bash
+        run: |
+          set -euo pipefail
+          SERVICE_JSON="$(aws ecs describe-services \
+            --cluster "${{ steps.settings.outputs.ecs_cluster }}" \
+            --services "${{ steps.settings.outputs.ecs_service }}")"
+
+          TASK_DEF_ARN="$(echo "$SERVICE_JSON" | jq -r '.services[0].taskDefinition')"
+
+          if [[ -z "$TASK_DEF_ARN" || "$TASK_DEF_ARN" == "null" ]]; then
+            echo "::error::Unable to resolve ECS task definition for service"
+            exit 1
+          fi
+
+          aws ecs describe-task-definition \
+            --task-definition "$TASK_DEF_ARN" \
+            --query taskDefinition > task-definition.json
+
+      - name: Render new task definition
+        shell: bash
+        env:
+          IMAGE_URI: ${{ steps.settings.outputs.image_uri }}
+          ECS_CONTAINER_NAME: ${{ steps.settings.outputs.ecs_container_name }}
+        run: |
+          set -euo pipefail
+          jq '
+            del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy
+            )
+            | .containerDefinitions = (
+                .containerDefinitions
+                | map(
+                    if .name == env.ECS_CONTAINER_NAME
+                    then .image = env.IMAGE_URI
+                    else .
+                    end
+                  )
+              )
+          ' task-definition.json > task-definition.rendered.json
+
+      - name: Register task definition
+        id: task
+        shell: bash
+        run: |
+          set -euo pipefail
+          TASK_DEF_ARN="$(aws ecs register-task-definition \
+            --cli-input-json file://task-definition.rendered.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)"
+
+          echo "task_definition_arn=$TASK_DEF_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy ECS service
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws ecs update-service \
+            --cluster "${{ steps.settings.outputs.ecs_cluster }}" \
+            --service "${{ steps.settings.outputs.ecs_service }}" \
+            --task-definition "${{ steps.task.outputs.task_definition_arn }}" \
+            --force-new-deployment
+
+          aws ecs wait services-stable \
+            --cluster "${{ steps.settings.outputs.ecs_cluster }}" \
+            --services "${{ steps.settings.outputs.ecs_service }}"
+
+      - name: Smoke test deployed environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS --max-time 15 "${{ steps.settings.outputs.health_url }}"; then
+              exit 0
+            fi
+            echo "Health check attempt ${attempt} failed, retrying..."
+            sleep 10
+          done
+
+          echo "::error::Deployment health check failed for ${{ needs.resolve.outputs.environment }}"
+          exit 1

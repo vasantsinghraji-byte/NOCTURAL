@@ -42,6 +42,7 @@
             const btn = document.getElementById('submitBtn');
             errorDiv.innerHTML = '';
 
+            const prescriptionUrl = document.getElementById('prescriptionUrl').value.trim();
             const bookingData = {
                 serviceType: selectedService.serviceType,
                 scheduledDate: document.getElementById('date').value,
@@ -65,7 +66,7 @@
                     gender: document.getElementById('patientGender').value
                 },
                 specialRequirements: document.getElementById('specialRequirements').value,
-                prescriptionUrl: document.getElementById('prescriptionUrl').value || 'https://example.com/prescription.pdf'
+                ...(prescriptionUrl ? { prescriptionUrl } : {})
             };
 
             btn.disabled = true;

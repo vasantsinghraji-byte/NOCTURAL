@@ -36,6 +36,11 @@
         }
 
         function displayBooking(booking) {
+            const location = booking.serviceLocation?.address || {};
+            const paymentStatus = booking.payment?.status || 'PENDING';
+            const provider = booking.serviceProvider || null;
+            const serviceReport = booking.actualService?.serviceReport || null;
+
             document.getElementById('loadingDiv').style.display = 'none';
             document.getElementById('bookingContent').style.display = 'block';
 
@@ -53,9 +58,10 @@
                 });
             document.getElementById('scheduledTime').textContent = booking.scheduledTime;
 
-            const location = booking.serviceLocation;
             document.getElementById('serviceLocation').textContent =
-                `${location.street}, ${location.city}, ${location.state} - ${location.pincode}`;
+                [location.street, location.city, location.state, location.pincode]
+                    .filter(Boolean)
+                    .join(', ') || 'Location not provided';
 
             // Patient details
             document.getElementById('patientName').textContent = booking.patientDetails.name;
@@ -74,18 +80,18 @@
             document.getElementById('gst').textContent = `₹${pricing.gst.toFixed(2)}`;
             document.getElementById('totalPrice').textContent = `₹${pricing.payableAmount.toFixed(2)}`;
             document.getElementById('paymentStatus').innerHTML =
-                `<span class="status-badge ${booking.paymentStatus.toLowerCase()}">${booking.paymentStatus}</span>`;
+                `<span class="status-badge ${paymentStatus.toLowerCase()}">${paymentStatus}</span>`;
 
             // Provider details (if assigned)
-            if (booking.provider) {
+            if (provider) {
                 document.getElementById('providerCard').style.display = 'block';
-                document.getElementById('providerName').textContent = booking.provider.name || 'Provider';
-                document.getElementById('providerRole').textContent = booking.provider.role || 'Healthcare Professional';
-                document.getElementById('providerPhone').textContent = booking.provider.phone || 'Not available';
+                document.getElementById('providerName').textContent = provider.name || 'Provider';
+                document.getElementById('providerRole').textContent = provider.role || 'Healthcare Professional';
+                document.getElementById('providerPhone').textContent = provider.phone || 'Not available';
                 document.getElementById('providerRating').textContent =
-                    `${booking.provider.rating?.average || 'N/A'} (${booking.provider.rating?.count || 0} reviews)`;
+                    provider.rating ? `${provider.rating}` : 'N/A';
                 document.getElementById('providerExperience').textContent =
-                    booking.provider.experience ? `${booking.provider.experience} years` : 'Not specified';
+                    provider.professional?.yearsOfExperience ? `${provider.professional.yearsOfExperience} years` : 'Not specified';
             }
 
             // Show cancel button if booking can be cancelled
@@ -94,13 +100,13 @@
             }
 
             // Show rating section if completed and not rated
-            if (booking.status === 'COMPLETED' && !booking.rating) {
+            if (booking.status === 'COMPLETED' && !booking.rating?.ratedAt) {
                 document.getElementById('ratingCard').style.display = 'block';
             }
 
             // Show service report if completed
-            if (booking.status === 'COMPLETED' && booking.serviceReport) {
-                displayServiceReport(booking.serviceReport);
+            if (booking.status === 'COMPLETED' && serviceReport) {
+                displayServiceReport(serviceReport);
             }
         }
 
@@ -129,19 +135,21 @@
             document.getElementById('reportCard').style.display = 'block';
             let html = '';
 
-            if (report.vitals) {
+            if (report.vitalsChecked) {
                 html += '<div class="detail-row"><span class="detail-label">Vitals</span><span class="detail-value">' +
-                    JSON.stringify(report.vitals) + '</span></div>';
+                    JSON.stringify(report.vitalsChecked) + '</span></div>';
             }
 
-            if (report.proceduresPerformed && report.proceduresPerformed.length > 0) {
+            if (report.proceduresDone && report.proceduresDone.length > 0) {
                 html += '<div class="detail-row"><span class="detail-label">Procedures</span><span class="detail-value">' +
-                    report.proceduresPerformed.join(', ') + '</span></div>';
+                    report.proceduresDone.join(', ') + '</span></div>';
             }
 
             if (report.medicinesAdministered && report.medicinesAdministered.length > 0) {
                 html += '<div class="detail-row"><span class="detail-label">Medicines</span><span class="detail-value">' +
-                    report.medicinesAdministered.join(', ') + '</span></div>';
+                    report.medicinesAdministered.map(function(medicine) {
+                        return medicine.name || 'Medicine';
+                    }).join(', ') + '</span></div>';
             }
 
             if (report.observations) {
@@ -218,13 +226,13 @@
 
             try {
                 NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('bookings.cancel', {
-                    method: 'POST',
+                    method: 'PUT',
                     parseJson: true,
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ reason: 'Cancelled by patient' })
+                    body: JSON.stringify({ reason: 'Cancelled by patient request' })
                 }, {
                     params: { bookingId: bookingId }
                 }), 'Failed to cancel booking');

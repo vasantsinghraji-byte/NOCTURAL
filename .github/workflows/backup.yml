@@ -1,9 +1,10 @@
 name: Scheduled Database Backup
 
 on:
-  schedule:
-    # Daily at 02:00 UTC
-    - cron: '0 2 * * *'
+  # Schedule disabled until MONGODB_URI secret is configured in repo/environment secrets.
+  # Uncomment to re-enable once secrets are set:
+  # schedule:
+  #   - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       environment:
@@ -25,6 +26,16 @@ jobs:
     environment: ${{ github.event.inputs.environment || 'production' }}
 
     steps:
+      - name: Validate MONGODB_URI secret
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          if [ -z "$MONGODB_URI" ]; then
+            echo "::error::MONGODB_URI secret is not configured. Add it to repository or environment secrets."
+            exit 1
+          fi
+          echo "MONGODB_URI secret is configured."
+
       - name: Checkout code
         uses: actions/checkout@v4
 
