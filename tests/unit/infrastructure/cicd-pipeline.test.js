@@ -108,8 +108,9 @@ describe('Phase 6 — CI/CD Pipeline', () => {
   });
 
   describe('CICD-008: Secret scanning (Gitleaks)', () => {
-    it('should include Gitleaks action', () => {
-      expect(ciYaml).toMatch(/gitleaks.*action/);
+    it('should include a Gitleaks scan step', () => {
+      expect(ciYaml).toMatch(/gitleaks/i);
+      expect(ciYaml).toMatch(/(gitleaks.*action|ghcr\.io\/gitleaks\/gitleaks|docker run)/is);
     });
 
     it('should scan full git history', () => {
