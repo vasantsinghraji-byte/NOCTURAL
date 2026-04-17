@@ -24,7 +24,7 @@ const User = require('../../../models/user');
 const logger = require('../../../utils/logger');
 const authService = require('../../../services/authService');
 
-describe('Phase 3 — Session Authorization', () => {
+describe('Authorization Unit: session invalidation and login save isolation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });

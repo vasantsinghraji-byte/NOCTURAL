@@ -13,16 +13,42 @@ jest.mock('../../../utils/logger', () => ({
 const User = require('../../../models/user');
 const authService = require('../../../services/authService');
 
-describe('Auth Service Lockdown', () => {
+describe('Security Unit: auth service profile-field lockdown', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('should update only allowlisted profile fields', async () => {
+  it('should reject privileged or unsupported profile fields', async () => {
     const mockUser = {
       _id: 'user1',
       role: 'doctor',
       isVerified: false,
+      name: 'Original Name',
+      calculateProfileStrength: jest.fn(),
+      save: jest.fn().mockResolvedValue(true)
+    };
+
+    User.findById = jest.fn().mockResolvedValue(mockUser);
+
+    await expect(authService.updateProfile('user1', {
+      name: 'Updated Name',
+      role: 'admin',
+      isVerified: true,
+      hospital: 'Other Hospital'
+    })).rejects.toMatchObject({
+      statusCode: 403
+    });
+
+    expect(mockUser.name).toBe('Original Name');
+    expect(mockUser.isVerified).toBe(false);
+    expect(mockUser.calculateProfileStrength).not.toHaveBeenCalled();
+    expect(mockUser.save).not.toHaveBeenCalled();
+  });
+
+  it('should update only the provider-specific allowlisted profile fields for providers', async () => {
+    const mockUser = {
+      _id: 'user1',
+      role: 'doctor',
       name: 'Original Name',
       phone: '1111111111',
       location: { city: 'Old City' },
@@ -30,6 +56,9 @@ describe('Auth Service Lockdown', () => {
       notificationSettings: { email: true },
       isAvailableForShifts: true,
       specialty: 'Emergency Medicine',
+      licenseNumber: 'OLD-LICENSE',
+      bankDetails: { accountHolderName: 'Old Name' },
+      onboardingCompleted: false,
       calculateProfileStrength: jest.fn(),
       save: jest.fn().mockResolvedValue(true)
     };
@@ -39,13 +68,14 @@ describe('Auth Service Lockdown', () => {
     const result = await authService.updateProfile('user1', {
       name: 'Updated Name',
       phone: '9999999999',
-      role: 'admin',
-      isVerified: true,
       location: { city: 'New City' },
       professional: { primarySpecialization: 'General Medicine' },
       notificationSettings: { email: false },
       isAvailableForShifts: false,
-      specialty: 'General Medicine'
+      specialty: 'General Medicine',
+      licenseNumber: 'NEW-LICENSE',
+      bankDetails: { accountHolderName: 'Updated Name' },
+      onboardingCompleted: true
     });
 
     expect(result.name).toBe('Updated Name');
@@ -55,9 +85,38 @@ describe('Auth Service Lockdown', () => {
     expect(result.notificationSettings).toEqual({ email: false });
     expect(result.isAvailableForShifts).toBe(false);
     expect(result.specialty).toBe('General Medicine');
+    expect(result.licenseNumber).toBe('NEW-LICENSE');
+    expect(result.bankDetails).toEqual({ accountHolderName: 'Updated Name' });
+    expect(result.onboardingCompleted).toBe(true);
+    expect(mockUser.calculateProfileStrength).toHaveBeenCalledTimes(1);
+    expect(mockUser.save).toHaveBeenCalledTimes(1);
+  });
 
-    expect(result.role).toBe('doctor');
-    expect(result.isVerified).toBe(false);
+  it('should allow admins to update hospital-scoped profile fields', async () => {
+    const mockUser = {
+      _id: 'admin1',
+      role: 'admin',
+      hospital: 'Old Hospital',
+      location: { city: 'Old City' },
+      name: 'Admin Name',
+      phone: '1111111111',
+      calculateProfileStrength: jest.fn(),
+      save: jest.fn().mockResolvedValue(true)
+    };
+
+    User.findById = jest.fn().mockResolvedValue(mockUser);
+
+    const result = await authService.updateProfile('admin1', {
+      hospital: 'New Hospital',
+      location: { city: 'New City' },
+      name: 'Updated Admin',
+      phone: '9999999999'
+    });
+
+    expect(result.hospital).toBe('New Hospital');
+    expect(result.location).toEqual({ city: 'New City' });
+    expect(result.name).toBe('Updated Admin');
+    expect(result.phone).toBe('9999999999');
     expect(mockUser.calculateProfileStrength).toHaveBeenCalledTimes(1);
     expect(mockUser.save).toHaveBeenCalledTimes(1);
   });
@@ -80,5 +139,34 @@ describe('Auth Service Lockdown', () => {
 
     expect(mockUser.name).toBe('Original Name');
     expect(mockUser.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('should decrypt bank details when loading the authenticated user profile', async () => {
+    const mockUser = {
+      _id: 'user1',
+      name: 'Doctor',
+      bankDetails: { accountNumber: 'encrypted-value' },
+      toObject: jest.fn().mockReturnValue({
+        _id: 'user1',
+        name: 'Doctor',
+        bankDetails: { accountNumber: 'encrypted-value' }
+      }),
+      getDecryptedBankDetails: jest.fn().mockReturnValue({
+        accountHolderName: 'Doctor',
+        accountNumber: '1234567890'
+      })
+    };
+
+    User.findById = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue(mockUser)
+    });
+
+    const profile = await authService.getUserProfile('user1');
+
+    expect(profile.bankDetails).toEqual({
+      accountHolderName: 'Doctor',
+      accountNumber: '1234567890'
+    });
+    expect(mockUser.getDecryptedBankDetails).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+COMMIT_MSG_FILE="${1:-}"
+
+if [ -z "$COMMIT_MSG_FILE" ] || [ ! -f "$COMMIT_MSG_FILE" ]; then
+  echo "commit-msg hook could not read the commit message file."
+  exit 1
+fi
+
+COMMIT_MESSAGE="$(head -n 1 "$COMMIT_MSG_FILE" | tr -d '\r')"
+
+if echo "$COMMIT_MESSAGE" | grep -Eq '^(Merge|Revert|fixup!|squash!|Initial commit)'; then
+  exit 0
+fi
+
+CONVENTIONAL_PATTERN='^(feat|fix|refactor|docs|test|chore|ci|build|perf|style|hotfix|release)(\([a-z0-9._/-]+\))?!?: [^ ].{2,72}$'
+
+if ! echo "$COMMIT_MESSAGE" | grep -Eq "$CONVENTIONAL_PATTERN"; then
+  cat <<'EOF'
+Commit message rejected.
+
+Use a Conventional Commit style message:
+  feat: add patient booking validation
+  fix(auth): handle expired sessions
+  chore(ci): cache Playwright browsers
+
+Allowed types:
+  feat, fix, refactor, docs, test, chore, ci, build, perf, style, hotfix, release
+EOF
+  exit 1
+fi
+
+exit 0

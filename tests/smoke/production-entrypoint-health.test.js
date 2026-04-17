@@ -73,7 +73,7 @@ async function waitForHealthResponse(port, timeoutMs) {
   throw new Error(`Timed out waiting for /api/v1/health on port ${port}`);
 }
 
-describe('Production entrypoint health smoke test', () => {
+describe('Production Smoke: GET /api/v1/health via server.js entrypoint', () => {
   jest.setTimeout(35000);
 
   it('should boot the real production server entrypoint with production-valid fixture env and serve /api/v1/health', async () => {

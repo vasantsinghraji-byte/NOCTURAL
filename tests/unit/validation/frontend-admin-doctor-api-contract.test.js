@@ -8,6 +8,7 @@ const readProjectFile = (relativePath) => fs.readFileSync(path.join(rootDir, rel
 const adminDashboardScript = readProjectFile('client/public/js/admin-dashboard.js');
 const adminApplicationsScript = readProjectFile('client/public/js/admin-applications.js');
 const adminAnalyticsScript = readProjectFile('client/public/js/admin-analytics.js');
+const adminProfileScript = readProjectFile('client/public/js/admin-profile.js');
 const adminSettingsScript = readProjectFile('client/public/js/admin-settings.js');
 const doctorDashboardScript = readProjectFile('client/public/js/doctor-dashboard.js');
 const doctorBrowseShiftsScript = readProjectFile('client/public/js/doctor-browse-shifts-enhanced.js');
@@ -23,7 +24,15 @@ describe('Frontend Admin Doctor API Contract', () => {
     expect(adminDashboardScript).toContain("AppConfig.fetchRoute('bookings.assign'");
     expect(adminApplicationsScript).toContain("AppConfig.fetchRoute('applications.received'");
     expect(adminAnalyticsScript).toContain("AppConfig.fetchRoute('analytics.hospitalDashboard'");
+    expect(adminProfileScript).toContain("AppConfig.fetchRoute('auth.me'");
     expect(adminSettingsScript).toContain("AppConfig.fetchRoute('hospitalSettings.root'");
+  });
+
+  it('should keep admin profile resilient to object-shaped location values', () => {
+    expect(adminProfileScript).toContain('function formatLocationValue(location)');
+    expect(adminProfileScript).toContain('typeof location === \'string\'');
+    expect(adminProfileScript).toContain('function buildLocationUpdatePayload(rawLocation)');
+    expect(adminProfileScript).toContain('typeof originalLocation === \'object\'');
   });
 
   it('should keep doctor pages aligned to mounted API routes and shared application helpers', () => {

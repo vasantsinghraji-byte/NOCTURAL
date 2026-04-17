@@ -26,7 +26,7 @@ const { mockRequest, mockResponse, mockNext } = require('../../helpers');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-describe('Auth Middleware - Security Tests', () => {
+describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });

@@ -11,6 +11,32 @@ if (typeof AppConfig === 'undefined') {
 var isEditing = false;
 var originalData = {};
 
+function formatLocationValue(location) {
+  if (!location) {
+    return '';
+  }
+
+  if (typeof location === 'string') {
+    return location;
+  }
+
+  return [location.city, location.state].filter(Boolean).join(', ');
+}
+
+function buildLocationUpdatePayload(rawLocation) {
+  var normalizedLocation = rawLocation.trim();
+  var originalLocation = originalData.location;
+
+  if (originalLocation && typeof originalLocation === 'object') {
+    var originalDisplayValue = formatLocationValue(originalLocation);
+    if (normalizedLocation === originalDisplayValue) {
+      return originalLocation;
+    }
+  }
+
+  return normalizedLocation;
+}
+
 function checkAuth() {
   return AdminSession.requireAuthenticatedPage({
     redirectUrl: AppConfig.routes.page('home')
@@ -48,7 +74,7 @@ async function loadProfile() {
     originalData = Object.assign({}, user);
 
     document.getElementById('hospitalName').value = user.hospital || '';
-    document.getElementById('location').value = user.location || '';
+    document.getElementById('location').value = formatLocationValue(user.location);
     document.getElementById('adminName').value = user.name || '';
     document.getElementById('phone').value = user.phone || '';
 
@@ -75,7 +101,7 @@ function toggleEditMode(editing) {
 
 function cancelEdit() {
   document.getElementById('hospitalName').value = originalData.hospital || '';
-  document.getElementById('location').value = originalData.location || '';
+  document.getElementById('location').value = formatLocationValue(originalData.location);
   document.getElementById('adminName').value = originalData.name || '';
   document.getElementById('phone').value = originalData.phone || '';
 
@@ -91,7 +117,7 @@ async function saveProfile(event) {
 
   var formData = {
     hospital: document.getElementById('hospitalName').value.trim(),
-    location: document.getElementById('location').value.trim(),
+    location: buildLocationUpdatePayload(document.getElementById('location').value),
     name: document.getElementById('adminName').value.trim(),
     phone: document.getElementById('phone').value.trim()
   };

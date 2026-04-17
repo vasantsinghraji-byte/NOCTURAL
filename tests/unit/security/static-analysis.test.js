@@ -35,7 +35,7 @@ const KNOWN_LEAKED_KEYS = [
   'YOUR_KEY_SECRET'
 ];
 
-describe('Static Analysis Security Tests', () => {
+describe('Security Unit: static analysis guardrails', () => {
   // ──────────────────────────────────────────────
   // SEC-001 to SEC-012: Hardcoded Secrets
   // ──────────────────────────────────────────────

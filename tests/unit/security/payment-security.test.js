@@ -48,7 +48,7 @@ const loadPaymentHarness = () => {
   return harness;
 };
 
-describe('Payment Security Tests', () => {
+describe('Security Unit: payment flow safeguards', () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
