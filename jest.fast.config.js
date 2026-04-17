@@ -10,6 +10,7 @@ module.exports = {
     '/tests/models/',
     '/tests/unit/models/',
     '/tests/smoke/',
-    '/services/patient-booking-service/tests/'
+    '/services/patient-booking-service/tests/',
+    'frontend-build-output-csp-contract'
   ]
 };
