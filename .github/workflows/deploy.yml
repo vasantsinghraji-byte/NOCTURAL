@@ -168,7 +168,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v4
+        uses: sigstore/cosign-installer@v4.1.0
 
       - name: Sign Docker image
         shell: bash
