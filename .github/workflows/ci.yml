@@ -102,7 +102,7 @@ jobs:
         run: |
           timeout 30 bash -c 'until (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1; do sleep 1; done'
 
-      - name: Run tests
+      - name: Run fast CI test suite
         run: npm run test:ci
         env:
           NODE_ENV: test
@@ -114,13 +114,14 @@ jobs:
           RAZORPAY_KEY_ID: ${{ secrets.CI_RAZORPAY_KEY_ID }}
           RAZORPAY_KEY_SECRET: ${{ secrets.CI_RAZORPAY_KEY_SECRET }}
 
-      - name: Upload test coverage
+      - name: Upload test coverage artifact
         if: success() && env.ACT != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage/
           retention-days: 7
+          if-no-files-found: ignore
 
   # Secret Scanning
   secret-scan:
