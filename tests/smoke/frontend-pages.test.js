@@ -27,6 +27,7 @@ afterAll(async () => {
 const TOP_PAGES = [
   { path: '/',                                          title: 'Nocturnal' },
   { path: '/index.html',                                title: 'Nocturnal' },
+  { path: '/shared/register.html',                       title: 'Sign Up' },
   { path: '/roles/patient/patient-login.html',           title: null },
   { path: '/roles/patient/patient-register.html',        title: null },
   { path: '/roles/patient/patient-dashboard.html',       title: null },
@@ -70,6 +71,13 @@ describe('Frontend Smoke – top pages load', () => {
 
     const handlers = res.text.match(/\bon(click|submit|change|load|error)\s*=/gi);
     expect(handlers).toBeNull();
+  });
+
+  test('Legacy register.html redirects to the canonical shared registration page', async () => {
+    const res = await request(app).get('/register.html');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/shared/register.html');
   });
 
   test('Static assets are served', async () => {

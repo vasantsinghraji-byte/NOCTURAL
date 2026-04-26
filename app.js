@@ -206,6 +206,11 @@ if (!isTest) {
 // Serve frontend HTML files only (public assets)
 app.use(express.static('client/public'));
 
+// Compatibility for older/public links that pointed at a root registration page.
+app.get('/register.html', (req, res) => {
+  res.redirect(302, '/shared/register.html');
+});
+
 // Authenticated file access middleware
 const authenticatedFileAccess = require('./middleware/auth').protect;
 
