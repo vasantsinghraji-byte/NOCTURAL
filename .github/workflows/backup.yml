@@ -2,7 +2,7 @@ name: Scheduled Database Backup
 
 on:
   schedule:
-    # Daily at 02:00 UTC
+    # Daily at 02:00 UTC. Requires MONGODB_URI in the selected GitHub environment.
     - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
@@ -23,22 +23,53 @@ jobs:
     name: Database Backup
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'production' }}
+
     steps:
-      - name: Validate MONGODB_URI secret
+      - name: Validate backup prerequisites
+        id: preflight
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           if [ -z "$MONGODB_URI" ]; then
-            echo "::error::MONGODB_URI secret is not configured. Please add it to the repository or environment secrets."
-            echo "Skipping backup - no database connection string available."
+            echo "::warning::MONGODB_URI secret is not configured. Skipping backup until repository or environment secrets are set."
+            echo "skip_backup=true" >> "$GITHUB_OUTPUT"
+            echo "upload_target=none" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "::error::AWS_SECRET_ACCESS_KEY must be configured when AWS_ACCESS_KEY_ID is set."
             exit 1
           fi
-          echo "MONGODB_URI secret is configured."
+
+          if [ -z "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "::error::AWS_ACCESS_KEY_ID must be configured when AWS_SECRET_ACCESS_KEY is set."
+            exit 1
+          fi
+
+          echo "skip_backup=false" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "upload_target=s3" >> "$GITHUB_OUTPUT"
+            echo "AWS credentials detected. Backup will be uploaded to S3."
+          else
+            echo "upload_target=artifact" >> "$GITHUB_OUTPUT"
+            echo "::notice::AWS credentials are not fully configured. Backup will be stored as a workflow artifact."
+          fi
+
+      - name: Record skipped backup
+        if: steps.preflight.outputs.skip_backup == 'true'
+        run: |
+          echo "Database backup skipped because MONGODB_URI is not configured for ${{ github.event.inputs.environment || 'production' }}." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        if: steps.preflight.outputs.skip_backup != 'true'
+        uses: actions/checkout@v6
 
       - name: Install MongoDB Database Tools
+        if: steps.preflight.outputs.skip_backup != 'true'
         run: |
           wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | sudo apt-key add -
           echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
@@ -46,6 +77,7 @@ jobs:
           sudo apt-get install -y mongodb-database-tools
 
       - name: Create backup
+        if: steps.preflight.outputs.skip_backup != 'true'
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
         run: |
@@ -54,6 +86,7 @@ jobs:
           BACKUP_NAME="${ENV}_backup_${TIMESTAMP}"
           BACKUP_DIR="/tmp/backups/${BACKUP_NAME}"
 
+          mkdir -p /tmp/backups
           echo "Creating backup: ${BACKUP_NAME}"
           mongodump --uri="${MONGODB_URI}" --out="${BACKUP_DIR}" --gzip
 
@@ -63,18 +96,18 @@ jobs:
 
           BACKUP_SIZE=$(du -h "/tmp/backups/${BACKUP_NAME}.tar.gz" | cut -f1)
           echo "Backup created: ${BACKUP_NAME}.tar.gz (${BACKUP_SIZE})"
-
           echo "BACKUP_FILE=/tmp/backups/${BACKUP_NAME}.tar.gz" >> $GITHUB_ENV
           echo "BACKUP_NAME=${BACKUP_NAME}" >> $GITHUB_ENV
 
       - name: Verify backup integrity
+        if: steps.preflight.outputs.skip_backup != 'true'
         run: |
           echo "Verifying backup archive..."
           tar -tzf "${{ env.BACKUP_FILE }}" > /dev/null
           echo "Backup verified successfully"
 
       - name: Upload to S3
-        if: env.AWS_ACCESS_KEY_ID != ''
+        if: steps.preflight.outputs.upload_target == 's3'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -82,11 +115,12 @@ jobs:
         run: |
           ENV="${{ github.event.inputs.environment || 'production' }}"
           S3_BUCKET="nocturnal-backups-${ENV}"
+
           aws s3 cp "${{ env.BACKUP_FILE }}" "s3://${S3_BUCKET}/automated/${{ env.BACKUP_NAME }}.tar.gz"
           echo "Backup uploaded to s3://${S3_BUCKET}/automated/"
 
       - name: Cleanup old S3 backups
-        if: env.AWS_ACCESS_KEY_ID != ''
+        if: steps.preflight.outputs.upload_target == 's3'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -95,6 +129,7 @@ jobs:
           ENV="${{ github.event.inputs.environment || 'production' }}"
           S3_BUCKET="nocturnal-backups-${ENV}"
           CUTOFF_DATE=$(date -d "${{ env.BACKUP_RETENTION_DAYS }} days ago" +%Y-%m-%d)
+
           echo "Removing backups older than ${CUTOFF_DATE}..."
           aws s3 ls "s3://${S3_BUCKET}/automated/" | while read -r line; do
             FILE_DATE=$(echo "$line" | awk '{print $1}')
@@ -106,8 +141,8 @@ jobs:
           done
 
       - name: Upload backup as artifact (fallback)
-        if: env.AWS_ACCESS_KEY_ID == ''
-        uses: actions/upload-artifact@v4
+        if: steps.preflight.outputs.upload_target == 'artifact'
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ env.BACKUP_NAME }}
           path: ${{ env.BACKUP_FILE }}
@@ -117,11 +152,10 @@ jobs:
     name: Notify on Failure
     runs-on: ubuntu-latest
     needs: backup
-    if: failure()
+    if: needs.backup.result == 'failure'
     steps:
       - name: Log backup failure
         run: |
           echo "::error::Database backup failed for ${{ github.event.inputs.environment || 'production' }}"
           echo "Check the backup job logs for details."
-          echo "Ensure MONGODB_URI secret is properly configured."
           echo "Manual backup can be run with: node scripts/backup-database.js"
