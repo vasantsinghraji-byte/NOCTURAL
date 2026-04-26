@@ -1,10 +1,6 @@
 name: Deploy
 
 on:
-  push:
-    branches: [ develop ]
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       environment:
@@ -55,23 +51,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            action="deploy"
-            requested_image_tag=""
-
-            if [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
-              environment="staging"
-            elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-              environment="production"
-            else
-              echo "::error::Unsupported push ref ${GITHUB_REF} for deployment"
-              exit 1
-            fi
-          else
-            environment="${{ github.event.inputs.environment }}"
-            action="${{ github.event.inputs.action }}"
-            requested_image_tag="${{ github.event.inputs.image_tag }}"
-          fi
+          environment="${{ github.event.inputs.environment }}"
+          action="${{ github.event.inputs.action }}"
+          requested_image_tag="${{ github.event.inputs.image_tag }}"
 
           if [[ "$environment" == "production" ]]; then
             health_url="https://nocturnal.com/api/health"
