@@ -5,13 +5,10 @@
 
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
 const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 const mime = require('mime-types');
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./config/swagger');
 const logger = require('./utils/logger');
 const metricsRouter = require('./routes/admin/metrics');
 
@@ -65,16 +62,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// 1. Enforce HTTPS in production (redirect HTTP to HTTPS)
+// 1. CORS and preflight must run before redirects so browsers can complete
+// same-origin POST/credentialed API requests behind production proxies.
+const corsOptions = corsConfig();
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
+
+// 2. Enforce HTTPS in production (redirect HTTP to HTTPS)
 if (!isTest) {
   app.use(enforceHTTPS);
 }
 
-// 1. Enhanced Security Headers (CSP, HSTS, X-Frame-Options, etc.)
+// 3. Enhanced Security Headers (CSP, HSTS, X-Frame-Options, etc.)
 app.use(securityHeaders());
-
-// 2. Enhanced CORS with origin whitelist
-app.use(cors(corsConfig()));
 
 // 3. DDoS Protection - IP-based request tracking with automatic blacklisting
 if (!isTest) {
@@ -227,6 +227,8 @@ app.get('/uploads/:type/:filename', authenticatedFileAccess, async (req, res) =>
     const safePath = path.normalize(filename).replace(/^(\.\.(\/|\\|$))+/, '');
     const filePath = path.join(__dirname, 'uploads', type, safePath);
 
+    // The path is constrained to the authenticated uploads directory above.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     if (!fs.existsSync(filePath)) {
       return res.status(404).send('File not found');
     }
@@ -251,6 +253,7 @@ app.get('/uploads/:type/:filename', authenticatedFileAccess, async (req, res) =>
     const contentType = mime.lookup(filePath) || 'application/octet-stream';
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', 'inline');
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.createReadStream(filePath).pipe(res);
   } catch (error) {
     logger.error('File access error', { error: error.message, path: req.path });
@@ -282,10 +285,21 @@ app.get('/api', (req, res) => {
 });
 
 // API Documentation - Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Nocturnal API Documentation'
-}));
+// Disabled by default in test/production to avoid exposing an incomplete public
+// API surface and to keep swagger-jsdoc's deprecated transitive URL parser out
+// of normal startup. Set ENABLE_API_DOCS=true to mount it deliberately.
+const shouldEnableApiDocs = process.env.ENABLE_API_DOCS === 'true' ||
+  (!isTest && process.env.NODE_ENV !== 'production');
+
+if (shouldEnableApiDocs) {
+  const swaggerUi = require('swagger-ui-express');
+  const swaggerSpec = require('./config/swagger');
+
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Nocturnal API Documentation'
+  }));
+}
 
 // Redirect unversioned requests to latest version
 app.use(redirectToLatestVersion);

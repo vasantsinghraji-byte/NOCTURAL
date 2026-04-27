@@ -39,8 +39,12 @@ services:
         value: 7d
       - key: ENCRYPTION_KEY
         sync: false  # Set manually in Render dashboard
+      - key: APP_URL
+        value: https://nocturnal-api.onrender.com
+      - key: FRONTEND_URL
+        value: https://nocturnal.com
       - key: ALLOWED_ORIGINS
-        sync: false  # Set manually: https://yourdomain.com,https://nocturnal-frontend.onrender.com
+        value: https://nocturnal-api.onrender.com,https://nocturnal-frontend.onrender.com,https://nocturnal-frontend-208z.onrender.com,https://nocturnal.com
       # Optional Services
       - key: REDIS_ENABLED
         value: false
