@@ -1,7 +1,16 @@
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const logger = require('../utils/logger');
 
 // Helper to create rate limiters with logging
+const rateLimitKeyGenerator = (req) => {
+  const userId = req.user?._id || req.user?.id;
+  if (userId) {
+    return `user:${userId.toString()}`;
+  }
+
+  return ipKeyGenerator(req.ip || req.connection?.remoteAddress || 'unknown');
+};
+
 const createLimiter = (options) => {
   return rateLimit({
     windowMs: options.windowMs || 15 * 60 * 1000, // Default 15 minutes
@@ -18,10 +27,7 @@ const createLimiter = (options) => {
         message: options.message || 'Too many requests, please try again later'
       });
     },
-    keyGenerator: (req) => {
-      // Use user ID if available, otherwise IP
-      return req.user ? req.user._id : req.ip;
-    }
+    keyGenerator: rateLimitKeyGenerator
   });
 };
 
@@ -52,5 +58,6 @@ module.exports = {
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 3, // 3 attempts per hour
     message: 'Too many sensitive operations attempted, please try again later'
-  })
+  }),
+  rateLimitKeyGenerator
 };
