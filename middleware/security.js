@@ -144,21 +144,37 @@ const corsConfig = () => {
     .map(origin => origin.trim())
     .filter(Boolean);
 
+  const addAllowedOrigin = (origin) => {
+    if (origin && !allowedOrigins.includes(origin)) {
+      allowedOrigins.push(origin);
+    }
+  };
+
   // Add default origins for development
   if (process.env.NODE_ENV === 'development') {
-    allowedOrigins.push(
+    [
       'http://localhost:3000',
       'http://localhost:5000',
       'http://localhost:5500',
       'http://127.0.0.1:5500'
-    );
+    ].forEach(addAllowedOrigin);
   }
 
-  // Add production Render frontend URL if not already included
-  const renderFrontendUrl = process.env.RENDER_FRONTEND_URL || 'https://nocturnal-frontend-208z.onrender.com';
-  if (!allowedOrigins.includes(renderFrontendUrl)) {
-    allowedOrigins.push(renderFrontendUrl);
-  }
+  // Same-origin browser POSTs include an Origin header. Keep production strict,
+  // but trust this service's configured public origins even when ALLOWED_ORIGINS
+  // was left incomplete in the hosting dashboard.
+  [
+    process.env.APP_URL,
+    process.env.API_URL,
+    process.env.PUBLIC_API_URL,
+    process.env.RENDER_EXTERNAL_URL,
+    process.env.RENDER_FRONTEND_URL,
+    process.env.FRONTEND_URL,
+    process.env.CLIENT_URL,
+    'https://nocturnal-api.onrender.com',
+    'https://nocturnal-frontend.onrender.com',
+    'https://nocturnal-frontend-208z.onrender.com'
+  ].forEach(addAllowedOrigin);
 
   // Log allowed origins on startup
   logger.info('CORS configured with allowed origins', {
@@ -168,9 +184,18 @@ const corsConfig = () => {
 
   return {
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
+      // Allow no-origin requests only outside production for mobile apps,
+      // Postman, and CLI tooling. Production callers must send an allowlisted
+      // Origin so the CORS policy cannot be bypassed by omitting the header.
       if (!origin) {
-        return callback(null, true);
+        if (process.env.NODE_ENV !== 'production') {
+          return callback(null, true);
+        }
+
+        logger.warn('CORS blocked request with missing origin', {
+          allowedOrigins: allowedOrigins.length > 0 ? allowedOrigins : 'NONE CONFIGURED'
+        });
+        return callback(new Error('Not allowed by CORS'));
       }
 
       // Strict origin whitelist check - no bypasses

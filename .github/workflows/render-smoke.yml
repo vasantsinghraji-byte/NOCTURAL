@@ -1,0 +1,45 @@
+name: Render Smoke
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      deployed_base_url:
+        description: Deployed base URL to smoke test
+        required: false
+        type: string
+        default: https://nocturnal-api.onrender.com
+      origin:
+        description: Browser Origin header to verify
+        required: false
+        type: string
+        default: https://nocturnal.com
+
+permissions:
+  contents: read
+
+jobs:
+  auth-cors-smoke:
+    name: Deployed Auth CORS Smoke
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22.x'
+
+      - name: Smoke test deployed login/register CORS
+        env:
+          DEPLOYED_BASE_URL: ${{ github.event.inputs.deployed_base_url || vars.RENDER_SMOKE_BASE_URL || 'https://nocturnal-api.onrender.com' }}
+          SMOKE_ORIGIN: ${{ github.event.inputs.origin || vars.RENDER_SMOKE_ORIGIN || 'https://nocturnal.com' }}
+        run: npm run smoke:deployed-auth-cors
