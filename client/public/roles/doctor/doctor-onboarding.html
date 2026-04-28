@@ -445,8 +445,8 @@
             <!-- Step 1: Account Creation -->
             <div class="form-step active" data-step="1">
                 <div class="form-card">
-                    <h2 class="form-step-title">Account Information</h2>
-                    <p class="form-step-description">Let's start with your basic details</p>
+                    <h2 class="form-step-title">Provider Account Information</h2>
+                    <p class="form-step-description">Start with your basic details for India provider onboarding</p>
 
                     <div class="form-group">
                         <label for="fullName" class="required">Full Name</label>
@@ -456,7 +456,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="email" class="required">Email Address</label>
-                            <input type="email" id="email" class="form-control" placeholder="doctor@example.com" required>
+                            <input type="email" id="email" class="form-control" placeholder="provider@example.com" required>
                         </div>
                         <div class="form-group">
                             <label for="phone" class="required">Phone Number</label>
@@ -485,17 +485,21 @@
             <div class="form-step" data-step="2">
                 <div class="form-card">
                     <h2 class="form-step-title">Professional Details</h2>
-                    <p class="form-step-description">Tell us about your medical credentials</p>
+                    <p class="form-step-description">Tell us about your Indian healthcare registration and care experience</p>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="mciNumber" class="required">MCI Registration Number</label>
-                            <input type="text" id="mciNumber" class="form-control" placeholder="e.g., 123456" required>
+                            <label for="mciNumber" class="required">Professional Registration Number</label>
+                            <input type="text" id="mciNumber" class="form-control" placeholder="MCI/NMC/State council number" required>
                         </div>
                         <div class="form-group">
-                            <label for="stateMedicalCouncil" class="required">State Medical Council</label>
+                            <label for="stateMedicalCouncil" class="required">Registration Council / Board</label>
                             <select id="stateMedicalCouncil" class="form-control" required>
-                                <option value="">Select State</option>
+                                <option value="">Select Council / Board</option>
+                                <option value="National Medical Commission">National Medical Commission</option>
+                                <option value="Indian Nursing Council">Indian Nursing Council</option>
+                                <option value="State Nursing Council">State Nursing Council</option>
+                                <option value="State Physiotherapy Council">State Physiotherapy Council</option>
                                 <option value="Delhi Medical Council">Delhi Medical Council</option>
                                 <option value="Maharashtra Medical Council">Maharashtra Medical Council</option>
                                 <option value="Tamil Nadu Medical Council">Tamil Nadu Medical Council</option>
@@ -509,6 +513,9 @@
                         <label for="primarySpecialization" class="required">Primary Specialization</label>
                         <select id="primarySpecialization" class="form-control" required>
                             <option value="">Select Specialization</option>
+                            <option value="Home Healthcare">Home Healthcare</option>
+                            <option value="Nursing Care">Nursing Care</option>
+                            <option value="Physiotherapy">Physiotherapy</option>
                             <option value="Internal Medicine">Internal Medicine</option>
                             <option value="Emergency Medicine">Emergency Medicine</option>
                             <option value="General Surgery">General Surgery</option>
@@ -567,7 +574,7 @@
             <div class="form-step" data-step="3">
                 <div class="form-card">
                     <h2 class="form-step-title">Document Upload</h2>
-                    <p class="form-step-description">Upload your verification documents (All mandatory)</p>
+                    <p class="form-step-description">Upload Indian provider verification documents (All mandatory)</p>
 
                     <div class="info-box">
                         <i class="fas fa-info-circle"></i>
@@ -575,7 +582,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="required">MCI Registration Certificate</label>
+                        <label class="required">Council Registration Certificate</label>
                         <div class="file-upload-area" onclick="document.getElementById('mciCertFile').click()">
                             <i class="fas fa-cloud-upload-alt"></i>
                             <p><strong>Click to upload</strong> or drag and drop</p>
@@ -603,7 +610,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="required">MBBS Degree Certificate</label>
+                        <label class="required">Professional Degree / Diploma Certificate</label>
                         <div class="file-upload-area" onclick="document.getElementById('mbbsDegreeFile').click()">
                             <i class="fas fa-graduation-cap"></i>
                             <p><strong>Click to upload</strong> or drag and drop</p>
@@ -641,11 +648,11 @@
             <div class="form-step" data-step="4">
                 <div class="form-card">
                     <h2 class="form-step-title">Skills & Availability</h2>
-                    <p class="form-step-description">Set your preferences for shift matching</p>
+                    <p class="form-step-description">Set your preferences for home visits now and locum duty matching later</p>
 
                     <div class="form-group">
-                        <label>Preferred Shift Times</label>
-                        <p style="font-size: 0.9rem; color: #666; margin-bottom: 10px;">Select all that work for you</p>
+                        <label>Preferred Visit / Duty Times</label>
+                        <p style="font-size: 0.9rem; color: #666; margin-bottom: 10px;">Select all that work for home visits or future duty shifts</p>
                         <div class="shift-preferences" id="shiftPreferences">
                             <!-- Will be populated by JavaScript -->
                         </div>
@@ -655,10 +662,10 @@
                         <div class="form-group">
                             <label for="serviceRadius">Service Radius (km)</label>
                             <input type="number" id="serviceRadius" class="form-control" placeholder="20" min="5" max="100" value="20">
-                            <p style="font-size: 0.9rem; color: #666; margin-top: 5px;">How far are you willing to travel?</p>
+                            <p style="font-size: 0.9rem; color: #666; margin-top: 5px;">How far are you willing to travel for home visits?</p>
                         </div>
                         <div class="form-group">
-                            <label for="minimumRate">Minimum Expected Rate (₹/hour)</label>
+                            <label for="minimumRate">Minimum Expected Rate (₹/visit or hour)</label>
                             <input type="number" id="minimumRate" class="form-control" placeholder="1500" min="500" step="100">
                         </div>
                     </div>
