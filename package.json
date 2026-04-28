@@ -62,6 +62,7 @@
     "test:utils": "jest tests/unit/utils",
     "test:api": "jest tests/integration",
     "test:ci": "jest --ci --runInBand --forceExit tests/smoke/frontend-pages.test.js",
+    "test:legacy": "jest --ci --runInBand --forceExit --testPathIgnorePatterns=tests/smoke/frontend-pages.test.js",
     "test:security-gate": "jest --ci --runInBand --forceExit tests/unit/security/static-analysis.test.js",
     "test:deploy-gate": "jest --ci --runInBand --forceExit tests/smoke/frontend-pages.test.js",
     "smoke:deployed-auth-cors": "node scripts/smoke-deployed-auth-cors.js",
