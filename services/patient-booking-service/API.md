@@ -48,7 +48,7 @@ Create a new patient account.
       "totalSpent": 0,
       "createdAt": "2025-01-01T10:00:00.000Z"
     },
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "token": "<JWT_TOKEN>"
   }
 }
 ```
@@ -76,7 +76,7 @@ Authenticate and get access token.
   "message": "Login successful",
   "data": {
     "patient": { /* patient object */ },
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "token": "<JWT_TOKEN>"
   }
 }
 ```

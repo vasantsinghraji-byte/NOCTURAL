@@ -305,13 +305,13 @@ curl -X POST http://localhost:5000/api/auth/login \
 #### Get Available Duties (Authenticated)
 ```bash
 curl -X GET "http://localhost:5000/api/duties?page=1&limit=10" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -H "Authorization: Bearer ${JWT_TOKEN}"
 ```
 
 #### Apply for a Duty
 ```bash
 curl -X POST http://localhost:5000/api/applications \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Authorization: Bearer ${JWT_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
     "dutyId": "507f1f77bcf86cd799439011",
@@ -704,14 +704,14 @@ sudo certbot --nginx -d yourdomain.com
 ```bash
 # View real-time metrics
 curl http://localhost:5000/api/admin/metrics \
-  -H "Authorization: Bearer ADMIN_TOKEN"
+  -H "Authorization: Bearer ${ADMIN_TOKEN}"
 
 # Health check
 curl http://localhost:5000/api/admin/health
 
 # Rate limit metrics
 curl http://localhost:5000/api/admin/rate-limits \
-  -H "Authorization: Bearer ADMIN_TOKEN"
+  -H "Authorization: Bearer ${ADMIN_TOKEN}"
 ```
 
 ### Log Management

@@ -1118,7 +1118,7 @@
 
     // Firebase configuration (MUST MATCH firebase-config.js)
     const firebaseConfig = {
-        apiKey: "AIzaSyCd46DqN40OBl1QHx0mYiAGCo8s6A_CHLI",
+        apiKey: "FIREBASE_API_KEY_PLACEHOLDER",
         authDomain: "nocturnal-49be3.firebaseapp.com",
         projectId: "nocturnal-49be3",
         storageBucket: "nocturnal-49be3.firebasestorage.app",

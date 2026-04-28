@@ -52,8 +52,8 @@ Created a shared library package containing:
    ```
 
 4. **Access service UIs**:
-   - RabbitMQ Management: http://localhost:15672 (admin/admin123)
-   - MongoDB: mongodb://admin:admin123@localhost:27017
+   - RabbitMQ Management: http://localhost:15672 (`RABBITMQ_USER` / `RABBITMQ_PASSWORD`)
+   - MongoDB: `mongodb://<user>:<password>@localhost:27017`
 
 5. **View logs**:
    ```bash
@@ -229,13 +229,13 @@ Required variables:
 
 ```bash
 # Test MongoDB connection
-docker exec -it nocturnal-mongodb mongosh -u admin -p admin123
+docker exec -it nocturnal-mongodb mongosh -u "$MONGO_ROOT_USERNAME" -p "$MONGO_ROOT_PASSWORD"
 
 # Test Redis connection
-docker exec -it nocturnal-redis redis-cli -a redis123 ping
+docker exec -it nocturnal-redis redis-cli -a "$REDIS_PASSWORD" ping
 
 # Test RabbitMQ
-curl -u admin:admin123 http://localhost:15672/api/overview
+curl -u "$RABBITMQ_USER:$RABBITMQ_PASSWORD" http://localhost:15672/api/overview
 ```
 
 ## Troubleshooting
