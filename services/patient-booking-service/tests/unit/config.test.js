@@ -8,6 +8,7 @@ describe('Configuration', () => {
   beforeEach(() => {
     // Clear module cache to get fresh config
     jest.resetModules();
+    delete process.env.PORT;
     config = require('../../src/config');
   });
 

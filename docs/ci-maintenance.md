@@ -8,17 +8,28 @@ gate validation, and a container smoke build.
 
 ## Legacy Jest cleanup
 
-The broader historical Jest suite is exposed as `npm run test:legacy` and runs in
-CI as **Legacy Jest Suite (non-blocking)**. It should be treated as cleanup
-signal, not a release gate, until stale tests are either repaired, deleted, or
-moved into the supported smoke/security/deployment gates.
+The historical Jest suite is now split into two groups:
+
+- `npm run test:legacy:healthy` runs the repaired legacy suites and is a
+  required CI gate.
+- `npm run test:legacy:quarantine` runs the remaining stale suites and is
+  reported by **Legacy Jest Quarantine (non-blocking)**.
+
+Move suites from quarantine into the healthy gate as they are repaired. The
+current quarantine contains the model and upload/security helper tests that no
+longer match the active schemas or take too long under CI MongoDB.
 
 ## Dependency audit follow-up
 
-`npm audit fix --omit=dev` was applied for non-breaking production dependency
-updates. CI now uploads `npm-audit-prod.json` and prints the remaining
-production vulnerability counts without failing the deployment pipeline.
+The dependency audit chains have been reviewed:
 
-Remaining audit items need separate dependency decisions because npm reports
-breaking changes or no available fix for the affected chains, including
-`firebase-admin` / Google Cloud dependencies, `file-type`, and `pm2`.
+- `firebase-admin` was unused and removed.
+- `file-type` was upgraded to the current ESM package, with a CommonJS helper
+  wrapper used by upload middleware.
+- `@google-cloud/storage` was removed from package dependencies because the app
+  only loads it behind `USE_GCS=true`; production now fails fast if GCS is
+  enabled without installing/configuring the package.
+- `pm2` was removed from package dependencies because Render runs the container
+  with direct `node server.js`.
+
+Both `npm audit` and `npm audit --omit=dev` now report zero vulnerabilities.

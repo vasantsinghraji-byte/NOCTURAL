@@ -46,6 +46,9 @@ if (USE_GCS && process.env.GCS_BUCKET) {
     logger.info('Google Cloud Storage initialized', { bucket: process.env.GCS_BUCKET });
   } catch (error) {
     logger.error('Failed to initialize Google Cloud Storage', { error: error.message });
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    }
   }
 }
 

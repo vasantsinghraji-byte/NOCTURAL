@@ -127,7 +127,7 @@ jobs:
 
   # Legacy Jest suites are still useful signal, but not clean enough to gate deploys yet.
   legacy-tests:
-    name: Legacy Jest Suite (non-blocking)
+    name: Legacy Jest Quarantine (non-blocking)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     continue-on-error: true
@@ -166,8 +166,60 @@ jobs:
         run: |
           timeout 30 bash -c 'until (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1; do sleep 1; done'
 
-      - name: Run legacy Jest suites
-        run: npm run test:legacy
+      - name: Run quarantined legacy Jest suites
+        run: npm run test:legacy:quarantine
+        env:
+          NODE_ENV: test
+          PORT: 5001
+          MONGODB_URI: mongodb://admin:testpass@localhost:27017/nocturnal_test?authSource=admin
+          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci-test-jwt-secret-placeholder-for-actions-only-not-a-real-secret-0001' }}
+          JWT_EXPIRE: 7d
+          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY || format('{0}{1}{2}{3}', 'aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa') }}
+          ALLOWED_ORIGINS: http://localhost:3000
+          RAZORPAY_KEY_ID: ${{ secrets.CI_RAZORPAY_KEY_ID }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.CI_RAZORPAY_KEY_SECRET }}
+
+  legacy-healthy:
+    name: Legacy Healthy Jest Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: testpass
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for MongoDB
+        run: |
+          timeout 30 bash -c 'until (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1; do sleep 1; done'
+
+      - name: Run healthy legacy Jest suites
+        run: npm run test:legacy:healthy
         env:
           NODE_ENV: test
           PORT: 5001
@@ -253,7 +305,7 @@ jobs:
   build:
     name: Deployment Gate
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, test, legacy-healthy]
     timeout-minutes: 25
 
     steps:
@@ -279,7 +331,7 @@ jobs:
   container-smoke:
     name: Container Smoke Build
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, test, legacy-healthy]
     timeout-minutes: 20
 
     steps:
@@ -328,7 +380,7 @@ jobs:
   notify:
     name: Send Notifications
     runs-on: ubuntu-latest
-    needs: [lint, test, legacy-tests, secret-scan, security, build, container-smoke]
+    needs: [lint, test, legacy-healthy, legacy-tests, secret-scan, security, build, container-smoke]
     if: always()
     timeout-minutes: 5
 
@@ -338,7 +390,8 @@ jobs:
           echo "CI Pipeline completed"
           echo "Lint: ${{ needs.lint.result }}"
           echo "Tests: ${{ needs.test.result }}"
-          echo "Legacy Tests: ${{ needs.legacy-tests.result }}"
+          echo "Legacy Healthy Tests: ${{ needs.legacy-healthy.result }}"
+          echo "Legacy Quarantine Tests: ${{ needs.legacy-tests.result }}"
           echo "Secret Scan: ${{ needs.secret-scan.result }}"
           echo "Security: ${{ needs.security.result }}"
           echo "Build: ${{ needs.build.result }}"

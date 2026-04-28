@@ -77,7 +77,8 @@ describe('Phase 4 — Config & Infrastructure Validation', () => {
   describe('VAL-014: Rate limiter key generation', () => {
     it('should use user ID when available, otherwise IP', () => {
       expect(rateLimiterSrc).toMatch(/keyGenerator/);
-      expect(rateLimiterSrc).toMatch(/req\.user\s*\?\s*req\.user\._id\s*:\s*req\.ip/);
+      expect(rateLimiterSrc).toMatch(/req\.user\?\._id\s*\|\|\s*req\.user\?\.id/);
+      expect(rateLimiterSrc).toMatch(/ipKeyGenerator\(req\.ip/);
     });
   });
 

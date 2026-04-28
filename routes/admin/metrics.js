@@ -3,7 +3,6 @@ const router = express.Router();
 const { getRateLimitMetrics } = require('../../config/rateLimit');
 const { protect, authorize } = require('../../middleware/auth');
 const geoip = require('geoip-lite');
-const moment = require('moment');
 
 // Maintain a history of block rates and detailed analytics
 const blockRateHistory = [];
@@ -80,7 +79,7 @@ function recordRequest(req, blocked = false) {
 }
 
 // Update block rate history every minute
-setInterval(() => {
+const blockRateHistoryInterval = setInterval(() => {
     const metrics = getRateLimitMetrics();
     const currentTime = new Date();
     
@@ -108,6 +107,10 @@ setInterval(() => {
         });
     });
 }, 60000);
+
+if (typeof blockRateHistoryInterval.unref === 'function') {
+    blockRateHistoryInterval.unref();
+}
 
 // Get rate limit metrics - protected admin route
 router.get('/rate-limits', protect, authorize('admin'), async (req, res) => {

@@ -10,6 +10,7 @@ const landingSrc = readProjectFile('client/public/js/landing.js');
 const sharedRegisterSrc = readProjectFile('client/public/shared/register.html');
 const patientLoginSrc = readProjectFile('client/public/roles/patient/patient-login.html');
 const providerLoginSrc = readProjectFile('client/public/roles/provider/provider-login.html');
+const providerLoginJsSrc = readProjectFile('client/public/js/provider-login.js');
 const patientRegisterSrc = readProjectFile('client/public/roles/patient/patient-register.html');
 
 describe('Frontend Auth Form Helper', () => {
@@ -40,8 +41,8 @@ describe('Frontend Auth Form Helper', () => {
     expect(sharedRegisterSrc).toContain('NocturnalSession.setButtonLoading(btn)');
     expect(sharedRegisterSrc).toContain('NocturnalSession.resetButtonState(btn)');
     expect(sharedRegisterSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
-    expect(sharedRegisterSrc).toContain("redirectUrl: 'doctor-onboarding.html'");
-    expect(sharedRegisterSrc).toContain("redirectUrl: 'admin-dashboard.html'");
+    expect(sharedRegisterSrc).toContain("redirectUrl: '/roles/doctor/doctor-onboarding.html'");
+    expect(sharedRegisterSrc).toContain('Hospital Onboarding Coming Soon');
 
     expect(patientLoginSrc).toContain('<script src="/js/frontend-session.js"></script>');
     expect(patientLoginSrc).toContain('NocturnalSession.getLoginErrorMessage(error');
@@ -51,13 +52,14 @@ describe('Frontend Auth Form Helper', () => {
     expect(patientLoginSrc).toContain("tokenKey: 'patientToken'");
 
     expect(providerLoginSrc).toContain('<script src="/js/frontend-session.js"></script>');
-    expect(providerLoginSrc).toContain('NocturnalSession.getLoginErrorMessage(error');
-    expect(providerLoginSrc).toContain("{ className: 'message error' }");
-    expect(providerLoginSrc).toContain("NocturnalSession.setButtonLoading(btn, { clearText: true })");
-    expect(providerLoginSrc).toContain("NocturnalSession.resetButtonState(btn, { textContent: 'Login' })");
-    expect(providerLoginSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
-    expect(providerLoginSrc).toContain("successClassName: 'message success'");
-    expect(providerLoginSrc).toContain("tokenKey: 'providerToken'");
+    expect(providerLoginSrc).toContain('<script src="/js/provider-login.js" defer></script>');
+    expect(providerLoginJsSrc).toContain('NocturnalSession.getLoginErrorMessage(error');
+    expect(providerLoginJsSrc).toContain("{ className: 'message error' }");
+    expect(providerLoginJsSrc).toContain("NocturnalSession.setButtonLoading(btn, { clearText: true })");
+    expect(providerLoginJsSrc).toContain("NocturnalSession.resetButtonState(btn, { textContent: 'Login' })");
+    expect(providerLoginJsSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(providerLoginJsSrc).toContain("successClassName: 'message success'");
+    expect(providerLoginJsSrc).toContain("tokenKey: 'providerToken'");
 
     expect(patientRegisterSrc).toContain('<script src="/js/frontend-session.js"></script>');
     expect(patientRegisterSrc).toContain('NocturnalSession.getRegistrationErrorMessage(error');

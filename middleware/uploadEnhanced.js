@@ -13,9 +13,9 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { fromBuffer } = require('file-type');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const { detectFileTypeFromBuffer } = require('../utils/fileType');
 
 // User upload quota (5MB per file, 50MB total per user)
 const QUOTA_LIMITS = {
@@ -309,7 +309,7 @@ const validateFileTypeEnhanced = async (req, res, next) => {
 
       // 1. Magic number validation (async)
       const buffer = await fs.promises.readFile(filePath);
-      const fileTypeResult = await fromBuffer(buffer);
+      const fileTypeResult = await detectFileTypeFromBuffer(buffer);
 
       if (!fileTypeResult || !ALLOWED_TYPES[fileTypeResult.mime]) {
         await fs.promises.unlink(filePath).catch(console.error);

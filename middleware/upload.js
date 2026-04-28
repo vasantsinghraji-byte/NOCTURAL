@@ -1,7 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { fromBuffer } = require('file-type');
+const { detectFileTypeFromBuffer } = require('../utils/fileType');
 const logger = require('../utils/logger');
 const storageConfig = require('../config/storage');
 
@@ -149,7 +149,7 @@ const validateFileType = async (req, res, next) => {
     for (const file of filesToValidate) {
       // Use async file reading (non-blocking)
       const buffer = await fs.promises.readFile(file.path);
-      const fileTypeResult = await fromBuffer(buffer);
+      const fileTypeResult = await detectFileTypeFromBuffer(buffer);
 
       if (!fileTypeResult) {
         // Delete uploaded file asynchronously
