@@ -86,13 +86,15 @@ jobs:
           CI_RAZORPAY_KEY_ID: ${{ secrets.CI_RAZORPAY_KEY_ID }}
           CI_RAZORPAY_KEY_SECRET: ${{ secrets.CI_RAZORPAY_KEY_SECRET }}
         run: |
+          DEFAULT_JWT_SECRET="ci-test-jwt-secret-placeholder-for-actions-only-not-a-real-secret-0001"
+          DEFAULT_ENCRYPTION_KEY="$(printf 'a%.0s' {1..64})"
           cat > .env.test <<EOF
           NODE_ENV=test
           PORT=5001
           MONGODB_URI=mongodb://admin:testpass@localhost:27017/nocturnal_test?authSource=admin
-          JWT_SECRET=${CI_JWT_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+          JWT_SECRET=${CI_JWT_SECRET:-$DEFAULT_JWT_SECRET}
           JWT_EXPIRE=7d
-          ENCRYPTION_KEY=${CI_ENCRYPTION_KEY:-abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789}
+          ENCRYPTION_KEY=${CI_ENCRYPTION_KEY:-$DEFAULT_ENCRYPTION_KEY}
           ALLOWED_ORIGINS=http://localhost:3000
           RAZORPAY_KEY_ID=${CI_RAZORPAY_KEY_ID:-}
           RAZORPAY_KEY_SECRET=${CI_RAZORPAY_KEY_SECRET:-}
@@ -108,9 +110,9 @@ jobs:
           NODE_ENV: test
           PORT: 5001
           MONGODB_URI: mongodb://admin:testpass@localhost:27017/nocturnal_test?authSource=admin
-          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' }}
+          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci-test-jwt-secret-placeholder-for-actions-only-not-a-real-secret-0001' }}
           JWT_EXPIRE: 7d
-          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY || 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789' }}
+          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY || format('{0}{1}{2}{3}', 'aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa') }}
           RAZORPAY_KEY_ID: ${{ secrets.CI_RAZORPAY_KEY_ID }}
           RAZORPAY_KEY_SECRET: ${{ secrets.CI_RAZORPAY_KEY_SECRET }}
 
@@ -170,9 +172,9 @@ jobs:
           NODE_ENV: test
           PORT: 5001
           MONGODB_URI: mongodb://admin:testpass@localhost:27017/nocturnal_test?authSource=admin
-          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' }}
+          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci-test-jwt-secret-placeholder-for-actions-only-not-a-real-secret-0001' }}
           JWT_EXPIRE: 7d
-          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY || 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789' }}
+          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY || format('{0}{1}{2}{3}', 'aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa') }}
           ALLOWED_ORIGINS: http://localhost:3000
           RAZORPAY_KEY_ID: ${{ secrets.CI_RAZORPAY_KEY_ID }}
           RAZORPAY_KEY_SECRET: ${{ secrets.CI_RAZORPAY_KEY_SECRET }}
