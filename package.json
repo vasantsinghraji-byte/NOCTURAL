@@ -73,7 +73,7 @@
     "db:setup-security": "node scripts/setup-mongodb-security.js",
     "db:setup-replica": "node scripts/setup-replica-set.js",
     "db:enable-auth": "scripts\\enable-mongodb-auth.bat",
-    "prepare": "git config core.hooksPath .githooks",
+    "prepare": "node -e \"const fs=require('node:fs'); const {spawnSync}=require('node:child_process'); if (!fs.existsSync('.git')) process.exit(0); const result=spawnSync('git',['config','core.hooksPath','.githooks'],{stdio:'ignore'}); if (result.error || result.status) console.warn('Skipping git hooks setup');\"",
     "setup:env": "node scripts/setup-env.js"
   },
   "keywords": [],
