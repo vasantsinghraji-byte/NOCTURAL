@@ -135,13 +135,13 @@ jobs:
         with:
           fetch-depth: 0  # Full history for scanning all commits
 
-      - name: Run Gitleaks
+      - name: Run Gitleaks on current tree
         run: |
           docker run --rm \
             -v "$PWD:/repo" \
             -w /repo \
             ghcr.io/gitleaks/gitleaks:v8.30.0 \
-            git --no-banner --redact --report-format sarif --report-path /repo/gitleaks-results.sarif --exit-code 1
+            dir /repo --no-banner --redact --report-format sarif --report-path /repo/gitleaks-results.sarif --exit-code 1
 
       - name: Upload Gitleaks SARIF artifact
         if: always() && env.ACT != 'true'

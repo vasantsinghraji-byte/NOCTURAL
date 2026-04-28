@@ -7,8 +7,8 @@
 process.env.NODE_ENV = 'test';
 process.env.PORT = 5001; // Different port for tests
 
-// Test database configuration (no auth for test DB)
-process.env.MONGODB_URI = 'mongodb://localhost:27017/nocturnal_test';
+// Test database configuration. Preserve CI-provided authenticated URI.
+process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nocturnal_test';
 
 // Disable authentication for tests (or use test credentials)
 process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only-not-for-production';

@@ -87,7 +87,7 @@ function patientFactory(overrides = {}) {
 
 function hospitalFactory(overrides = {}) {
   return userFactory({
-    role: 'hospital',
+    role: 'admin',
     name: 'Test Hospital',
     email: 'hospital@test.com',
     hospital: 'Test Hospital',

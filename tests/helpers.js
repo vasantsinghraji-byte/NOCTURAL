@@ -94,7 +94,7 @@ async function createHospitalUser() {
   return createTestUser({
     name: 'Hospital Admin',
     email: 'hospital@test.com',
-    role: 'hospital',
+    role: 'admin',
     hospital: 'Test Hospital',
     hospitalVerified: true
   });

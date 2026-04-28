@@ -62,6 +62,8 @@
     "test:utils": "jest tests/unit/utils",
     "test:api": "jest tests/integration",
     "test:ci": "jest --ci --coverage --runInBand --forceExit",
+    "test:security-gate": "jest --ci --runInBand --forceExit tests/unit/security/static-analysis.test.js",
+    "test:deploy-gate": "jest --ci --runInBand --forceExit tests/smoke/frontend-pages.test.js",
     "smoke:deployed-auth-cors": "node scripts/smoke-deployed-auth-cors.js",
     "security:scan": "node scripts/security-scan.js --target http://localhost:5000",
     "security:scan:full": "node scripts/security-scan.js --target http://localhost:5000 --mode full",
