@@ -77,14 +77,17 @@ const app = express();
 // ENHANCED SECURITY MIDDLEWARE - Enterprise-Grade Protection
 // ============================================================================
 
-// 0. Enforce HTTPS in production (redirect HTTP to HTTPS)
+// 0. CORS and preflight must run before redirects/security middleware so
+// browser login/register POSTs can complete from the production origin.
+const corsOptions = corsConfig();
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
+
+// 1. Enforce HTTPS in production (redirect HTTP to HTTPS)
 app.use(enforceHTTPS);
 
-// 1. Enhanced Security Headers (CSP, HSTS, X-Frame-Options, etc.)
+// 2. Enhanced Security Headers (CSP, HSTS, X-Frame-Options, etc.)
 app.use(securityHeaders());
-
-// 2. Enhanced CORS with origin whitelist
-app.use(cors(corsConfig()));
 
 // 3. DDoS Protection - IP-based request tracking with automatic blacklisting
 app.use(ddosProtection);
