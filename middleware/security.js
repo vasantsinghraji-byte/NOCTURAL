@@ -184,18 +184,10 @@ const corsConfig = () => {
 
   return {
     origin: (origin, callback) => {
-      // Allow no-origin requests only outside production for mobile apps,
-      // Postman, and CLI tooling. Production callers must send an allowlisted
-      // Origin so the CORS policy cannot be bypassed by omitting the header.
+      // CORS is a browser policy. Server-to-server callers and Render health
+      // checks do not send Origin, so do not fail those requests here.
       if (!origin) {
-        if (process.env.NODE_ENV !== 'production') {
-          return callback(null, true);
-        }
-
-        logger.warn('CORS blocked request with missing origin', {
-          allowedOrigins: allowedOrigins.length > 0 ? allowedOrigins : 'NONE CONFIGURED'
-        });
-        return callback(new Error('Not allowed by CORS'));
+        return callback(null, true);
       }
 
       // Strict origin whitelist check - no bypasses
