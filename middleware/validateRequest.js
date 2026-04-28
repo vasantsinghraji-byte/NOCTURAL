@@ -1,4 +1,4 @@
-const { validationResult, matchedData } = require('express-validator');
+const { body, validationResult, matchedData } = require('express-validator');
 const logger = require('../utils/logger');
 
 /**

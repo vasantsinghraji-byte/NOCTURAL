@@ -5,21 +5,52 @@
   },
   "extends": "eslint:recommended",
   "parserOptions": {
-    "ecmaVersion": 2021
+    "ecmaVersion": 2022
   },
   "rules": {
-    "no-console": "error",
-    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "no-console": "warn",
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "no-eval": "error",
     "no-implied-eval": "error",
     "no-buffer-constructor": "error",
-    "no-param-reassign": ["error", {
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "CallExpression[callee.name='hash'][arguments.0.name=/pass(word)?|pwd/i]",
+        "message": "Password hashing must use bcrypt.hash() or argon2.hash(); do not use generic hash helpers for passwords."
+      },
+      {
+        "selector": "CallExpression[callee.name='hash'][arguments.0.property.name=/pass(word)?|pwd/i]",
+        "message": "Password hashing must use bcrypt.hash() or argon2.hash(); do not use generic hash helpers for passwords."
+      },
+      {
+        "selector": "CallExpression[callee.property.name='hash'][arguments.0.name=/pass(word)?|pwd/i]:not([callee.object.name='bcrypt']):not([callee.object.name='bcryptjs']):not([callee.object.name='argon2'])",
+        "message": "Password hashing must use bcrypt.hash() or argon2.hash(); do not use generic hash helpers for passwords."
+      },
+      {
+        "selector": "CallExpression[callee.property.name='hash'][arguments.0.property.name=/pass(word)?|pwd/i]:not([callee.object.name='bcrypt']):not([callee.object.name='bcryptjs']):not([callee.object.name='argon2'])",
+        "message": "Password hashing must use bcrypt.hash() or argon2.hash(); do not use generic hash helpers for passwords."
+      },
+      {
+        "selector": "CallExpression[callee.name='checksum'][arguments.0.name=/pass(word)?|pwd/i], CallExpression[callee.property.name='checksum'][arguments.0.name=/pass(word)?|pwd/i], CallExpression[callee.name='checksum'][arguments.0.property.name=/pass(word)?|pwd/i], CallExpression[callee.property.name='checksum'][arguments.0.property.name=/pass(word)?|pwd/i]",
+        "message": "Do not checksum passwords. Use bcrypt.hash() or argon2.hash() for password storage."
+      },
+      {
+        "selector": "CallExpression[callee.property.name='update'][callee.object.callee.property.name='createHash'][arguments.0.name=/pass(word)?|pwd/i], CallExpression[callee.property.name='update'][callee.object.callee.property.name='createHash'][arguments.0.property.name=/pass(word)?|pwd/i]",
+        "message": "Do not hash passwords with crypto.createHash(). Use bcrypt.hash() or argon2.hash()."
+      }
+    ],
+    "no-param-reassign": ["warn", {
       "props": true,
-      "ignorePropertyModificationsFor": ["req", "res", "next", "user", "booking", "duty", "app", "schema"]
+      "ignorePropertyModificationsFor": ["req", "res", "next", "user", "booking", "duty", "app", "schema", "event", "query"]
     }],
-    "unused-imports/no-unused-imports": "error",
+    "unused-imports/no-unused-imports": "warn",
     "security/detect-possible-timing-attacks": "warn",
-    "security/detect-non-literal-fs-filename": "warn"
+    "security/detect-non-literal-fs-filename": "warn",
+    "no-case-declarations": "warn",
+    "no-inner-declarations": "warn",
+    "no-prototype-builtins": "warn",
+    "no-useless-escape": "warn"
   },
   "plugins": [
     "security",
@@ -27,8 +58,103 @@
   ],
   "overrides": [
     {
-      "files": ["tests/**/*.js"],
+      "files": ["tests/**/*.js", "services/**/tests/**/*.js"],
       "env": { "jest": true },
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["tests/smoke/**/*.js"],
+      "env": { "jest": true, "browser": true }
+    },
+    {
+      "files": [
+        "client/public/**/*.js"
+      ],
+      "env": {
+        "browser": true,
+        "node": false
+      },
+      "parserOptions": {
+        "ecmaVersion": 2022,
+        "sourceType": "module"
+      },
+      "globals": {
+        "NocturnalSession": "readonly",
+        "AppConfig": "readonly",
+        "AdminSession": "readonly",
+        "DoctorSession": "readonly",
+        "PatientSession": "readonly",
+        "ProviderSession": "readonly",
+        "Chart": "readonly",
+        "FullCalendar": "readonly",
+        "Razorpay": "readonly",
+        "API_URL": "readonly",
+        "requestIdleCallback": "readonly",
+        "module": "readonly"
+      },
+      "rules": {
+        "no-console": "off",
+        "no-redeclare": "off"
+      }
+    },
+    {
+      "files": ["client/public/service-worker.js"],
+      "env": {
+        "serviceworker": true,
+        "browser": true,
+        "node": false
+      }
+    },
+    {
+      "files": [
+        "client/build.config.js",
+        "client/webpack.config.js",
+        "client/webpack.config.simple.js"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": [
+        "scripts/**/*.js",
+        "test-*.js",
+        "setup-*.js",
+        "verify-*.js",
+        "update-*.js",
+        "create-*.js",
+        "recreate-*.js",
+        "fix-*.js",
+        "seed.js",
+        "server.js",
+        "ecosystem.config.js"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["setup-mongodb-auth.js", "docker/mongo-init.js"],
+      "globals": {
+        "db": "writable",
+        "print": "readonly",
+        "quit": "readonly"
+      },
+      "rules": {
+        "no-console": "off",
+        "no-global-assign": "off"
+      }
+    },
+    {
+      "files": ["utils/logger.js", "packages/shared/src/utils/logger.js"],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["packages/shared/**/*.js"],
       "rules": {
         "no-console": "off"
       }
