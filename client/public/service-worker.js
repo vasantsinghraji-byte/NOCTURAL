@@ -3,7 +3,7 @@
  * Provides offline functionality and improved performance through caching
  */
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `nocturnal-${CACHE_VERSION}`;
 
 // Cache strategies
@@ -26,7 +26,7 @@ const PRECACHE_ASSETS = [
   '/manifest.json',
   '/css/common.css',
   '/js/lazyload.js',
-  '/offline.html' // Offline fallback page
+  '/shared/offline.html' // Offline fallback page
 ];
 
 // Route-specific cache strategies
@@ -67,9 +67,13 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[Service Worker] Precaching assets');
-      return cache.addAll(PRECACHE_ASSETS).catch((error) => {
-        console.error('[Service Worker] Precache failed:', error);
-      });
+      return Promise.all(
+        PRECACHE_ASSETS.map((asset) =>
+          cache.add(asset).catch((error) => {
+            console.warn('[Service Worker] Precache skipped:', asset, error);
+          })
+        )
+      );
     }).then(() => {
       return self.skipWaiting();
     })
@@ -208,7 +212,7 @@ async function networkFirst(request, route) {
 
     // Return offline page for navigation requests
     if (request.mode === 'navigate') {
-      return cache.match('/offline.html');
+      return cache.match('/shared/offline.html');
     }
 
     return new Response('Network error', {
@@ -286,7 +290,7 @@ async function fetchAndCache(request, cache) {
 
     // Try to return offline page
     if (request.mode === 'navigate') {
-      const offlinePage = await cache.match('/offline.html');
+      const offlinePage = await cache.match('/shared/offline.html');
       if (offlinePage) {
         return offlinePage;
       }

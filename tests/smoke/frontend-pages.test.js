@@ -72,6 +72,7 @@ describe('Frontend Smoke – top pages load', () => {
     const inlineScripts = res.text.match(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]+?<\/script>/gi);
     expect(inlineScripts).toBeNull();
     expect(res.text).toContain('/js/register.js');
+    expect(res.text).toContain('id="doctorAgreeToTerms"');
   });
 
   test('CSP allows external stylesheet fetches used by the service worker', async () => {
@@ -110,5 +111,18 @@ describe('Frontend Smoke – top pages load', () => {
 
     const registerRes = await request(app).get('/js/register.js');
     expect(registerRes.status).toBe(200);
+
+    const swRes = await request(app).get('/service-worker.js');
+    expect(swRes.status).toBe(200);
+
+    const offlineRes = await request(app).get('/shared/offline.html');
+    expect(offlineRes.status).toBe(200);
+  });
+
+  test('Service worker precaches the real offline fallback path', async () => {
+    const res = await request(app).get('/service-worker.js');
+
+    expect(res.text).toContain('/shared/offline.html');
+    expect(res.text).not.toMatch(/['"]\/offline\.html['"]/);
   });
 });

@@ -21,6 +21,38 @@ function validatePassword(password, prefix) {
   return Object.values(requirements).every(Boolean);
 }
 
+function normalizePhoneNumber(phone) {
+  var digits = phone.replace(/\D/g, '');
+
+  if (digits.length === 10) {
+    return '+91' + digits;
+  }
+
+  if (digits.length === 12 && digits.indexOf('91') === 0) {
+    return '+' + digits;
+  }
+
+  if (phone.trim().indexOf('+') === 0) {
+    return '+' + digits;
+  }
+
+  return phone.trim();
+}
+
+function isValidE164Phone(phone) {
+  return /^\+?[1-9]\d{1,14}$/.test(phone);
+}
+
+function getApiErrorMessage(data, fallbackMessage) {
+  if (data && Array.isArray(data.errors) && data.errors.length > 0) {
+    return data.errors.map(function mapError(error) {
+      return error.message;
+    }).filter(Boolean).join('. ');
+  }
+
+  return (data && (data.message || data.error)) || fallbackMessage;
+}
+
 document.getElementById('doctorPassword').addEventListener('input', (e) => {
   validatePassword(e.target.value, 'doctor');
 });
@@ -38,10 +70,11 @@ document.getElementById('doctorForm').addEventListener('submit', async (e) => {
 
   const name = document.getElementById('doctorName').value.trim();
   const email = document.getElementById('doctorEmail').value.trim();
-  const phone = document.getElementById('doctorPhone').value.trim();
+  const phone = normalizePhoneNumber(document.getElementById('doctorPhone').value);
   const role = document.getElementById('doctorRole').value;
   const password = document.getElementById('doctorPassword').value;
   const confirmPassword = document.getElementById('doctorConfirmPassword').value;
+  const agreeToTerms = document.getElementById('doctorAgreeToTerms').checked;
 
   if (!role) {
     errorDiv.innerHTML = '<div class="error-message">Please select your role (Doctor, Nurse or Physiotherapist)</div>';
@@ -58,12 +91,30 @@ document.getElementById('doctorForm').addEventListener('submit', async (e) => {
     return;
   }
 
+  if (!isValidE164Phone(phone)) {
+    NocturnalSession.renderFormMessage(errorDiv, 'Please enter a valid phone number like +919876543210');
+    return;
+  }
+
+  if (!agreeToTerms) {
+    NocturnalSession.renderFormMessage(errorDiv, 'Please agree to the Terms and Conditions');
+    return;
+  }
+
   NocturnalSession.setButtonLoading(btn);
 
   try {
     const response = await AppConfig.fetch('auth/register', {
       method: 'POST',
-      body: JSON.stringify({ name, email, phone, password, role })
+      body: JSON.stringify({
+        name,
+        email,
+        phone,
+        role,
+        password,
+        confirmPassword,
+        agreeToTerms
+      })
     });
 
     const data = await response.json();
@@ -78,7 +129,7 @@ document.getElementById('doctorForm').addEventListener('submit', async (e) => {
         redirectDelayMs: 1500
       });
     } else {
-      throw new Error(data.message || 'Registration failed');
+      throw new Error(getApiErrorMessage(data, 'Registration failed'));
     }
   } catch (error) {
     console.error('Registration error:', error);

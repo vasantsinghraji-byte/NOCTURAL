@@ -38,8 +38,11 @@ describe('Frontend Auth Form Helper', () => {
 
     expect(sharedRegisterSrc).toContain('<script src="/js/frontend-session.js"></script>');
     expect(sharedRegisterSrc).toContain('<script src="/js/register.js"></script>');
+    expect(sharedRegisterSrc).toContain('id="doctorAgreeToTerms"');
     expect(sharedRegisterJsSrc).toContain('NocturnalSession.getRegistrationErrorMessage(error');
     expect(sharedRegisterJsSrc).toContain("NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match')");
+    expect(sharedRegisterJsSrc).toContain('normalizePhoneNumber');
+    expect(sharedRegisterJsSrc).toContain('agreeToTerms');
     expect(sharedRegisterJsSrc).toContain('NocturnalSession.setButtonLoading(btn)');
     expect(sharedRegisterJsSrc).toContain('NocturnalSession.resetButtonState(btn)');
     expect(sharedRegisterJsSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
