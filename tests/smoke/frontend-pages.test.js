@@ -71,8 +71,19 @@ describe('Frontend Smoke – top pages load', () => {
 
     const inlineScripts = res.text.match(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]+?<\/script>/gi);
     expect(inlineScripts).toBeNull();
-    expect(res.text).toContain('/js/register.js');
+    expect(res.text).toContain('/js/register.js?v=20260429-2');
     expect(res.text).toContain('id="doctorAgreeToTerms"');
+  });
+
+  test.each([
+    ['/roles/patient/patient-login.html', '/js/patient-login.js?v=20260429-2'],
+    ['/roles/patient/patient-register.html', '/js/patient-register.js?v=20260429-2']
+  ])('%s uses external scripts compatible with CSP', async (path, scriptPath) => {
+    const res = await request(app).get(path);
+
+    const inlineScripts = res.text.match(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]+?<\/script>/gi);
+    expect(inlineScripts).toBeNull();
+    expect(res.text).toContain(scriptPath);
   });
 
   test('CSP allows external stylesheet fetches used by the service worker', async () => {
@@ -112,6 +123,12 @@ describe('Frontend Smoke – top pages load', () => {
     const registerRes = await request(app).get('/js/register.js');
     expect(registerRes.status).toBe(200);
 
+    const patientLoginRes = await request(app).get('/js/patient-login.js');
+    expect(patientLoginRes.status).toBe(200);
+
+    const patientRegisterRes = await request(app).get('/js/patient-register.js');
+    expect(patientRegisterRes.status).toBe(200);
+
     const swRes = await request(app).get('/service-worker.js');
     expect(swRes.status).toBe(200);
 
@@ -124,5 +141,8 @@ describe('Frontend Smoke – top pages load', () => {
 
     expect(res.text).toContain('/shared/offline.html');
     expect(res.text).not.toMatch(/['"]\/offline\.html['"]/);
+    expect(res.text).toContain("const CACHE_VERSION = 'v5'");
+    expect(res.text).toContain('LEGACY_RUNTIME_CACHES');
+    expect(res.text).toContain('static-${CACHE_VERSION}');
   });
 });

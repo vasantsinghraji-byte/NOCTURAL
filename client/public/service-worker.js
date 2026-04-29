@@ -3,8 +3,9 @@
  * Provides offline functionality and improved performance through caching
  */
 
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE_NAME = `nocturnal-${CACHE_VERSION}`;
+const LEGACY_RUNTIME_CACHES = ['images', 'static', 'api', 'pages', 'default'];
 
 // Cache strategies
 const CACHE_STRATEGIES = {
@@ -34,26 +35,26 @@ const CACHE_ROUTES = [
   {
     pattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
     strategy: CACHE_STRATEGIES.CACHE_FIRST,
-    cacheName: 'images',
+    cacheName: `images-${CACHE_VERSION}`,
     maxAge: 30 * 24 * 60 * 60 // 30 days
   },
   {
     pattern: /\.(?:css|js)$/,
     strategy: CACHE_STRATEGIES.STALE_WHILE_REVALIDATE,
-    cacheName: 'static',
+    cacheName: `static-${CACHE_VERSION}`,
     maxAge: 7 * 24 * 60 * 60 // 7 days
   },
   {
     pattern: /\/api\//,
     strategy: CACHE_STRATEGIES.NETWORK_FIRST,
-    cacheName: 'api',
+    cacheName: `api-${CACHE_VERSION}`,
     maxAge: 5 * 60, // 5 minutes
     networkTimeoutSeconds: 5
   },
   {
     pattern: /\.html$/,
     strategy: CACHE_STRATEGIES.NETWORK_FIRST,
-    cacheName: 'pages',
+    cacheName: `pages-${CACHE_VERSION}`,
     maxAge: 24 * 60 * 60 // 1 day
   }
 ];
@@ -88,9 +89,24 @@ self.addEventListener('activate', (event) => {
 
   event.waitUntil(
     caches.keys().then((cacheNames) => {
+      const currentCacheNames = new Set(
+        [CACHE_NAME, `default-${CACHE_VERSION}`].concat(
+          CACHE_ROUTES.map((route) => route.cacheName).filter(Boolean)
+        )
+      );
+
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME && cacheName.startsWith('nocturnal-')) {
+          const isNocturnalCache =
+            cacheName.startsWith('nocturnal-') ||
+            cacheName.startsWith('images-') ||
+            cacheName.startsWith('static-') ||
+            cacheName.startsWith('api-') ||
+            cacheName.startsWith('pages-') ||
+            cacheName.startsWith('default-') ||
+            LEGACY_RUNTIME_CACHES.includes(cacheName);
+
+          if (isNocturnalCache && !currentCacheNames.has(cacheName)) {
             console.log('[Service Worker] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
@@ -153,7 +169,7 @@ self.addEventListener('fetch', (event) => {
     }
   } else {
     // Default: network first
-    event.respondWith(networkFirst(request, { cacheName: 'default' }));
+    event.respondWith(networkFirst(request, { cacheName: `default-${CACHE_VERSION}` }));
   }
 });
 
