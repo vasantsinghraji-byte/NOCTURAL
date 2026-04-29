@@ -11,9 +11,9 @@ process.env.PORT = 5001; // Different port for tests
 process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nocturnal_test';
 
 // Disable authentication for tests (or use test credentials)
-process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only-not-for-production';
-process.env.JWT_EXPIRE = '1h';
-process.env.ENCRYPTION_KEY = 'test-encryption-key-32-characters!';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing-only-not-for-production';
+process.env.JWT_EXPIRE = process.env.JWT_EXPIRE || '1h';
+process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
 // Disable rate limiting in tests
 process.env.RATE_LIMIT_ENABLED = 'false';

@@ -33,6 +33,21 @@ function userFactory(overrides = {}) {
 }
 
 function doctorFactory(overrides = {}) {
+  const professional = {
+    mciNumber: `MCI${Math.floor(Math.random() * 1000000)}`,
+    stateMedicalCouncil: 'Maharashtra Medical Council',
+    primarySpecialization: 'Emergency Medicine',
+    secondarySpecializations: [],
+    yearsOfExperience: 5,
+    proceduralSkills: ['Emergency Care', 'Triage'],
+    preferredShiftTimes: ['Night']
+  };
+  const documents = {
+    mciCertificate: { url: 'https://example.com/mci.pdf' },
+    photoId: { url: 'https://example.com/id.pdf' },
+    mbbsDegree: { url: 'https://example.com/degree.pdf' }
+  };
+
   return userFactory({
     role: 'doctor',
     specialty: 'Emergency Medicine',
@@ -40,6 +55,14 @@ function doctorFactory(overrides = {}) {
     licenseState: 'CA',
     licenseExpiry: global.testUtils.futureDate(365),
     experience: 5,
+    professional: {
+      ...professional,
+      ...(overrides.professional || {})
+    },
+    documents: {
+      ...documents,
+      ...(overrides.documents || {})
+    },
     education: [{
       degree: 'MD',
       institution: 'Stanford Medical School',
@@ -106,31 +129,25 @@ function hospitalFactory(overrides = {}) {
 function dutyFactory(hospitalId, overrides = {}) {
   return {
     title: 'Night Shift - Emergency Department',
+    department: 'Emergency',
     specialty: 'Emergency Medicine',
     hospital: hospitalId,
     hospitalName: 'Test Hospital',
-    location: {
-      address: '123 Hospital St',
-      city: 'San Francisco',
-      state: 'CA',
-      zipCode: '94102',
-      coordinates: {
-        latitude: 37.7749,
-        longitude: -122.4194
-      }
+    location: '123 Hospital St, San Francisco, CA 94102',
+    coordinates: {
+      lat: 37.7749,
+      lng: -122.4194
     },
     date: global.testUtils.futureDate(7),
     startTime: '20:00',
     endTime: '08:00',
     duration: 12,
-    payRate: 75,
-    totalPay: 900,
+    hourlyRate: 75,
+    totalCompensation: 900,
     requirements: {
-      minExperience: 2,
-      requiredCertifications: ['BLS', 'ACLS'],
-      preferredCertifications: ['PALS'],
-      skills: ['Emergency Care', 'Triage'],
-      licenseRequired: true
+      minimumExperience: '2-5 years',
+      requiredSkills: ['Emergency Care', 'Triage'],
+      expectedPatientLoad: 'Moderate'
     },
     description: 'Seeking experienced ER physician for night shift coverage',
     responsibilities: [
@@ -149,11 +166,12 @@ function dutyFactory(hospitalId, overrides = {}) {
 function urgentDutyFactory(hospitalId, overrides = {}) {
   return dutyFactory(hospitalId, {
     title: 'URGENT: ICU Coverage Needed',
-    specialty: 'Critical Care',
+    department: 'ICU',
+    specialty: 'Intensive Care / Critical Care Medicine',
     date: global.testUtils.futureDate(1),
-    payRate: 100,
-    totalPay: 1200,
-    priority: 'HIGH',
+    hourlyRate: 100,
+    totalCompensation: 1200,
+    urgency: 'URGENT',
     ...overrides
   });
 }

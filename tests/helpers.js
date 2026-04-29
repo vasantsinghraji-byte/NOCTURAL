@@ -132,25 +132,22 @@ async function getAuthToken(user) {
 async function createTestDuty(hospital, overrides = {}) {
   const defaultDuty = {
     title: 'Night Shift - ER',
+    department: 'Emergency',
     specialty: 'Emergency Medicine',
     hospital: hospital._id || hospital,
-    location: {
-      address: '123 Test St',
-      city: 'Test City',
-      state: 'CA',
-      zipCode: '12345',
-      coordinates: { latitude: 37.7749, longitude: -122.4194 }
-    },
+    hospitalName: hospital.name || hospital.hospital || 'Test Hospital',
+    location: '123 Test St, Test City, CA 12345',
+    coordinates: { lat: 37.7749, lng: -122.4194 },
     date: global.testUtils.futureDate(7),
     startTime: '20:00',
     endTime: '08:00',
     duration: 12,
-    payRate: 75,
-    totalPay: 900,
+    hourlyRate: 75,
+    totalCompensation: 900,
     requirements: {
-      minExperience: 2,
-      requiredCertifications: ['BLS', 'ACLS'],
-      skills: ['Emergency Care']
+      minimumExperience: '2-5 years',
+      requiredSkills: ['Emergency Care'],
+      expectedPatientLoad: 'Moderate'
     },
     description: 'Test duty description',
     status: 'OPEN',

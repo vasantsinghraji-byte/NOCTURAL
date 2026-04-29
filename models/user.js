@@ -16,7 +16,7 @@ const UserSchema = new mongoose.Schema({
     required: [true, 'Please provide an email'],
     unique: true,
     lowercase: true,
-    match: [/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, 'Please provide a valid email']
+    match: [/^[\w.+-]+@([\w-]+\.)+[\w-]{2,}$/, 'Please provide a valid email']
   },
   password: {
     type: String,
@@ -329,6 +329,18 @@ UserSchema.pre('save', async function(next) {
 // Method to get decrypted bank details (for authorized access only)
 UserSchema.methods.getDecryptedBankDetails = function() {
   if (!this.bankDetails) return null;
+
+  const hasBankDetails = [
+    this.bankDetails.accountHolderName,
+    this.bankDetails.accountNumber,
+    this.bankDetails.ifscCode,
+    this.bankDetails.bankName,
+    this.bankDetails.branchName,
+    this.bankDetails.panCard,
+    this.bankDetails.gstNumber
+  ].some(Boolean);
+
+  if (!hasBankDetails) return null;
 
   try {
     return {

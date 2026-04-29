@@ -8,6 +8,12 @@ const { NurseBooking, Patient } = require('../../../src/models');
 describe('NurseBooking Model', () => {
   let testPatient;
 
+  beforeAll(async () => {
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(process.env.MONGODB_URI);
+    }
+  });
+
   beforeEach(async () => {
     await NurseBooking.deleteMany({});
     await Patient.deleteMany({});

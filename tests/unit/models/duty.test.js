@@ -662,7 +662,7 @@ describe('Duty Model - Integration Tests', () => {
     const dutyData = urgentDutyFactory(hospital._id);
     const duty = await Duty.create(dutyData);
 
-    expect(duty.urgency).toBe('HIGH');
+    expect(duty.urgency).toBe('URGENT');
     expect(duty.date).toBeDefined();
   });
 
