@@ -216,8 +216,14 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve frontend HTML files only (public assets)
-app.use(express.static('client/public'));
+// Serve built frontend assets in production, with source files as a local/dev fallback.
+const frontendDistDir = path.join(__dirname, 'client', 'dist');
+const frontendPublicDir = path.join(__dirname, 'client', 'public');
+const frontendStaticDir = fs.existsSync(path.join(frontendDistDir, 'index.html'))
+  ? frontendDistDir
+  : frontendPublicDir;
+
+app.use(express.static(frontendStaticDir));
 
 // Compatibility for older/public links that pointed at a root registration page.
 app.get('/register.html', (req, res) => {

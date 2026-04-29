@@ -42,6 +42,7 @@ WORKDIR /app
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/packages ./packages
 COPY --from=builder --chown=nodejs:nodejs /app/client/dist ./client/dist
+COPY --from=builder --chown=nodejs:nodejs /app/client/public ./client/public
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 COPY --from=builder --chown=nodejs:nodejs /app/ecosystem.config.js ./
 COPY --from=builder --chown=nodejs:nodejs /app/app.js ./
