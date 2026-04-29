@@ -65,12 +65,11 @@ describe('Application Model - Schema Validation', () => {
       await expect(application.validate()).rejects.toThrow();
     });
 
-    test('should allow empty string for coverLetter (required but can be empty)', async () => {
+    test('should reject empty string for coverLetter', async () => {
       const appData = applicationFactory(duty._id, doctor._id, { coverLetter: '' });
       const application = new Application(appData);
 
-      // Empty string passes required check
-      await expect(application.validate()).resolves.not.toThrow();
+      await expect(application.validate()).rejects.toThrow();
     });
   });
 

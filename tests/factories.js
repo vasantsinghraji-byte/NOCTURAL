@@ -33,6 +33,12 @@ function userFactory(overrides = {}) {
 }
 
 function doctorFactory(overrides = {}) {
+  const {
+    professional: professionalOverrides,
+    documents: documentOverrides,
+    ...userOverrides
+  } = overrides;
+
   const professional = {
     mciNumber: `MCI${Math.floor(Math.random() * 1000000)}`,
     stateMedicalCouncil: 'Maharashtra Medical Council',
@@ -57,11 +63,11 @@ function doctorFactory(overrides = {}) {
     experience: 5,
     professional: {
       ...professional,
-      ...(overrides.professional || {})
+      ...(professionalOverrides || {})
     },
     documents: {
       ...documents,
-      ...(overrides.documents || {})
+      ...(documentOverrides || {})
     },
     education: [{
       degree: 'MD',
@@ -69,7 +75,7 @@ function doctorFactory(overrides = {}) {
       graduationYear: 2015
     }],
     certifications: ['BLS', 'ACLS', 'PALS'],
-    ...overrides
+    ...userOverrides
   });
 }
 
@@ -145,7 +151,6 @@ function dutyFactory(hospitalId, overrides = {}) {
     hourlyRate: 75,
     totalCompensation: 900,
     requirements: {
-      minimumExperience: '2-5 years',
       requiredSkills: ['Emergency Care', 'Triage'],
       expectedPatientLoad: 'Moderate'
     },
