@@ -83,6 +83,40 @@
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         }
 
+        .role-card.waitlist-card {
+            cursor: default;
+            border-color: #e9ecef;
+        }
+
+        .role-card.waitlist-card:hover {
+            transform: none;
+            border-color: var(--primary);
+        }
+
+        .phase-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.4rem 0.75rem;
+            border-radius: 999px;
+            background: #fff3cd;
+            color: #7a5b00;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .info-message {
+            background: #f0f7ff;
+            border-left: 4px solid var(--primary);
+            border-radius: 10px;
+            color: #244766;
+            line-height: 1.5;
+            padding: 1rem;
+        }
+
         .role-header {
             text-align: center;
             margin-bottom: 2rem;
@@ -284,7 +318,7 @@
                 <i class="fas fa-heartbeat"></i>
                 Join Nocturnal
             </h1>
-            <p>Provider onboarding for India. Patient bookings are live now; hospital onboarding is coming soon.</p>
+            <p>Provider onboarding for India. Patient bookings are live now; hospitals can join the B2B waitlist.</p>
         </div>
 
         <div class="registration-cards">
@@ -362,72 +396,71 @@
             </div>
 
             <!-- Hospital/Admin Registration -->
-            <div class="role-card" id="hospitalCard">
+            <div class="role-card waitlist-card" id="hospitalCard">
                 <div class="role-header">
+                    <div class="phase-badge">B2B coming soon</div>
                     <div class="role-icon">
                         <i class="fas fa-hospital"></i>
                     </div>
                     <h2>Hospital / Tertiary Care Centre</h2>
-                    <p>B2B duty staffing onboarding is coming soon</p>
+                    <p>Join the waitlist for the hospital duty staffing pilot</p>
                 </div>
 
-                <form id="hospitalForm">
+                <form id="hospitalForm" data-funnel-form="hospital-waitlist">
                     <div id="hospitalError"></div>
                     <div class="info-message" style="margin-bottom: 20px;">
-                        We are launching patient home healthcare first. Hospital and tertiary care centre onboarding will open in the next B2B phase.
+                        We are launching patient home healthcare first. Share your details and we will contact your team when hospital onboarding opens.
                     </div>
 
                     <div class="form-group">
                         <label>Hospital/Facility Name <span class="required">*</span></label>
                         <input type="text" class="form-control" id="hospitalName"
-                               placeholder="City General Hospital" disabled>
+                               placeholder="City General Hospital" required>
                     </div>
 
                     <div class="form-group">
                         <label>Contact Person Name <span class="required">*</span></label>
                         <input type="text" class="form-control" id="hospitalContactName"
-                               placeholder="Admin Name" disabled>
+                               placeholder="Admin Name" required>
                     </div>
 
                     <div class="form-group">
                         <label>Email Address <span class="required">*</span></label>
                         <input type="email" class="form-control" id="hospitalEmail"
-                               placeholder="admin@hospital.com" disabled>
+                               placeholder="admin@hospital.com" required>
                     </div>
 
                     <div class="form-group">
                         <label>Phone Number <span class="required">*</span></label>
                         <input type="tel" class="form-control" id="hospitalPhone"
-                               placeholder="+91 98765 43210" disabled>
+                               placeholder="+91 98765 43210" required>
                     </div>
 
                     <div class="form-group">
                         <label>Location/City <span class="required">*</span></label>
                         <input type="text" class="form-control" id="hospitalLocation"
-                               placeholder="Mumbai, Maharashtra" disabled>
+                               placeholder="Mumbai, Maharashtra" required>
                     </div>
 
                     <div class="form-group">
-                        <label>Password <span class="required">*</span></label>
-                        <input type="password" class="form-control" id="hospitalPassword"
-                               placeholder="Available soon" disabled>
-                        <ul class="password-requirements" id="hospitalPasswordReqs">
-                            <li id="hospitalReq1">At least 8 characters</li>
-                            <li id="hospitalReq2">One uppercase letter</li>
-                            <li id="hospitalReq3">One lowercase letter</li>
-                            <li id="hospitalReq4">One number</li>
-                            <li id="hospitalReq5">One special character (@$!%*?&)</li>
-                        </ul>
+                        <label>Facility Type <span class="required">*</span></label>
+                        <select class="form-control" id="hospitalFacilityType" required>
+                            <option value="">Select facility type</option>
+                            <option value="hospital">Hospital</option>
+                            <option value="tertiary-care-centre">Tertiary care centre</option>
+                            <option value="clinic-network">Clinic network</option>
+                            <option value="care-centre">Care centre</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
-                        <label>Confirm Password <span class="required">*</span></label>
-                        <input type="password" class="form-control" id="hospitalConfirmPassword"
-                               placeholder="Available soon" disabled>
+                        <label>What staffing support do you need?</label>
+                        <textarea class="form-control" id="hospitalNotes" rows="4"
+                                  placeholder="Example: night-duty nurses, ICU locums, weekend physiotherapy cover"></textarea>
                     </div>
 
-                    <button type="button" class="btn btn-primary" id="hospitalSubmitBtn" disabled>
-                        Hospital Onboarding Coming Soon
+                    <button type="submit" class="btn btn-primary" id="hospitalSubmitBtn">
+                        Join B2B Waitlist
                     </button>
                 </form>
             </div>
@@ -438,6 +471,6 @@
         </div>
     </div>
 
-    <script src="/js/register.js?v=20260429-2"></script>
+    <script src="/js/register.js?v=20260429-3"></script>
 </body>
 </html>

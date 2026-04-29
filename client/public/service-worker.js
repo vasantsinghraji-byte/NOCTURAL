@@ -3,7 +3,7 @@
  * Provides offline functionality and improved performance through caching
  */
 
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_NAME = `nocturnal-${CACHE_VERSION}`;
 const LEGACY_RUNTIME_CACHES = ['images', 'static', 'api', 'pages', 'default'];
 
@@ -23,7 +23,12 @@ const PRECACHE_ASSETS = [
   '/roles/provider/provider-login.html',
   '/roles/provider/provider-dashboard.html',
   '/roles/patient/patient-login.html',
+  '/roles/patient/patient-register.html',
+  '/roles/patient/patient-registration-success.html',
   '/roles/patient/patient-dashboard.html',
+  '/shared/register.html',
+  '/shared/provider-registration-success.html',
+  '/shared/hospital-waitlist-success.html',
   '/manifest.json',
   '/css/common.css',
   '/js/lazyload.js',

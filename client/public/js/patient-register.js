@@ -52,7 +52,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
         userKey: 'patient',
         successContainer: errorDiv,
         successMessage: 'Registration successful! Redirecting...',
-        redirectUrl: 'patient-dashboard.html',
+        redirectUrl: '/roles/patient/patient-registration-success.html',
         redirectDelayMs: 1500
       });
     } else {

@@ -16,6 +16,38 @@ var ROUTE_MAP = {
   unifiedRegister: '/index-unified.html'
 };
 
+function trackFunnelEvent(eventName, targetPath) {
+  if (!eventName) {
+    return;
+  }
+
+  var payload = JSON.stringify({
+    event: eventName,
+    path: window.location.pathname,
+    target: targetPath || '',
+    occurredAt: new Date().toISOString()
+  });
+
+  window.dispatchEvent(new CustomEvent('nocturnal:funnel-event', {
+    detail: JSON.parse(payload)
+  }));
+
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon('/api/v1/funnel-events', new Blob([payload], {
+      type: 'application/json'
+    }));
+    return;
+  }
+
+  if (typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function') {
+    AppConfig.fetch('funnel-events', {
+      method: 'POST',
+      body: payload,
+      keepalive: true
+    }).catch(function ignoreFunnelError() {});
+  }
+}
+
 // ============================================================================
 // Event Delegation - replaces all inline onclick handlers
 // ============================================================================
@@ -32,6 +64,8 @@ document.addEventListener('click', function (event) {
 
   if (actionTarget) {
     var action = actionTarget.getAttribute('data-action');
+    var targetPath = actionTarget.getAttribute('data-href') || actionTarget.getAttribute('href') || '';
+    trackFunnelEvent(actionTarget.getAttribute('data-analytics-event'), targetPath);
 
     switch (action) {
       case 'toggle-login-dropdown':

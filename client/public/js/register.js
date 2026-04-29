@@ -53,12 +53,24 @@ function getApiErrorMessage(data, fallbackMessage) {
   return (data && (data.message || data.error)) || fallbackMessage;
 }
 
+function trackFunnelEvent(eventName, metadata) {
+  if (!eventName || typeof AppConfig === 'undefined' || typeof AppConfig.fetch !== 'function') {
+    return;
+  }
+
+  AppConfig.fetch('funnel-events', {
+    method: 'POST',
+    body: JSON.stringify({
+      event: eventName,
+      path: window.location.pathname,
+      metadata: metadata || {}
+    }),
+    keepalive: true
+  }).catch(function ignoreFunnelError() {});
+}
+
 document.getElementById('doctorPassword').addEventListener('input', (e) => {
   validatePassword(e.target.value, 'doctor');
-});
-
-document.getElementById('hospitalPassword').addEventListener('input', (e) => {
-  validatePassword(e.target.value, 'hospital');
 });
 
 document.getElementById('doctorForm').addEventListener('submit', async (e) => {
@@ -120,12 +132,13 @@ document.getElementById('doctorForm').addEventListener('submit', async (e) => {
     const data = await response.json();
 
     if (data.success && data.token) {
+      trackFunnelEvent('provider_registration_success', { role });
       NocturnalSession.completeAuthSuccess(data, {
         userTypeKey: 'userType',
         userType: role,
         successContainer: errorDiv,
-        successMessage: 'Registration successful! Redirecting to provider onboarding...',
-        redirectUrl: '/roles/doctor/doctor-onboarding.html',
+        successMessage: 'Registration successful! Redirecting...',
+        redirectUrl: '/shared/provider-registration-success.html',
         redirectDelayMs: 1500
       });
     } else {
@@ -152,62 +165,74 @@ document.getElementById('hospitalForm').addEventListener('submit', async (e) => 
   errorDiv.innerHTML = '';
 
   const hospitalName = document.getElementById('hospitalName').value.trim();
-  const name = document.getElementById('hospitalContactName').value.trim();
+  const contactName = document.getElementById('hospitalContactName').value.trim();
   const email = document.getElementById('hospitalEmail').value.trim();
-  const phone = document.getElementById('hospitalPhone').value.trim();
-  const location = document.getElementById('hospitalLocation').value.trim();
-  const password = document.getElementById('hospitalPassword').value;
-  const confirmPassword = document.getElementById('hospitalConfirmPassword').value;
+  const phone = normalizePhoneNumber(document.getElementById('hospitalPhone').value);
+  const city = document.getElementById('hospitalLocation').value.trim();
+  const facilityType = document.getElementById('hospitalFacilityType').value;
+  const notes = document.getElementById('hospitalNotes').value.trim();
 
-  if (!validatePassword(password, 'hospital')) {
-    errorDiv.innerHTML = '<div class="error-message">Password does not meet requirements</div>';
-    return;
-  }
-
-  if (password !== confirmPassword) {
-    NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match');
+  if (!hospitalName || !contactName || !email || !phone || !city || !facilityType) {
+    NocturnalSession.renderFormMessage(errorDiv, 'Please complete all required waitlist fields');
     return;
   }
 
   NocturnalSession.setButtonLoading(btn);
 
   try {
-    const response = await AppConfig.fetch('auth/register', {
+    trackFunnelEvent('hospital_waitlist_submit_attempt', { facilityType });
+
+    const response = await AppConfig.fetch('hospital-waitlist', {
       method: 'POST',
       body: JSON.stringify({
-        name,
+        organizationName: hospitalName,
+        contactName,
         email,
         phone,
-        password,
-        role: 'admin',
-        hospital: hospitalName,
-        location
+        city,
+        facilityType,
+        notes,
+        source: 'shared-register'
       })
     });
 
     const data = await response.json();
 
-    if (data.success && data.token) {
-      NocturnalSession.completeAuthSuccess(data, {
-        userTypeKey: 'userType',
-        userType: 'hospital',
-        successContainer: errorDiv,
-        successMessage: 'Registration successful! Redirecting to dashboard...',
-        redirectUrl: 'admin-dashboard.html',
-        redirectDelayMs: 1500
-      });
+    if (response.ok && data.success) {
+      trackFunnelEvent('hospital_waitlist_submit_success', { facilityType });
+      NocturnalSession.renderSuccessMessage(
+        errorDiv,
+        'Waitlist request received. Redirecting...',
+        { className: 'success-message' }
+      );
+      setTimeout(() => {
+        window.location.href = '/shared/hospital-waitlist-success.html';
+      }, 1000);
     } else {
-      throw new Error(data.message || 'Registration failed');
+      throw new Error(getApiErrorMessage(data, 'Waitlist request failed'));
     }
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('Waitlist error:', error);
     NocturnalSession.renderFormMessage(
       errorDiv,
-      NocturnalSession.getRegistrationErrorMessage(error, {
-        duplicateMessage: 'This email is already registered. <a href="/index.html">Login instead</a>?'
-      })
+      getApiErrorMessage({
+        message: error.message
+      }, 'Could not join the waitlist. Please try again.')
     );
   } finally {
-    NocturnalSession.resetButtonState(btn);
+    NocturnalSession.resetButtonState(btn, { textContent: 'Join B2B Waitlist' });
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.location.hash === '#hospital-waitlist') {
+    const hospitalCard = document.getElementById('hospitalCard');
+    if (hospitalCard) {
+      hospitalCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      hospitalCard.classList.add('selected');
+      setTimeout(() => {
+        hospitalCard.classList.remove('selected');
+      }, 1800);
+    }
   }
 });

@@ -39,7 +39,7 @@ describe('Frontend Auth Form Helper', () => {
     expect(landingSrc).toContain('useRoleRedirect: true');
 
     expect(sharedRegisterSrc).toContain('<script src="/js/frontend-session.js"></script>');
-    expect(sharedRegisterSrc).toContain('<script src="/js/register.js?v=20260429-2"></script>');
+    expect(sharedRegisterSrc).toContain('<script src="/js/register.js?v=20260429-3"></script>');
     expect(sharedRegisterSrc).toContain('id="doctorAgreeToTerms"');
     expect(sharedRegisterJsSrc).toContain('NocturnalSession.getRegistrationErrorMessage(error');
     expect(sharedRegisterJsSrc).toContain("NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match')");
@@ -48,8 +48,10 @@ describe('Frontend Auth Form Helper', () => {
     expect(sharedRegisterJsSrc).toContain('NocturnalSession.setButtonLoading(btn)');
     expect(sharedRegisterJsSrc).toContain('NocturnalSession.resetButtonState(btn)');
     expect(sharedRegisterJsSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
-    expect(sharedRegisterJsSrc).toContain("redirectUrl: '/roles/doctor/doctor-onboarding.html'");
-    expect(sharedRegisterSrc).toContain('Hospital Onboarding Coming Soon');
+    expect(sharedRegisterJsSrc).toContain("redirectUrl: '/shared/provider-registration-success.html'");
+    expect(sharedRegisterSrc).toContain('Join B2B Waitlist');
+    expect(sharedRegisterSrc).toContain('data-funnel-form="hospital-waitlist"');
+    expect(sharedRegisterJsSrc).toContain("AppConfig.fetch('hospital-waitlist'");
 
     expect(patientLoginSrc).toContain('<script src="/js/frontend-session.js"></script>');
     expect(patientLoginSrc).toContain('<script src="/js/patient-login.js?v=20260429-2"></script>');
@@ -70,13 +72,13 @@ describe('Frontend Auth Form Helper', () => {
     expect(providerLoginJsSrc).toContain("tokenKey: 'providerToken'");
 
     expect(patientRegisterSrc).toContain('<script src="/js/frontend-session.js"></script>');
-    expect(patientRegisterSrc).toContain('<script src="/js/patient-register.js?v=20260429-2"></script>');
+    expect(patientRegisterSrc).toContain('<script src="/js/patient-register.js?v=20260429-3"></script>');
     expect(patientRegisterJsSrc).toContain('NocturnalSession.getRegistrationErrorMessage(error');
     expect(patientRegisterJsSrc).toContain("NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match')");
     expect(patientRegisterJsSrc).toContain("NocturnalSession.renderFormMessage(errorDiv, 'Please enter a valid 10-digit mobile number')");
     expect(patientRegisterJsSrc).toContain("NocturnalSession.setButtonLoading(btn, { clearText: true })");
     expect(patientRegisterJsSrc).toContain("NocturnalSession.resetButtonState(btn, { textContent: 'Create Account' })");
     expect(patientRegisterJsSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
-    expect(patientRegisterJsSrc).toContain("redirectUrl: 'patient-dashboard.html'");
+    expect(patientRegisterJsSrc).toContain("redirectUrl: '/roles/patient/patient-registration-success.html'");
   });
 });

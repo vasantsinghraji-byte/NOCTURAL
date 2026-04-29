@@ -26,6 +26,8 @@ const paymentsRoutes = require('../payments');
 const metricsRouter = require('../admin/metrics');
 const patientRoutes = require('../patient');
 const bookingRoutes = require('../booking');
+const hospitalWaitlistRoutes = require('../hospitalWaitlist');
+const funnelEventsRoutes = require('../funnelEvents');
 
 // Health Dashboard routes (Patient Analytics & Health History)
 const patientDashboardRoutes = require('../patientDashboard');
@@ -75,6 +77,8 @@ router.use('/security', securityRoutes);
 // B2C routes
 router.use('/patients', patientRoutes);
 router.use('/bookings', bookingRoutes);
+router.use('/hospital-waitlist', hospitalWaitlistRoutes);
+router.use('/funnel-events', funnelEventsRoutes);
 
 const hasRazorpayCredentials = !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
 const isB2CPaymentEnabled = hasRazorpayCredentials && process.env.RAZORPAY_ENABLED !== 'false';
