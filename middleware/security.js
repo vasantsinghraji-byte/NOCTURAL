@@ -78,6 +78,9 @@ const securityHeaders = () => {
         ].filter(Boolean),
         connectSrc: [
           "'self'",
+          'https://fonts.googleapis.com',
+          'https://fonts.gstatic.com',
+          'https://cdnjs.cloudflare.com',
           'https://api.razorpay.com',
           'https://checkout.razorpay.com',
           process.env.NODE_ENV === 'development' ? 'ws://localhost:*' : '',

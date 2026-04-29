@@ -66,6 +66,24 @@ describe('Frontend Smoke – top pages load', () => {
     expect(inlineScripts).toBeNull();
   });
 
+  test('Shared registration page uses external scripts compatible with CSP', async () => {
+    const res = await request(app).get('/shared/register.html');
+
+    const inlineScripts = res.text.match(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]+?<\/script>/gi);
+    expect(inlineScripts).toBeNull();
+    expect(res.text).toContain('/js/register.js');
+  });
+
+  test('CSP allows external stylesheet fetches used by the service worker', async () => {
+    const res = await request(app).get('/shared/register.html');
+    const csp = res.headers['content-security-policy'];
+
+    expect(csp).toContain('connect-src');
+    expect(csp).toContain('https://fonts.googleapis.com');
+    expect(csp).toContain('https://fonts.gstatic.com');
+    expect(csp).toContain('https://cdnjs.cloudflare.com');
+  });
+
   test('Landing page has no inline event handlers', async () => {
     const res = await request(app).get('/index.html');
 
@@ -89,5 +107,8 @@ describe('Frontend Smoke – top pages load', () => {
 
     const landingRes = await request(app).get('/js/landing.js');
     expect(landingRes.status).toBe(200);
+
+    const registerRes = await request(app).get('/js/register.js');
+    expect(registerRes.status).toBe(200);
   });
 });

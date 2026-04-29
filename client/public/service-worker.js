@@ -3,7 +3,7 @@
  * Provides offline functionality and improved performance through caching
  */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `nocturnal-${CACHE_VERSION}`;
 
 // Cache strategies
@@ -235,6 +235,15 @@ async function staleWhileRevalidate(request, route) {
     return networkResponse;
   }).catch((error) => {
     console.log('[Service Worker] Background fetch failed:', error);
+
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+
+    return new Response('Network error', {
+      status: 408,
+      headers: { 'Content-Type': 'text/plain' }
+    });
   });
 
   // Return cached response immediately, or wait for network if no cache
