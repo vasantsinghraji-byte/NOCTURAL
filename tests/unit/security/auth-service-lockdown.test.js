@@ -27,6 +27,8 @@ describe('Auth Service Lockdown', () => {
       phone: '1111111111',
       location: { city: 'Old City' },
       professional: { primarySpecialization: 'Emergency Medicine' },
+      bankDetails: { accountHolderName: 'Original Name' },
+      onboardingCompleted: false,
       notificationSettings: { email: true },
       isAvailableForShifts: true,
       specialty: 'Emergency Medicine',
@@ -43,6 +45,13 @@ describe('Auth Service Lockdown', () => {
       isVerified: true,
       location: { city: 'New City' },
       professional: { primarySpecialization: 'General Medicine' },
+      bankDetails: {
+        accountHolderName: 'Updated Name',
+        accountNumber: '123456789012',
+        ifscCode: 'HDFC0001234',
+        bankName: 'HDFC Bank'
+      },
+      onboardingCompleted: true,
       notificationSettings: { email: false },
       isAvailableForShifts: false,
       specialty: 'General Medicine'
@@ -52,6 +61,13 @@ describe('Auth Service Lockdown', () => {
     expect(result.phone).toBe('9999999999');
     expect(result.location).toEqual({ city: 'New City' });
     expect(result.professional).toEqual({ primarySpecialization: 'General Medicine' });
+    expect(result.bankDetails).toEqual({
+      accountHolderName: 'Updated Name',
+      accountNumber: '123456789012',
+      ifscCode: 'HDFC0001234',
+      bankName: 'HDFC Bank'
+    });
+    expect(result.onboardingCompleted).toBe(true);
     expect(result.notificationSettings).toEqual({ email: false });
     expect(result.isAvailableForShifts).toBe(false);
     expect(result.specialty).toBe('General Medicine');

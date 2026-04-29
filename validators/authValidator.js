@@ -5,7 +5,13 @@
 
 const { body, param, query, validationResult } = require('express-validator');
 const logger = require('../utils/logger');
-const { REGISTRATION_ROLES, FIELD_LIMITS } = require('../constants/enums');
+const {
+  REGISTRATION_ROLES,
+  FIELD_LIMITS,
+  SPECIALIZATIONS,
+  EMPLOYMENT_STATUSES,
+  SHIFT_PREFERENCES
+} = require('../constants/enums');
 
 /**
  * Validation result handler
@@ -317,6 +323,68 @@ const validateUpdateProfile = [
     .optional()
     .trim()
     .isLength({ max: FIELD_LIMITS.BIO.max }).withMessage('Bio cannot exceed 500 characters'),
+
+  body('professional.mciNumber')
+    .optional()
+    .trim()
+    .isLength({ max: 100 }).withMessage('Registration number cannot exceed 100 characters'),
+  body('professional.stateMedicalCouncil')
+    .optional()
+    .trim()
+    .isLength({ max: 150 }).withMessage('Registration council cannot exceed 150 characters'),
+  body('professional.primarySpecialization')
+    .optional()
+    .isIn(SPECIALIZATIONS).withMessage('Invalid primary specialization'),
+  body('professional.yearsOfExperience')
+    .optional()
+    .isInt({ min: 0, max: 80 }).withMessage('Years of experience must be between 0 and 80'),
+  body('professional.currentEmploymentStatus')
+    .optional()
+    .isIn(EMPLOYMENT_STATUSES).withMessage('Invalid employment status'),
+  body('professional.proceduralSkills')
+    .optional()
+    .isArray({ max: 50 }).withMessage('Procedural skills must be a list'),
+  body('professional.proceduralSkills.*')
+    .optional()
+    .trim()
+    .isLength({ max: 100 }).withMessage('Skill cannot exceed 100 characters'),
+  body('professional.preferredShiftTimes')
+    .optional()
+    .isArray({ max: 10 }).withMessage('Preferred times must be a list'),
+  body('professional.preferredShiftTimes.*')
+    .optional()
+    .isIn(SHIFT_PREFERENCES).withMessage('Invalid preferred time'),
+  body('professional.serviceRadius')
+    .optional()
+    .isInt({ min: 5, max: 100 }).withMessage('Service radius must be between 5 and 100 km'),
+  body('professional.minimumRate')
+    .optional()
+    .isInt({ min: 0, max: 100000 }).withMessage('Minimum rate must be a positive amount'),
+
+  body('location.city')
+    .optional()
+    .trim()
+    .isLength({ max: 100 }).withMessage('City cannot exceed 100 characters'),
+
+  body('bankDetails.accountHolderName')
+    .optional()
+    .trim()
+    .isLength({ max: 120 }).withMessage('Account holder name cannot exceed 120 characters'),
+  body('bankDetails.accountNumber')
+    .optional()
+    .trim()
+    .matches(/^[0-9]{6,20}$/).withMessage('Invalid bank account number'),
+  body('bankDetails.ifscCode')
+    .optional()
+    .trim()
+    .matches(/^[A-Z]{4}0[A-Z0-9]{6}$/i).withMessage('Invalid IFSC code'),
+  body('bankDetails.bankName')
+    .optional()
+    .trim()
+    .isLength({ max: 120 }).withMessage('Bank name cannot exceed 120 characters'),
+  body('onboardingCompleted')
+    .optional()
+    .isBoolean().withMessage('Onboarding completed must be a boolean'),
 
   handleValidationErrors
 ];

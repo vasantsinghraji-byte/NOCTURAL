@@ -79,7 +79,7 @@ describe('Frontend Smoke – top pages load', () => {
   test.each([
     ['/roles/patient/patient-login.html', '/js/patient-login.js?v=20260429-2'],
     ['/roles/patient/patient-register.html', '/js/patient-register.js?v=20260429-2'],
-    ['/roles/doctor/doctor-onboarding.html', '/js/doctor-onboarding.js?v=20260429-1']
+    ['/roles/doctor/doctor-onboarding.html', '/js/doctor-onboarding.js?v=20260429-2']
   ])('%s uses external scripts compatible with CSP', async (path, scriptPath) => {
     const res = await request(app).get(path);
 

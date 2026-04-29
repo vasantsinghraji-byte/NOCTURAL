@@ -7,6 +7,52 @@ let currentStep = 1;
 const providerFormData = {};
 const uploadedFiles = {};
 
+function normalizePhoneNumber(phone) {
+  const trimmed = (phone || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const compact = trimmed.replace(/[\s()-]/g, '');
+  if (compact.startsWith('+')) {
+    return compact;
+  }
+
+  const digits = compact.replace(/\D/g, '');
+  if (digits.length === 10) {
+    return `+91${digits}`;
+  }
+
+  if (digits.length === 12 && digits.startsWith('91')) {
+    return `+${digits}`;
+  }
+
+  return compact;
+}
+
+function isValidE164Phone(phone) {
+  return /^\+?[1-9]\d{1,14}$/.test(phone);
+}
+
+function getApiErrorMessage(data, fallbackMessage) {
+  if (data && Array.isArray(data.errors) && data.errors.length > 0) {
+    return data.errors.map((error) => error.message).filter(Boolean).join(', ') || fallbackMessage;
+  }
+
+  return (data && (data.message || data.error)) || fallbackMessage;
+}
+
+function buildProfileUpdatePayload() {
+  return {
+    name: providerFormData.name,
+    phone: providerFormData.phone,
+    professional: providerFormData.professional,
+    location: providerFormData.location,
+    bankDetails: providerFormData.bankDetails,
+    onboardingCompleted: true
+  };
+}
+
 function showAlert(message, type) {
   const alert = document.getElementById('alert');
   alert.className = `alert alert-${type} show`;
@@ -174,9 +220,15 @@ function validateStep(step) {
   });
 
   if (step === 1) {
+    const phone = normalizePhoneNumber(document.getElementById('phone').value);
     const password = document.getElementById('password').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
     const existingToken = localStorage.getItem('token');
+
+    if (phone && !isValidE164Phone(phone)) {
+      showAlert('Please enter a valid phone number, for example +919876543210.', 'danger');
+      return false;
+    }
 
     if (!existingToken) {
       if (password !== confirmPassword) {
@@ -206,12 +258,21 @@ function validateStep(step) {
 
 function saveStepData(step) {
   if (step === 1) {
-    providerFormData.name = document.getElementById('fullName').value;
-    providerFormData.email = document.getElementById('email').value;
-    providerFormData.phone = document.getElementById('phone').value;
+    const existingToken = localStorage.getItem('token');
 
-    if (!localStorage.getItem('token')) {
+    providerFormData.name = document.getElementById('fullName').value;
+    providerFormData.phone = normalizePhoneNumber(document.getElementById('phone').value);
+
+    if (!existingToken) {
+      providerFormData.email = document.getElementById('email').value;
       providerFormData.password = document.getElementById('password').value;
+      providerFormData.confirmPassword = document.getElementById('confirmPassword').value;
+      providerFormData.agreeToTerms = true;
+    } else {
+      delete providerFormData.email;
+      delete providerFormData.password;
+      delete providerFormData.confirmPassword;
+      delete providerFormData.agreeToTerms;
     }
   } else if (step === 2) {
     providerFormData.professional = {
@@ -318,10 +379,10 @@ async function handleOnboardingSubmit(e) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
       } else {
-        throw new Error(data.message || data.error || 'Registration failed');
+        throw new Error(getApiErrorMessage(data, 'Registration failed'));
       }
     } else {
-      providerFormData.onboardingCompleted = true;
+      const updatePayload = buildProfileUpdatePayload();
 
       const response = await fetch(AppConfig.api('auth/me'), {
         method: 'PUT',
@@ -329,13 +390,13 @@ async function handleOnboardingSubmit(e) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${existingToken}`
         },
-        body: JSON.stringify(providerFormData)
+        body: JSON.stringify(updatePayload)
       });
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || data.error || 'Failed to update profile');
+        throw new Error(getApiErrorMessage(data, 'Failed to update profile'));
       }
 
       localStorage.setItem('user', JSON.stringify(data.user));
