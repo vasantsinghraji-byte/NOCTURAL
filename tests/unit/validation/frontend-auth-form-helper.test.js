@@ -8,6 +8,7 @@ const readProjectFile = (relativePath) => fs.readFileSync(path.join(rootDir, rel
 const frontendSessionSrc = readProjectFile('client/public/js/frontend-session.js');
 const landingSrc = readProjectFile('client/public/js/landing.js');
 const sharedRegisterSrc = readProjectFile('client/public/shared/register.html');
+const sharedRegisterJsSrc = readProjectFile('client/public/js/register.js');
 const patientLoginSrc = readProjectFile('client/public/roles/patient/patient-login.html');
 const providerLoginSrc = readProjectFile('client/public/roles/provider/provider-login.html');
 const providerLoginJsSrc = readProjectFile('client/public/js/provider-login.js');
@@ -36,12 +37,13 @@ describe('Frontend Auth Form Helper', () => {
     expect(landingSrc).toContain('useRoleRedirect: true');
 
     expect(sharedRegisterSrc).toContain('<script src="/js/frontend-session.js"></script>');
-    expect(sharedRegisterSrc).toContain('NocturnalSession.getRegistrationErrorMessage(error');
-    expect(sharedRegisterSrc).toContain("NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match')");
-    expect(sharedRegisterSrc).toContain('NocturnalSession.setButtonLoading(btn)');
-    expect(sharedRegisterSrc).toContain('NocturnalSession.resetButtonState(btn)');
-    expect(sharedRegisterSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
-    expect(sharedRegisterSrc).toContain("redirectUrl: '/roles/doctor/doctor-onboarding.html'");
+    expect(sharedRegisterSrc).toContain('<script src="/js/register.js"></script>');
+    expect(sharedRegisterJsSrc).toContain('NocturnalSession.getRegistrationErrorMessage(error');
+    expect(sharedRegisterJsSrc).toContain("NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match')");
+    expect(sharedRegisterJsSrc).toContain('NocturnalSession.setButtonLoading(btn)');
+    expect(sharedRegisterJsSrc).toContain('NocturnalSession.resetButtonState(btn)');
+    expect(sharedRegisterJsSrc).toContain('NocturnalSession.completeAuthSuccess(data, {');
+    expect(sharedRegisterJsSrc).toContain("redirectUrl: '/roles/doctor/doctor-onboarding.html'");
     expect(sharedRegisterSrc).toContain('Hospital Onboarding Coming Soon');
 
     expect(patientLoginSrc).toContain('<script src="/js/frontend-session.js"></script>');
