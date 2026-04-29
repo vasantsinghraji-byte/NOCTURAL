@@ -13,8 +13,13 @@ const frontendSessionSrc = fs.readFileSync(
   'utf8'
 );
 
-const doctorDashboardSrc = fs.readFileSync(
+const doctorDashboardHtmlSrc = fs.readFileSync(
   path.join(rootDir, 'client', 'public', 'roles', 'doctor', 'doctor-dashboard.html'),
+  'utf8'
+);
+
+const doctorDashboardSrc = fs.readFileSync(
+  path.join(rootDir, 'client', 'public', 'js', 'doctor-dashboard.js'),
   'utf8'
 );
 
@@ -37,6 +42,11 @@ describe('Frontend Contract Reconciliation', () => {
     expect(frontendSessionSrc).toContain("localStorage.setItem('userType'");
     expect(frontendSessionSrc).toContain("localStorage.setItem('userName'");
     expect(frontendSessionSrc).toContain("localStorage.setItem('userId'");
+  });
+
+  it('should keep doctor dashboard behavior in a CSP-safe external script', () => {
+    expect(doctorDashboardHtmlSrc).toContain('/js/doctor-dashboard.js');
+    expect(doctorDashboardHtmlSrc).not.toMatch(/<script(?![^>]*\bsrc=)[\s\S]*?>[\s\S]*?<\/script>/i);
   });
 
   it('should send unauthenticated doctor dashboard users back to the root landing page', () => {

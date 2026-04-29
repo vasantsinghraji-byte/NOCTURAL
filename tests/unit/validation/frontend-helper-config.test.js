@@ -49,7 +49,7 @@ describe('Frontend Helper Configuration', () => {
     expect(unifiedNavSrc).toContain('request(endpoint, options = {})');
     expect(unifiedNavSrc).toContain("return AppConfig.fetch(normalizedEndpoint, options);");
     expect(unifiedNavSrc).toContain("const response = await this.request('auth/me', {");
-    expect(unifiedNavSrc).toContain('window.location.origin');
+    expect(unifiedNavSrc).toContain('return `/api/v1/${normalizedEndpoint}`;');
   });
 
   it('should standardize pagination and generic utility fetch wrappers through AppConfig.fetch()', () => {
