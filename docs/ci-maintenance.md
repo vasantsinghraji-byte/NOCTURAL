@@ -8,17 +8,18 @@ gate validation, and a container smoke build.
 
 ## Legacy Jest cleanup
 
-The historical Jest suite is now split into two groups:
+The historical Jest suite has been repaired and moved back into the required
+CI path:
 
-- `npm run test:legacy:healthy` runs the repaired legacy suites and is a
-  required CI gate.
-- `npm run test:legacy:quarantine` runs the remaining stale suites and is
-  reported by **Legacy Jest Quarantine (non-blocking)**.
+- `npm run test:legacy:healthy` runs the repaired legacy suites, excluding only
+  the dedicated frontend smoke suite that already runs through `test:ci`.
+- `npm run test:legacy:quarantine` is currently a no-op placeholder reported by
+  **Legacy Jest Quarantine (non-blocking)** so future stale suites can be parked
+  deliberately without changing the workflow shape.
 
-Move suites from quarantine into the healthy gate as they are repaired. The
-NoSQL sanitization helper suite has been repaired and promoted. The current
-quarantine contains stale model suites that no longer match the active schemas
-or take too long under CI MongoDB.
+Keep new or repaired suites in the healthy gate by default. Only move a suite
+into quarantine when it is known-stale, non-deploy-blocking, and has a follow-up
+owner to repair it.
 
 ## Dependency audit follow-up
 
