@@ -51,8 +51,8 @@ function sanitizeData(obj, depth = 0) {
 
   if (Array.isArray(obj)) {
     return obj
-      .filter(item => item !== undefined)
-      .map(item => sanitizeData(item, depth + 1));
+      .map(item => sanitizeData(item, depth + 1))
+      .filter(item => item !== undefined);
   }
 
   const sanitized = {};
@@ -170,6 +170,11 @@ function validateSanitization(obj) {
 
   if (Array.isArray(obj)) {
     return obj.every(item => validateSanitization(item));
+  }
+
+  const prototype = Object.getPrototypeOf(obj);
+  if (prototype && prototype !== Object.prototype) {
+    return false;
   }
 
   for (const key of Object.keys(obj)) {

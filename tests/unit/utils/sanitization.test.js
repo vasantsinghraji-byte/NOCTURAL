@@ -94,7 +94,7 @@ describe('NoSQL Sanitization', () => {
 
       const result = sanitizeData(input);
 
-      expect(result).toEqual({ user: {} });
+      expect(result).toEqual({});
     });
 
     it('should remove $gt, $lt, $gte, $lte operators', () => {
@@ -621,9 +621,7 @@ describe('NoSQL Sanitization', () => {
 
       expect(result).toEqual({
         user: {
-          profile: {
-            settings: {}
-          }
+          profile: {}
         }
       });
     });

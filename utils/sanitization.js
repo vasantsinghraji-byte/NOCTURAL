@@ -46,6 +46,11 @@ function sanitizeData(obj, depth = 0) {
     return obj;
   }
 
+  // Handle functions (should never be in user input, but sanitize anyway)
+  if (typeof obj === 'function') {
+    return undefined; // Remove functions entirely
+  }
+
   // Handle primitives (string, number, boolean)
   if (typeof obj !== 'object') {
     // Sanitize strings that might contain injection attempts
@@ -53,11 +58,6 @@ function sanitizeData(obj, depth = 0) {
       return sanitizeString(obj);
     }
     return obj;
-  }
-
-  // Handle functions (should never be in user input, but sanitize anyway)
-  if (typeof obj === 'function') {
-    return undefined; // Remove functions entirely
   }
 
   // Handle Date objects (return as-is, they're safe)
@@ -73,8 +73,8 @@ function sanitizeData(obj, depth = 0) {
   // Handle Arrays
   if (Array.isArray(obj)) {
     return obj
-      .filter(item => item !== undefined) // Remove undefined items
-      .map(item => sanitizeData(item, depth + 1));
+      .map(item => sanitizeData(item, depth + 1))
+      .filter(item => item !== undefined); // Remove functions and other undefined items
   }
 
   // Handle Objects
@@ -132,10 +132,12 @@ function sanitizeData(obj, depth = 0) {
 
     // Skip if value is an empty object that only contained MongoDB operators
     if (typeof sanitizedValue === 'object' &&
+        sanitizedValue !== null &&
         !Array.isArray(sanitizedValue) &&
         !(sanitizedValue instanceof Date) &&
         Object.keys(sanitizedValue).length === 0 &&
         typeof obj[key] === 'object' &&
+        obj[key] !== null &&
         Object.keys(obj[key]).length > 0 &&
         Object.keys(obj[key]).every(k => k.startsWith('$') || DANGEROUS_KEYS.includes(k))) {
       // This was an object that only contained $ operators or dangerous keys, skip it entirely
@@ -180,6 +182,7 @@ function hasDangerousCharacters(key) {
   // Check for various dangerous patterns
   return (
     key.includes('$') ||           // MongoDB operators
+    key.includes('.') ||           // MongoDB dot notation traversal
     key.includes('\0') ||          // Null bytes
     key.includes('..') ||          // Path traversal
     key.includes('\\') ||          // Escape characters
@@ -257,6 +260,11 @@ function validateSanitization(obj) {
 
   if (Array.isArray(obj)) {
     return obj.every(item => validateSanitization(item));
+  }
+
+  const prototype = Object.getPrototypeOf(obj);
+  if (prototype && prototype !== Object.prototype) {
+    return false;
   }
 
   for (const key of Object.keys(obj)) {

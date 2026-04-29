@@ -16,8 +16,9 @@ The historical Jest suite is now split into two groups:
   reported by **Legacy Jest Quarantine (non-blocking)**.
 
 Move suites from quarantine into the healthy gate as they are repaired. The
-current quarantine contains the model and upload/security helper tests that no
-longer match the active schemas or take too long under CI MongoDB.
+NoSQL sanitization helper suite has been repaired and promoted. The current
+quarantine contains stale model suites that no longer match the active schemas
+or take too long under CI MongoDB.
 
 ## Dependency audit follow-up
 
@@ -30,6 +31,7 @@ The dependency audit chains have been reviewed:
   only loads it behind `USE_GCS=true`; production now fails fast if GCS is
   enabled without installing/configuring the package.
 - `pm2` was removed from package dependencies because Render runs the container
-  with direct `node server.js`.
+  with direct `node server.js`. The `pm2:*` scripts remain as manual
+  non-Render commands and require PM2 to be installed outside this package.
 
 Both `npm audit` and `npm audit --omit=dev` now report zero vulnerabilities.
