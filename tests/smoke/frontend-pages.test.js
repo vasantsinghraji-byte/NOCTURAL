@@ -33,6 +33,7 @@ const TOP_PAGES = [
   { path: '/roles/patient/patient-dashboard.html',       title: null },
   { path: '/roles/provider/provider-login.html',         title: null },
   { path: '/roles/provider/provider-dashboard.html',     title: null },
+  { path: '/roles/doctor/doctor-onboarding.html',        title: null },
   { path: '/roles/doctor/doctor-dashboard.html',         title: null },
   { path: '/roles/admin/admin-analytics.html',           title: null }
 ];
@@ -77,13 +78,17 @@ describe('Frontend Smoke – top pages load', () => {
 
   test.each([
     ['/roles/patient/patient-login.html', '/js/patient-login.js?v=20260429-2'],
-    ['/roles/patient/patient-register.html', '/js/patient-register.js?v=20260429-2']
+    ['/roles/patient/patient-register.html', '/js/patient-register.js?v=20260429-2'],
+    ['/roles/doctor/doctor-onboarding.html', '/js/doctor-onboarding.js?v=20260429-1']
   ])('%s uses external scripts compatible with CSP', async (path, scriptPath) => {
     const res = await request(app).get(path);
 
     const inlineScripts = res.text.match(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]+?<\/script>/gi);
     expect(inlineScripts).toBeNull();
     expect(res.text).toContain(scriptPath);
+
+    const handlers = res.text.match(/\bon(click|submit|change|load|error)\s*=/gi);
+    expect(handlers).toBeNull();
   });
 
   test('CSP allows external stylesheet fetches used by the service worker', async () => {
@@ -128,6 +133,9 @@ describe('Frontend Smoke – top pages load', () => {
 
     const patientRegisterRes = await request(app).get('/js/patient-register.js');
     expect(patientRegisterRes.status).toBe(200);
+
+    const doctorOnboardingRes = await request(app).get('/js/doctor-onboarding.js');
+    expect(doctorOnboardingRes.status).toBe(200);
 
     const swRes = await request(app).get('/service-worker.js');
     expect(swRes.status).toBe(200);
