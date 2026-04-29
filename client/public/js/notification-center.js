@@ -277,7 +277,8 @@ class NotificationCenter {
     }
 
     injectHTML() {
-        const container = document.createElement('div');
+        const existingContainer = document.getElementById('notificationCenter');
+        const container = existingContainer || document.createElement('div');
         container.id = 'notificationCenter';
         container.innerHTML = `
             <div class="notification-bell" id="notificationBell">
@@ -304,10 +305,15 @@ class NotificationCenter {
             </div>
         `;
 
-        // Find nav bar and append
-        const navbar = document.querySelector('.navbar .nav-links') || document.querySelector('.navbar');
-        if (navbar) {
+        if (!existingContainer) {
+            // Find nav bar and append
+            const navbar = document.querySelector('.navbar .nav-links') ||
+                document.querySelector('.navbar') ||
+                document.querySelector('.unified-navbar .nav-menu') ||
+                document.querySelector('.unified-navbar');
+            if (navbar) {
             navbar.appendChild(container);
+            }
         }
     }
 
@@ -333,15 +339,33 @@ class NotificationCenter {
         document.addEventListener('click', (e) => {
             const panel = document.getElementById('notificationPanel');
             const bell = document.getElementById('notificationBell');
+            if (!panel || !bell) {
+                return;
+            }
             if (this.isOpen && !panel.contains(e.target) && !bell.contains(e.target)) {
                 this.closePanel();
             }
         });
+
+        const list = document.getElementById('notificationList');
+        if (list) {
+            list.addEventListener('click', (event) => {
+                const item = event.target.closest('[data-notification-id]');
+                if (!item) {
+                    return;
+                }
+
+                this.handleNotificationClick(item.dataset.notificationId, item.dataset.actionUrl || '');
+            });
+        }
     }
 
     togglePanel() {
         this.isOpen = !this.isOpen;
         const panel = document.getElementById('notificationPanel');
+        if (!panel) {
+            return;
+        }
         panel.classList.toggle('open', this.isOpen);
 
         if (this.isOpen) {
@@ -351,7 +375,10 @@ class NotificationCenter {
 
     closePanel() {
         this.isOpen = false;
-        document.getElementById('notificationPanel').classList.remove('open');
+        const panel = document.getElementById('notificationPanel');
+        if (panel) {
+            panel.classList.remove('open');
+        }
     }
 
     async loadNotifications() {
@@ -360,9 +387,12 @@ class NotificationCenter {
 
         try {
             const response = await this.fetchApi('notifications?limit=10');
+            if (!response.ok) {
+                throw new Error(`Notifications request failed with status ${response.status}`);
+            }
 
             const data = await response.json();
-            if (data.success) {
+            if (data.success && data.data) {
                 this.notifications = data.data.notifications || [];
                 this.unreadCount = data.data.unreadCount || 0;
                 this.updateUI();
@@ -375,15 +405,18 @@ class NotificationCenter {
     updateUI() {
         // Update badge
         const badge = document.getElementById('notificationBadge');
+        const list = document.getElementById('notificationList');
+
+        if (!badge || !list) {
+            return;
+        }
+
         if (this.unreadCount > 0) {
             badge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount;
             badge.style.display = 'block';
         } else {
             badge.style.display = 'none';
         }
-
-        // Update notification list
-        const list = document.getElementById('notificationList');
 
         if (this.notifications.length === 0) {
             list.innerHTML = `
@@ -401,7 +434,8 @@ class NotificationCenter {
 
             return `
                 <div class="notification-item ${!notif.read ? 'unread' : ''}"
-                     onclick="notificationCenter.handleNotificationClick('${notif._id}', '${notif.actionUrl || ''}')">
+                     data-notification-id="${notif._id}"
+                     data-action-url="${notif.actionUrl || ''}">
                     <div class="notification-icon ${iconClass}">
                         ${this.getIcon(notif.type)}
                     </div>

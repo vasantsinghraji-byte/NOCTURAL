@@ -35,6 +35,7 @@ const TOP_PAGES = [
   { path: '/roles/provider/provider-dashboard.html',     title: null },
   { path: '/roles/doctor/doctor-onboarding.html',        title: null },
   { path: '/roles/doctor/doctor-dashboard.html',         title: null },
+  { path: '/roles/doctor/doctor-profile.html',           title: null },
   { path: '/roles/admin/admin-analytics.html',           title: null }
 ];
 
@@ -79,7 +80,9 @@ describe('Frontend Smoke – top pages load', () => {
   test.each([
     ['/roles/patient/patient-login.html', '/js/patient-login.js?v=20260429-2'],
     ['/roles/patient/patient-register.html', '/js/patient-register.js?v=20260429-2'],
-    ['/roles/doctor/doctor-onboarding.html', '/js/doctor-onboarding.js?v=20260429-2']
+    ['/roles/doctor/doctor-onboarding.html', '/js/doctor-onboarding.js?v=20260429-2'],
+    ['/roles/doctor/doctor-dashboard.html', '/js/doctor-dashboard.js?v=20260429-1'],
+    ['/roles/doctor/doctor-profile.html', '/js/doctor-profile.js?v=20260429-1']
   ])('%s uses external scripts compatible with CSP', async (path, scriptPath) => {
     const res = await request(app).get(path);
 
@@ -136,6 +139,12 @@ describe('Frontend Smoke – top pages load', () => {
 
     const doctorOnboardingRes = await request(app).get('/js/doctor-onboarding.js');
     expect(doctorOnboardingRes.status).toBe(200);
+
+    const doctorDashboardRes = await request(app).get('/js/doctor-dashboard.js');
+    expect(doctorDashboardRes.status).toBe(200);
+
+    const doctorProfileRes = await request(app).get('/js/doctor-profile.js');
+    expect(doctorProfileRes.status).toBe(200);
 
     const swRes = await request(app).get('/service-worker.js');
     expect(swRes.status).toBe(200);

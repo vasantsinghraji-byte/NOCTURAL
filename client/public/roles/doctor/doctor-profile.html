@@ -348,7 +348,7 @@
         <div class="user-info">
             <div class="user-avatar" id="userAvatar">D</div>
             <span id="userName">Loading...</span>
-            <button class="logout-btn" onclick="logout()">Logout</button>
+            <button id="logout-btn" class="logout-btn">Logout</button>
         </div>
     </nav>
 
@@ -489,7 +489,7 @@
 
                     <!-- Form Actions -->
                     <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" onclick="resetForm()">Cancel</button>
+                        <button type="button" class="btn btn-secondary" id="reset-profile-btn">Cancel</button>
                         <button type="submit" class="btn btn-primary" id="submitBtn">
                             Save Changes
                         </button>
@@ -498,180 +498,8 @@
             </div>
         </div>
     </div>
-
-    <script>
-        // API Base URL
-        // API_URL is provided by config.js
-
-        // Check authentication
-        function checkAuth() {
-            const token = localStorage.getItem('token');
-            const userType = localStorage.getItem('userType');
-
-            if (!token || userType !== 'doctor') {
-                window.location.href = '/index.html';
-                return false;
-            }
-            return token;
-        }
-
-        // Logout function
-        async function logout() {
-            try {
-                // Clear localStorage
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                localStorage.removeItem('userType');
-                localStorage.removeItem('userId');
-                localStorage.removeItem('userName');
-
-                // Redirect to landing page
-                window.location.href = '/index.html';
-            } catch (error) {
-                console.error('Logout error:', error);
-                // Force redirect anyway
-                window.location.href = '/index.html';
-            }
-        }
-
-        // Load user info
-        function loadUserInfo() {
-            const userName = localStorage.getItem('userName') || 'Doctor';
-            document.getElementById('userName').textContent = userName;
-            document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
-            document.getElementById('profileAvatarLarge').textContent = userName.charAt(0).toUpperCase();
-            document.getElementById('profileName').textContent = userName;
-        }
-
-        // Fetch user profile
-        async function fetchUserProfile() {
-            const token = checkAuth();
-            if (!token) return;
-
-            try {
-                const response = await fetch(AppConfig.api('users/profile'), {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success && data.user) {
-                    populateForm(data.user);
-                }
-            } catch (error) {
-                console.error('Error fetching profile:', error);
-            }
-        }
-
-        // Populate form with user data
-        function populateForm(user) {
-            document.getElementById('fullName').value = user.fullName || user.name || '';
-            document.getElementById('email').value = user.email || '';
-            document.getElementById('phone').value = user.phone || '';
-            document.getElementById('dateOfBirth').value = user.dateOfBirth ? user.dateOfBirth.split('T')[0] : '';
-            document.getElementById('profession').value = user.profession || 'Doctor';
-            document.getElementById('specialization').value = user.specialization || '';
-            document.getElementById('licenseNumber').value = user.licenseNumber || '';
-            document.getElementById('experience').value = user.experience || '';
-            document.getElementById('city').value = user.city || '';
-            document.getElementById('state').value = user.state || '';
-            document.getElementById('bio').value = user.bio || '';
-            document.getElementById('certifications').value = user.certifications || '';
-
-            // Set shift preferences
-            if (user.preferredShifts) {
-                document.getElementById('nightShift').checked = user.preferredShifts.includes('Night');
-                document.getElementById('eveningShift').checked = user.preferredShifts.includes('Evening');
-                document.getElementById('weekendShift').checked = user.preferredShifts.includes('Weekend');
-            }
-
-            // Update profile role
-            document.getElementById('profileRole').textContent = user.profession || 'Healthcare Professional';
-        }
-
-        // Handle form submission
-        document.getElementById('profileForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const token = checkAuth();
-            if (!token) return;
-
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Saving...';
-
-            // Collect preferred shifts
-            const preferredShifts = [];
-            if (document.getElementById('nightShift').checked) preferredShifts.push('Night');
-            if (document.getElementById('eveningShift').checked) preferredShifts.push('Evening');
-            if (document.getElementById('weekendShift').checked) preferredShifts.push('Weekend');
-
-            const profileData = {
-                fullName: document.getElementById('fullName').value,
-                email: document.getElementById('email').value,
-                phone: document.getElementById('phone').value,
-                dateOfBirth: document.getElementById('dateOfBirth').value,
-                profession: document.getElementById('profession').value,
-                specialization: document.getElementById('specialization').value,
-                licenseNumber: document.getElementById('licenseNumber').value,
-                experience: document.getElementById('experience').value,
-                city: document.getElementById('city').value,
-                state: document.getElementById('state').value,
-                bio: document.getElementById('bio').value,
-                certifications: document.getElementById('certifications').value,
-                preferredShifts: preferredShifts
-            };
-
-            try {
-                const response = await fetch(AppConfig.api('users/profile'), {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(profileData)
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    // Update localStorage
-                    localStorage.setItem('userName', profileData.fullName);
-                    
-                    // Show success message
-                    const successMsg = document.getElementById('successMessage');
-                    successMsg.classList.add('show');
-                    setTimeout(() => successMsg.classList.remove('show'), 3000);
-                    
-                    // Reload user info
-                    loadUserInfo();
-                } else {
-                    alert(data.message || 'Failed to update profile');
-                }
-            } catch (error) {
-                console.error('Error updating profile:', error);
-                alert('Error updating profile. Please try again.');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Save Changes';
-            }
-        });
-
-        // Reset form
-        function resetForm() {
-            fetchUserProfile();
-        }
-
-        // Initialize page
-        window.addEventListener('DOMContentLoaded', () => {
-            checkAuth();
-            loadUserInfo();
-            fetchUserProfile();
-        });
-    </script>
-    <!-- Unified Navigation & Notifications -->
+    <script src="/js/doctor-profile.js?v=20260429-1"></script>
+<!-- Unified Navigation & Notifications -->
     <script src="/js/auto-inject-nav.js"></script>
 </body>
 </html>

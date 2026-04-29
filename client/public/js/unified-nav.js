@@ -44,6 +44,9 @@ class UnifiedNavigation {
             const response = await this.request('auth/me', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (!response.ok) {
+                throw new Error(`User request failed with status ${response.status}`);
+            }
             const data = await response.json();
             if (data.success) {
                 this.currentUser = data.user;
@@ -380,7 +383,7 @@ class UnifiedNavigation {
                     ${role ? `<span class="nav-role-badge">${role.charAt(0).toUpperCase() + role.slice(1)}</span>` : ''}
                 </a>
 
-                <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+                <button class="mobile-menu-toggle" data-nav-action="toggle-mobile-menu">
                     <i class="fas fa-bars"></i>
                 </button>
 
@@ -389,7 +392,7 @@ class UnifiedNavigation {
                         if (item.dropdown) {
                             return `
                                 <li class="nav-item nav-dropdown">
-                                    <button class="nav-dropdown-toggle" onclick="toggleDropdown(event)">
+                                    <button class="nav-dropdown-toggle" data-nav-action="toggle-dropdown">
                                         <i class="fas ${item.icon}"></i>
                                         <span>${item.text}</span>
                                         <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
@@ -425,7 +428,7 @@ class UnifiedNavigation {
                     </li>
 
                     <li class="nav-item nav-dropdown">
-                        <button class="nav-dropdown-toggle" onclick="toggleDropdown(event)">
+                        <button class="nav-dropdown-toggle" data-nav-action="toggle-dropdown">
                             <div class="nav-user">
                                 ${this.getUserAvatar()}
                                 <div class="nav-user-info">
@@ -449,7 +452,7 @@ class UnifiedNavigation {
                                 <span>Settings</span>
                             </a>
                             <div class="nav-dropdown-divider"></div>
-                            <a href="#" class="nav-dropdown-item" onclick="logout(event)">
+                            <a href="#" class="nav-dropdown-item" data-nav-action="logout">
                                 <i class="fas fa-sign-out-alt"></i>
                                 <span>Logout</span>
                             </a>
@@ -460,15 +463,29 @@ class UnifiedNavigation {
         `;
 
         existingNav.replaceWith(nav);
+        this.attachEventListeners(nav);
+    }
+
+    attachEventListeners(nav) {
+        nav.addEventListener('click', (event) => {
+            const actionElement = event.target.closest('[data-nav-action]');
+            if (!actionElement) {
+                return;
+            }
+
+            const action = actionElement.dataset.navAction;
+            if (action === 'toggle-mobile-menu') {
+                event.preventDefault();
+                this.toggleMobileMenu();
+            } else if (action === 'toggle-dropdown') {
+                this.toggleDropdown(event);
+            } else if (action === 'logout') {
+                this.logout(event);
+            }
+        });
     }
 
     getUserAvatar() {
-        if (this.currentUser?.profilePhoto?.url) {
-            const baseUrl = (typeof AppConfig !== 'undefined' && AppConfig.BASE_URL)
-                ? AppConfig.BASE_URL
-                : window.location.origin;
-            return `<img src="${baseUrl}${this.currentUser.profilePhoto.url}" class="nav-user-avatar" alt="Profile">`;
-        }
         const initial = this.currentUser?.name?.charAt(0).toUpperCase() || 'U';
         return `<div class="nav-user-avatar-placeholder">${initial}</div>`;
     }
@@ -490,6 +507,36 @@ class UnifiedNavigation {
                 link.classList.add('active');
             }
         });
+    }
+
+    toggleMobileMenu() {
+        const menu = document.getElementById('navMenu');
+        if (menu) {
+            menu.classList.toggle('active');
+        }
+    }
+
+    toggleDropdown(event) {
+        if (window.innerWidth <= 1024) {
+            event.preventDefault();
+            const dropdown = event.target.closest('.nav-dropdown');
+            if (dropdown) {
+                dropdown.classList.toggle('active');
+            }
+        }
+    }
+
+    logout(event) {
+        if (event && event.preventDefault) {
+            event.preventDefault();
+        }
+        if (confirm('Are you sure you want to logout?')) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('patientToken');
+            localStorage.removeItem('patient');
+            window.location.href = '/index.html';
+        }
     }
 }
 
