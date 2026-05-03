@@ -45,7 +45,7 @@
             container.appendChild(toast);
 
             setTimeout(() => {
-                toast.style.animation = 'slideIn 0.3s ease reverse';
+                toast.classList.add('toast-exit');
                 setTimeout(() => toast.remove(), 300);
             }, 4000);
         }
@@ -82,19 +82,16 @@
 
             dropZone.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                dropZone.style.borderColor = 'var(--primary)';
-                dropZone.style.background = 'rgba(91, 141, 190, 0.1)';
+                dropZone.classList.add('is-drag-active');
             });
 
             dropZone.addEventListener('dragleave', () => {
-                dropZone.style.borderColor = '#e0e0e0';
-                dropZone.style.background = 'var(--bg-light)';
+                dropZone.classList.remove('is-drag-active');
             });
 
             dropZone.addEventListener('drop', (e) => {
                 e.preventDefault();
-                dropZone.style.borderColor = '#e0e0e0';
-                dropZone.style.background = 'var(--bg-light)';
+                dropZone.classList.remove('is-drag-active');
                 handleFiles(e.dataTransfer.files);
             });
 
@@ -134,11 +131,11 @@
             }
 
             fileList.innerHTML = selectedFiles.map((file, index) => `
-                <div style="display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--bg-light); border-radius: 8px; margin-bottom: 8px;">
-                    <i class="fas ${file.type === 'application/pdf' ? 'fa-file-pdf' : 'fa-file-image'}" style="color: var(--primary);"></i>
-                    <span style="flex: 1;">${file.name}</span>
-                    <span style="color: var(--text-light); font-size: 0.85rem;">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
-                    <button type="button" data-action="remove-file" data-file-index="${index}" style="background: none; border: none; color: var(--danger); cursor: pointer;">
+                <div class="selected-file-item">
+                    <i class="fas selected-file-icon ${file.type === 'application/pdf' ? 'fa-file-pdf' : 'fa-file-image'}"></i>
+                    <span class="selected-file-name">${file.name}</span>
+                    <span class="selected-file-size">${AppFormat.megabytes(file.size, 2)}</span>
+                    <button type="button" class="selected-file-remove" data-action="remove-file" data-file-index="${index}">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -176,8 +173,8 @@
             const modal = document.getElementById('readingModal');
             const title = document.getElementById('readingModalTitle');
 
-            document.getElementById('diabetesFields').style.display = type === 'diabetes' ? 'block' : 'none';
-            document.getElementById('bpFields').style.display = type === 'bp' ? 'block' : 'none';
+            AppUi.setDisplay(document.getElementById('diabetesFields'), type === 'diabetes' ? 'block' : 'none');
+            AppUi.setDisplay(document.getElementById('bpFields'), type === 'bp' ? 'block' : 'none');
 
             if (type === 'diabetes') {
                 title.innerHTML = '<i class="fas fa-tint"></i> Log Blood Sugar Reading';
@@ -205,29 +202,8 @@
         });
 
         // API calls
-        function getToken() {
-            return PatientSession.getToken();
-        }
-
         async function apiCall(endpoint, options = {}) {
-            const token = getToken();
-            const baseUrl = AppConfig.api(endpoint);
-
-            const response = await fetch(baseUrl, {
-                ...options,
-                headers: {
-                    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-                    'Authorization': `Bearer ${token}`,
-                    ...options.headers
-                }
-            });
-
-            if (response.status === 401) {
-                logout();
-                return null;
-            }
-
-            return response.json();
+            return PatientSession.fetchJson(endpoint, options);
         }
 
         // Submit report
@@ -349,8 +325,8 @@
             const loading = document.getElementById('reportsLoading');
             const content = document.getElementById('reportsContent');
 
-            loading.style.display = 'flex';
-            content.style.display = 'none';
+            AppUi.setDisplay(loading, 'flex');
+            AppUi.setDisplay(content, 'none');
 
             try {
                 console.log('Loading reports overview...');
@@ -365,9 +341,9 @@
                     const badge = document.getElementById('pendingReportsBadge');
                     if (pendingCount > 0) {
                         badge.textContent = pendingCount;
-                        badge.style.display = 'inline';
+                        AppUi.setDisplay(badge, 'inline');
                     } else {
-                        badge.style.display = 'none';
+                        AppUi.setDisplay(badge, 'none');
                     }
 
                     content.innerHTML = await renderReportsContent(reports);
@@ -379,8 +355,8 @@
                         <div class="empty-state">
                             <i class="fas fa-exclamation-circle"></i>
                             <h3>Error loading reports</h3>
-                            <p style="color: var(--text-light); margin-top: 0.5rem;">${errorMsg}</p>
-                            <button class="btn btn-primary" data-action="retry-load-reports" style="margin-top: 1rem;">
+                            <p class="state-help-text">${errorMsg}</p>
+                            <button class="btn btn-primary action-spaced" data-action="retry-load-reports">
                                 <i class="fas fa-sync"></i> Retry
                             </button>
                         </div>
@@ -392,15 +368,15 @@
                     <div class="empty-state">
                         <i class="fas fa-exclamation-circle"></i>
                         <h3>Error loading reports</h3>
-                        <p style="color: var(--text-light); margin-top: 0.5rem;">${error.message}</p>
-                        <button class="btn btn-primary" data-action="retry-load-reports" style="margin-top: 1rem;">
+                        <p class="state-help-text">${error.message}</p>
+                        <button class="btn btn-primary action-spaced" data-action="retry-load-reports">
                             <i class="fas fa-sync"></i> Retry
                         </button>
                     </div>
                 `;
             } finally {
-                loading.style.display = 'none';
-                content.style.display = 'block';
+                AppUi.setDisplay(loading, 'none');
+                AppUi.setDisplay(content, 'block');
             }
         }
 
@@ -408,8 +384,8 @@
             const loading = document.getElementById('diabetesLoading');
             const content = document.getElementById('diabetesContent');
 
-            loading.style.display = 'flex';
-            content.style.display = 'none';
+            AppUi.setDisplay(loading, 'flex');
+            AppUi.setDisplay(content, 'none');
 
             try {
                 console.log('Loading diabetes data...');
@@ -432,8 +408,8 @@
                         <div class="empty-state">
                             <i class="fas fa-exclamation-circle"></i>
                             <h3>Error loading data</h3>
-                            <p style="color: var(--text-light); margin-top: 0.5rem;">${errorMsg}</p>
-                            <button class="btn btn-primary" data-action="retry-load-diabetes" style="margin-top: 1rem;">
+                            <p class="state-help-text">${errorMsg}</p>
+                            <button class="btn btn-primary action-spaced" data-action="retry-load-diabetes">
                                 <i class="fas fa-sync"></i> Retry
                             </button>
                         </div>
@@ -445,15 +421,15 @@
                     <div class="empty-state">
                         <i class="fas fa-exclamation-circle"></i>
                         <h3>Error loading data</h3>
-                        <p style="color: var(--text-light); margin-top: 0.5rem;">${error.message}</p>
-                        <button class="btn btn-primary" data-action="retry-load-diabetes" style="margin-top: 1rem;">
+                        <p class="state-help-text">${error.message}</p>
+                        <button class="btn btn-primary action-spaced" data-action="retry-load-diabetes">
                             <i class="fas fa-sync"></i> Retry
                         </button>
                     </div>
                 `;
             } finally {
-                loading.style.display = 'none';
-                content.style.display = 'block';
+                AppUi.setDisplay(loading, 'none');
+                AppUi.setDisplay(content, 'block');
             }
         }
 
@@ -461,8 +437,8 @@
             const loading = document.getElementById('hypertensionLoading');
             const content = document.getElementById('hypertensionContent');
 
-            loading.style.display = 'flex';
-            content.style.display = 'none';
+            AppUi.setDisplay(loading, 'flex');
+            AppUi.setDisplay(content, 'none');
 
             try {
                 console.log('Loading hypertension data...');
@@ -485,8 +461,8 @@
                         <div class="empty-state">
                             <i class="fas fa-exclamation-circle"></i>
                             <h3>Error loading data</h3>
-                            <p style="color: var(--text-light); margin-top: 0.5rem;">${errorMsg}</p>
-                            <button class="btn btn-primary" data-action="retry-load-hypertension" style="margin-top: 1rem;">
+                            <p class="state-help-text">${errorMsg}</p>
+                            <button class="btn btn-primary action-spaced" data-action="retry-load-hypertension">
                                 <i class="fas fa-sync"></i> Retry
                             </button>
                         </div>
@@ -498,15 +474,15 @@
                     <div class="empty-state">
                         <i class="fas fa-exclamation-circle"></i>
                         <h3>Error loading data</h3>
-                        <p style="color: var(--text-light); margin-top: 0.5rem;">${error.message}</p>
-                        <button class="btn btn-primary" data-action="retry-load-hypertension" style="margin-top: 1rem;">
+                        <p class="state-help-text">${error.message}</p>
+                        <button class="btn btn-primary action-spaced" data-action="retry-load-hypertension">
                             <i class="fas fa-sync"></i> Retry
                         </button>
                     </div>
                 `;
             } finally {
-                loading.style.display = 'none';
-                content.style.display = 'block';
+                AppUi.setDisplay(loading, 'none');
+                AppUi.setDisplay(content, 'block');
             }
         }
 
@@ -541,7 +517,7 @@
                     </div>
                 </div>
 
-                <h3 style="margin-bottom: 1rem;">Recent Reports</h3>
+                <h3 class="section-heading-spaced">Recent Reports</h3>
                 ${reports.length > 0 ? `
                     <div class="reports-list">
                         ${reports.map(report => renderReportCard(report)).join('')}
@@ -551,7 +527,7 @@
                         <i class="fas fa-file-upload"></i>
                         <h3>No reports yet</h3>
                         <p>Upload your first investigation report to get started</p>
-                        <button class="btn btn-primary" data-action="open-upload-modal" style="margin-top: 1rem;">
+                        <button class="btn btn-primary action-spaced" data-action="open-upload-modal">
                             <i class="fas fa-upload"></i> Upload Report
                         </button>
                     </div>
@@ -579,12 +555,12 @@
             };
 
             return `
-                <div style="background: var(--bg-light); padding: 1.25rem; border-radius: 12px; margin-bottom: 1rem; cursor: pointer;" data-action="view-report" data-report-id="${report._id}">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                <div class="report-list-card" data-action="view-report" data-report-id="${report._id}">
+                    <div class="report-list-header">
                         <div>
-                            <h4 style="margin-bottom: 0.25rem;">${report.title}</h4>
-                            <p style="color: var(--text-light); font-size: 0.9rem;">
-                                ${report.reportType.replace(/_/g, ' ')} &bull; ${new Date(report.reportDate).toLocaleDateString()}
+                            <h4 class="report-list-title">${report.title}</h4>
+                            <p class="report-list-meta">
+                                ${report.reportType.replace(/_/g, ' ')} &bull; ${AppFormat.date(report.reportDate)}
                             </p>
                         </div>
                         <span class="status-badge ${statusColors[report.status] || 'pending'}">
@@ -592,19 +568,19 @@
                         </span>
                     </div>
                     ${report.aiAnalysis?.summary ? `
-                        <p style="font-size: 0.9rem; color: var(--text-dark); margin-bottom: 0.5rem;">
-                            <i class="fas fa-robot" style="color: var(--primary);"></i>
+                        <p class="report-list-summary">
+                            <i class="fas fa-robot report-list-summary-icon"></i>
                             ${report.aiAnalysis.summary.substring(0, 150)}...
                         </p>
                     ` : report.status === 'AI_FAILED' ? `
-                        <p style="font-size: 0.9rem; color: var(--danger); margin-bottom: 0.5rem;">
+                        <p class="report-list-error">
                             <i class="fas fa-exclamation-circle"></i>
                             ${report.aiAnalysis?.error?.message || 'AI analysis failed - click to request doctor review'}
                         </p>
                     ` : ''}
-                    <div style="display: flex; gap: 0.5rem;">
+                    <div class="report-file-chip-list">
                         ${report.files?.map(f => `
-                            <span style="background: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">
+                            <span class="report-file-chip">
                                 <i class="fas ${f.mimeType === 'application/pdf' ? 'fa-file-pdf' : 'fa-file-image'}"></i>
                             </span>
                         `).join('') || ''}
@@ -644,14 +620,14 @@
                     </div>
                 </div>
 
-                <div style="background: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
-                    <h3 style="margin-bottom: 1rem;"><i class="fas fa-chart-line"></i> Blood Sugar Trends</h3>
-                    <div style="position: relative; height: 300px; width: 100%;">
+                <div class="analytics-chart-card">
+                    <h3 class="section-heading-spaced"><i class="fas fa-chart-line"></i> Blood Sugar Trends</h3>
+                    <div class="analytics-chart-wrap">
                         <canvas id="diabetesChart"></canvas>
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 1rem; justify-content: center;">
+                <div class="center-action-row">
                     <button class="btn btn-success" data-action="open-reading-modal" data-reading-type="diabetes">
                         <i class="fas fa-plus"></i> Add Reading
                     </button>
@@ -691,14 +667,14 @@
                     </div>
                 </div>
 
-                <div style="background: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
-                    <h3 style="margin-bottom: 1rem;"><i class="fas fa-chart-area"></i> Blood Pressure Trends</h3>
-                    <div style="position: relative; height: 300px; width: 100%;">
+                <div class="analytics-chart-card">
+                    <h3 class="section-heading-spaced"><i class="fas fa-chart-area"></i> Blood Pressure Trends</h3>
+                    <div class="analytics-chart-wrap">
                         <canvas id="bpChart"></canvas>
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 1rem; justify-content: center;">
+                <div class="center-action-row">
                     <button class="btn btn-danger" data-action="open-reading-modal" data-reading-type="bp">
                         <i class="fas fa-plus"></i> Add Reading
                     </button>
@@ -740,10 +716,10 @@
                 // Show empty state message in chart area
                 const chartContainer = ctx.canvas.parentElement;
                 chartContainer.innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: var(--text-light);">
-                        <i class="fas fa-chart-line" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                        <p style="margin-bottom: 0.5rem;">No blood sugar readings yet</p>
-                        <p style="font-size: 0.9rem;">Add your first reading to see the chart</p>
+                    <div class="chart-empty-state">
+                        <i class="fas fa-chart-line chart-empty-icon"></i>
+                        <p class="chart-empty-title">No blood sugar readings yet</p>
+                        <p class="chart-empty-help">Add your first reading to see the chart</p>
                     </div>
                 `;
                 return;
@@ -811,7 +787,7 @@
             diabetesChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: allReadings.map(r => new Date(r.date).toLocaleDateString()),
+                    labels: allReadings.map(r => AppFormat.date(r.date)),
                     datasets
                 },
                 options: {
@@ -849,10 +825,10 @@
                 // Show empty state message in chart area
                 const chartContainer = ctx.canvas.parentElement;
                 chartContainer.innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: var(--text-light);">
-                        <i class="fas fa-heartbeat" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                        <p style="margin-bottom: 0.5rem;">No blood pressure readings yet</p>
-                        <p style="font-size: 0.9rem;">Add your first BP reading to see the chart</p>
+                    <div class="chart-empty-state">
+                        <i class="fas fa-heartbeat chart-empty-icon"></i>
+                        <p class="chart-empty-title">No blood pressure readings yet</p>
+                        <p class="chart-empty-help">Add your first BP reading to see the chart</p>
                     </div>
                 `;
                 return;
@@ -861,7 +837,7 @@
             bpChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: combined.map(r => new Date(r.date).toLocaleDateString()),
+                    labels: combined.map(r => AppFormat.date(r.date)),
                     datasets: [
                         {
                             label: 'Systolic (mmHg)',
@@ -920,8 +896,8 @@
             const title = document.getElementById('targetModalTitle');
 
             // Show/hide appropriate target fields
-            document.getElementById('diabetesTargets').style.display = type === 'diabetes' ? 'block' : 'none';
-            document.getElementById('hypertensionTargets').style.display = type === 'hypertension' ? 'block' : 'none';
+            AppUi.setDisplay(document.getElementById('diabetesTargets'), type === 'diabetes' ? 'block' : 'none');
+            AppUi.setDisplay(document.getElementById('hypertensionTargets'), type === 'hypertension' ? 'block' : 'none');
 
             // Update title
             if (type === 'diabetes') {
@@ -993,7 +969,7 @@
             // Reminders
             if (target.reminders) {
                 document.getElementById('enableReminders').checked = target.reminders.enabled || false;
-                document.getElementById('reminderTimeGroup').style.display = target.reminders.enabled ? 'block' : 'none';
+                AppUi.setDisplay(document.getElementById('reminderTimeGroup'), target.reminders.enabled ? 'block' : 'none');
                 if (target.reminders.time) {
                     document.getElementById('reminderTime').value = target.reminders.time;
                 }
@@ -1140,5 +1116,6 @@
 
         // Toggle reminder time fields
         document.getElementById('enableReminders').addEventListener('change', function() {
-            document.getElementById('reminderTimeGroup').style.display = this.checked ? 'block' : 'none';
+            AppUi.setDisplay(document.getElementById('reminderTimeGroup'), this.checked ? 'block' : 'none');
         });
+

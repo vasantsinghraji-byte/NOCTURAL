@@ -17,29 +17,28 @@
   }
 
   function checkAuthStatus() {
-    var token = localStorage.getItem('token');
+    var hasSessionProfile = !!localStorage.getItem('userId');
     var userType = localStorage.getItem('userType');
     var userName = localStorage.getItem('userName');
 
-    setStatus(tokenStatus, token ? 'Present' : 'Missing', !!token);
+    setStatus(tokenStatus, hasSessionProfile ? 'Cookie session' : 'Missing', hasSessionProfile);
     setStatus(userTypeStatus, userType || 'Missing', userType === 'doctor');
     setStatus(userNameStatus, userName || 'Missing', !!userName);
   }
 
   function setupTestAuth() {
-    var dummyToken = 'test_token_' + Date.now();
-
-    localStorage.setItem('token', dummyToken);
     localStorage.setItem('userType', 'doctor');
     localStorage.setItem('userId', 'test_user_123');
     localStorage.setItem('userName', 'Dr. Test User');
 
-    window.alert('Test authentication setup complete. You can now access doctor pages. API calls will still require a real backend token.');
+    window.alert('Test profile setup complete. API calls still require a real httpOnly backend session cookie.');
     checkAuthStatus();
   }
 
   function clearAuth() {
     localStorage.removeItem('token');
+    localStorage.removeItem('patientToken');
+    localStorage.removeItem('providerToken');
     localStorage.removeItem('userType');
     localStorage.removeItem('userId');
     localStorage.removeItem('userName');
@@ -49,10 +48,9 @@
   }
 
   function goToDashboard() {
-    var token = localStorage.getItem('token');
     var userType = localStorage.getItem('userType');
 
-    if (!token || userType !== 'doctor') {
+    if (userType !== 'doctor') {
       window.alert('Authentication is not set up. Click "Setup Test Login" first, or fix your login page.');
       return;
     }

@@ -5,418 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Doctor Onboarding - Nocturnal</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #5B8DBE;
-            --primary-dark: #4A7099;
-            --success: #28a745;
-            --danger: #dc3545;
-            --warning: #ffc107;
-            --light: #f8f9fa;
-            --dark: #2C3E50;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #E8EAF6 0%, #C5CAE9 50%, #D1C4E9 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-            color: var(--dark);
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            color: #666;
-        }
-
-        .progress-bar-container {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-
-        .steps {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: relative;
-            margin-bottom: 20px;
-        }
-
-        .steps::before {
-            content: '';
-            position: absolute;
-            top: 25px;
-            left: 30px;
-            right: 30px;
-            height: 3px;
-            background: #e0e0e0;
-            z-index: 0;
-        }
-
-        .step {
-            text-align: center;
-            position: relative;
-            z-index: 1;
-            flex: 1;
-        }
-
-        .step-circle {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: white;
-            border: 3px solid #e0e0e0;
-            margin: 0 auto 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            color: #999;
-            transition: all 0.3s;
-        }
-
-        .step.active .step-circle {
-            border-color: var(--primary);
-            background: var(--primary);
-            color: white;
-            transform: scale(1.1);
-        }
-
-        .step.completed .step-circle {
-            border-color: var(--success);
-            background: var(--success);
-            color: white;
-        }
-
-        .step.completed .step-circle i {
-            display: block;
-        }
-
-        .step-circle i {
-            display: none;
-        }
-
-        .step-label {
-            font-size: 0.9rem;
-            color: #999;
-            font-weight: 600;
-        }
-
-        .step.active .step-label {
-            color: var(--primary);
-        }
-
-        .step.completed .step-label {
-            color: var(--success);
-        }
-
-        .helper-text {
-            font-size: 0.9rem;
-        }
-
-        .helper-text-muted {
-            color: #666;
-        }
-
-        .helper-text-subtle {
-            color: #999;
-        }
-
-        .helper-text-bottom {
-            margin-bottom: 10px;
-        }
-
-        .helper-text-top {
-            margin-top: 5px;
-        }
-
-        .form-card {
-            background: white;
-            border-radius: 15px;
-            padding: 40px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-
-        .form-step {
-            display: none;
-        }
-
-        .form-step.active {
-            display: block;
-            animation: fadeIn 0.3s;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .form-step-title {
-            font-size: 1.8rem;
-            color: var(--dark);
-            margin-bottom: 10px;
-        }
-
-        .form-step-description {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 1.05rem;
-        }
-
-        .form-group {
-            margin-bottom: 25px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--dark);
-        }
-
-        .form-group label.required::after {
-            content: ' *';
-            color: var(--danger);
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .skill-selection {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .skill-item {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .skill-item:hover {
-            background: #e9ecef;
-        }
-
-        .skill-item input[type="checkbox"] {
-            margin-right: 10px;
-            width: 18px;
-            height: 18px;
-        }
-
-        .file-upload-area {
-            border: 2px dashed #e0e0e0;
-            border-radius: 8px;
-            padding: 30px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: #f8f9fa;
-        }
-
-        .file-upload-area:hover {
-            border-color: var(--primary);
-            background: #f0f4f8;
-        }
-
-        .file-upload-area i {
-            font-size: 3rem;
-            color: var(--primary);
-            margin-bottom: 15px;
-        }
-
-        .file-upload-area input[type="file"] {
-            display: none;
-        }
-
-        .file-preview {
-            margin-top: 15px;
-            padding: 15px;
-            background: #e8f5e9;
-            border-radius: 8px;
-            display: none;
-        }
-
-        .file-preview.show {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .file-preview i {
-            color: var(--success);
-            margin-right: 10px;
-        }
-
-        .btn-remove {
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 5px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .shift-preferences {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-
-        .preference-btn {
-            padding: 12px 25px;
-            border: 2px solid #e0e0e0;
-            background: white;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 600;
-        }
-
-        .preference-btn.active {
-            border-color: var(--primary);
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-        }
-
-        .btn {
-            padding: 14px 30px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.05rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            flex: 1;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background: #e0e0e0;
-            color: var(--dark);
-        }
-
-        .btn-secondary:hover {
-            background: #d0d0d0;
-        }
-
-        .alert {
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .alert.show {
-            display: block;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-danger {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .info-box {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .info-box i {
-            color: #2196f3;
-            margin-right: 10px;
-        }
-
-        @media (max-width: 768px) {
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-
-            .skill-selection {
-                grid-template-columns: 1fr;
-            }
-
-            .steps {
-                flex-wrap: wrap;
-            }
-
-            .step {
-                flex-basis: 50%;
-                margin-bottom: 20px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="/css/pages/roles-doctor-doctor-onboarding.css">
     <script src="/js/config.js"></script>
     <script src="/js/frontend-session.js"></script>
 </head>
@@ -466,8 +55,8 @@
             <!-- Step 1: Account Creation -->
             <div class="form-step active" data-step="1">
                 <div class="form-card">
-                    <h2 class="form-step-title">Account Information</h2>
-                    <p class="form-step-description">Let's start with your basic details</p>
+                    <h2 class="form-step-title">Provider Account Information</h2>
+                    <p class="form-step-description">Start with your basic details for India provider onboarding</p>
 
                     <div class="form-group">
                         <label for="fullName" class="required">Full Name</label>
@@ -477,7 +66,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="email" class="required">Email Address</label>
-                            <input type="email" id="email" class="form-control" placeholder="doctor@example.com" required>
+                            <input type="email" id="email" class="form-control" placeholder="provider@example.com" required>
                         </div>
                         <div class="form-group">
                             <label for="phone" class="required">Phone Number</label>
@@ -506,17 +95,21 @@
             <div class="form-step" data-step="2">
                 <div class="form-card">
                     <h2 class="form-step-title">Professional Details</h2>
-                    <p class="form-step-description">Tell us about your medical credentials</p>
+                    <p class="form-step-description">Tell us about your Indian healthcare registration and care experience</p>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="mciNumber" class="required">MCI Registration Number</label>
-                            <input type="text" id="mciNumber" class="form-control" placeholder="e.g., 123456" required>
+                            <label for="mciNumber" class="required">Professional Registration Number</label>
+                            <input type="text" id="mciNumber" class="form-control" placeholder="MCI/NMC/State council number" required>
                         </div>
                         <div class="form-group">
-                            <label for="stateMedicalCouncil" class="required">State Medical Council</label>
+                            <label for="stateMedicalCouncil" class="required">Registration Council / Board</label>
                             <select id="stateMedicalCouncil" class="form-control" required>
-                                <option value="">Select State</option>
+                                <option value="">Select Council / Board</option>
+                                <option value="National Medical Commission">National Medical Commission</option>
+                                <option value="Indian Nursing Council">Indian Nursing Council</option>
+                                <option value="State Nursing Council">State Nursing Council</option>
+                                <option value="State Physiotherapy Council">State Physiotherapy Council</option>
                                 <option value="Delhi Medical Council">Delhi Medical Council</option>
                                 <option value="Maharashtra Medical Council">Maharashtra Medical Council</option>
                                 <option value="Tamil Nadu Medical Council">Tamil Nadu Medical Council</option>
@@ -530,6 +123,9 @@
                         <label for="primarySpecialization" class="required">Primary Specialization</label>
                         <select id="primarySpecialization" class="form-control" required>
                             <option value="">Select Specialization</option>
+                            <option value="Home Healthcare">Home Healthcare</option>
+                            <option value="Nursing Care">Nursing Care</option>
+                            <option value="Physiotherapy">Physiotherapy</option>
                             <option value="Internal Medicine">Internal Medicine</option>
                             <option value="Emergency Medicine">Emergency Medicine</option>
                             <option value="General Surgery">General Surgery</option>
@@ -588,7 +184,7 @@
             <div class="form-step" data-step="3">
                 <div class="form-card">
                     <h2 class="form-step-title">Document Upload</h2>
-                    <p class="form-step-description">Upload your verification documents (All mandatory)</p>
+                    <p class="form-step-description">Upload Indian provider verification documents (All mandatory)</p>
 
                     <div class="info-box">
                         <i class="fas fa-info-circle"></i>
@@ -596,7 +192,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="required">MCI Registration Certificate</label>
+                        <label class="required">Council Registration Certificate</label>
                         <div class="file-upload-area" data-file-trigger="mciCertFile">
                             <i class="fas fa-cloud-upload-alt"></i>
                             <p><strong>Click to upload</strong> or drag and drop</p>
@@ -624,7 +220,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="required">MBBS Degree Certificate</label>
+                        <label class="required">Professional Degree / Diploma Certificate</label>
                         <div class="file-upload-area" data-file-trigger="mbbsDegreeFile">
                             <i class="fas fa-graduation-cap"></i>
                             <p><strong>Click to upload</strong> or drag and drop</p>
@@ -662,11 +258,11 @@
             <div class="form-step" data-step="4">
                 <div class="form-card">
                     <h2 class="form-step-title">Skills & Availability</h2>
-                    <p class="form-step-description">Set your preferences for shift matching</p>
+                    <p class="form-step-description">Set your preferences for home visits now and locum duty matching later</p>
 
                     <div class="form-group">
-                        <label>Preferred Shift Times</label>
-                        <p class="helper-text helper-text-muted helper-text-bottom">Select all that work for you</p>
+                        <label>Preferred Visit / Duty Times</label>
+                        <p class="helper-text helper-text-muted helper-text-bottom">Select all that work for home visits or future duty shifts</p>
                         <div class="shift-preferences" id="shiftPreferences">
                             <!-- Will be populated by JavaScript -->
                         </div>
@@ -676,10 +272,10 @@
                         <div class="form-group">
                             <label for="serviceRadius">Service Radius (km)</label>
                             <input type="number" id="serviceRadius" class="form-control" placeholder="20" min="5" max="100" value="20">
-                            <p class="helper-text helper-text-muted helper-text-top">How far are you willing to travel?</p>
+                            <p class="helper-text helper-text-muted helper-text-top">How far are you willing to travel for home visits?</p>
                         </div>
                         <div class="form-group">
-                            <label for="minimumRate">Minimum Expected Rate (₹/hour)</label>
+                            <label for="minimumRate">Minimum Expected Rate (₹/visit or hour)</label>
                             <input type="number" id="minimumRate" class="form-control" placeholder="1500" min="500" step="100">
                         </div>
                     </div>

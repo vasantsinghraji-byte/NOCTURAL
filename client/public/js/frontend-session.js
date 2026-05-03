@@ -21,6 +21,13 @@ if (typeof AppConfig === 'undefined') {
     admin: [],
     doctor: []
   };
+  function hasSessionProfile() {
+    return !!(
+      localStorage.getItem('user') ||
+      localStorage.getItem('userType') ||
+      localStorage.getItem('userId')
+    );
+  }
 
   function persistSession(user, userType) {
     localStorage.setItem('user', JSON.stringify(user));
@@ -48,6 +55,14 @@ if (typeof AppConfig === 'undefined') {
       clearKeys: null,
       redirectUrl: appRoutes ? appRoutes.page('home') : '/index.html'
     }, options || {});
+
+    if (typeof AppConfig !== 'undefined' && typeof AppConfig.fetchRoute === 'function') {
+      AppConfig.fetchRoute('auth.logout', {
+        method: 'POST',
+        parseJson: true,
+        skipAuth: true
+      }).catch(function () {});
+    }
 
     if (config.clearAll) {
       localStorage.clear();
@@ -99,22 +114,16 @@ if (typeof AppConfig === 'undefined') {
     }, options || {});
 
     if (typeof AppConfig !== 'undefined' && typeof AppConfig.getToken === 'function') {
-      var sharedToken = AppConfig.getToken({
+      AppConfig.getToken({
         tokenKeys: config.tokenKeys
       });
-      if (sharedToken) {
-        return sharedToken;
-      }
     }
 
     for (var i = 0; i < config.tokenKeys.length; i += 1) {
-      var token = localStorage.getItem(config.tokenKeys[i]);
-      if (token) {
-        return token;
-      }
+      localStorage.removeItem(config.tokenKeys[i]);
     }
 
-    return null;
+    return hasSessionProfile() ? 'profile-session' : null;
   }
 
   function requireAuthToken(options) {
@@ -303,6 +312,11 @@ if (typeof AppConfig === 'undefined') {
       requireAuthenticatedPage: requireRolePage,
       isAuthenticated: isRoleAuthenticated,
       getToken: getRoleToken,
+      fetchJson: function (endpoint, optionsOverride) {
+        return fetchJson(endpoint, Object.assign({
+          onUnauthorized: logoutRole
+        }, optionsOverride || {}));
+      },
       logout: logoutRole,
       populateIdentity: populateIdentity
     };
@@ -341,13 +355,6 @@ if (typeof AppConfig === 'undefined') {
   }
 
   async function getActiveUser() {
-    var token = typeof AppConfig !== 'undefined' && typeof AppConfig.getToken === 'function'
-      ? AppConfig.getToken()
-      : localStorage.getItem('token');
-    if (!token) {
-      return null;
-    }
-
     try {
       var data = await AppConfig.fetchRoute('auth.me', {
         parseJson: true
@@ -530,6 +537,25 @@ if (typeof AppConfig === 'undefined') {
       return config.selectDraft(data);
     } catch (error) {
       return null;
+    }
+  }
+
+  async function fetchJson(endpoint, options) {
+    var requestOptions = Object.assign({}, options || {});
+    var onUnauthorized = requestOptions.onUnauthorized;
+    delete requestOptions.onUnauthorized;
+
+    try {
+      return await AppConfig.fetch(endpoint, Object.assign({}, requestOptions, {
+        parseJson: true
+      }));
+    } catch (error) {
+      if (error && error.status === 401 && typeof onUnauthorized === 'function') {
+        onUnauthorized(error);
+        return null;
+      }
+
+      throw error;
     }
   }
 
@@ -928,12 +954,7 @@ if (typeof AppConfig === 'undefined') {
     var user = getAuthUser(authData);
 
     if (authData.token && config.tokenKey) {
-      if (typeof AppConfig !== 'undefined' && typeof AppConfig.setToken === 'function' &&
-          (config.tokenKey === 'token' || config.tokenKey === 'patientToken' || config.tokenKey === 'providerToken')) {
-        AppConfig.setToken(authData.token);
-      } else {
-        localStorage.setItem(config.tokenKey, authData.token);
-      }
+      console.warn('Ignoring token in auth response because sessions are stored in httpOnly cookies.');
     }
 
     if (config.useRoleRedirect && user) {
@@ -997,6 +1018,7 @@ if (typeof AppConfig === 'undefined') {
     getLoginErrorMessage: getLoginErrorMessage,
     getRegistrationErrorMessage: getRegistrationErrorMessage,
     expectJsonSuccess: expectJsonSuccess,
+    fetchJson: fetchJson,
       loadOptionalDraft: loadOptionalDraft,
       normalizeApplicationStatus: normalizeApplicationStatus,
       getApplicationStatusClass: getApplicationStatusClass,

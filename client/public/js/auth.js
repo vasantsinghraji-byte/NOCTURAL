@@ -1,5 +1,4 @@
 class AuthService {
-    static TOKEN_KEY = 'token';
     static USER_KEY = 'user';
 
     static buildApiUrl(endpoint) {
@@ -26,7 +25,10 @@ class AuthService {
         delete requestOptions.parseJson;
         delete requestOptions.parseText;
 
-        return fetch(this.buildApiUrl(normalizedEndpoint), requestOptions).then(async (response) => {
+        return fetch(this.buildApiUrl(normalizedEndpoint), {
+            ...requestOptions,
+            credentials: requestOptions.credentials || 'include'
+        }).then(async (response) => {
             if (!shouldParseJson) {
                 if (!shouldParseText) {
                     return response;
@@ -88,19 +90,44 @@ class AuthService {
     }
 
     static setSession(authData) {
-        if (authData.token) {
-            localStorage.setItem(this.TOKEN_KEY, authData.token);
+        if (typeof AppConfig !== 'undefined' && typeof AppConfig.clearToken === 'function') {
+            AppConfig.clearToken();
+        } else {
+            localStorage.removeItem('token');
+            localStorage.removeItem('patientToken');
+            localStorage.removeItem('providerToken');
+        }
+
+        if (authData.user) {
             localStorage.setItem(this.USER_KEY, JSON.stringify(authData.user));
         }
     }
 
     static clearSession() {
-        localStorage.removeItem(this.TOKEN_KEY);
+        if (typeof AppConfig !== 'undefined' && typeof AppConfig.clearToken === 'function') {
+            AppConfig.clearToken();
+        } else {
+            localStorage.removeItem('token');
+            localStorage.removeItem('patientToken');
+            localStorage.removeItem('providerToken');
+        }
         localStorage.removeItem(this.USER_KEY);
         localStorage.removeItem('userType');
     }
 
     static isAuthenticated() {
-        return !!localStorage.getItem(this.TOKEN_KEY);
+        return !!localStorage.getItem(this.USER_KEY);
+    }
+
+    static async logout() {
+        try {
+            await this.request('auth/logout', {
+                method: 'POST',
+                parseJson: true,
+                credentials: 'include'
+            });
+        } finally {
+            this.clearSession();
+        }
     }
 }

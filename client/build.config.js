@@ -9,6 +9,7 @@ const { minify: minifyHTML } = require('html-minifier-terser');
 const CleanCSS = require('clean-css');
 const terser = require('terser');
 const crypto = require('crypto');
+const { scanHtmlCsp, formatViolation } = require('../scripts/scan-html-csp');
 
 // Directories and files excluded from production builds
 const BUILD_EXCLUDES = [
@@ -16,6 +17,11 @@ const BUILD_EXCLUDES = [
   path.join('shared', 'auth-setup.html'),
   path.join('js', 'auth-setup.js')
 ];
+
+const STABLE_JS_OUTPUTS = new Set([
+  'service-worker.js',
+  path.join('js', 'sw-cache-config.js').replace(/\\/g, '/')
+]);
 
 function isExcludedFromBuild(filePath, sourceDir) {
   var relative = path.relative(sourceDir, filePath);
@@ -98,6 +104,11 @@ function getVersionedFilename(filename, content) {
   return `${base}.${hash}${ext}`;
 }
 
+function shouldWriteStableJsOutput(sourceFile) {
+  const relativePath = path.relative(CONFIG.sourceDir, sourceFile).replace(/\\/g, '/');
+  return STABLE_JS_OUTPUTS.has(relativePath);
+}
+
 /**
  * Minify CSS files
  */
@@ -154,6 +165,9 @@ async function minifyJS(sourceFile, destFile) {
     const versionedPath = path.join(path.dirname(destFile), versionedName);
 
     await fs.writeFile(versionedPath, result.code);
+    if (shouldWriteStableJsOutput(sourceFile)) {
+      await fs.writeFile(destFile, result.code);
+    }
 
     // Update manifest
     const relativePath = path.relative(CONFIG.buildDir, destFile);
@@ -269,6 +283,15 @@ async function build() {
 
   try {
     assetManifest = {};
+
+    const cspViolations = await scanHtmlCsp(CONFIG.sourceDir);
+    if (cspViolations.length > 0) {
+      const error = new Error([
+        `Frontend CSP scan failed with ${cspViolations.length} violation(s).`,
+        ...cspViolations.map(formatViolation)
+      ].join('\n'));
+      throw error;
+    }
 
     // Clean build directory
     await fs.rm(CONFIG.buildDir, { recursive: true, force: true });

@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-IN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Security headers (CSP, X-Content-Type-Options, etc.) are set via HTTP headers by helmet in middleware/security.js.
          A meta CSP is intentionally omitted to avoid a stricter duplicate policy that would block CDN scripts allowed by the header. -->
-    <meta name="description" content="Nocturnal - A modern healthcare staffing platform connecting professionals with facilities">
-    <meta name="keywords" content="healthcare, staffing, medical professionals, nurses, doctors">
+    <meta name="description" content="Nocturnal - India-first home healthcare and locum duty platform for patients, verified clinicians, and healthcare centres">
+    <meta name="keywords" content="India healthcare, home nursing, physiotherapy, medical professionals, doctors, locum duty">
     <meta name="robots" content="index, follow">
-    <title>Nocturnal - Healthcare Staffing Platform</title>
+    <title>Nocturnal - Home Healthcare and Locum Duty Platform India</title>
     <link rel="stylesheet" href="css/index.css">
     <script src="js/config.js"></script>
 </head>
@@ -20,15 +20,15 @@
                 <img src="images/logo.png" alt="Nocturnal" class="logo-img">
             </div>
             <div class="nav-buttons">
-                <button class="btn btn-outline" data-action="toggle-login-dropdown" style="position: relative;">
+                <button class="btn btn-outline login-trigger" data-action="toggle-login-dropdown">
                     Login
-                    <div id="loginDropdown" style="display: none; position: absolute; top: 100%; right: 0; background: white; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-top: 10px; min-width: 180px; z-index: 1000;">
-                        <a href="/roles/patient/patient-login.html" style="display: block; padding: 12px 20px; color: #333; text-decoration: none; border-bottom: 1px solid #eee;">Patient Login</a>
-                        <a href="/roles/provider/provider-login.html" style="display: block; padding: 12px 20px; color: #333; text-decoration: none; border-bottom: 1px solid #eee;">Provider Login</a>
-                        <a href="#" data-action="open-staff-login" style="display: block; padding: 12px 20px; color: #333; text-decoration: none;">Staff Login</a>
+                    <div id="loginDropdown" class="login-dropdown">
+                        <a href="/roles/patient/patient-login.html" class="login-dropdown-link">Patient Login</a>
+                        <a href="/roles/provider/provider-login.html" class="login-dropdown-link">Provider Login</a>
+                        <a href="#" data-action="open-staff-login" class="login-dropdown-link login-dropdown-link-last">Staff Login</a>
                     </div>
                 </button>
-                <button class="btn btn-primary" data-action="navigate" data-href="/roles/patient/patient-register.html">Book Service</button>
+                <button class="btn btn-primary" data-action="navigate" data-event="book_home_care_click" data-href="/roles/patient/patient-register.html">Book Home Care Now</button>
             </div>
         </div>
     </nav>
@@ -40,76 +40,76 @@
 
             <div class="benefits-grid">
                 <div class="benefits-column">
-                    <h3>For Patients</h3>
+                    <h3>For Patients in India</h3>
                     <ul>
-                        <li>professional nurses & physiotherapists at your doorstep</li>
-                        <li>book services in minutes - from injections to physiotherapy</li>
-                        <li>transparent pricing with secure payment - no hidden charges</li>
+                        <li>book nurses and physiotherapists for home visits</li>
+                        <li>schedule injections, wound care, elderly care and physiotherapy</li>
+                        <li>transparent rupee pricing with secure online payment</li>
                     </ul>
-                    <button class="btn btn-primary" data-action="navigate" data-href="/roles/patient/patient-register.html" style="margin-top: 15px;">Book a Service</button>
+                    <button class="btn btn-primary u-mt-15" data-action="navigate" data-event="book_home_care_click" data-href="/roles/patient/patient-register.html">Book Home Care Now</button>
                 </div>
                 <div class="benefits-column">
                     <h3>For Healthcare Professionals</h3>
                     <ul>
                         <li>be your own boss & take back control</li>
-                        <li>set your rates, preferences & choose the shifts that suit you</li>
-                        <li>say goodbye to time-consuming admin, paper timesheets & agency mistakes</li>
+                        <li>set your rates, preferences & choose home visits or duty shifts</li>
+                        <li>keep your documents, availability and payments in one place</li>
                     </ul>
-                    <button class="btn btn-outline" data-action="open-register" style="margin-top: 15px;">Join as Provider</button>
+                    <button class="btn btn-outline u-mt-15" data-action="navigate" data-event="join_provider_click" data-href="/shared/register.html">Join as Provider</button>
                 </div>
                 <div class="benefits-column">
-                    <h3>For Healthcare Facilities</h3>
+                    <h3>For Hospitals & Care Centres</h3>
                     <ul>
-                        <li>keep your digital profile & compliance up-to-date and secure</li>
-                        <li>one-click apply to hundreds of shifts across the country</li>
-                        <li>get paid on time, every time - timesheets submitted, tracked & approved online</li>
+                        <li>planned B2B track for hospitals and tertiary care centres</li>
+                        <li>post locum duties and review verified clinical profiles</li>
+                        <li>approve attendance, timesheets and payments online</li>
                     </ul>
-                    <button class="btn btn-outline" data-action="open-register" style="margin-top: 15px;">Register Facility</button>
+                    <button class="btn btn-outline u-mt-15" data-action="navigate" data-event="hospital_waitlist_click" data-href="/shared/register.html#hospital-waitlist">Join Hospital Pilot Waitlist</button>
                 </div>
             </div>
 
             <div class="mission-statement">
-                <p>Our online marketplace directly connects primary and urgent care professionals with service providers and shifts without the need for recruitment agencies.</p>
-                <p>We give power back to healthcare professionals by cutting out recruiters and exploitative agency fees.</p>
+                <p>Nocturnal is an India-first healthcare marketplace, starting with B2C home healthcare for patients and verified clinical professionals.</p>
+                <p>Our next track will help hospitals and tertiary care centres fill locum duties without slow agency coordination.</p>
             </div>
 
             <div class="cta-button">
-                <button class="btn btn-primary btn-lg" data-action="open-register" style="font-size: 1.1rem; padding: 15px 40px;">find out more</button>
+                <button class="btn btn-primary btn-lg btn-home-primary" data-action="navigate" data-event="book_home_care_click" data-href="/roles/patient/patient-register.html">book home healthcare first</button>
             </div>
         </div>
     </section>
 
     <!-- Patient Services Section -->
-    <section class="patient-services" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 60px 20px;">
-        <div style="max-width: 1200px; margin: 0 auto;">
-            <h2 style="text-align: center; margin-bottom: 20px; font-size: 2rem; color: white;">Healthcare Services at Your Doorstep</h2>
-            <p style="text-align: center; margin-bottom: 40px; font-size: 1.1rem; opacity: 0.95;">Professional nurses and physiotherapists available 24/7</p>
+    <section class="patient-services">
+        <div class="patient-services-inner">
+            <h2 class="patient-services-title">Healthcare Services at Your Doorstep</h2>
+            <p class="patient-services-subtitle">Professional nurses and physiotherapists for home visits across India</p>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
-                <div style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); padding: 25px; border-radius: 15px; text-align: center;">
-                    <div style="font-size: 48px; margin-bottom: 10px;">💉</div>
-                    <h3 style="margin-bottom: 10px; color: white;">Nursing Services</h3>
-                    <p style="opacity: 0.9; font-size: 0.95rem;">IM/IV Injections, Wound Dressing, Catheter Care, Post-Surgery Care</p>
+            <div class="service-grid">
+                <div class="service-card">
+                    <div class="service-icon">💉</div>
+                    <h3 class="service-card-title">Nursing Services</h3>
+                    <p class="service-card-description">IM/IV Injections, Wound Dressing, Catheter Care, Post-Surgery Care</p>
                 </div>
-                <div style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); padding: 25px; border-radius: 15px; text-align: center;">
-                    <div style="font-size: 48px; margin-bottom: 10px;">🧘</div>
-                    <h3 style="margin-bottom: 10px; color: white;">Physiotherapy</h3>
-                    <p style="opacity: 0.9; font-size: 0.95rem;">Pain Management, Rehab, Stroke Recovery, Sports Injuries</p>
+                <div class="service-card">
+                    <div class="service-icon">🧘</div>
+                    <h3 class="service-card-title">Physiotherapy</h3>
+                    <p class="service-card-description">Pain Management, Rehab, Stroke Recovery, Sports Injuries</p>
                 </div>
-                <div style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); padding: 25px; border-radius: 15px; text-align: center;">
-                    <div style="font-size: 48px; margin-bottom: 10px;">👴</div>
-                    <h3 style="margin-bottom: 10px; color: white;">Elderly Care</h3>
-                    <p style="opacity: 0.9; font-size: 0.95rem;">Daily Care, Medication Management, Monitoring & Support</p>
+                <div class="service-card">
+                    <div class="service-icon">👴</div>
+                    <h3 class="service-card-title">Elderly Care</h3>
+                    <p class="service-card-description">Daily Care, Medication Management, Monitoring & Support</p>
                 </div>
-                <div style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); padding: 25px; border-radius: 15px; text-align: center;">
-                    <div style="font-size: 48px; margin-bottom: 10px;">📦</div>
-                    <h3 style="margin-bottom: 10px; color: white;">Care Packages</h3>
-                    <p style="opacity: 0.9; font-size: 0.95rem;">10-Session Physio, Monthly Elderly Care, Recovery Plans</p>
+                <div class="service-card">
+                    <div class="service-icon">📦</div>
+                    <h3 class="service-card-title">Care Packages</h3>
+                    <p class="service-card-description">10-Session Physio, Monthly Elderly Care, Recovery Plans</p>
                 </div>
             </div>
 
-            <div style="text-align: center;">
-                <button class="btn btn-primary" data-action="navigate" data-href="/roles/patient/patient-register.html" style="background: white; color: #667eea; font-size: 1.1rem; padding: 15px 40px; border: none;">Browse All Services</button>
+            <div class="text-center">
+                <button class="btn btn-primary btn-service-primary" data-action="navigate" data-event="book_home_care_click" data-href="/roles/patient/patient-register.html">Browse All Services</button>
             </div>
         </div>
     </section>
@@ -121,17 +121,17 @@
             <div class="step">
                 <div class="step-icon">👤</div>
                 <h3>Create Your Profile</h3>
-                <p>Sign up and build your professional profile with your experience, skills and credentials</p>
+                <p>Sign up and build your profile with your experience, skills and Indian healthcare credentials</p>
             </div>
             <div class="step">
                 <div class="step-icon">📱</div>
                 <h3>Browse & Apply</h3>
-                <p>Find shifts that match your preferences and apply with just one click</p>
+                <p>Find patient visits or duty shifts that match your preferences and apply with one click</p>
             </div>
             <div class="step">
                 <div class="step-icon">💼</div>
                 <h3>Get Hired</h3>
-                <p>Facilities review your profile and accept your application for the perfect match</p>
+                <p>Patients and care teams review your profile and confirm the right match</p>
             </div>
             <div class="step">
                 <div class="step-icon">💰</div>
@@ -147,17 +147,17 @@
             <div class="feature-block">
                 <div class="feature-content">
                     <h3>Sing your own praises.</h3>
-                    <p>Tell service providers about your experience, skills and professional interests directly, with no unnecessary middle-man.</p>
+                    <p>Tell patients and care partners about your experience, skills and professional interests directly, with no unnecessary middle-man.</p>
                 </div>
                 <div class="feature-visual">
                     <div class="feature-visual-content">📋</div>
                 </div>
             </div>
 
-            <div class="feature-block" style="direction: rtl;">
-                <div class="feature-content" style="direction: ltr;">
+            <div class="feature-block feature-reverse">
+                <div class="feature-content">
                     <h3>Have control.</h3>
-                    <p>Agree your own shifts and rates of pay based on your preferences and availability.</p>
+                    <p>Agree your own home visits, duty shifts and rates based on your preferences and availability.</p>
                 </div>
                 <div class="feature-visual">
                     <div class="feature-visual-content">🎯</div>
@@ -179,11 +179,11 @@
                 <p>— Digital Innovation Director</p>
             </div>
 
-            <div class="feature-block" style="direction: rtl;">
-                <div class="feature-content" style="direction: ltr;">
+            <div class="feature-block feature-reverse">
+                <div class="feature-content">
                     <h3>simple and easy to use on any device</h3>
                     <p>We connect healthcare professionals with regular, high-paying work via our <span class="highlight">transparent</span> and <span class="highlight">easy to use</span> platform</p>
-                    <p>Find shifts that are <span class="highlight">perfect</span> for you in just a few clicks</p>
+                    <p>Find patient visits and locum duties that are <span class="highlight">perfect</span> for you in just a few clicks</p>
                     <p>Forget paper timesheets - hours worked are auto-approved and submitted for payment <span class="highlight">instantly</span> so you always get paid on time</p>
                 </div>
                 <div class="feature-visual">
@@ -198,12 +198,12 @@
         <div class="get-started-content">
             <h2>get started</h2>
             <div class="requirements">
-                <p>To find and book shifts with Nocturnal you must be allowed to work in the UK, have worked as a GP or registered Nurse (RGN or RMN) for at least one year and have up-to-date documents.</p>
+                <p>To accept patient visits or locum duties with Nocturnal, you must be qualified to practise in India, have the required council registration where applicable, and keep your documents up to date.</p>
             </div>
-            <p style="font-weight: 600; margin-top: 30px;">that's it.</p>
-            <p style="margin-top: 20px;">Nocturnal has nationwide coverage and is working with many of the best known primary and urgent care providers, GP federations, social care providers and care homes in both the NHS and private sector.</p>
-            <p class="bold-text">got all your documentation to hand? you can start booking shifts today.</p>
-            <button class="btn btn-primary btn-lg" data-action="open-register" style="font-size: 1.1rem; padding: 15px 40px; margin-top: 20px;">get started</button>
+            <p class="get-started-emphasis">that's it.</p>
+            <p class="u-mt-20">Nocturnal is starting with patient home healthcare and verified professionals in India, then expanding into hospital and tertiary care centre duty staffing.</p>
+            <p class="bold-text">got all your documentation to hand? you can start accepting visits and shifts today.</p>
+            <button class="btn btn-primary btn-lg btn-home-primary u-mt-20" data-action="navigate" data-event="book_home_care_click" data-href="/roles/patient/patient-register.html">book home care</button>
         </div>
     </section>
 
@@ -217,11 +217,11 @@
         <div class="footer-links">
             <a href="#" data-action="coming-soon" data-message="Help Center coming soon">HELP CENTER</a>
             <a href="#" data-action="coming-soon" data-message="Careers page coming soon">CAREERS</a>
-            <a href="#" data-action="coming-soon" data-message="Privacy Policy coming soon">PRIVACY</a>
+            <a href="/shared/privacy.html">PRIVACY</a>
             <a href="#" data-action="coming-soon" data-message="Terms of Use coming soon">TERMS OF USE</a>
             <a href="#" data-action="coming-soon" data-message="Contact page coming soon">CONTACT</a>
         </div>
-        <p style="margin-top: 20px;">&copy; 2025 Nocturnal. All rights reserved.</p>
+        <p class="footer-copyright">&copy; 2025 Nocturnal. All rights reserved.</p>
     </footer>
 
     <!-- Login Modal -->
@@ -242,7 +242,7 @@
                 <button type="submit" class="btn btn-primary">Login</button>
             </form>
             <div class="modal-footer">
-                <p>Don't have an account? <a data-action="switch-to-register" style="cursor: pointer;">Sign up</a></p>
+                <p>Don't have an account? <a data-action="switch-to-register">Sign up</a></p>
             </div>
         </div>
     </div>
@@ -274,19 +274,19 @@
                     <label for="registerRole">I am a...</label>
                     <select id="registerRole" required>
                         <option value="">Select your role</option>
-                        <option value="doctor">Doctor / GP</option>
-                        <option value="nurse">Nurse (RGN/RMN)</option>
+                        <option value="doctor">Doctor</option>
+                        <option value="nurse">Nurse</option>
                         <option value="physiotherapist">Physiotherapist</option>
                     </select>
                 </div>
-                <div class="form-group" style="display: flex; align-items: flex-start; gap: 8px;">
-                    <input type="checkbox" id="registerAgreeTerms" required style="margin-top: 4px;">
-                    <label for="registerAgreeTerms" style="font-size: 0.9rem;">I agree to the <a href="#" data-action="coming-soon" data-message="Terms coming soon">Terms and Conditions</a></label>
+                <div class="form-group checkbox-inline">
+                    <input type="checkbox" id="registerAgreeTerms" required>
+                    <label for="registerAgreeTerms">I agree to the <a href="#" data-action="coming-soon" data-message="Terms coming soon">Terms and Conditions</a></label>
                 </div>
                 <button type="submit" class="btn btn-primary">Create Account</button>
             </form>
             <div class="modal-footer">
-                <p>Already have an account? <a data-action="switch-to-login" style="cursor: pointer;">Login</a></p>
+                <p>Already have an account? <a data-action="switch-to-login">Login</a></p>
             </div>
         </div>
     </div>

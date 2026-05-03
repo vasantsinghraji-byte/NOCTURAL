@@ -2,7 +2,7 @@
         let currentTab = 'services';
 
         // Check authentication
-        const token = PatientSession.requireAuthenticatedPage({
+        PatientSession.requireAuthenticatedPage({
             redirectUrl: AppConfig.routes.page('patient.login')
         });
 
@@ -146,8 +146,7 @@
         async function loadStats() {
             try {
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('patients.stats', {
-                    parseJson: true,
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    parseJson: true
                 }), 'Failed to load stats', {
                     isSuccess: function (payload) {
                         return !!(payload && payload.stats);
@@ -164,8 +163,7 @@
         async function loadBookings() {
             try {
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('bookings.patientMine', {
-                    parseJson: true,
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    parseJson: true
                 }), 'Failed to load bookings', {
                     isSuccess: function (payload) {
                         return !!(payload && Array.isArray(payload.data));
@@ -191,10 +189,11 @@
                 <div class="service-card">
                     <div class="category-badge">${booking.status}</div>
                     <h3>${booking.serviceType}</h3>
-                    <p><strong>Date:</strong> ${new Date(booking.scheduledDate).toLocaleDateString()}</p>
-                    <p><strong>Time:</strong> ${booking.scheduledTime}</p>
+                    <p><strong>Date:</strong> ${AppFormat.date(booking.scheduledDate)}</p>
+                    <p><strong>Time:</strong> ${AppFormat.timeInZone(booking.scheduledDate, booking.scheduledTime, booking.scheduledTimezone, booking.scheduledTimezoneOffsetMinutes)}</p>
+                    <p><strong>Timezone:</strong> ${booking.scheduledTimezone || 'Not specified'}</p>
                     <div class="service-price">
-                        <span class="price">₹${booking.pricing.payableAmount.toFixed(2)}</span>
+                        <span class="price">₹${AppFormat.decimal(booking.pricing.payableAmount, 2)}</span>
                     </div>
                 </div>
             `).join('');
@@ -260,3 +259,5 @@
         bindUiEvents();
         loadServices();
         loadStats();
+
+

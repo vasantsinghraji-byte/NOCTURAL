@@ -47,6 +47,7 @@ const EXPECTED_FRONTEND_API_DEPENDENCY_MAP = {
   'client/public/js/admin-post-duty.js': ['duties.list'],
   'client/public/js/admin-profile.js': ['auth.me'],
   'client/public/js/admin-settings.js': ['analytics.hospitalDashboard', 'hospitalSettings.root'],
+  'client/public/js/admin-waitlist.js': ['adminFunnel.dailyAnalytics', 'adminFunnel.waitlist', 'adminFunnel.waitlistStatus'],
   'client/public/js/doctor-achievements.js': ['achievements.claim', 'achievements.leaderboard', 'achievements.list', 'achievements.share'],
   'client/public/js/doctor-availability.js': ['calendar.availability', 'calendar.availabilityDetail'],
   'client/public/js/doctor-browse-shifts-enhanced.js': ['applications.list', 'auth.me', 'duties.list'],
@@ -57,8 +58,8 @@ const EXPECTED_FRONTEND_API_DEPENDENCY_MAP = {
   'client/public/js/doctor-onboarding.js': ['auth.me', 'auth.register', 'uploads.document', 'uploads.profilePhoto'],
   'client/public/js/doctor-profile-enhanced.js': ['auth.me', 'uploads.document', 'uploads.profilePhoto'],
   'client/public/js/doctor-my-applications.js': ['applications.list', 'applications.stats'],
-  'client/public/js/frontend-session.js': ['applications.list', 'applications.stats', 'auth.me'],
-  'client/public/js/landing.js': ['auth.login', 'auth.me', 'auth.register'],
+  'client/public/js/frontend-session.js': ['applications.list', 'applications.stats', 'auth.logout', 'auth.me'],
+  'client/public/js/landing.js': ['auth.login', 'auth.me', 'auth.register', 'funnelEvents.create'],
   'client/public/js/patient-booking-details.js': ['bookings.cancel', 'bookings.detail', 'bookings.review'],
   'client/public/js/patient-booking-form.js': ['bookings.list', 'paymentsB2c.createOrder', 'paymentsB2c.failure', 'paymentsB2c.verify'],
   'client/public/js/patient-dashboard.js': ['bookings.patientMine', 'patients.stats'],
@@ -69,11 +70,12 @@ const EXPECTED_FRONTEND_API_DEPENDENCY_MAP = {
   'client/public/js/patient-register.js': ['patients.register'],
   'client/public/js/provider-dashboard.js': ['bookings.complete', 'bookings.confirm', 'bookings.enRoute', 'bookings.providerMine', 'bookings.start'],
   'client/public/js/provider-login.js': ['auth.login'],
-  'client/public/js/shared-register.js': ['auth.register']
+  'client/public/js/shared-register.js': ['auth.register', 'hospitalWaitlist.create']
 };
 
 const RAW_FETCH_ALLOWLIST = [
   'client/public/js/auth.js',
+  'client/public/js/frontend-session.js',
   'client/public/js/notification-center.js',
   'client/public/js/pagination.js',
   'client/public/js/unified-nav.js',

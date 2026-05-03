@@ -20,6 +20,10 @@ function formatStatus(status) {
   return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : 'Unknown';
 }
 
+function getSafeStatusClass(status) {
+  return getStatusKey(status).replace(/[^a-z0-9_-]/g, '') || 'unknown';
+}
+
 function getDutyTimeLabel(duty) {
   if (duty.startTime && duty.endTime) {
     return duty.startTime + ' - ' + duty.endTime;
@@ -86,24 +90,26 @@ function updateStats() {
 
 function displayApplications() {
   var container = document.getElementById('applicationsContainer');
+  container.replaceChildren();
 
   var filteredApps = currentFilter === 'all'
     ? allApplications
     : allApplications.filter(function (app) { return getStatusKey(app.status) === currentFilter; });
 
   if (filteredApps.length === 0) {
-    container.innerHTML =
-      '<div class="no-applications">' +
-        '<h3>No Applications Found</h3>' +
-        '<p>' + (currentFilter === 'all' ? 'No applications received yet.' : 'No ' + currentFilter + ' applications.') + '</p>' +
-      '</div>';
+    container.appendChild(createEmptyState(
+      'No Applications Found',
+      currentFilter === 'all' ? 'No applications received yet.' : 'No ' + currentFilter + ' applications.'
+    ));
     return;
   }
 
-  container.innerHTML =
-    '<div class="applications-grid">' +
-      filteredApps.map(function (app) { return createApplicationCard(app); }).join('') +
-    '</div>';
+  var grid = document.createElement('div');
+  grid.className = 'applications-grid';
+  filteredApps.forEach(function (app) {
+    grid.appendChild(createApplicationCard(app));
+  });
+  container.appendChild(grid);
 
   // Add event listeners to action buttons
   filteredApps.forEach(function (app) {
@@ -119,40 +125,103 @@ function displayApplications() {
   });
 }
 
+function appendDetailRow(container, label, value) {
+  var row = document.createElement('div');
+  row.className = 'detail-row';
+
+  var labelSpan = document.createElement('span');
+  labelSpan.className = 'detail-label';
+  labelSpan.textContent = label;
+
+  var valueSpan = document.createElement('span');
+  valueSpan.textContent = value;
+
+  row.append(labelSpan, valueSpan);
+  container.appendChild(row);
+}
+
+function createEmptyState(title, message) {
+  var wrapper = document.createElement('div');
+  wrapper.className = 'no-applications';
+
+  var heading = document.createElement('h3');
+  heading.textContent = title;
+
+  var paragraph = document.createElement('p');
+  paragraph.textContent = message;
+
+  wrapper.append(heading, paragraph);
+  return wrapper;
+}
+
 function createApplicationCard(app) {
   var statusKey = getStatusKey(app.status);
   var isPending = statusKey === 'pending';
-  var dutyDate = new Date(app.duty.date).toLocaleDateString('en-US', {
+  var applicant = app.applicant || {};
+  var duty = app.duty || {};
+  var dutyDate = AppFormat.date(duty.date, 'en-US', {
     weekday: 'short',
     year: 'numeric',
     month: 'short',
     day: 'numeric'
   });
 
-  var actionsHtml = isPending
-    ? '<div class="card-actions">' +
-        '<button id="accept-' + app._id + '" class="action-btn accept-btn">Accept</button>' +
-        '<button id="reject-' + app._id + '" class="action-btn reject-btn">Reject</button>' +
-      '</div>'
-    : '';
+  var card = document.createElement('div');
+  card.className = 'application-card';
 
-  return '<div class="application-card">' +
-    '<div class="card-header">' +
-      '<div class="applicant-info">' +
-        '<h3>' + (app.applicant.name || 'Doctor') + '</h3>' +
-        '<p>' + (app.applicant.email || app.applicant.specialty || 'Professional') + '</p>' +
-      '</div>' +
-      '<span class="status-badge ' + statusKey + '">' + formatStatus(app.status) + '</span>' +
-    '</div>' +
-    '<div class="duty-details">' +
-      '<h4>' + app.duty.title + '</h4>' +
-      '<div class="detail-row"><span class="detail-label">Date:</span><span>' + dutyDate + '</span></div>' +
-      '<div class="detail-row"><span class="detail-label">Time:</span><span>' + getDutyTimeLabel(app.duty) + '</span></div>' +
-      '<div class="detail-row"><span class="detail-label">Salary:</span><span>Rs ' + getDutyCompensation(app.duty) + '</span></div>' +
-      '<div class="detail-row"><span class="detail-label">Applied:</span><span>' + new Date(app.createdAt).toLocaleDateString() + '</span></div>' +
-    '</div>' +
-    actionsHtml +
-  '</div>';
+  var header = document.createElement('div');
+  header.className = 'card-header';
+
+  var applicantInfo = document.createElement('div');
+  applicantInfo.className = 'applicant-info';
+
+  var applicantName = document.createElement('h3');
+  applicantName.textContent = applicant.name || 'Doctor';
+
+  var applicantMeta = document.createElement('p');
+  applicantMeta.textContent = applicant.email || applicant.specialty || 'Professional';
+
+  applicantInfo.append(applicantName, applicantMeta);
+
+  var statusBadge = document.createElement('span');
+  statusBadge.className = 'status-badge ' + getSafeStatusClass(app.status);
+  statusBadge.textContent = formatStatus(app.status);
+
+  header.append(applicantInfo, statusBadge);
+
+  var dutyDetails = document.createElement('div');
+  dutyDetails.className = 'duty-details';
+
+  var title = document.createElement('h4');
+  title.textContent = duty.title || 'Untitled duty';
+  dutyDetails.appendChild(title);
+
+  appendDetailRow(dutyDetails, 'Date:', dutyDate);
+  appendDetailRow(dutyDetails, 'Time:', getDutyTimeLabel(duty));
+  appendDetailRow(dutyDetails, 'Salary:', 'Rs ' + getDutyCompensation(duty));
+  appendDetailRow(dutyDetails, 'Applied:', AppFormat.date(app.createdAt));
+
+  card.append(header, dutyDetails);
+
+  if (isPending) {
+    var actions = document.createElement('div');
+    actions.className = 'card-actions';
+
+    var acceptButton = document.createElement('button');
+    acceptButton.id = 'accept-' + app._id;
+    acceptButton.className = 'action-btn accept-btn';
+    acceptButton.textContent = 'Accept';
+
+    var rejectButton = document.createElement('button');
+    rejectButton.id = 'reject-' + app._id;
+    rejectButton.className = 'action-btn reject-btn';
+    rejectButton.textContent = 'Reject';
+
+    actions.append(acceptButton, rejectButton);
+    card.appendChild(actions);
+  }
+
+  return card;
 }
 
 async function updateApplicationStatus(applicationId, newStatus) {
@@ -191,11 +260,7 @@ async function updateApplicationStatus(applicationId, newStatus) {
 
 function showError(message) {
   var container = document.getElementById('applicationsContainer');
-  container.innerHTML =
-    '<div class="no-applications">' +
-      '<h3>Error</h3>' +
-      '<p>' + message + '</p>' +
-    '</div>';
+  container.replaceChildren(createEmptyState('Error', message));
 }
 
 function setupFilters() {

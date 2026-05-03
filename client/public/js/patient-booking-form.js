@@ -1,5 +1,5 @@
         // API_URL is provided by config.js
-        const token = PatientSession.requireAuthenticatedPage({
+        PatientSession.requireAuthenticatedPage({
             redirectUrl: AppConfig.routes.page('patient.login')
         });
 
@@ -24,15 +24,97 @@
             window.history.back();
         });
 
+        const DEFAULT_TIMEZONES = [
+            'Asia/Kolkata',
+            'UTC',
+            'America/New_York',
+            'America/Chicago',
+            'America/Denver',
+            'America/Los_Angeles',
+            'Europe/London',
+            'Europe/Berlin',
+            'Asia/Dubai',
+            'Asia/Singapore',
+            'Australia/Sydney'
+        ];
+
+        function getBrowserTimeZone() {
+            return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        }
+
+        function populateTimezoneOptions() {
+            const timezoneSelect = document.getElementById('timezone');
+            const browserTimeZone = getBrowserTimeZone();
+            const timezones = DEFAULT_TIMEZONES.includes(browserTimeZone)
+                ? DEFAULT_TIMEZONES
+                : [browserTimeZone].concat(DEFAULT_TIMEZONES);
+
+            timezoneSelect.innerHTML = timezones
+                .map((timeZone) => `<option value="${timeZone}">${timeZone}</option>`)
+                .join('');
+            timezoneSelect.value = browserTimeZone;
+        }
+
+        function parseOffsetMinutes(timeZoneName) {
+            const match = String(timeZoneName || '').match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/i);
+            if (!match) {
+                return 0;
+            }
+
+            const sign = match[1] === '-' ? -1 : 1;
+            const hours = parseInt(match[2], 10);
+            const minutes = parseInt(match[3] || '0', 10);
+
+            return sign * ((hours * 60) + minutes);
+        }
+
+        function getOffsetMinutesForInstant(date, timeZone) {
+            const timeZoneName = new Intl.DateTimeFormat('en-US', {
+                timeZone,
+                timeZoneName: 'shortOffset',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).formatToParts(date).find((part) => part.type === 'timeZoneName')?.value;
+
+            return parseOffsetMinutes(timeZoneName);
+        }
+
+        function getScheduledTimezoneOffsetMinutes(dateValue, timeValue, timeZone) {
+            const [year, month, day] = String(dateValue || '').split('-').map(Number);
+            const [hours, minutes] = String(timeValue || '').split(':').map(Number);
+
+            if ([year, month, day, hours, minutes].some(Number.isNaN)) {
+                return new Date().getTimezoneOffset() * -1;
+            }
+
+            let offsetMinutes = getOffsetMinutesForInstant(new Date(), timeZone);
+
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                const utcMillis = Date.UTC(year, month - 1, day, hours, minutes) - (offsetMinutes * 60 * 1000);
+                const candidateDate = new Date(utcMillis);
+                const resolvedOffsetMinutes = getOffsetMinutesForInstant(candidateDate, timeZone);
+
+                if (resolvedOffsetMinutes === offsetMinutes) {
+                    return resolvedOffsetMinutes;
+                }
+
+                offsetMinutes = resolvedOffsetMinutes;
+            }
+
+            return offsetMinutes;
+        }
+
+        populateTimezoneOptions();
+
         function updatePriceSummary(basePrice) {
             const platformFee = basePrice * 0.15;
             const gst = (basePrice + platformFee) * 0.18;
             const total = basePrice + platformFee + gst;
 
             document.getElementById('summaryBasePrice').textContent = `₹${basePrice}`;
-            document.getElementById('summaryPlatformFee').textContent = `₹${platformFee.toFixed(2)}`;
-            document.getElementById('summaryGST').textContent = `₹${gst.toFixed(2)}`;
-            document.getElementById('summaryTotal').textContent = `₹${total.toFixed(2)}`;
+            document.getElementById('summaryPlatformFee').textContent = AppFormat.currency(platformFee, 2);
+            document.getElementById('summaryGST').textContent = AppFormat.currency(gst, 2);
+            document.getElementById('summaryTotal').textContent = AppFormat.currency(total, 2);
         }
 
         document.getElementById('bookingForm').addEventListener('submit', async (e) => {
@@ -43,10 +125,19 @@
             errorDiv.innerHTML = '';
 
             const prescriptionUrl = document.getElementById('prescriptionUrl').value.trim();
+            const scheduledDate = document.getElementById('date').value;
+            const scheduledTime = document.getElementById('time').value;
+            const scheduledTimezone = document.getElementById('timezone').value || getBrowserTimeZone();
             const bookingData = {
                 serviceType: selectedService.serviceType,
-                scheduledDate: document.getElementById('date').value,
-                scheduledTime: document.getElementById('time').value,
+                scheduledDate,
+                scheduledTime,
+                scheduledTimezone,
+                scheduledTimezoneOffsetMinutes: getScheduledTimezoneOffsetMinutes(
+                    scheduledDate,
+                    scheduledTime,
+                    scheduledTimezone
+                ),
                 serviceLocation: {
                     type: 'HOME',
                     address: {
@@ -77,8 +168,7 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(bookingData)
                 }), 'Booking failed', {
@@ -103,8 +193,7 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ bookingId: booking._id })
                 }), 'Failed to create payment order');
@@ -157,8 +246,7 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         razorpay_order_id: paymentResponse.razorpay_order_id,
@@ -187,8 +275,7 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         bookingId: bookingId,

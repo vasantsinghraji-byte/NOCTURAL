@@ -1,5 +1,5 @@
         // API_URL is provided by config.js
-        const token = PatientSession.requireAuthenticatedPage({
+        PatientSession.requireAuthenticatedPage({
             redirectUrl: AppConfig.routes.page('patient.login')
         });
         let currentBooking = null;
@@ -17,8 +17,7 @@
         async function loadBooking() {
             try {
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('bookings.detail', {
-                    parseJson: true,
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    parseJson: true
                 }, {
                     params: { bookingId: bookingId }
                 }), 'Failed to load booking', {
@@ -40,9 +39,10 @@
             const paymentStatus = booking.payment?.status || 'PENDING';
             const provider = booking.serviceProvider || null;
             const serviceReport = booking.actualService?.serviceReport || null;
+            const bookingTimezone = booking.scheduledTimezone || 'Timezone not specified';
 
-            document.getElementById('loadingDiv').style.display = 'none';
-            document.getElementById('bookingContent').style.display = 'block';
+            AppUi.setDisplay(document.getElementById('loadingDiv'), 'none');
+            AppUi.setDisplay(document.getElementById('bookingContent'), 'block');
 
             // Update status tracker
             updateStatusTracker(booking.status);
@@ -53,10 +53,17 @@
             document.getElementById('statusBadge').innerHTML =
                 `<span class="status-badge ${booking.status.toLowerCase()}">${booking.status}</span>`;
             document.getElementById('scheduledDate').textContent =
-                new Date(booking.scheduledDate).toLocaleDateString('en-IN', {
-                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-                });
-            document.getElementById('scheduledTime').textContent = booking.scheduledTime;
+                AppFormat.date(booking.scheduledDate, 'en-IN', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+            document.getElementById('scheduledTime').textContent = AppFormat.timeInZone(
+                booking.scheduledDate,
+                booking.scheduledTime,
+                booking.scheduledTimezone,
+                booking.scheduledTimezoneOffsetMinutes,
+                'en-IN'
+            );
+            document.getElementById('scheduledTimezone').textContent = bookingTimezone;
 
             document.getElementById('serviceLocation').textContent =
                 [location.street, location.city, location.state, location.pincode]
@@ -69,22 +76,22 @@
             document.getElementById('patientGender').textContent = booking.patientDetails.gender;
 
             if (booking.specialRequirements) {
-                document.getElementById('specialReqRow').style.display = 'flex';
+                AppUi.setDisplay(document.getElementById('specialReqRow'), 'flex');
                 document.getElementById('specialReq').textContent = booking.specialRequirements;
             }
 
             // Pricing
             const pricing = booking.pricing;
-            document.getElementById('basePrice').textContent = `₹${pricing.basePrice.toFixed(2)}`;
-            document.getElementById('platformFee').textContent = `₹${pricing.platformFee.toFixed(2)}`;
-            document.getElementById('gst').textContent = `₹${pricing.gst.toFixed(2)}`;
-            document.getElementById('totalPrice').textContent = `₹${pricing.payableAmount.toFixed(2)}`;
+            document.getElementById('basePrice').textContent = AppFormat.currency(pricing.basePrice, 2);
+            document.getElementById('platformFee').textContent = AppFormat.currency(pricing.platformFee, 2);
+            document.getElementById('gst').textContent = AppFormat.currency(pricing.gst, 2);
+            document.getElementById('totalPrice').textContent = AppFormat.currency(pricing.payableAmount, 2);
             document.getElementById('paymentStatus').innerHTML =
                 `<span class="status-badge ${paymentStatus.toLowerCase()}">${paymentStatus}</span>`;
 
             // Provider details (if assigned)
             if (provider) {
-                document.getElementById('providerCard').style.display = 'block';
+                AppUi.setDisplay(document.getElementById('providerCard'), 'block');
                 document.getElementById('providerName').textContent = provider.name || 'Provider';
                 document.getElementById('providerRole').textContent = provider.role || 'Healthcare Professional';
                 document.getElementById('providerPhone').textContent = provider.phone || 'Not available';
@@ -96,12 +103,12 @@
 
             // Show cancel button if booking can be cancelled
             if (['REQUESTED', 'SEARCHING', 'ASSIGNED', 'CONFIRMED'].includes(booking.status)) {
-                document.getElementById('cancelBtn').style.display = 'block';
+                AppUi.setDisplay(document.getElementById('cancelBtn'), 'block');
             }
 
             // Show rating section if completed and not rated
             if (booking.status === 'COMPLETED' && !booking.rating?.ratedAt) {
-                document.getElementById('ratingCard').style.display = 'block';
+                AppUi.setDisplay(document.getElementById('ratingCard'), 'block');
             }
 
             // Show service report if completed
@@ -132,7 +139,7 @@
         }
 
         function displayServiceReport(report) {
-            document.getElementById('reportCard').style.display = 'block';
+            AppUi.setDisplay(document.getElementById('reportCard'), 'block');
             let html = '';
 
             if (report.vitalsChecked) {
@@ -204,15 +211,14 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ stars: selectedRating, comment })
                 }, {
                     params: { bookingId: bookingId }
                 }), 'Failed to submit review');
                 showMessage('Thank you for your review!', 'success');
-                document.getElementById('ratingCard').style.display = 'none';
+                AppUi.setDisplay(document.getElementById('ratingCard'), 'none');
             } catch (error) {
                 console.error('Error submitting review:', error);
                 showMessage(error.message, 'error');
@@ -229,8 +235,7 @@
                     method: 'PUT',
                     parseJson: true,
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ reason: 'Cancelled by patient request' })
                 }, {
@@ -245,8 +250,8 @@
         }
 
         function refreshBooking() {
-            document.getElementById('loadingDiv').style.display = 'block';
-            document.getElementById('bookingContent').style.display = 'none';
+            AppUi.setDisplay(document.getElementById('loadingDiv'), 'block');
+            AppUi.setDisplay(document.getElementById('bookingContent'), 'none');
             loadBooking();
         }
 
@@ -267,3 +272,4 @@
 
         // Initialize
         loadBooking();
+

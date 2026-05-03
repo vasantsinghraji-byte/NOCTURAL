@@ -1,8 +1,10 @@
 // API_URL is provided by config.js
 
         document.addEventListener('DOMContentLoaded', function() {
-            const token = localStorage.getItem('token');
-            if (!token) {
+            const session = DoctorSession.requireAuthenticatedPage({
+                redirectUrl: AppConfig.routes.page('home')
+            });
+            if (!session) {
                 window.location.href = AppConfig.routes.page('home');
                 return;
             }
@@ -29,12 +31,8 @@
 
         async function loadCurrentSettings() {
             try {
-                const token = localStorage.getItem('token');
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('calendar.availability', {
-                    parseJson: true,
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    parseJson: true
                 }), 'Failed to load settings', {
                     isSuccess: function (payload) {
                         return !!(payload && payload.success && Array.isArray(payload.data));
@@ -70,7 +68,7 @@
                     const selectedDays = setting.recurring.dayOfWeek.map(d => days[d]).join(', ');
                     details = `Unavailable on: ${selectedDays}`;
                 } else if (setting.type === 'VACATION' && setting.dateRange) {
-                    details = `${new Date(setting.dateRange.startDate).toLocaleDateString()} - ${new Date(setting.dateRange.endDate).toLocaleDateString()}`;
+                    details = `${AppFormat.date(setting.dateRange.startDate)} - ${AppFormat.date(setting.dateRange.endDate)}`;
                     if (setting.dateRange.reason) {
                         details += ` (${setting.dateRange.reason})`;
                     }
@@ -93,7 +91,7 @@
                             </label>
                         </div>
                         <div class="availability-details">${details}</div>
-                        ${setting.autoRejectNonMatching ? '<div style="color: var(--warning); font-size: 0.9rem;"><i class="fas fa-exclamation-triangle"></i> Auto-rejecting non-matching duties</div>' : ''}
+                        ${setting.autoRejectNonMatching ? '<div class="availability-warning"><i class="fas fa-exclamation-triangle"></i> Auto-rejecting non-matching duties</div>' : ''}
                         <div class="availability-actions">
                             <button class="btn btn-danger" data-action="delete-availability" data-availability-id="${setting._id}">
                                 <i class="fas fa-trash"></i> Delete
@@ -176,12 +174,10 @@
 
         async function saveAvailability(data) {
             try {
-                const token = localStorage.getItem('token');
                 NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('calendar.availability', {
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(data)
@@ -197,12 +193,10 @@
 
         async function toggleAvailability(id, active) {
             try {
-                const token = localStorage.getItem('token');
                 NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('calendar.availabilityDetail', {
                     method: 'PUT',
                     parseJson: true,
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ active })
@@ -222,13 +216,9 @@
             }
 
             try {
-                const token = localStorage.getItem('token');
                 NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('calendar.availabilityDetail', {
                     method: 'DELETE',
-                    parseJson: true,
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    parseJson: true
                 }, {
                     params: { availabilityId: id }
                 }), 'Failed to delete availability setting');

@@ -22,7 +22,7 @@
                 NocturnalSession.completeAuthSuccess(
                     NocturnalSession.expectJsonSuccess(data, 'Login failed', {
                         isSuccess: function (payload) {
-                            return !!(payload && payload.success && payload.token);
+                            return !!(payload && payload.success && payload.patient);
                         }
                     }),
                     {

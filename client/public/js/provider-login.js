@@ -5,7 +5,7 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            document.getElementById('installPrompt').style.display = 'block';
+            AppUi.setDisplay(document.getElementById('installPrompt'), 'block');
         });
 
 function installPWA() {
@@ -16,7 +16,7 @@ function installPWA() {
                         console.log('PWA installed');
                     }
                     deferredPrompt = null;
-                    document.getElementById('installPrompt').style.display = 'none';
+                    AppUi.setDisplay(document.getElementById('installPrompt'), 'none');
                 });
     }
 }
@@ -52,7 +52,7 @@ if (installPwaButton) {
                 });
                 var authData = NocturnalSession.expectJsonSuccess(data, 'Login failed', {
                     isSuccess: function (payload) {
-                        return !!(payload && payload.success && payload.token && payload.user);
+                        return !!(payload && payload.success && payload.user);
                     }
                 });
 

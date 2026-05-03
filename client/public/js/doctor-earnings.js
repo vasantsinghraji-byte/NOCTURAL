@@ -2,8 +2,10 @@
         let earningsChart;
 
         document.addEventListener('DOMContentLoaded', function() {
-            const token = localStorage.getItem('token');
-            if (!token) {
+            const session = DoctorSession.requireAuthenticatedPage({
+                redirectUrl: AppConfig.routes.page('home')
+            });
+            if (!session) {
                 window.location.href = AppConfig.routes.page('home');
                 return;
             }
@@ -14,33 +16,29 @@
 
         async function loadEarningsDashboard() {
             try {
-                const token = localStorage.getItem('token');
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('earnings.dashboard', {
-                    parseJson: true,
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    parseJson: true
                 }), 'Failed to load earnings data', {
                     isSuccess: function (payload) {
                         return !!(payload && payload.success && payload.data);
                     }
                 });
                 displayEarningsData(data.data);
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
+                AppUi.setDisplay(document.getElementById('loading'), 'none');
+                AppUi.setDisplay(document.getElementById('mainContent'), 'block');
             } catch (error) {
                 console.error('Error loading earnings:', error);
-                document.getElementById('loading').innerHTML = '<p style="color: var(--danger);">Error loading earnings data. Please try again.</p>';
+                document.getElementById('loading').innerHTML = '<p class="error-text">Error loading earnings data. Please try again.</p>';
             }
         }
 
         function displayEarningsData(data) {
             // Update stats cards
-            document.getElementById('totalEarnings').textContent = `₹${data.currentMonth.totalEarnings.toLocaleString()}`;
-            document.getElementById('hoursWorked').textContent = `${data.currentMonth.hoursWorked} hrs`;
-            document.getElementById('avgRate').textContent = `₹${data.currentMonth.avgRate.toLocaleString()}/hr`;
-            document.getElementById('goalProgress').textContent = `${data.currentMonth.goalProgress}%`;
-            document.getElementById('goalProgressBar').style.width = `${data.currentMonth.goalProgress}%`;
+            document.getElementById('totalEarnings').textContent = AppFormat.currencyWhole(data.currentMonth.totalEarnings);
+            document.getElementById('hoursWorked').textContent = AppFormat.hours(data.currentMonth.hoursWorked, ' hrs');
+            document.getElementById('avgRate').textContent = `${AppFormat.currencyWhole(data.currentMonth.avgRate)}/hr`;
+            document.getElementById('goalProgress').textContent = AppFormat.percent(data.currentMonth.goalProgress);
+            AppUi.setPercentWidth(document.getElementById('goalProgressBar'), data.currentMonth.goalProgress);
             document.getElementById('shiftsCount').textContent = `${data.currentMonth.shiftsCompleted} shifts completed`;
 
             // Earnings change
@@ -58,9 +56,9 @@
             }
 
             // Breakdown
-            document.getElementById('paidAmount').textContent = `₹${data.breakdown.paid.toLocaleString()}`;
-            document.getElementById('pendingAmount').textContent = `₹${data.breakdown.pending.toLocaleString()}`;
-            document.getElementById('overdueAmount').textContent = `₹${data.breakdown.overdue.toLocaleString()}`;
+            document.getElementById('paidAmount').textContent = AppFormat.currencyWhole(data.breakdown.paid);
+            document.getElementById('pendingAmount').textContent = AppFormat.currencyWhole(data.breakdown.pending);
+            document.getElementById('overdueAmount').textContent = AppFormat.currencyWhole(data.breakdown.overdue);
 
             // Payment timeline
             displayPaymentTimeline(data.paymentTimeline);
@@ -78,10 +76,10 @@
                 timeline.overdue.forEach(payment => {
                     html += `
                         <div class="timeline-item overdue">
-                            <div class="timeline-date">Due: ${new Date(payment.expectedPaymentDate).toLocaleDateString()}</div>
+                            <div class="timeline-date">Due: ${AppFormat.date(payment.expectedPaymentDate)}</div>
                             <div class="timeline-title">${payment.hospital}</div>
-                            <div class="timeline-amount">₹${payment.netAmount.toLocaleString()}</div>
-                            <button class="btn btn-danger" style="margin-top: 10px; font-size: 0.85rem;" data-action="dispute-payment" data-earning-id="${payment._id}">
+                            <div class="timeline-amount">${AppFormat.currencyWhole(payment.netAmount)}</div>
+                            <button class="btn btn-danger btn-sm-spaced" data-action="dispute-payment" data-earning-id="${payment._id}">
                                 <i class="fas fa-exclamation-circle"></i> Raise Dispute
                             </button>
                         </div>
@@ -94,16 +92,16 @@
                 timeline.upcoming.forEach(payment => {
                     html += `
                         <div class="timeline-item pending">
-                            <div class="timeline-date">Expected: ${new Date(payment.expectedPaymentDate).toLocaleDateString()}</div>
+                            <div class="timeline-date">Expected: ${AppFormat.date(payment.expectedPaymentDate)}</div>
                             <div class="timeline-title">${payment.hospital}</div>
-                            <div class="timeline-amount">₹${payment.netAmount.toLocaleString()}</div>
+                            <div class="timeline-amount">${AppFormat.currencyWhole(payment.netAmount)}</div>
                         </div>
                     `;
                 });
             }
 
             if (html === '') {
-                html = '<p style="text-align: center; color: var(--gray); padding: 20px;">No pending payments</p>';
+                html = '<p class="empty-payment-text">No pending payments</p>';
             }
 
             timelineEl.innerHTML = html;
@@ -153,12 +151,8 @@
 
         async function loadEarningsOptimizer() {
             try {
-                const token = localStorage.getItem('token');
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('earnings.optimizer', {
-                    parseJson: true,
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    parseJson: true
                 }), 'Failed to load optimizer data', {
                     isSuccess: function (payload) {
                         return !!(payload && payload.success && payload.data);
@@ -182,12 +176,12 @@
                     <div class="suggestion-item">
                         <div class="suggestion-header">
                             <div class="suggestion-title">${duty.title}</div>
-                            <div class="suggestion-pay">₹${duty.totalCompensation.toLocaleString()}</div>
+                            <div class="suggestion-pay">${AppFormat.currencyWhole(duty.totalCompensation)}</div>
                         </div>
                         <div class="suggestion-details">
-                            ${duty.hospital} • ${new Date(duty.date).toLocaleDateString()} • ${duty.startTime} - ${duty.endTime}
+                            ${duty.hospital} • ${AppFormat.date(duty.date)} • ${duty.startTime} - ${duty.endTime}
                         </div>
-                        <button class="btn btn-success" style="margin-top: 10px; font-size: 0.85rem;" data-action="view-duty-details" data-duty-id="${duty._id}">
+                        <button class="btn btn-success btn-sm-spaced" data-action="view-duty-details" data-duty-id="${duty._id}">
                             View Details
                         </button>
                     </div>
@@ -195,7 +189,7 @@
             });
 
             list.innerHTML = html;
-            document.getElementById('potentialEarnings').textContent = `₹${data.potential.totalEarnings.toLocaleString()}`;
+            document.getElementById('potentialEarnings').textContent = AppFormat.currencyWhole(data.potential.totalEarnings);
 
             if (data.potential.exceedsLimit) {
                 document.getElementById('warningMessage').innerHTML = `
@@ -203,7 +197,7 @@
                 `;
             }
 
-            card.style.display = 'block';
+            AppUi.setDisplay(card, 'block');
         }
 
         async function disputePayment(earningId) {
@@ -211,12 +205,10 @@
             if (!reason) return;
 
             try {
-                const token = localStorage.getItem('token');
                 NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('earnings.dispute', {
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ reason })

@@ -1,5 +1,5 @@
         // Check authentication
-        const token = PatientSession.requireAuthenticatedPage({
+        PatientSession.requireAuthenticatedPage({
             redirectUrl: AppConfig.routes.page('patient.login')
         });
 
@@ -20,8 +20,7 @@
         async function loadDashboardOverview() {
             try {
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('patientDashboard.root', {
-                    parseJson: true,
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    parseJson: true
                 }), 'Failed to load dashboard', {
                     isSuccess: function (payload) {
                         return !!(payload && payload.overview);
@@ -109,7 +108,7 @@
 
             if (!vitals || Object.keys(vitals).length === 0) {
                 grid.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1/-1;">
+                    <div class="empty-state empty-state-full">
                         <div class="icon">📊</div>
                         <p>No vitals recorded yet</p>
                     </div>
@@ -203,7 +202,7 @@
             const card = document.getElementById('emergencyCard');
             const grid = document.getElementById('emergencyGrid');
 
-            card.style.display = 'block';
+            AppUi.setDisplay(card, 'block');
 
             grid.innerHTML = `
                 <div class="emergency-item">
@@ -229,8 +228,7 @@
         async function loadWhoHasAccess() {
             try {
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('doctorAccess.list', {
-                    parseJson: true,
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    parseJson: true
                 }), 'Failed to load access info', {
                     isSuccess: function (payload) {
                         return !!(payload && Array.isArray(payload.accessTokens));
@@ -279,8 +277,7 @@
             try {
                 NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('doctorAccess.revoke', {
                     method: 'POST',
-                    parseJson: true,
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    parseJson: true
                 }, {
                     params: { tokenId: tokenId }
                 }), 'Failed to revoke access');
@@ -300,7 +297,6 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ expiryHours: 24 })

@@ -12,6 +12,36 @@
     return;
   }
 
+  const HTML_CACHE_REFRESH_KEY = 'nocturnal-html-cache-refresh-attempted';
+
+  function ensureStylesheet(href) {
+    if (document.querySelector('link[href="' + href + '"]')) {
+      return;
+    }
+
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+  }
+
+  function shouldRefreshHtmlCache(message) {
+    return /AppConfig is not defined|NocturnalSession is not defined|Unexpected token '<'|Loading chunk|Failed to fetch dynamically imported module|Cannot read properties of undefined/i.test(message || '');
+  }
+
+  function requestHtmlCacheRefresh(reason) {
+    if (!navigator.serviceWorker.controller || sessionStorage.getItem(HTML_CACHE_REFRESH_KEY) === 'true') {
+      return;
+    }
+
+    sessionStorage.setItem(HTML_CACHE_REFRESH_KEY, 'true');
+    navigator.serviceWorker.controller.postMessage({
+      type: 'NOCTURNAL_REFRESH_HTML_CACHE',
+      reason: reason || 'app_boot_failure',
+      url: window.location.href
+    });
+  }
+
   // Register service worker
   function registerServiceWorker() {
     navigator.serviceWorker.register('/service-worker.js')
@@ -46,72 +76,30 @@
       return;
     }
 
+    ensureStylesheet('/css/components/sw-register.css');
+
     const updateBanner = document.createElement('div');
     updateBanner.id = 'sw-update-banner';
-    updateBanner.innerHTML = `
-      <div style="
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: #4CAF50;
-        color: white;
-        padding: 16px 24px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 10000;
-        max-width: 300px;
-        animation: slideIn 0.3s ease-out;
-      ">
-        <p style="margin: 0 0 12px 0; font-weight: 600;">
-          New version available!
-        </p>
-        <button type="button" data-sw-action="reload" style="
-          background: white;
-          color: #4CAF50;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-weight: 600;
-        ">
-          Update Now
-        </button>
-        <button type="button" data-sw-action="dismiss" style="
-          background: transparent;
-          color: white;
-          border: 1px solid white;
-          padding: 8px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-          margin-left: 8px;
-        ">
-          Later
-        </button>
-      </div>
-    `;
+    updateBanner.className = 'sw-update-card';
 
-    // Add animation
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes slideIn {
-        from {
-          transform: translateX(400px);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
-      }
-    `;
-    if (!document.getElementById('sw-register-styles')) {
-      style.id = 'sw-register-styles';
-      document.head.appendChild(style);
-    }
+    const title = document.createElement('p');
+    title.className = 'sw-update-title';
+    title.textContent = 'New version available!';
+
+    const reloadButton = document.createElement('button');
+    reloadButton.type = 'button';
+    reloadButton.className = 'sw-update-button sw-update-button-primary';
+    reloadButton.dataset.swAction = 'reload';
+    reloadButton.textContent = 'Update Now';
+
+    const dismissButton = document.createElement('button');
+    dismissButton.type = 'button';
+    dismissButton.className = 'sw-update-button sw-update-button-secondary';
+    dismissButton.dataset.swAction = 'dismiss';
+    dismissButton.textContent = 'Later';
+
+    updateBanner.append(title, reloadButton, dismissButton);
     document.body.appendChild(updateBanner);
-
-    const reloadButton = updateBanner.querySelector('[data-sw-action="reload"]');
-    const dismissButton = updateBanner.querySelector('[data-sw-action="dismiss"]');
 
     if (reloadButton) {
       reloadButton.addEventListener('click', function() {
@@ -138,6 +126,25 @@
     if (event.data.type === 'CACHE_UPDATED') {
       // Cache was updated
       console.log('Cache updated:', event.data.url);
+    }
+
+    if (event.data.type === 'NOCTURNAL_HTML_CACHE_REFRESHED') {
+      window.location.reload();
+    }
+  });
+
+  window.addEventListener('error', function(event) {
+    const message = event.message || (event.error && event.error.message);
+    if (shouldRefreshHtmlCache(message)) {
+      requestHtmlCacheRefresh(message);
+    }
+  });
+
+  window.addEventListener('unhandledrejection', function(event) {
+    const reason = event.reason || {};
+    const message = reason.message || String(reason);
+    if (shouldRefreshHtmlCache(message)) {
+      requestHtmlCacheRefresh(message);
     }
   });
 
@@ -176,25 +183,12 @@
   function showOfflineIndicator() {
     if (document.getElementById('offline-indicator')) return;
 
+    ensureStylesheet('/css/components/sw-register.css');
+
     const indicator = document.createElement('div');
     indicator.id = 'offline-indicator';
-    indicator.innerHTML = `
-      <div style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        background: #f44336;
-        color: white;
-        padding: 12px;
-        text-align: center;
-        z-index: 10001;
-        font-weight: 600;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      ">
-        ⚠️ You are offline. Some features may be unavailable.
-      </div>
-    `;
+    indicator.className = 'offline-indicator-banner';
+    indicator.textContent = 'You are offline. Some features may be unavailable.';
     document.body.appendChild(indicator);
   }
 

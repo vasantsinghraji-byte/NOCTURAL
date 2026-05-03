@@ -8,10 +8,15 @@
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
+            const website = document.getElementById('website').value.trim();
             const errorDiv = document.getElementById('errorDiv');
             const btn = document.getElementById('submitBtn');
 
             NocturnalSession.clearFormMessage(errorDiv);
+
+            if (website) {
+                return;
+            }
 
             // Validation
             if (!NocturnalSession.validatePasswordStrength(password, errorDiv)) {
@@ -37,12 +42,12 @@
                     method: 'POST',
                     skipAuth: true,
                     parseJson: true,
-                    body: JSON.stringify({ name, email, phone, password })
+                    body: JSON.stringify({ name, email, phone, password, website })
                 });
                 NocturnalSession.completeAuthSuccess(
                     NocturnalSession.expectJsonSuccess(data, 'Registration failed', {
                         isSuccess: function (payload) {
-                            return !!(payload && payload.success && payload.token);
+                            return !!(payload && payload.success && payload.patient);
                         }
                     }),
                     {
@@ -67,6 +72,6 @@
         });
 
         // Phone number validation
-        document.getElementById('phone').addEventListener('input', function(e) {
+        document.getElementById('phone').addEventListener('input', function(_e) {
             this.value = this.value.replace(/[^0-9]/g, '').substring(0, 10);
         });

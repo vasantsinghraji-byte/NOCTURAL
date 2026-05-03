@@ -1,5 +1,5 @@
         // Check authentication
-        const token = PatientSession.requireAuthenticatedPage({
+        PatientSession.requireAuthenticatedPage({
             redirectUrl: AppConfig.routes.page('patient.login')
         });
 
@@ -23,9 +23,7 @@
         async function loadDraft() {
             try {
                 const draft = await NocturnalSession.loadOptionalDraft('healthIntake.form', {
-                    requestOptions: {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    }
+                    requestOptions: {}
                 });
                 if (draft) {
                     formData = { ...formData, ...draft };
@@ -267,31 +265,31 @@
 
             let html = `
                 <div class="list-item">
-                    <h4 style="margin-bottom: 15px;">Lifestyle & Habits</h4>
+                    <h4 class="summary-heading">Lifestyle & Habits</h4>
                     ${Object.entries(formData.habits).map(([key, value]) => `
                         <p><strong>${habitsLabels[key]}:</strong> ${value.replace('_', ' ')}</p>
                     `).join('')}
                 </div>
 
                 <div class="list-item">
-                    <h4 style="margin-bottom: 15px;">Medical Conditions (${formData.conditions.filter(c => c.name).length})</h4>
+                    <h4 class="summary-heading">Medical Conditions (${formData.conditions.filter(c => c.name).length})</h4>
                     ${formData.conditions.filter(c => c.name).map(c => `
                         <p>${c.name} - <em>${c.severity}</em></p>
-                    `).join('') || '<p style="color: #666;">No conditions added</p>'}
+                    `).join('') || '<p class="summary-empty">No conditions added</p>'}
                 </div>
 
                 <div class="list-item">
-                    <h4 style="margin-bottom: 15px;">Allergies (${formData.allergies.filter(a => a.allergen).length})</h4>
+                    <h4 class="summary-heading">Allergies (${formData.allergies.filter(a => a.allergen).length})</h4>
                     ${formData.allergies.filter(a => a.allergen).map(a => `
                         <p>${a.allergen} - ${a.reactionType || 'N/A'} - <em>${a.severity}</em></p>
-                    `).join('') || '<p style="color: #666;">No allergies added</p>'}
+                    `).join('') || '<p class="summary-empty">No allergies added</p>'}
                 </div>
 
                 <div class="list-item">
-                    <h4 style="margin-bottom: 15px;">Current Medications (${formData.currentMedications.filter(m => m.name).length})</h4>
+                    <h4 class="summary-heading">Current Medications (${formData.currentMedications.filter(m => m.name).length})</h4>
                     ${formData.currentMedications.filter(m => m.name).map(m => `
                         <p>${m.name} ${m.dosage ? `(${m.dosage})` : ''} ${m.frequency ? `- ${m.frequency}` : ''}</p>
-                    `).join('') || '<p style="color: #666;">No medications added</p>'}
+                    `).join('') || '<p class="summary-empty">No medications added</p>'}
                 </div>
             `;
 
@@ -316,7 +314,6 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(cleanData)
@@ -349,7 +346,6 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(cleanData)
@@ -369,7 +365,7 @@
 
         // UI Helpers
         function showLoading(show) {
-            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+            AppUi.setDisplay(document.getElementById('loadingOverlay'), show ? 'flex' : 'none');
         }
 
         function showToast(message, type = 'info') {

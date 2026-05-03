@@ -78,10 +78,10 @@
                 const budget = data.data.budget;
 
                 document.getElementById('budgetPreview').classList.remove('is-hidden');
-                document.getElementById('previewBudget').textContent = `₹${budget.monthlyBudget.toLocaleString()}`;
-                document.getElementById('previewSpent').textContent = `₹${budget.spent.toLocaleString()}`;
-                document.getElementById('previewRemaining').textContent = `₹${budget.remaining.toLocaleString()}`;
-                document.getElementById('previewPercent').textContent = `${budget.percentUsed}%`;
+                document.getElementById('previewBudget').textContent = AppFormat.currencyWhole(budget.monthlyBudget);
+                document.getElementById('previewSpent').textContent = AppFormat.currencyWhole(budget.spent);
+                document.getElementById('previewRemaining').textContent = AppFormat.currencyWhole(budget.remaining);
+                document.getElementById('previewPercent').textContent = AppFormat.percent(budget.percentUsed);
             } catch (error) {
                 console.error('Error loading budget preview:', error);
             }
@@ -170,3 +170,4 @@
             document.getElementById('logout-btn').addEventListener('click', logout);
             document.getElementById('settingsForm').addEventListener('submit', saveSettings);
         });
+

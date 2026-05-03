@@ -78,6 +78,21 @@ function getProviderLabel(provider) {
   return provider.name + ' (' + specialization + experienceLabel + ')';
 }
 
+function renderAssignmentEmpty(list, message) {
+  var empty = document.createElement('div');
+  empty.className = 'assignment-empty';
+  empty.textContent = message;
+  list.replaceChildren(empty);
+}
+
+function appendAssignmentMeta(container, label, value) {
+  var row = document.createElement('div');
+  var strong = document.createElement('strong');
+  strong.textContent = label;
+  row.append(strong, document.createTextNode(' ' + value));
+  container.appendChild(row);
+}
+
 async function loadBookingAssignments() {
   var summary = document.getElementById('bookingAssignmentSummary');
   var list = document.getElementById('bookingAssignmentList');
@@ -112,7 +127,7 @@ async function loadBookingAssignments() {
   } catch (error) {
     console.error('Error loading booking assignments:', error);
     summary.textContent = 'Unable to load booking assignment data right now.';
-    list.innerHTML = '<div class="assignment-empty">Please refresh the page and try again.</div>';
+    renderAssignmentEmpty(list, 'Please refresh the page and try again.');
   }
 }
 
@@ -122,38 +137,71 @@ function renderBookingAssignments(bookings, providers) {
 
   if (!bookings || bookings.length === 0) {
     summary.textContent = 'No unassigned bookings need action right now.';
-    list.innerHTML = '<div class="assignment-empty">All current patient bookings are assigned.</div>';
+    renderAssignmentEmpty(list, 'All current patient bookings are assigned.');
     return;
   }
 
   if (!providers || providers.length === 0) {
     summary.textContent = 'Pending bookings found, but no active providers are available for assignment.';
-    list.innerHTML = '<div class="assignment-empty">Create or activate a nurse or physiotherapist account to assign these bookings.</div>';
+    renderAssignmentEmpty(list, 'Create or activate a nurse or physiotherapist account to assign these bookings.');
     return;
   }
 
   summary.textContent = 'Assign an active provider to the newest requested bookings.';
-  list.innerHTML = bookings.map(function (booking) {
-    return (
-      '<div class="assignment-card">' +
-        '<h3>' + booking.serviceType + '</h3>' +
-        '<div class="assignment-meta">' +
-          '<div><strong>Patient:</strong> ' + ((booking.patientDetails && booking.patientDetails.name) || 'Patient') + '</div>' +
-          '<div><strong>When:</strong> ' + new Date(booking.scheduledDate).toLocaleDateString() + ' at ' + booking.scheduledTime + '</div>' +
-          '<div><strong>Where:</strong> ' + getBookingLocationLabel(booking) + '</div>' +
-        '</div>' +
-        '<div class="assignment-row">' +
-          '<select class="assignment-select" data-provider-select="' + booking._id + '">' +
-            '<option value="">Select provider</option>' +
-            providers.map(function (provider) {
-              return '<option value="' + provider._id + '">' + getProviderLabel(provider) + '</option>';
-            }).join('') +
-          '</select>' +
-          '<button class="btn" type="button" data-action="assign-booking" data-booking-id="' + booking._id + '">Assign</button>' +
-        '</div>' +
-      '</div>'
+  list.replaceChildren();
+
+  bookings.forEach(function (booking) {
+    var card = document.createElement('div');
+    card.className = 'assignment-card';
+
+    var heading = document.createElement('h3');
+    heading.textContent = booking.serviceType || 'Booking';
+
+    var meta = document.createElement('div');
+    meta.className = 'assignment-meta';
+    appendAssignmentMeta(meta, 'Patient:', (booking.patientDetails && booking.patientDetails.name) || 'Patient');
+    appendAssignmentMeta(
+      meta,
+      'When:',
+      `${AppFormat.date(booking.scheduledDate)} at ${AppFormat.timeInZone(
+        booking.scheduledDate,
+        booking.scheduledTime || '',
+        booking.scheduledTimezone,
+        booking.scheduledTimezoneOffsetMinutes
+      ) || 'Time not specified'}`
     );
-  }).join('');
+    appendAssignmentMeta(meta, 'Where:', getBookingLocationLabel(booking));
+
+    var row = document.createElement('div');
+    row.className = 'assignment-row';
+
+    var select = document.createElement('select');
+    select.className = 'assignment-select';
+    select.dataset.providerSelect = booking._id;
+
+    var placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select provider';
+    select.appendChild(placeholder);
+
+    providers.forEach(function (provider) {
+      var option = document.createElement('option');
+      option.value = provider._id;
+      option.textContent = getProviderLabel(provider);
+      select.appendChild(option);
+    });
+
+    var button = document.createElement('button');
+    button.className = 'btn';
+    button.type = 'button';
+    button.dataset.action = 'assign-booking';
+    button.dataset.bookingId = booking._id;
+    button.textContent = 'Assign';
+
+    row.append(select, button);
+    card.append(heading, meta, row);
+    list.appendChild(card);
+  });
 }
 
 async function assignBooking(bookingId) {

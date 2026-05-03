@@ -9,7 +9,7 @@ if (typeof AppConfig === 'undefined') {
 }
 
 // Authentication
-var token = PatientSession.requireAuthenticatedPage({
+PatientSession.requireAuthenticatedPage({
     redirectUrl: AppConfig.routes.page('patient.login')
 });
 
@@ -30,7 +30,7 @@ function setupEventListeners() {
     // Sex change - show/hide OB/GYN section
     document.getElementById('sex').addEventListener('change', function() {
         var obgynSection = document.getElementById('obgynSection');
-        obgynSection.style.display = this.value === 'FEMALE' ? 'block' : 'none';
+        AppUi.setDisplay(obgynSection, this.value === 'FEMALE' ? 'block' : 'none');
     });
 
     // DOB change - calculate age
@@ -40,7 +40,7 @@ function setupEventListeners() {
     document.querySelectorAll('input[name="smokingStatus"]').forEach(function(radio) {
         radio.addEventListener('change', function() {
             var details = document.getElementById('smokingDetails');
-            details.style.display = this.value !== 'NEVER' ? 'block' : 'none';
+            AppUi.setDisplay(details, this.value !== 'NEVER' ? 'block' : 'none');
             if (this.value !== 'NEVER') calculatePackYears();
         });
     });
@@ -49,7 +49,7 @@ function setupEventListeners() {
     document.querySelectorAll('input[name="alcoholStatus"]').forEach(function(radio) {
         radio.addEventListener('change', function() {
             var details = document.getElementById('alcoholDetails');
-            details.style.display = this.value !== 'NEVER' ? 'block' : 'none';
+            AppUi.setDisplay(details, this.value !== 'NEVER' ? 'block' : 'none');
         });
     });
 
@@ -57,7 +57,7 @@ function setupEventListeners() {
     document.querySelectorAll('input[name="allergyStatus"]').forEach(function(radio) {
         radio.addEventListener('change', function() {
             var section = document.getElementById('allergySection');
-            section.style.display = this.value === 'YES' ? 'block' : 'none';
+            AppUi.setDisplay(section, this.value === 'YES' ? 'block' : 'none');
         });
     });
 
@@ -89,7 +89,7 @@ function calculateBMI() {
 
     if (height && weight) {
         var heightM = height / 100;
-        var bmi = (weight / (heightM * heightM)).toFixed(1);
+        var bmi = AppFormat.decimal(weight / (heightM * heightM), 1);
         document.getElementById('bmi').value = bmi;
     }
 }
@@ -98,7 +98,7 @@ function calculateBMI() {
 function calculatePackYears() {
     var quantity = parseFloat(document.getElementById('tobaccoQuantity').value) || 0;
     var years = parseFloat(document.getElementById('tobaccoYears').value) || 0;
-    var packYears = ((quantity / 20) * years).toFixed(1);
+    var packYears = AppFormat.decimal((quantity / 20) * years, 1);
     document.getElementById('packYears').value = packYears;
 }
 
@@ -289,8 +289,8 @@ function generateReviewSummary() {
     var sex = document.getElementById('sex').value || 'N/A';
     var chiefComplaint = document.getElementById('chiefComplaint').value || 'Not provided';
 
-    var html = '<div style="margin-bottom: 20px;">'
-        + '<h4 style="color: #667eea; margin-bottom: 10px;">Patient Information</h4>'
+    var html = '<div class="review-block">'
+        + '<h4 class="review-block-heading">Patient Information</h4>'
         + '<p><strong>Name:</strong> ' + patientName + '</p>'
         + '<p><strong>Age/Sex:</strong> ' + age + ' years / ' + sex + '</p>'
         + '<p><strong>Chief Complaint:</strong> ' + chiefComplaint + '</p>'
@@ -298,7 +298,7 @@ function generateReviewSummary() {
         + '<div class="alert alert-info">'
         + '<strong>Form Completion:</strong> All ' + totalSections + ' sections have been accessed. Please review each section carefully before submitting.'
         + '</div>'
-        + '<p style="margin-top: 15px; font-size: 13px; color: #666;">'
+        + '<p class="review-help-text">'
         + 'To review specific sections, use the navigation on the left sidebar.'
         + '</p>';
 
@@ -329,7 +329,6 @@ async function saveDraft() {
             method: 'POST',
             parseJson: true,
             headers: {
-                'Authorization': 'Bearer ' + token,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(data)
@@ -357,7 +356,6 @@ async function submitForm() {
             method: 'POST',
             parseJson: true,
             headers: {
-                'Authorization': 'Bearer ' + token,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(data)
@@ -379,9 +377,7 @@ async function loadDraft() {
     // Load any existing draft data
     try {
         var draft = await NocturnalSession.loadOptionalDraft('healthIntake.form', {
-            requestOptions: {
-                headers: { 'Authorization': 'Bearer ' + token }
-            },
+            requestOptions: {},
             selectDraft: function(payload) {
                 return payload && payload.form ? payload.form : null;
             }
@@ -397,7 +393,7 @@ async function loadDraft() {
 
 // UI helpers
 function showLoading(show) {
-    document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+    AppUi.setDisplay(document.getElementById('loadingOverlay'), show ? 'flex' : 'none');
 }
 
 function showToast(message, type) {
@@ -465,3 +461,5 @@ window.addEventListener('DOMContentLoaded', function() {
     bindUiEvents();
     init();
 });
+
+

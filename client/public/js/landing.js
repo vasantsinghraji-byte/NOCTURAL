@@ -17,6 +17,24 @@ var ROUTE_MAP = {
   unifiedRegister: AppConfig.routes.page('sharedRegister')
 };
 
+function trackFunnelEvent(eventName, target) {
+  if (!eventName) {
+    return;
+  }
+
+  AppConfig.fetchRoute('funnelEvents.create', {
+    method: 'POST',
+    skipAuth: true,
+    body: JSON.stringify({
+      event: eventName,
+      path: window.location.pathname,
+      target: target || ''
+    })
+  }).catch(function () {
+    // Analytics must never block public navigation.
+  });
+}
+
 // ============================================================================
 // Event Delegation - replaces all inline onclick handlers
 // ============================================================================
@@ -44,6 +62,7 @@ document.addEventListener('click', function (event) {
         hideLoginOptions();
         break;
       case 'navigate':
+        trackFunnelEvent(actionTarget.getAttribute('data-event'), actionTarget.getAttribute('data-href'));
         window.location.href = actionTarget.getAttribute('data-href');
         break;
       case 'open-register':
@@ -75,7 +94,7 @@ document.addEventListener('click', function (event) {
       !event.target.closest('#loginDropdown')) {
     var dropdown = document.getElementById('loginDropdown');
     if (dropdown) {
-      dropdown.style.display = 'none';
+      AppUi.setDisplay(dropdown, 'none');
     }
   }
 });
@@ -94,11 +113,13 @@ window.addEventListener('click', function (event) {
 
 function showLoginOptions() {
   var dropdown = document.getElementById('loginDropdown');
-  dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+  if (dropdown) {
+    dropdown.classList.toggle('is-open');
+  }
 }
 
 function hideLoginOptions() {
-  document.getElementById('loginDropdown').style.display = 'none';
+  AppUi.setDisplay(document.getElementById('loginDropdown'), 'none');
 }
 
 // ============================================================================
@@ -106,13 +127,13 @@ function hideLoginOptions() {
 // ============================================================================
 
 function openLoginModal() {
-  document.getElementById('loginModal').style.display = 'block';
-  document.body.style.overflow = 'hidden';
+  AppUi.setDisplay(document.getElementById('loginModal'), 'block');
+  document.body.classList.add('modal-open');
 }
 
 function closeLoginModal() {
-  document.getElementById('loginModal').style.display = 'none';
-  document.body.style.overflow = 'auto';
+  AppUi.setDisplay(document.getElementById('loginModal'), 'none');
+  document.body.classList.remove('modal-open');
   document.getElementById('loginError').innerHTML = '';
 }
 
@@ -122,8 +143,8 @@ function openRegisterModal() {
 }
 
 function closeRegisterModal() {
-  document.getElementById('registerModal').style.display = 'none';
-  document.body.style.overflow = 'auto';
+  AppUi.setDisplay(document.getElementById('registerModal'), 'none');
+  document.body.classList.remove('modal-open');
   document.getElementById('registerError').innerHTML = '';
 }
 
@@ -135,8 +156,6 @@ window.addEventListener('DOMContentLoaded', async function () {
   var user = await NocturnalSession.getActiveUser();
   if (user) {
     NocturnalSession.redirectForUser(user, ROUTE_MAP);
-  } else if (localStorage.getItem('token')) {
-    NocturnalSession.clearSession();
   }
 });
 
@@ -167,7 +186,7 @@ document.addEventListener('DOMContentLoaded', function () {
         NocturnalSession.completeAuthSuccess(
           NocturnalSession.expectJsonSuccess(data, 'Login failed', {
             isSuccess: function (payload) {
-              return !!(payload && payload.success && payload.token);
+              return !!(payload && payload.success && payload.user);
             }
           }),
           {
@@ -237,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function () {
         NocturnalSession.completeAuthSuccess(
           NocturnalSession.expectJsonSuccess(data, 'Registration failed', {
             isSuccess: function (payload) {
-              return !!(payload && payload.success && payload.token);
+              return !!(payload && payload.success && payload.user);
             }
           }),
           {

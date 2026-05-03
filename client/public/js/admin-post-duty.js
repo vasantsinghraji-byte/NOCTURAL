@@ -19,8 +19,7 @@ function checkAuth() {
 
         async function handlePostDuty(event) {
             event.preventDefault();
-            const token = checkAuth();
-            if (!token) return;
+            if (!checkAuth()) return;
 
             const dutyData = {
                 title: document.getElementById('duty-title').value,
@@ -39,14 +38,13 @@ function checkAuth() {
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(dutyData)
                 }), 'Failed to post duty');
                 const successMsg = document.getElementById('success-msg');
                 successMsg.textContent = 'Duty posted successfully!';
-                successMsg.style.display = 'block';
+                AppUi.setDisplay(successMsg, 'block');
                 document.getElementById('post-duty-form').reset();
 
                 setTimeout(() => {
@@ -55,7 +53,7 @@ function checkAuth() {
             } catch (error) {
                 const errorMsg = document.getElementById('error-msg');
                 errorMsg.textContent = error.message;
-                errorMsg.style.display = 'block';
+                AppUi.setDisplay(errorMsg, 'block');
             }
         }
 

@@ -10,13 +10,11 @@
 
         // Load profile data
         async function loadProfile() {
-            const token = checkAuth();
-            if (!token) return;
+            if (!checkAuth()) return;
 
             try {
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('auth.me', {
-                    parseJson: true,
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    parseJson: true
                 }), 'Failed to load profile', {
                     isSuccess: function (payload) {
                         return !!(payload && payload.success && payload.user);
@@ -34,7 +32,7 @@
         function displayProfile(user) {
             // Profile photo
             if (user.profilePhoto && user.profilePhoto.url) {
-                document.getElementById('profilePhoto').innerHTML = `<img src="${API_URL.replace('/api', '')}${user.profilePhoto.url}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                document.getElementById('profilePhoto').innerHTML = `<img class="profile-photo-image" src="${API_URL.replace('/api', '')}${user.profilePhoto.url}" alt="Profile photo">`;
             }
 
             // Basic info
@@ -43,13 +41,13 @@
 
             // Profile strength
             const strength = user.profileStrength || 0;
-            document.getElementById('strengthValue').textContent = `${strength}%`;
-            document.getElementById('strengthFill').style.width = `${strength}%`;
+            document.getElementById('strengthValue').textContent = AppFormat.percent(strength);
+            AppUi.setPercentWidth(document.getElementById('strengthFill'), strength);
 
             // Stats
-            document.getElementById('statRating').textContent = (user.rating || 0).toFixed(1);
+            document.getElementById('statRating').textContent = AppFormat.decimal(user.rating || 0, 1);
             document.getElementById('statShifts').textContent = user.completedDuties || 0;
-            document.getElementById('statRate').textContent = `${user.completionRate || 100}%`;
+            document.getElementById('statRate').textContent = AppFormat.percent(user.completionRate || 100);
 
             // Professional details
             if (user.professional) {
@@ -74,7 +72,7 @@
                         `;
                     });
                 } else {
-                    skillsGrid.innerHTML = '<p style="color: #666;">No skills added yet</p>';
+                    skillsGrid.innerHTML = '<p class="muted-text">No skills added yet</p>';
                 }
 
                 // Preferences
@@ -85,7 +83,7 @@
                         preferencesGrid.innerHTML += `<div class="preference-chip">${time}</div>`;
                     });
                 } else {
-                    preferencesGrid.innerHTML = '<p style="color: #666;">No preferences set</p>';
+                    preferencesGrid.innerHTML = '<p class="muted-text">No preferences set</p>';
                 }
             }
 
@@ -176,7 +174,7 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            const token = checkAuth();
+            if (!checkAuth()) return;
             const formData = new FormData();
             formData.append('profilePhoto', file);
 
@@ -184,7 +182,6 @@
                 NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('uploads.profilePhoto', {
                     method: 'POST',
                     parseJson: true,
-                    headers: { 'Authorization': `Bearer ${token}` },
                     body: formData
                 }), 'Upload failed');
                 showAlert('Profile photo updated successfully!', 'success');
@@ -204,7 +201,7 @@
                 const file = e.target.files[0];
                 if (!file) return;
 
-                const token = checkAuth();
+                if (!checkAuth()) return;
                 const formData = new FormData();
                 formData.append(docType, file);
 
@@ -212,7 +209,6 @@
                     NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('uploads.document', {
                         method: 'POST',
                         parseJson: true,
-                        headers: { 'Authorization': `Bearer ${token}` },
                         body: formData
                     }, {
                         params: { documentType: docType }
@@ -281,3 +277,5 @@
             bindUiEvents();
             loadProfile();
         });
+
+

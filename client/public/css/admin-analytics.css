@@ -523,3 +523,20 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        .best-match-note {
+            color: var(--success);
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .optimization-description {
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+
+        .optimization-detail {
+            font-size: 0.85rem;
+            color: var(--gray);
+            margin-top: 5px;
+        }

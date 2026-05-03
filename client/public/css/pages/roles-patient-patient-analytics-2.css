@@ -1,0 +1,15 @@
+/* File upload area */
+        .file-upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: var(--bg-light);
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(91, 141, 190, 0.05);
+        }

@@ -50,72 +50,14 @@ class Logger {
 // Add CSS animations
 (function() {
     if (document.getElementById('utils-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'utils-styles';
-    style.textContent = `
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes slideOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .toast {
-            padding: 16px 24px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            color: white;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            animation: slideIn 0.3s ease-out;
-            max-width: 400px;
-        }
-        .toast-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-        .toast-error { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
-        .toast-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
-        .toast-info { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
-        .toast-close {
-            margin-left: auto;
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            opacity: 0.7;
-            font-size: 1.2rem;
-            padding: 0;
-        }
-        .toast-close:hover { opacity: 1; }
-        .spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 0.8s linear infinite;
-        }
-        .btn-loading {
-            position: relative;
-            pointer-events: none;
-            opacity: 0.8;
-        }
-    `;
-    document.head.appendChild(style);
+    (function loadExtractedStylesheet() {
+    var href = '/css/components/utils.css';
+    if (document.querySelector('link[href="' + href + '"]')) return;
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+  })();
 })();
 
 // Toast container
@@ -138,7 +80,7 @@ const showToast = (message, type = 'info', duration = 4000) => {
     const icons = { success: '\u2713', error: '\u2717', warning: '\u26A0', info: '\u2139' };
 
     toast.innerHTML = `
-        <span style="font-size:1.2rem">${icons[type] || icons.info}</span>
+        <span class="toast-symbol">${icons[type] || icons.info}</span>
         <span>${message}</span>
         <button type="button" class="toast-close">&times;</button>
     `;
@@ -153,7 +95,7 @@ const showToast = (message, type = 'info', duration = 4000) => {
     }
 
     setTimeout(() => {
-        toast.style.animation = 'slideOut 0.3s ease-out forwards';
+        toast.classList.add('toast-is-exiting');
         setTimeout(() => toast.remove(), 300);
     }, duration);
 
@@ -192,26 +134,21 @@ const showPageLoading = (message = 'Loading...') => {
     if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'page-loading-overlay';
-        overlay.style.cssText = `
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255,255,255,0.9);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 9999; flex-direction: column; gap: 16px;
-        `;
+        overlay.className = 'page-loading-overlay';
         overlay.innerHTML = `
-            <div style="width:50px;height:50px;border:4px solid #e0e0e0;border-top-color:#667eea;border-radius:50%;animation:spin 1s linear infinite;"></div>
-            <div style="color:#666;font-size:16px;" id="page-loading-message">${message}</div>
+            <div class="page-loading-spinner"></div>
+            <div class="page-loading-message" id="page-loading-message">${message}</div>
         `;
         document.body.appendChild(overlay);
     } else {
-        overlay.style.display = 'flex';
+        AppUi.setDisplay(overlay, 'flex');
         document.getElementById('page-loading-message').textContent = message;
     }
 };
 
 const hidePageLoading = () => {
     const overlay = document.getElementById('page-loading-overlay');
-    if (overlay) overlay.style.display = 'none';
+    if (overlay) AppUi.setDisplay(overlay, 'none');
 };
 
 // API error handler
@@ -264,14 +201,13 @@ const toStandardApiEndpoint = (url) => {
 };
 
 const apiFetch = async (url, options = {}) => {
-    const token = localStorage.getItem('token');
     const defaultHeaders = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        'Content-Type': 'application/json'
     };
 
     const mergedOptions = {
         ...options,
+        credentials: options.credentials || 'include',
         headers: { ...defaultHeaders, ...options.headers }
     };
 
@@ -298,19 +234,14 @@ const apiFetch = async (url, options = {}) => {
 const confirmDialog = (message, title = 'Confirm') => {
     return new Promise((resolve) => {
         const overlay = document.createElement('div');
-        overlay.style.cssText = `
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 10001;
-        `;
+        overlay.className = 'confirm-overlay';
         overlay.innerHTML = `
-            <div style="background:white;border-radius:12px;padding:24px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-                <h3 style="margin:0 0 12px 0;color:#333;">${title}</h3>
-                <p style="margin:0 0 24px 0;color:#666;">${message}</p>
-                <div style="display:flex;gap:12px;justify-content:flex-end;">
-                    <button id="confirm-cancel" style="padding:10px 20px;border:1px solid #ddd;background:white;border-radius:6px;cursor:pointer;">Cancel</button>
-                    <button id="confirm-ok" style="padding:10px 20px;border:none;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border-radius:6px;cursor:pointer;">Confirm</button>
+            <div class="confirm-dialog">
+                <h3 class="confirm-title">${title}</h3>
+                <p class="confirm-message">${message}</p>
+                <div class="confirm-actions">
+                    <button id="confirm-cancel" class="confirm-button confirm-button-cancel">Cancel</button>
+                    <button id="confirm-ok" class="confirm-button confirm-button-ok">Confirm</button>
                 </div>
             </div>
         `;
@@ -344,11 +275,24 @@ const confirmDialog = (message, title = 'Confirm') => {
 
 // Format helpers
 const formatDate = (dateString, options = {}) => {
+    if (typeof AppFormat !== 'undefined' && AppFormat && typeof AppFormat.date === 'function') {
+        return AppFormat.date(dateString, 'en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            ...options
+        });
+    }
+
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', ...options });
 };
 
 const formatCurrency = (amount, currency = 'INR') => {
+    if (typeof AppFormat !== 'undefined' && AppFormat && typeof AppFormat.currencyCode === 'function') {
+        return AppFormat.currencyCode(amount, currency, 'en-IN');
+    }
+
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
 };
 

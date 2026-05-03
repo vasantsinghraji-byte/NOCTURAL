@@ -77,6 +77,7 @@ const ROUTE_CONFIG = Object.freeze({
         postDuty: '/roles/admin/admin-post-duty.html',
         applications: '/roles/admin/admin-applications.html',
         analytics: '/roles/admin/admin-analytics.html',
+        waitlist: '/roles/admin/admin-waitlist.html',
         settings: '/roles/admin/admin-settings.html',
         profile: '/roles/admin/admin-profile.html'
     },
@@ -163,6 +164,142 @@ const AppRoutes = {
     }
 };
 
+const normalizeFiniteNumber = (value, fallback = 0) => {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : fallback;
+};
+
+const formatUtcOffsetMinutes = (offsetMinutes) => {
+    const numericOffsetMinutes = normalizeFiniteNumber(offsetMinutes, 0);
+    const sign = numericOffsetMinutes >= 0 ? '+' : '-';
+    const absoluteMinutes = Math.abs(numericOffsetMinutes);
+    const hours = String(Math.floor(absoluteMinutes / 60)).padStart(2, '0');
+    const minutes = String(absoluteMinutes % 60).padStart(2, '0');
+
+    return `${sign}${hours}:${minutes}`;
+};
+
+const getDatePart = (value) => {
+    if (value === undefined || value === null || value === '') {
+        return '';
+    }
+
+    if (value instanceof Date) {
+        if (Number.isNaN(value.getTime())) {
+            return '';
+        }
+
+        return value.toISOString().split('T')[0];
+    }
+
+    return String(value).split('T')[0];
+};
+
+const buildScheduledDateTime = (dateValue, timeValue = '', offsetMinutes = 0) => {
+    const datePart = getDatePart(dateValue);
+    if (!datePart || !/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        return null;
+    }
+
+    if (!/^\d{1,2}:\d{2}$/.test(String(timeValue || ''))) {
+        return null;
+    }
+
+    const [hours, minutes] = String(timeValue).split(':').map(Number);
+    if (
+        Number.isNaN(hours) ||
+        Number.isNaN(minutes) ||
+        hours < 0 ||
+        hours > 23 ||
+        minutes < 0 ||
+        minutes > 59
+    ) {
+        return null;
+    }
+
+    const explicitOffsetDateTime = `${datePart}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00${formatUtcOffsetMinutes(offsetMinutes)}`;
+    const scheduledDateTime = new Date(explicitOffsetDateTime);
+
+    return Number.isNaN(scheduledDateTime.getTime()) ? null : scheduledDateTime;
+};
+
+const AppFormat = {
+    decimal: function(value, decimals = 0, fallback = 0) {
+        return normalizeFiniteNumber(value, fallback).toFixed(decimals);
+    },
+
+    percent: function(value, decimals = 0, fallback = 0) {
+        return `${this.decimal(value, decimals, fallback)}%`;
+    },
+
+    currency: function(value, decimals = 2, symbol = '\u20B9') {
+        return `${symbol}${this.decimal(value, decimals)}`;
+    },
+
+    currencyWhole: function(value, symbol = '\u20B9', locale = 'en-IN', fallback = 0) {
+        return `${symbol}${normalizeFiniteNumber(value, fallback).toLocaleString(locale)}`;
+    },
+
+    currencyCode: function(value, currency = 'INR', locale = 'en-IN', fallback = 0) {
+        return new Intl.NumberFormat(locale, {
+            style: 'currency',
+            currency
+        }).format(normalizeFiniteNumber(value, fallback));
+    },
+
+    currencyCompactThousands: function(value, decimals = 0, symbol = '\u20B9') {
+        return `${symbol}${this.decimal(normalizeFiniteNumber(value) / 1000, decimals)}k`;
+    },
+
+    megabytes: function(bytes, decimals = 2) {
+        return `${this.decimal(normalizeFiniteNumber(bytes) / (1024 * 1024), decimals)} MB`;
+    },
+
+    date: function(value, locale = 'en-US', options = {}) {
+        if (value === undefined || value === null || value === '') {
+            return '';
+        }
+
+        const dateValue = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(dateValue.getTime())) {
+            return '';
+        }
+
+        return dateValue.toLocaleDateString(locale, options);
+    },
+
+    dateTime: function(value, timeValue = '', locale = 'en-US', options = {}, separator = ' at ') {
+        const formattedDate = this.date(value, locale, options);
+        if (!formattedDate) {
+            return '';
+        }
+
+        return timeValue ? `${formattedDate}${separator}${timeValue}` : formattedDate;
+    },
+
+    timeInZone: function(dateValue, timeValue = '', timeZone = 'UTC', offsetMinutes = 0, locale = 'en-US', options = {}) {
+        const scheduledDateTime = buildScheduledDateTime(dateValue, timeValue, offsetMinutes);
+        if (!scheduledDateTime) {
+            return timeValue || '';
+        }
+
+        try {
+            return new Intl.DateTimeFormat(locale, {
+                hour: 'numeric',
+                minute: '2-digit',
+                timeZoneName: 'short',
+                timeZone,
+                ...options
+            }).format(scheduledDateTime);
+        } catch (_error) {
+            return timeValue || '';
+        }
+    },
+
+    hours: function(value, suffix = 'h', decimals = 0, fallback = 0) {
+        return `${this.decimal(value, decimals, fallback)}${suffix}`;
+    }
+};
 const buildUploadDocumentEndpoint = function(documentType) {
     const uploadDocumentRoutes = {
         mciCert: 'uploads/mci-certificate',
@@ -184,6 +321,8 @@ const API_ROUTE_CONFIG = Object.freeze({
     auth: {
         login: 'auth/login',
         register: 'auth/register',
+        refresh: 'auth/refresh',
+        logout: 'auth/logout',
         me: 'auth/me'
     },
     analytics: {
@@ -227,6 +366,18 @@ const API_ROUTE_CONFIG = Object.freeze({
         login: 'patients/login',
         register: 'patients/register',
         stats: 'patients/me/stats'
+    },
+    funnelEvents: {
+        create: 'funnel-events'
+    },
+    hospitalWaitlist: {
+        create: 'hospital-waitlist'
+    },
+    adminFunnel: {
+        dailyAnalytics: 'admin/funnel/analytics/daily',
+        waitlist: 'admin/funnel/waitlist',
+        waitlistExport: 'admin/funnel/waitlist/export',
+        waitlistStatus: ({ leadId }) => `admin/funnel/waitlist/${leadId}/status`
     },
     bookings: {
         list: 'bookings',
@@ -321,41 +472,29 @@ const AppConfig = {
         return this.fetch(this.endpoint(pathKey, routeOptions), options);
     },
 
-    // Get auth token from localStorage
+    // JWTs are stored in httpOnly cookies; remove any legacy client-side tokens.
     getToken: function(options = {}) {
         const configuredKeys = Array.isArray(options.tokenKeys) && options.tokenKeys.length > 0
             ? options.tokenKeys
             : LEGACY_AUTH_TOKEN_KEYS;
         const tokenKeys = [...new Set([AUTH_TOKEN_STORAGE_KEY, ...configuredKeys])];
 
-        for (const key of tokenKeys) {
-            const token = localStorage.getItem(key);
-            if (!token) {
-                continue;
-            }
-
-            if (key !== AUTH_TOKEN_STORAGE_KEY) {
-                localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
-                localStorage.removeItem(key);
-            }
-
-            return token;
-        }
+        tokenKeys.forEach((key) => localStorage.removeItem(key));
 
         return null;
     },
 
     isAuthenticated: function(options = {}) {
-        return !!this.getToken(options);
+        this.getToken(options);
+        return !!(
+            localStorage.getItem('user') ||
+            localStorage.getItem('userType') ||
+            localStorage.getItem('userId')
+        );
     },
 
     setToken: function(token) {
-        if (!token) {
-            return;
-        }
-
-        localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
-        LEGACY_AUTH_TOKEN_KEYS.forEach((key) => localStorage.removeItem(key));
+        this.clearToken();
     },
 
     clearToken: function() {
@@ -365,11 +504,8 @@ const AppConfig = {
 
     // Get auth headers for API calls
     getAuthHeaders: function(options = {}) {
-        const token = this.getToken(options);
+        this.getToken(options);
         const headers = { 'Content-Type': 'application/json' };
-        if (token && !options.skipAuth) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
         return headers;
     },
 
@@ -394,14 +530,37 @@ const AppConfig = {
         }
 
         try {
-            const response = await fetch(getApiUrl(endpoint), {
+            const requestUrl = getApiUrl(endpoint);
+            const requestInit = {
                 ...requestOptions,
+                credentials: requestOptions.credentials || 'include',
                 headers: {
                     ...defaultHeaders,
                     ...requestOptions.headers
                 },
                 signal: controller.signal
-            });
+            };
+            let response = await fetch(requestUrl, requestInit);
+
+            const canRefreshSession =
+                response.status === 401 &&
+                !options.skipAuth &&
+                !endpoint.replace(/^\//, '').startsWith('auth/refresh') &&
+                !endpoint.replace(/^\//, '').startsWith('auth/logout');
+
+            if (canRefreshSession) {
+                const refreshResponse = await fetch(getApiUrl('auth/refresh'), {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal
+                });
+
+                if (refreshResponse.ok) {
+                    response = await fetch(requestUrl, requestInit);
+                }
+            }
+
             clearTimeout(timeoutId);
 
             if (!shouldParseJson) {
@@ -421,7 +580,10 @@ const AppConfig = {
             const data = await parseJsonBody(response);
 
             if (!response.ok) {
-                throw new Error((data && data.message) || 'Request failed');
+                const requestError = new Error((data && data.message) || 'Request failed');
+                requestError.status = response.status;
+                requestError.payload = data;
+                throw requestError;
             }
 
             return data;
@@ -435,6 +597,83 @@ const AppConfig = {
     }
 };
 
+const AppUi = {
+    ensureStylesheet: function(href) {
+        if (
+            typeof document === 'undefined'
+            || !document.querySelector
+            || !document.createElement
+            || !document.head
+            || !document.head.appendChild
+        ) {
+            return;
+        }
+
+        if (!href || document.querySelector('link[href="' + href + '"]')) {
+            return;
+        }
+
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        document.head.appendChild(link);
+    },
+
+    setDisplay: function(element, displayMode) {
+        if (!element) {
+            return;
+        }
+
+        element.classList.remove(
+            'is-hidden',
+            'is-block',
+            'is-flex',
+            'is-inline',
+            'is-inline-block',
+            'is-grid'
+        );
+
+        if (!displayMode || displayMode === 'none') {
+            element.classList.add('is-hidden');
+            return;
+        }
+
+        const className = {
+            block: 'is-block',
+            flex: 'is-flex',
+            inline: 'is-inline',
+            'inline-block': 'is-inline-block',
+            grid: 'is-grid'
+        }[displayMode];
+
+        if (className) {
+            element.classList.add(className);
+        }
+    },
+
+    percentWidthClass: function(value) {
+        const numericValue = typeof value === 'string'
+            ? parseFloat(value.replace('%', ''))
+            : Number(value);
+        const bounded = Math.max(0, Math.min(100, Math.round(Number.isFinite(numericValue) ? numericValue : 0)));
+        return `w-pct-${bounded}`;
+    },
+
+    setPercentWidth: function(element, value) {
+        if (!element) {
+            return;
+        }
+
+        Array.from(element.classList)
+            .filter((className) => /^w-pct-\d+$/.test(className))
+            .forEach((className) => element.classList.remove(className));
+
+        element.classList.add(AppUi.percentWidthClass(value));
+    }
+};
+
+AppUi.ensureStylesheet('/css/components/display-helpers.css');
+
 // Export for use globally
 window.API_CONFIG = API_CONFIG;
 window.getApiUrl = getApiUrl;
@@ -442,6 +681,8 @@ window.API_URL = API_URL;
 window.AppConfig = AppConfig;
 window.AppRoutes = AppRoutes;
 window.API_ROUTE_CONFIG = API_ROUTE_CONFIG;
+window.AppFormat = AppFormat;
+window.AppUi = AppUi;
 
 // Log configuration in development
 if (API_CONFIG.isDevelopment) {
@@ -452,3 +693,6 @@ if (API_CONFIG.isDevelopment) {
         version: API_CONFIG.API_VERSION
     });
 }
+
+
+
