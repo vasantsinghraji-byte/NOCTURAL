@@ -38,7 +38,6 @@ const createRateLimiter = (options) => {
     message,
     skipSuccessfulRequests = false,
     skipFailedRequests = false,
-    keyGenerator = null,
     handler = null,
     onLimitReached = null
   } = options;
@@ -129,7 +128,7 @@ const authRateLimiter = createRateLimiter({
   max: 5,
   message: 'Too many authentication attempts, please try again later',
   skipSuccessfulRequests: true,
-  onLimitReached: (req, res) => {
+  onLimitReached: (req, _res) => {
     // Additional security measures on auth limit reached
     monitoring.triggerAlert('auth_rate_limit_exceeded', {
       ip: req.ip,
@@ -137,6 +136,17 @@ const authRateLimiter = createRateLimiter({
       userAgent: req.get('user-agent')
     });
   }
+});
+
+/**
+ * Hospital waitlist limiter
+ * 10 submissions per hour per IP. This is intentionally separate from auth
+ * because it is a public lead form, not an account-creation endpoint.
+ */
+const hospitalWaitlistRateLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: 'Too many waitlist submissions, please try again later'
 });
 
 /**
@@ -384,6 +394,7 @@ module.exports = {
   globalRateLimiter,
   strictRateLimiter,
   authRateLimiter,
+  hospitalWaitlistRateLimiter,
   passwordResetRateLimiter,
   apiRateLimiter,
   uploadRateLimiter,

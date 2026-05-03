@@ -9,7 +9,7 @@
     "services/*"
   ],
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=22.0.0",
     "npm": ">=9.0.0"
   },
   "scripts": {
@@ -35,6 +35,10 @@
     "db:migrate": "node scripts/add-indexes.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "scan:csp-html": "node scripts/scan-html-csp.js",
+    "audit:inline-styles": "node scripts/audit-inline-styles.js",
+    "audit:prod": "npm audit --omit=dev",
+    "scan:inline-styles:strict": "node scripts/audit-inline-styles.js --strict",
     "monitor:db": "node scripts/monitor-db.js",
     "monitor:rate-limits": "node scripts/monitor-rate-limits.js",
     "monitor": "concurrently \"npm run monitor:db\" \"npm run monitor:rate-limits\"",
@@ -59,6 +63,8 @@
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration",
     "test:e2e": "jest tests/e2e",
+    "test:e2e:public-funnel": "playwright test tests/e2e/public-funnel.playwright.spec.cjs",
+    "test:e2e:csp": "playwright test tests/e2e/csp-console.playwright.spec.cjs",
     "test:smoke": "jest tests/smoke",
     "test:models": "jest tests/unit/models",
     "test:controllers": "jest tests/unit/controllers",
@@ -68,7 +74,10 @@
     "test:ci": "jest --config jest.fast.config.js --ci --coverage --runInBand",
     "test:security-gate": "node ./node_modules/jest/bin/jest.js --runInBand --runTestsByPath tests/unit/security/auth-service-lockdown.test.js tests/integration/auth-me-profile-policy.test.js tests/integration/auth-change-password.test.js",
     "verify:local": "npm run lint && npm test",
-    "test:deploy-gate": "npm run build:prod && node ./node_modules/jest/bin/jest.js --runInBand --runTestsByPath tests/unit/validation/frontend-legacy-auth-retirement.test.js tests/unit/validation/frontend-route-helper-centralization.test.js tests/unit/validation/frontend-page-api-dependency-map.test.js tests/unit/validation/frontend-admin-doctor-api-contract.test.js tests/unit/validation/frontend-provider-admin-booking-contract.test.js tests/unit/validation/frontend-auth-flow-standardization.test.js tests/unit/validation/frontend-session-standardization.test.js tests/unit/validation/frontend-runtime-role-routing-and-doctor-dashboard-contract.test.js tests/unit/validation/frontend-build-output-csp-contract.test.js tests/unit/validation/frontend-build-artifact-contract.test.js tests/unit/validation/frontend-final-contract-closures.test.js tests/unit/validation/frontend-canonical-nav-contract.test.js tests/unit/validation/admin-route-contract.test.js tests/smoke/production-entrypoint-health.test.js tests/smoke/production-built-frontend-playwright.test.js",
+    "test:deploy-gate": "npm run build:prod && npm run scan:inline-styles:strict && node ./node_modules/jest/bin/jest.js --runInBand --runTestsByPath tests/unit/validation/frontend-legacy-auth-retirement.test.js tests/unit/validation/frontend-route-helper-centralization.test.js tests/unit/validation/frontend-page-api-dependency-map.test.js tests/unit/validation/frontend-admin-doctor-api-contract.test.js tests/unit/validation/frontend-provider-admin-booking-contract.test.js tests/unit/validation/frontend-auth-flow-standardization.test.js tests/unit/validation/frontend-session-standardization.test.js tests/unit/validation/frontend-runtime-role-routing-and-doctor-dashboard-contract.test.js tests/unit/validation/frontend-build-output-csp-contract.test.js tests/unit/validation/frontend-build-artifact-contract.test.js tests/unit/validation/frontend-final-contract-closures.test.js tests/unit/validation/frontend-canonical-nav-contract.test.js tests/unit/validation/admin-route-contract.test.js tests/smoke/production-entrypoint-health.test.js tests/smoke/production-built-frontend-playwright.test.js && npm run test:e2e:csp",
+    "smoke:deployed-auth-cors": "node scripts/smoke-deployed-auth-cors.js",
+    "smoke:deployed-service-worker": "node scripts/smoke-deployed-service-worker.js",
+    "smoke:deployed-csp": "node scripts/smoke-deployed-csp.js",
     "security:scan": "node scripts/security-scan.js --target http://localhost:5000",
     "security:scan:full": "node scripts/security-scan.js --target http://localhost:5000 --mode full",
     "security:rotate": "node scripts/rotate-secrets.js",
@@ -79,7 +88,7 @@
     "db:setup-security": "node scripts/setup-mongodb-security.js",
     "db:setup-replica": "node scripts/setup-replica-set.js",
     "db:enable-auth": "scripts\\enable-mongodb-auth.bat",
-    "prepare": "git config core.hooksPath .githooks",
+    "prepare": "node -e \"const fs=require('node:fs'); const {spawnSync}=require('node:child_process'); if (!fs.existsSync('.git')) process.exit(0); const result=spawnSync('git',['config','core.hooksPath','.githooks'],{stdio:'ignore'}); if (result.error || result.status) console.warn('Skipping git hooks setup');\"",
     "setup:env": "node scripts/setup-env.js"
   },
   "keywords": [],
@@ -99,7 +108,7 @@
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.1.0",
     "express-validator": "^7.3.0",
-    "file-type": "^16.5.4",
+    "file-type": "^22.0.1",
     "geoip-lite": "^1.4.10",
     "helmet": "^8.1.0",
     "ioredis": "^5.8.2",
@@ -108,7 +117,6 @@
     "mongoose": "^8.19.0",
     "multer": "^2.0.2",
     "multer-s3": "^3.0.1",
-    "pm2": "^6.0.13",
     "rate-limit-redis": "^4.2.3",
     "razorpay": "^2.9.6",
     "swagger-jsdoc": "^6.2.8",
@@ -132,5 +140,8 @@
     "nodemon": "^3.1.10",
     "playwright": "^1.59.1",
     "supertest": "^7.1.4"
+  },
+  "overrides": {
+    "protobufjs": "7.5.5"
   }
 }

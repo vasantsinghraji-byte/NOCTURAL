@@ -9,8 +9,6 @@ const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 const mime = require('mime-types');
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./config/swagger');
 const logger = require('./utils/logger');
 const { resolveFrontendStaticDir } = require('./utils/frontendStatic');
 const metricsRouter = require('./routes/admin/metrics');
@@ -19,6 +17,7 @@ const metricsRouter = require('./routes/admin/metrics');
 const {
   globalRateLimiter,
   authRateLimiter,
+  hospitalWaitlistRateLimiter,
   passwordResetRateLimiter,
   apiRateLimiter,
   uploadRateLimiter,
@@ -46,12 +45,25 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+// Render and similar managed platforms terminate TLS and forward client IPs
+// through X-Forwarded-* headers. express-rate-limit validates this setup and
+// rejects proxied requests unless Express is configured to trust that proxy.
+if (process.env.TRUST_PROXY === 'false') {
+  app.set('trust proxy', false);
+} else {
+  app.set('trust proxy', 1);
+}
+
 // ============================================================================
 // ENHANCED SECURITY MIDDLEWARE - Enterprise-Grade Protection
 // ============================================================================
 
 // Skip heavy middleware in test environment
 const isTest = process.env.NODE_ENV === 'test';
+const isHealthCheckPath = (req) => {
+  const requestPath = (req.originalUrl || req.path || '').split('?')[0];
+  return requestPath === '/api/v1/health' || requestPath === '/api/health';
+};
 
 // 0. Global request timeout — prevent stalled requests from holding connections open
 const REQUEST_TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT_MS) || 30000; // 30 seconds default
@@ -65,16 +77,26 @@ app.use((req, res, next) => {
   next();
 });
 
-// 1. Enforce HTTPS in production (redirect HTTP to HTTPS)
+// 1. CORS and preflight must run before redirects so browsers can complete
+// same-origin POST/credentialed API requests behind production proxies.
+const corsOptions = corsConfig();
+const applyApiCors = (req, res, next) => {
+  if (isHealthCheckPath(req)) {
+    return next();
+  }
+
+  return cors(corsOptions)(req, res, next);
+};
+app.use('/api', applyApiCors);
+app.options(/^\/api\/.*/, applyApiCors);
+
+// 2. Enforce HTTPS in production (redirect HTTP to HTTPS)
 if (!isTest) {
   app.use(enforceHTTPS);
 }
 
-// 1. Enhanced Security Headers (CSP, HSTS, X-Frame-Options, etc.)
+// 3. Enhanced Security Headers (CSP, HSTS, X-Frame-Options, etc.)
 app.use(securityHeaders());
-
-// 2. Enhanced CORS with origin whitelist
-app.use(cors(corsConfig()));
 
 // 3. DDoS Protection - IP-based request tracking with automatic blacklisting
 if (!isTest) {
@@ -110,6 +132,7 @@ if (!isTest) {
   // Auth routes - Strict limits to prevent brute force attacks
   app.use('/api/v1/auth/login', authRateLimiter);
   app.use('/api/v1/auth/register', authRateLimiter);
+  app.use('/api/v1/hospital-waitlist', hospitalWaitlistRateLimiter);
   app.use('/api/v1/auth/forgot-password', passwordResetRateLimiter);
   app.use('/api/v1/auth/reset-password', passwordResetRateLimiter);
 
@@ -204,7 +227,28 @@ if (!isTest) {
 }
 
 // Prefer optimized frontend assets in production containers, but keep local/public fallback.
-app.use(express.static(resolveFrontendStaticDir()));
+const frontendStaticDir = resolveFrontendStaticDir();
+
+app.get('/service-worker.js', (req, res, next) => {
+  res.set({
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0'
+  });
+
+  res.sendFile(path.join(frontendStaticDir, 'service-worker.js'), (error) => {
+    if (error) {
+      next(error);
+    }
+  });
+});
+
+app.use(express.static(frontendStaticDir));
+
+// Compatibility for older/public links that pointed at a root registration page.
+app.get('/register.html', (req, res) => {
+  res.redirect(302, '/shared/register.html');
+});
 
 // Authenticated file access middleware
 const authenticatedFileAccess = require('./middleware/auth').protect;
@@ -222,6 +266,8 @@ app.get('/uploads/:type/:filename', authenticatedFileAccess, async (req, res) =>
     const safePath = path.normalize(filename).replace(/^(\.\.(\/|\\|$))+/, '');
     const filePath = path.join(__dirname, 'uploads', type, safePath);
 
+    // The path is constrained to the authenticated uploads directory above.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     if (!fs.existsSync(filePath)) {
       return res.status(404).send('File not found');
     }
@@ -246,6 +292,7 @@ app.get('/uploads/:type/:filename', authenticatedFileAccess, async (req, res) =>
     const contentType = mime.lookup(filePath) || 'application/octet-stream';
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', 'inline');
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.createReadStream(filePath).pipe(res);
   } catch (error) {
     logger.error('File access error', { error: error.message, path: req.path });
@@ -277,10 +324,21 @@ app.get('/api', (req, res) => {
 });
 
 // API Documentation - Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Nocturnal API Documentation'
-}));
+// Disabled by default in test/production to avoid exposing an incomplete public
+// API surface and to keep swagger-jsdoc's deprecated transitive URL parser out
+// of normal startup. Set ENABLE_API_DOCS=true to mount it deliberately.
+const shouldEnableApiDocs = process.env.ENABLE_API_DOCS === 'true' ||
+  (!isTest && process.env.NODE_ENV !== 'production');
+
+if (shouldEnableApiDocs) {
+  const swaggerUi = require('swagger-ui-express');
+  const swaggerSpec = require('./config/swagger');
+
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Nocturnal API Documentation'
+  }));
+}
 
 // Redirect unversioned requests to latest version
 app.use(redirectToLatestVersion);
