@@ -58,7 +58,6 @@ const securityHeaders = () => {
         scriptSrcAttr: isDevelopment ? ["'unsafe-inline'"] : ["'none'"], // Disable inline handlers in production
         styleSrc: [
           "'self'",
-          "'unsafe-inline'", // Required for CSS frameworks - lower XSS risk than script unsafe-inline
           'https://fonts.googleapis.com',
           'https://cdn.jsdelivr.net',
           'https://cdnjs.cloudflare.com'
@@ -80,12 +79,17 @@ const securityHeaders = () => {
           "'self'",
           'https://api.razorpay.com',
           'https://checkout.razorpay.com',
+          'https://fonts.googleapis.com',
+          'https://fonts.gstatic.com',
+          'https://cdnjs.cloudflare.com',
           process.env.NODE_ENV === 'development' ? 'ws://localhost:*' : '',
           process.env.NODE_ENV === 'development' ? 'http://localhost:*' : ''
         ].filter(Boolean),
         frameSrc: [
           "'self'",
-          'https://api.razorpay.com'
+          'https://api.razorpay.com',
+          'https://checkout.razorpay.com',
+          'https://www.google.com'
         ],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
@@ -144,21 +148,37 @@ const corsConfig = () => {
     .map(origin => origin.trim())
     .filter(Boolean);
 
+  const addAllowedOrigin = (origin) => {
+    if (origin && !allowedOrigins.includes(origin)) {
+      allowedOrigins.push(origin);
+    }
+  };
+
   // Add default origins for development
   if (process.env.NODE_ENV === 'development') {
-    allowedOrigins.push(
+    [
       'http://localhost:3000',
       'http://localhost:5000',
       'http://localhost:5500',
       'http://127.0.0.1:5500'
-    );
+    ].forEach(addAllowedOrigin);
   }
 
-  // Add production Render frontend URL if not already included
-  const renderFrontendUrl = process.env.RENDER_FRONTEND_URL || 'https://nocturnal-frontend-208z.onrender.com';
-  if (!allowedOrigins.includes(renderFrontendUrl)) {
-    allowedOrigins.push(renderFrontendUrl);
-  }
+  // Same-origin browser POSTs include an Origin header. Keep production strict,
+  // but trust this service's configured public origins even when ALLOWED_ORIGINS
+  // was left incomplete in the hosting dashboard.
+  [
+    process.env.APP_URL,
+    process.env.API_URL,
+    process.env.PUBLIC_API_URL,
+    process.env.RENDER_EXTERNAL_URL,
+    process.env.RENDER_FRONTEND_URL,
+    process.env.FRONTEND_URL,
+    process.env.CLIENT_URL,
+    'https://nocturnal-api.onrender.com',
+    'https://nocturnal-frontend.onrender.com',
+    'https://nocturnal-frontend-208z.onrender.com'
+  ].forEach(addAllowedOrigin);
 
   // Log allowed origins on startup
   logger.info('CORS configured with allowed origins', {
@@ -168,9 +188,18 @@ const corsConfig = () => {
 
   return {
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
+      // Allow no-origin requests only outside production for mobile apps,
+      // Postman, and CLI tooling. Production callers must send an allowlisted
+      // Origin so the CORS policy cannot be bypassed by omitting the header.
       if (!origin) {
-        return callback(null, true);
+        if (process.env.NODE_ENV !== 'production') {
+          return callback(null, true);
+        }
+
+        logger.warn('CORS blocked request with missing origin', {
+          allowedOrigins: allowedOrigins.length > 0 ? allowedOrigins : 'NONE CONFIGURED'
+        });
+        return callback(new Error('Not allowed by CORS'));
       }
 
       // Strict origin whitelist check - no bypasses
@@ -240,20 +269,41 @@ const fingerprintRequest = (req, res, next) => {
 /**
  * Detect and block suspicious requests
  */
+const collectStringValues = (value, values = []) => {
+  if (typeof value === 'string') {
+    values.push(value);
+    return values;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return values;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach(item => collectStringValues(item, values));
+    return values;
+  }
+
+  Object.values(value).forEach(item => collectStringValues(item, values));
+  return values;
+};
+
 const detectSuspiciousRequests = (req, res, next) => {
   const suspicious = [];
 
-  // Check for SQL injection patterns
-  const sqlPattern = /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION)\b)/gi;
-  const queryString = JSON.stringify(req.query) + JSON.stringify(req.body);
+  // Inspect raw string values only. MongoDB operator keys are handled by
+  // sanitizationMiddleware, and route validators own endpoint-specific schema.
+  const userStrings = collectStringValues(req.query).concat(collectStringValues(req.body));
 
-  if (sqlPattern.test(queryString)) {
+  // Check for SQL injection phrases in user-supplied string values.
+  const sqlPattern = /\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION)\b[\s\S]*\b(FROM|INTO|TABLE|WHERE|VALUES|SET)\b|--|\/\*|\*\//i;
+  if (userStrings.some(value => sqlPattern.test(value))) {
     suspicious.push('SQL_INJECTION_ATTEMPT');
   }
 
   // Check for XSS patterns
   const xssPattern = /<script|javascript:|onerror=|onload=/gi;
-  if (xssPattern.test(queryString)) {
+  if (userStrings.some(value => xssPattern.test(value))) {
     suspicious.push('XSS_ATTEMPT');
   }
 
@@ -263,10 +313,10 @@ const detectSuspiciousRequests = (req, res, next) => {
     suspicious.push('PATH_TRAVERSAL_ATTEMPT');
   }
 
-  // Check for command injection (only in actual content, not empty objects)
-  const cmdPattern = /[;&|`$]/;
-  if (queryString.length > 4 && cmdPattern.test(queryString)) {
-    // Length > 4 to skip empty {} which is stringified from empty req.body/query
+  // Check for shell command injection phrases without blocking normal currency
+  // strings like "$50" or MongoDB update keys like "$set".
+  const cmdPattern = /(?:^|\s)(?:cat|curl|wget|bash|sh|cmd|powershell|nc|rm|mv|cp|chmod|chown)\s+|[`;&|]\s*\w+/i;
+  if (userStrings.some(value => cmdPattern.test(value))) {
     suspicious.push('COMMAND_INJECTION_ATTEMPT');
   }
 
