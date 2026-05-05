@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getDuties,
+  getMyDuties,
   getDuty,
   createDuty,
   updateDuty,
@@ -20,6 +21,8 @@ const {
 } = require('../validators/dutyValidator');
 
 // Cache duty list for 2 minutes (fast-changing data)
+router.get('/my-duties', protect, authorize('admin'), queryCache({ ttl: 120 }), getMyDuties);
+
 router.route('/')
   .get(protect, validateSearchDuties, queryCache({ ttl: 120 }), getDuties)
   .post(protect, authorize('admin'), validateCreateDuty, createDuty);

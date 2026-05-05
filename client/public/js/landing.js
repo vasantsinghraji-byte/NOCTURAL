@@ -10,42 +10,29 @@ if (typeof AppConfig === 'undefined') {
 }
 
 var ROUTE_MAP = {
-  doctorDashboard: '/roles/doctor/doctor-dashboard.html',
-  doctorOnboarding: '/roles/doctor/doctor-onboarding.html',
-  adminDashboard: '/roles/admin/admin-dashboard.html',
-  unifiedRegister: '/index-unified.html'
+  doctorDashboard: AppConfig.routes.page('doctor.dashboard'),
+  doctorOnboarding: AppConfig.routes.page('doctor.onboarding'),
+  adminDashboard: AppConfig.routes.page('admin.dashboard'),
+  patientDashboard: AppConfig.routes.page('patient.dashboard'),
+  unifiedRegister: AppConfig.routes.page('sharedRegister')
 };
 
-function trackFunnelEvent(eventName, targetPath) {
+function trackFunnelEvent(eventName, target) {
   if (!eventName) {
     return;
   }
 
-  var payload = JSON.stringify({
-    event: eventName,
-    path: window.location.pathname,
-    target: targetPath || '',
-    occurredAt: new Date().toISOString()
+  AppConfig.fetchRoute('funnelEvents.create', {
+    method: 'POST',
+    skipAuth: true,
+    body: JSON.stringify({
+      event: eventName,
+      path: window.location.pathname,
+      target: target || ''
+    })
+  }).catch(function () {
+    // Analytics must never block public navigation.
   });
-
-  window.dispatchEvent(new CustomEvent('nocturnal:funnel-event', {
-    detail: JSON.parse(payload)
-  }));
-
-  if (navigator.sendBeacon) {
-    navigator.sendBeacon('/api/v1/funnel-events', new Blob([payload], {
-      type: 'application/json'
-    }));
-    return;
-  }
-
-  if (typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function') {
-    AppConfig.fetch('funnel-events', {
-      method: 'POST',
-      body: payload,
-      keepalive: true
-    }).catch(function ignoreFunnelError() {});
-  }
 }
 
 // ============================================================================
@@ -77,6 +64,7 @@ document.addEventListener('click', function (event) {
         hideLoginOptions();
         break;
       case 'navigate':
+        trackFunnelEvent(actionTarget.getAttribute('data-event'), actionTarget.getAttribute('data-href'));
         window.location.href = actionTarget.getAttribute('data-href');
         break;
       case 'open-register':
@@ -108,7 +96,7 @@ document.addEventListener('click', function (event) {
       !event.target.closest('#loginDropdown')) {
     var dropdown = document.getElementById('loginDropdown');
     if (dropdown) {
-      dropdown.style.display = 'none';
+      AppUi.setDisplay(dropdown, 'none');
     }
   }
 });
@@ -127,11 +115,13 @@ window.addEventListener('click', function (event) {
 
 function showLoginOptions() {
   var dropdown = document.getElementById('loginDropdown');
-  dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+  if (dropdown) {
+    dropdown.classList.toggle('is-open');
+  }
 }
 
 function hideLoginOptions() {
-  document.getElementById('loginDropdown').style.display = 'none';
+  AppUi.setDisplay(document.getElementById('loginDropdown'), 'none');
 }
 
 // ============================================================================
@@ -139,13 +129,13 @@ function hideLoginOptions() {
 // ============================================================================
 
 function openLoginModal() {
-  document.getElementById('loginModal').style.display = 'block';
-  document.body.style.overflow = 'hidden';
+  AppUi.setDisplay(document.getElementById('loginModal'), 'block');
+  document.body.classList.add('modal-open');
 }
 
 function closeLoginModal() {
-  document.getElementById('loginModal').style.display = 'none';
-  document.body.style.overflow = 'auto';
+  AppUi.setDisplay(document.getElementById('loginModal'), 'none');
+  document.body.classList.remove('modal-open');
   document.getElementById('loginError').innerHTML = '';
 }
 
@@ -155,8 +145,8 @@ function openRegisterModal() {
 }
 
 function closeRegisterModal() {
-  document.getElementById('registerModal').style.display = 'none';
-  document.body.style.overflow = 'auto';
+  AppUi.setDisplay(document.getElementById('registerModal'), 'none');
+  document.body.classList.remove('modal-open');
   document.getElementById('registerError').innerHTML = '';
 }
 
@@ -168,8 +158,6 @@ window.addEventListener('DOMContentLoaded', async function () {
   var user = await NocturnalSession.getActiveUser();
   if (user) {
     NocturnalSession.redirectForUser(user, ROUTE_MAP);
-  } else if (localStorage.getItem('token')) {
-    NocturnalSession.clearSession();
   }
 });
 
@@ -191,21 +179,23 @@ document.addEventListener('DOMContentLoaded', function () {
       var password = document.getElementById('loginPassword').value;
 
       try {
-        var response = await AppConfig.fetch('auth/login', {
+        var data = await AppConfig.fetchRoute('auth.login', {
           method: 'POST',
+          skipAuth: true,
+          parseJson: true,
           body: JSON.stringify({ email: email, password: password })
         });
-
-        var data = await response.json();
-
-        if (data.success && data.token) {
-          NocturnalSession.completeAuthSuccess(data, {
+        NocturnalSession.completeAuthSuccess(
+          NocturnalSession.expectJsonSuccess(data, 'Login failed', {
+            isSuccess: function (payload) {
+              return !!(payload && payload.success && payload.user);
+            }
+          }),
+          {
             useRoleRedirect: true,
             routeOverrides: ROUTE_MAP
-          });
-        } else {
-          throw new Error(data.message || 'Login failed');
-        }
+          }
+        );
       } catch (error) {
         console.error('Login error:', error);
         NocturnalSession.renderFormMessage(
@@ -228,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function () {
       e.preventDefault();
       var btn = e.target.querySelector('button[type="submit"]');
       var errorDiv = document.getElementById('registerError');
-      errorDiv.innerHTML = '';
+      NocturnalSession.clearFormMessage(errorDiv);
 
       var name = document.getElementById('registerName').value;
       var email = document.getElementById('registerEmail').value;
@@ -239,15 +229,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
       NocturnalSession.setButtonLoading(btn);
 
-      if (password !== confirmPassword) {
-        NocturnalSession.renderFormMessage(errorDiv, 'Passwords do not match.');
+      if (!NocturnalSession.validatePasswordStrength(password, errorDiv)) {
+        NocturnalSession.resetButtonState(btn);
+        return;
+      }
+
+      if (!NocturnalSession.validatePasswordMatch(password, confirmPassword, errorDiv, {
+        message: 'Passwords do not match.'
+      })) {
         NocturnalSession.resetButtonState(btn);
         return;
       }
 
       try {
-        var response = await AppConfig.fetch('auth/register', {
+        var data = await AppConfig.fetchRoute('auth.register', {
           method: 'POST',
+          skipAuth: true,
+          parseJson: true,
           body: JSON.stringify({
             name: name,
             email: email,
@@ -257,17 +255,17 @@ document.addEventListener('DOMContentLoaded', function () {
             role: role
           })
         });
-
-        var data = await response.json();
-
-        if (data.success && data.token) {
-          NocturnalSession.completeAuthSuccess(data, {
+        NocturnalSession.completeAuthSuccess(
+          NocturnalSession.expectJsonSuccess(data, 'Registration failed', {
+            isSuccess: function (payload) {
+              return !!(payload && payload.success && payload.user);
+            }
+          }),
+          {
             useRoleRedirect: true,
             routeOverrides: ROUTE_MAP
-          });
-        } else {
-          throw new Error(data.message || 'Registration failed');
-        }
+          }
+        );
       } catch (error) {
         console.error('Registration error:', error);
         NocturnalSession.renderFormMessage(

@@ -30,7 +30,7 @@ The documentation has been reorganized from **77+ scattered files** into a clean
 | `SECURITY_FIXES_APPLIED.md` | [docs/changelog/](changelog/) (archived) |
 | `SECURITY_INTEGRATION_COMPLETE.md` | [docs/changelog/](changelog/) (archived) |
 | `AUTH_FIX.md` | [docs/changelog/](changelog/) (archived) |
-| `FIREBASE_AUTH_FIXED.md` | [docs/changelog/](changelog/) (archived) |
+| `LEGACY_AUTH_CONTRACT_FIXED.md` | [docs/changelog/](changelog/) (archived) |
 | `CORS_*.md` | [docs/changelog/](changelog/) (archived) |
 | `UPLOAD_SECURITY_FIXED.md` | [docs/changelog/](changelog/) (archived) |
 

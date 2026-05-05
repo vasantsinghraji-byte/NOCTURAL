@@ -8,7 +8,7 @@
 const Patient = require('../models/patient');
 const { generateToken } = require('../middleware/auth');
 const logger = require('../utils/logger');
-const { HTTP_STATUS, SUCCESS_MESSAGE, ERROR_MESSAGE } = require('../constants');
+const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
 
 class PatientService {
   /**
@@ -231,7 +231,7 @@ class PatientService {
     }
 
     const shouldBeDefault = addressData.isDefault || patient.savedAddresses.length === 0;
-    addressData.isDefault = shouldBeDefault;
+    const addressToSave = { ...addressData, isDefault: shouldBeDefault };
 
     let updatedPatient;
     if (shouldBeDefault) {
@@ -243,7 +243,7 @@ class PatientService {
 
     updatedPatient = await Patient.findByIdAndUpdate(
       patientId,
-      { $push: { savedAddresses: addressData } },
+      { $push: { savedAddresses: addressToSave } },
       { new: true }
     );
 

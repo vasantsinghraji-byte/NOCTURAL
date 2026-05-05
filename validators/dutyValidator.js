@@ -245,14 +245,14 @@ const validateSearchDuties = [
  * Apply to duty validation
  */
 const validateApplyToDuty = [
-  param('id')
+  body('duty')
     .notEmpty().withMessage('Duty ID is required')
     .isMongoId().withMessage('Invalid duty ID'),
 
   body('coverLetter')
     .trim()
     .notEmpty().withMessage('Cover letter is required')
-    .isLength({ min: 50, max: 2000 }).withMessage('Cover letter must be between 50 and 2000 characters'),
+    .isLength({ min: 20, max: 2000 }).withMessage('Cover letter must be between 20 and 2000 characters'),
 
   body('availability.confirmed')
     .optional()
@@ -330,8 +330,14 @@ const validateUpdateApplicationStatus = [
 
   body('status')
     .notEmpty().withMessage('Status is required')
-    .isIn(['pending', 'accepted', 'rejected', 'cancelled'])
+    .customSanitizer((value) => String(value || '').toUpperCase())
+    .isIn(['PENDING', 'ACCEPTED', 'REJECTED'])
     .withMessage('Invalid status'),
+
+  body('notes')
+    .optional()
+    .trim()
+    .isLength({ max: 500 }).withMessage('Notes too long'),
 
   body('reason')
     .optional()

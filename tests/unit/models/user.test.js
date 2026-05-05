@@ -3,9 +3,7 @@
  * Tests all User model functionality including validation, methods, and hooks
  */
 
-const mongoose = require('mongoose');
 const User = require('../../../models/user');
-const { encrypt, decrypt } = require('../../../utils/encryption');
 const {
   connectTestDB,
   disconnectTestDB,

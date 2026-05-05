@@ -79,7 +79,7 @@ function recordRequest(req, blocked = false) {
 }
 
 // Update block rate history every minute
-const blockRateHistoryInterval = setInterval(() => {
+let blockRateInterval = setInterval(() => {
     const metrics = getRateLimitMetrics();
     const currentTime = new Date();
     
@@ -108,8 +108,15 @@ const blockRateHistoryInterval = setInterval(() => {
     });
 }, 60000);
 
-if (typeof blockRateHistoryInterval.unref === 'function') {
-    blockRateHistoryInterval.unref();
+if (typeof blockRateInterval.unref === 'function') {
+    blockRateInterval.unref();
+}
+
+function cleanup() {
+    if (blockRateInterval) {
+        clearInterval(blockRateInterval);
+        blockRateInterval = null;
+    }
 }
 
 // Get rate limit metrics - protected admin route
@@ -258,5 +265,6 @@ router.get('/dashboard/analytics', protect, authorize('admin'), (req, res) => {
 
 module.exports = {
     router,
-    recordRequest
+    recordRequest,
+    cleanup
 };

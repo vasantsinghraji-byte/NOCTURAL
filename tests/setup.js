@@ -4,24 +4,23 @@
  */
 
 // Set test environment
-process.env.NODE_ENV = 'test';
-process.env.PORT = 5001; // Different port for tests
+process.env.NODE_ENV = process.env.NODE_ENV || 'test';
+process.env.PORT = process.env.PORT || '5001'; // Different port for tests
 
-// Test database configuration. Preserve CI-provided authenticated URI.
+// Test database configuration (no auth for test DB)
 process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nocturnal_test';
 
 // Disable authentication for tests (or use test credentials)
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing-only-not-for-production';
 process.env.JWT_EXPIRE = process.env.JWT_EXPIRE || '1h';
-process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'test-encryption-key-32-characters!';
 
 // Disable rate limiting in tests
-process.env.RATE_LIMIT_ENABLED = 'false';
+process.env.RATE_LIMIT_ENABLED = process.env.RATE_LIMIT_ENABLED || 'false';
 
 // Disable external services
-process.env.FIREBASE_AUTH_ENABLED = 'false';
-process.env.AWS_S3_ENABLED = 'false';
-process.env.RAZORPAY_ENABLED = 'false';
+process.env.AWS_S3_ENABLED = process.env.AWS_S3_ENABLED || 'false';
+process.env.RAZORPAY_ENABLED = process.env.RAZORPAY_ENABLED || 'false';
 
 // Set longer timeout for integration tests
 jest.setTimeout(30000);
@@ -56,5 +55,18 @@ global.testUtils = {
     const date = new Date();
     date.setDate(date.getDate() - days);
     return date;
-  }
+  },
+
+  productionFixtureEnv: (overrides = {}) => ({
+    NODE_ENV: 'production',
+    PORT: '5000',
+    MONGODB_URI: 'mongodb://fixtureUser:fixturePassword@127.0.0.1:27017/nocturnal_fixture?authSource=admin',
+    JWT_SECRET: 'prod-smoke-jwt-secret-value-with-64-plus-characters-for-validation-pass-001',
+    ENCRYPTION_KEY: require('crypto').createHash('sha256').update('test-fixture-encryption-key').digest('hex'),
+    ALLOWED_ORIGINS: 'https://127.0.0.1',
+    AWS_S3_ENABLED: 'false',
+    RAZORPAY_ENABLED: 'false',
+    RATE_LIMIT_ENABLED: 'false',
+    ...overrides
+  })
 };

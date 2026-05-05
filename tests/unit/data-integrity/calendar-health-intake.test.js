@@ -34,7 +34,7 @@ jest.mock('../../../utils/errors', () => ({
     constructor(m) { super(m); this.name = 'ValidationError'; }
   },
   NotFoundError: class NotFoundError extends Error {
-    constructor(t, id) { super(`${t} not found`); this.name = 'NotFoundError'; }
+    constructor(t, _id) { super(`${t} not found`); this.name = 'NotFoundError'; }
   },
   AuthorizationError: class AuthorizationError extends Error {
     constructor(m) { super(m); this.name = 'AuthorizationError'; }
@@ -43,7 +43,6 @@ jest.mock('../../../utils/errors', () => ({
 
 const Availability = require('../../../models/availability');
 const Patient = require('../../../models/patient');
-const User = require('../../../models/user');
 const calendarService = require('../../../services/calendarService');
 const healthIntakeService = require('../../../services/healthIntakeService');
 

@@ -261,7 +261,7 @@ const requestDoctorReview = async (reportId, patientId, options) => {
   };
 
   switch (assignmentType) {
-    case REPORT_ASSIGNMENT_TYPE.MANUAL:
+    case REPORT_ASSIGNMENT_TYPE.MANUAL: {
       // Admin assigns specific doctor
       if (!doctorId) {
         throw new Error('Doctor ID required for manual assignment');
@@ -273,8 +273,9 @@ const requestDoctorReview = async (reportId, patientId, options) => {
       doctorReview.assignedTo = doctorId;
       doctorReview.assignedBy = options.assignedBy;
       break;
+    }
 
-    case REPORT_ASSIGNMENT_TYPE.PATIENT_CHOICE:
+    case REPORT_ASSIGNMENT_TYPE.PATIENT_CHOICE: {
       // Patient chooses doctor
       if (!doctorId) {
         throw new Error('Doctor ID required for patient choice');
@@ -286,6 +287,7 @@ const requestDoctorReview = async (reportId, patientId, options) => {
       doctorReview.assignedTo = doctorId;
       doctorReview.assignedBy = patientId;
       break;
+    }
 
     case REPORT_ASSIGNMENT_TYPE.AUTO_QUEUE:
       // Goes to specialization queue

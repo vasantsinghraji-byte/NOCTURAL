@@ -143,6 +143,25 @@ exports.getProviderBookings = async (req, res, next) => {
 };
 
 /**
+ * @desc    Get assignable service providers for admin booking assignment
+ * @route   GET /api/bookings/providers/assignable
+ * @access  Private (Admin)
+ */
+exports.getAssignableProviders = async (req, res, next) => {
+  try {
+    const providers = await bookingService.getAssignableProviders();
+
+    responseHelper.sendSuccess(
+      res,
+      { providers },
+      'Assignable providers fetched successfully'
+    );
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+/**
  * @desc    Assign provider to booking
  * @route   PUT /api/bookings/:id/assign
  * @access  Private (Admin)

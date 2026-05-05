@@ -3,6 +3,7 @@ jest.mock('../../../services/bookingService', () => ({
   getBookingById: jest.fn(),
   getPatientBookings: jest.fn(),
   getProviderBookings: jest.fn(),
+  getAssignableProviders: jest.fn(),
   assignProvider: jest.fn(),
   updateStatus: jest.fn(),
   completeService: jest.fn(),
@@ -147,6 +148,26 @@ describe('Booking Controller', () => {
       res,
       { booking },
       'Provider assigned successfully'
+    );
+  });
+
+  it('should return assignable providers for admin booking assignment', async () => {
+    const req = {
+      user: { id: 'admin123', role: 'admin' }
+    };
+    const res = createRes();
+    const next = jest.fn();
+    const providers = [{ _id: 'provider123', name: 'Nurse One' }];
+
+    bookingService.getAssignableProviders.mockResolvedValue(providers);
+
+    await bookingController.getAssignableProviders(req, res, next);
+
+    expect(bookingService.getAssignableProviders).toHaveBeenCalledWith();
+    expect(responseHelper.sendSuccess).toHaveBeenCalledWith(
+      res,
+      { providers },
+      'Assignable providers fetched successfully'
     );
   });
 

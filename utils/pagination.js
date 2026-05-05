@@ -5,8 +5,6 @@
  * with performance optimizations and query flexibility
  */
 
-const mongoose = require('mongoose');
-
 /**
  * Paginate mongoose query results
  *

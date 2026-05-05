@@ -26,7 +26,7 @@ afterAll(async () => {
   } catch (_e) { /* ignore */ }
 });
 
-describe('App Boot – middleware & route mounting', () => {
+describe('App Integration: GET /api/v1/health and core API mount', () => {
   test('GET /api/v1/health returns 200 or 503 with expected shape', async () => {
     const res = await request(app).get('/api/v1/health');
 

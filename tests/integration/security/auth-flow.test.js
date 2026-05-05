@@ -11,7 +11,7 @@
 
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-const { protect, authorize, generateToken } = require('../../../middleware/auth');
+const { generateToken } = require('../../../middleware/auth');
 const { sanitizeInput } = require('../../../middleware/validation');
 const { sanitizationMiddleware } = require('../../../utils/sanitization');
 const { mockRequest, mockResponse, mockNext } = require('../../helpers');
@@ -24,7 +24,7 @@ jest.mock('../../../utils/logger', () => ({
   logAuth: jest.fn()
 }));
 
-describe('Integration: Authentication Security Flow', () => {
+describe('Security Integration: JWT lifecycle and auth middleware chain', () => {
   describe('Full JWT Lifecycle', () => {
     it('should generate token → verify → authorize in sequence', async () => {
       const userId = new mongoose.Types.ObjectId().toString();

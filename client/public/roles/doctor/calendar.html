@@ -6,352 +6,10 @@
     <title>My Calendar - Nocturnal</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #5B8DBE;
-            --success: #28a745;
-            --warning: #ffc107;
-            --danger: #dc3545;
-            --gray: #6c757d;
-            --light: #f8f9fa;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--light);
-        }
-
-        .header {
-            background: white;
-            padding: 20px 40px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary);
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 20px;
-        }
-
-        .nav-links a {
-            color: var(--primary);
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-
-        .nav-links a:hover {
-            color: var(--success);
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 40px auto;
-            padding: 0 40px;
-        }
-
-        .page-header {
-            margin-bottom: 30px;
-        }
-
-        .page-header h1 {
-            font-size: 2rem;
-            color: var(--primary);
-            margin-bottom: 10px;
-        }
-
-        .page-header p {
-            color: var(--gray);
-            font-size: 1.1rem;
-        }
-
-        .layout {
-            display: grid;
-            grid-template-columns: 1fr 350px;
-            gap: 30px;
-        }
-
-        .calendar-container {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-
-        .sidebar {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-
-        .card h3 {
-            font-size: 1.2rem;
-            color: var(--primary);
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 12px;
-            font-size: 0.95rem;
-        }
-
-        .legend-color {
-            width: 20px;
-            height: 20px;
-            border-radius: 5px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        .stat {
-            text-align: center;
-            padding: 15px;
-            background: var(--light);
-            border-radius: 10px;
-        }
-
-        .stat-value {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--primary);
-            display: block;
-        }
-
-        .stat-label {
-            font-size: 0.85rem;
-            color: var(--gray);
-            margin-top: 5px;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #4A7099;
-            transform: translateY(-2px);
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .btn-block {
-            width: 100%;
-            margin-top: 10px;
-        }
-
-        .warning-box {
-            background: #fff3cd;
-            border-left: 4px solid var(--warning);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
-
-        .warning-box h4 {
-            color: #856404;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .warning-box p {
-            color: #856404;
-            font-size: 0.9rem;
-            margin: 5px 0;
-        }
-
-        .conflict-list {
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .conflict-item {
-            background: #f8d7da;
-            border-left: 4px solid var(--danger);
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            font-size: 0.9rem;
-            color: #721c24;
-        }
-
-        /* FullCalendar customization */
-        .fc-event {
-            cursor: pointer;
-        }
-
-        .fc-event-main {
-            padding: 5px;
-        }
-
-        .event-accepted {
-            background-color: var(--success) !important;
-            border-color: var(--success) !important;
-        }
-
-        .event-pending {
-            background-color: var(--warning) !important;
-            border-color: var(--warning) !important;
-        }
-
-        .event-blackout {
-            background-color: var(--danger) !important;
-            border-color: var(--danger) !important;
-        }
-
-        .event-personal {
-            background-color: var(--gray) !important;
-            border-color: var(--gray) !important;
-        }
-
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 1000;
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .modal-content {
-            background: white;
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 30px;
-            border-radius: 15px;
-            position: relative;
-        }
-
-        .modal-close {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            font-size: 1.5rem;
-            cursor: pointer;
-            background: none;
-            border: none;
-            color: var(--gray);
-        }
-
-        .modal-close:hover {
-            color: var(--danger);
-        }
-
-        .modal h2 {
-            color: var(--primary);
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--primary);
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1rem;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: var(--gray);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--gray);
-        }
-
-        .empty-state i {
-            font-size: 4rem;
-            margin-bottom: 20px;
-            opacity: 0.3;
-        }
-
-        @media (max-width: 968px) {
-            .layout {
-                grid-template-columns: 1fr;
-            }
-
-            .container {
-                padding: 0 20px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="/css/pages/roles-doctor-calendar.css">
     <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
 </head>
 <body>
     <!-- Header -->
@@ -359,11 +17,11 @@
         <div class="logo">🌙 Nocturnal</div>
         <div class="nav-links">
             <a href="/roles/doctor/doctor-dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
-            <a href="/roles/doctor/browse-duties.html"><i class="fas fa-briefcase"></i> Browse</a>
-            <a href="/roles/doctor/calendar.html" style="color: var(--success);"><i class="fas fa-calendar"></i> Calendar</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html"><i class="fas fa-briefcase"></i> Browse</a>
+            <a href="/roles/doctor/calendar.html" class="active"><i class="fas fa-calendar"></i> Calendar</a>
             <a href="/roles/doctor/earnings.html"><i class="fas fa-dollar-sign"></i> Earnings</a>
             <a href="/roles/doctor/achievements.html"><i class="fas fa-trophy"></i> Achievements</a>
-            <a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            <a href="#" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </div>
 
@@ -386,19 +44,19 @@
                 <div class="card">
                     <h3><i class="fas fa-palette"></i> Legend</h3>
                     <div class="legend-item">
-                        <div class="legend-color" style="background: var(--success);"></div>
+                        <div class="legend-color legend-color-success"></div>
                         <span>Accepted Shifts</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-color" style="background: var(--warning);"></div>
+                        <div class="legend-color legend-color-warning"></div>
                         <span>Pending Applications</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-color" style="background: var(--danger);"></div>
+                        <div class="legend-color legend-color-danger"></div>
                         <span>Blackout Dates</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-color" style="background: var(--gray);"></div>
+                        <div class="legend-color legend-color-neutral"></div>
                         <span>Personal Events</span>
                     </div>
                 </div>
@@ -419,7 +77,7 @@
                 </div>
 
                 <!-- Warnings -->
-                <div class="card" id="warningsCard" style="display: none;">
+                <div class="card is-hidden" id="warningsCard">
                     <h3><i class="fas fa-exclamation-triangle"></i> Warnings</h3>
                     <div id="warningsList"></div>
                 </div>
@@ -427,13 +85,13 @@
                 <!-- Actions -->
                 <div class="card">
                     <h3><i class="fas fa-cog"></i> Actions</h3>
-                    <button class="btn btn-primary btn-block" onclick="openAddEventModal()">
+                    <button class="btn btn-primary btn-block" id="openAddEventBtn">
                         <i class="fas fa-plus"></i> Add Event
                     </button>
-                    <button class="btn btn-success btn-block" onclick="location.href='availability.html'">
+                    <button class="btn btn-success btn-block" id="openAvailabilityBtn">
                         <i class="fas fa-calendar-times"></i> Set Availability
                     </button>
-                    <button class="btn btn-primary btn-block" onclick="syncExternalCalendar()">
+                    <button class="btn btn-primary btn-block" id="syncCalendarBtn">
                         <i class="fas fa-sync"></i> Sync Calendar
                     </button>
                 </div>
@@ -444,7 +102,7 @@
     <!-- Add Event Modal -->
     <div id="addEventModal" class="modal">
         <div class="modal-content">
-            <button class="modal-close" onclick="closeAddEventModal()">&times;</button>
+            <button class="modal-close" id="closeAddEventModalBtn">&times;</button>
             <h2>Add Calendar Event</h2>
             <form id="addEventForm">
                 <div class="form-group">
@@ -496,302 +154,14 @@
     <!-- Event Details Modal -->
     <div id="eventDetailsModal" class="modal">
         <div class="modal-content">
-            <button class="modal-close" onclick="closeEventDetailsModal()">&times;</button>
+            <button class="modal-close" id="closeEventDetailsModalBtn">&times;</button>
             <div id="eventDetailsContent"></div>
         </div>
     </div>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
-    <script>
-        // API_URL is provided by config.js
-        let calendar;
-        let allEvents = [];
-
-        // Initialize calendar on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.href = 'index.html';
-                return;
-            }
-
-            initCalendar();
-            loadCalendarEvents();
-            loadMonthStats();
-
-            // All day checkbox handler
-            document.getElementById('allDay').addEventListener('change', function() {
-                const timeFields = document.getElementById('timeFields');
-                timeFields.style.display = this.checked ? 'none' : 'block';
-            });
-        });
-
-        function initCalendar() {
-            const calendarEl = document.getElementById('calendar');
-
-            calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                },
-                height: 'auto',
-                events: [],
-                eventClick: function(info) {
-                    showEventDetails(info.event);
-                },
-                dateClick: function(info) {
-                    document.getElementById('startDate').value = info.dateStr;
-                    document.getElementById('endDate').value = info.dateStr;
-                    openAddEventModal();
-                }
-            });
-
-            calendar.render();
-        }
-
-        async function loadCalendarEvents() {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(AppConfig.api('calendar/events'), {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    allEvents = data.data;
-                    renderEvents();
-                    checkForWarnings();
-                }
-            } catch (error) {
-                console.error('Error loading events:', error);
-            }
-        }
-
-        function renderEvents() {
-            const events = allEvents.map(event => {
-                let className = 'event-personal';
-                if (event.eventType === 'SHIFT_ACCEPTED') className = 'event-accepted';
-                if (event.eventType === 'SHIFT_PENDING') className = 'event-pending';
-                if (event.eventType === 'BLACKOUT_DATE') className = 'event-blackout';
-
-                return {
-                    id: event._id,
-                    title: event.title,
-                    start: event.allDay ? event.startDate.split('T')[0] : event.startDate,
-                    end: event.allDay ? event.endDate.split('T')[0] : event.endDate,
-                    allDay: event.allDay,
-                    backgroundColor: event.color,
-                    borderColor: event.color,
-                    className: className,
-                    extendedProps: event
-                };
-            });
-
-            calendar.removeAllEvents();
-            calendar.addEventSource(events);
-        }
-
-        function checkForWarnings() {
-            const warnings = [];
-
-            allEvents.forEach(event => {
-                if (event.warnings && event.warnings.length > 0) {
-                    warnings.push(...event.warnings);
-                }
-                if (event.conflicts && event.conflicts.length > 0) {
-                    event.conflicts.forEach(conflict => {
-                        warnings.push({
-                            type: 'CONFLICT',
-                            message: conflict.message,
-                            severity: conflict.severity
-                        });
-                    });
-                }
-            });
-
-            if (warnings.length > 0) {
-                displayWarnings(warnings);
-            }
-        }
-
-        function displayWarnings(warnings) {
-            const warningsCard = document.getElementById('warningsCard');
-            const warningsList = document.getElementById('warningsList');
-
-            let html = '';
-            warnings.forEach(warning => {
-                const icon = warning.severity === 'CRITICAL' ? 'exclamation-circle' : 'exclamation-triangle';
-                html += `
-                    <div class="warning-box">
-                        <h4><i class="fas fa-${icon}"></i> ${warning.type}</h4>
-                        <p>${warning.message}</p>
-                    </div>
-                `;
-            });
-
-            warningsList.innerHTML = html;
-            warningsCard.style.display = 'block';
-        }
-
-        async function loadMonthStats() {
-            const now = new Date();
-            const month = now.getMonth() + 1;
-            const year = now.getFullYear();
-
-            const shifts = allEvents.filter(e => {
-                const eventDate = new Date(e.startDate);
-                return (e.eventType === 'SHIFT_ACCEPTED' || e.eventType === 'SHIFT_PENDING') &&
-                       eventDate.getMonth() + 1 === month &&
-                       eventDate.getFullYear() === year;
-            });
-
-            let totalHours = 0;
-            shifts.forEach(shift => {
-                if (shift.startTime && shift.endTime) {
-                    const start = shift.startTime.split(':');
-                    const end = shift.endTime.split(':');
-                    const hours = (parseInt(end[0]) * 60 + parseInt(end[1]) -
-                                  parseInt(start[0]) * 60 - parseInt(start[1])) / 60;
-                    totalHours += hours;
-                }
-            });
-
-            document.getElementById('shiftsThisMonth').textContent = shifts.length;
-            document.getElementById('hoursThisMonth').textContent = Math.round(totalHours);
-        }
-
-        function showEventDetails(event) {
-            const props = event.extendedProps;
-            const modal = document.getElementById('eventDetailsModal');
-            const content = document.getElementById('eventDetailsContent');
-
-            let html = `
-                <h2>${event.title}</h2>
-                <p><strong>Type:</strong> ${props.eventType.replace(/_/g, ' ')}</p>
-                <p><strong>Date:</strong> ${new Date(event.start).toLocaleDateString()}</p>
-            `;
-
-            if (props.description) {
-                html += `<p><strong>Description:</strong> ${props.description}</p>`;
-            }
-
-            if (props.location) {
-                html += `<p><strong>Location:</strong> ${props.location}</p>`;
-            }
-
-            if (props.distance) {
-                html += `<p><strong>Distance:</strong> ${props.distance} km</p>`;
-            }
-
-            if (props.travelTime) {
-                html += `<p><strong>Travel Time:</strong> ${props.travelTime} minutes</p>`;
-            }
-
-            if (props.conflicts && props.conflicts.length > 0) {
-                html += '<h3 style="color: var(--danger); margin-top: 20px;">Conflicts</h3>';
-                html += '<div class="conflict-list">';
-                props.conflicts.forEach(conflict => {
-                    html += `<div class="conflict-item">${conflict.message}</div>`;
-                });
-                html += '</div>';
-            }
-
-            if (props.duty) {
-                html += `<button class="btn btn-primary btn-block" onclick="location.href='duty-details.html?id=${props.duty}'">View Duty Details</button>`;
-            }
-
-            content.innerHTML = html;
-            modal.style.display = 'block';
-        }
-
-        function openAddEventModal() {
-            document.getElementById('addEventModal').style.display = 'block';
-        }
-
-        function closeAddEventModal() {
-            document.getElementById('addEventModal').style.display = 'none';
-            document.getElementById('addEventForm').reset();
-        }
-
-        function closeEventDetailsModal() {
-            document.getElementById('eventDetailsModal').style.display = 'none';
-        }
-
-        document.getElementById('addEventForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const token = localStorage.getItem('token');
-            const allDay = document.getElementById('allDay').checked;
-
-            const eventData = {
-                title: document.getElementById('eventTitle').value,
-                description: document.getElementById('eventDescription').value,
-                eventType: document.getElementById('eventType').value,
-                startDate: document.getElementById('startDate').value,
-                endDate: document.getElementById('endDate').value,
-                allDay: allDay
-            };
-
-            if (!allDay) {
-                eventData.startTime = document.getElementById('startTime').value;
-                eventData.endTime = document.getElementById('endTime').value;
-            }
-
-            try {
-                const response = await fetch(AppConfig.api('calendar/events'), {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(eventData)
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    alert('Event added successfully!');
-                    closeAddEventModal();
-                    loadCalendarEvents();
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            } catch (error) {
-                console.error('Error adding event:', error);
-                alert('Failed to add event');
-            }
-        });
-
-        async function syncExternalCalendar() {
-            if (confirm('This feature requires OAuth setup with Google/Apple/Outlook. Would you like to proceed?')) {
-                alert('External calendar sync will be implemented with OAuth integration.');
-                // TODO: Implement OAuth flow for Google Calendar API
-            }
-        }
-
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'index.html';
-        }
-
-        // Close modals on outside click
-        window.onclick = function(event) {
-            const addModal = document.getElementById('addEventModal');
-            const detailsModal = document.getElementById('eventDetailsModal');
-            if (event.target === addModal) {
-                closeAddEventModal();
-            }
-            if (event.target === detailsModal) {
-                closeEventDetailsModal();
-            }
-        }
-    </script>
+    <script src="/js/doctor-calendar.js"></script>
     <!-- Unified Navigation & Notifications -->
     <script src="/js/auto-inject-nav.js"></script>
 </body>

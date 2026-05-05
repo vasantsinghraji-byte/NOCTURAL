@@ -37,8 +37,8 @@
     img.classList.add(CONFIG.loadingClass);
 
     if (bgImage) {
-      // Background image
-      img.style.backgroundImage = `url(${bgImage})`;
+      // Fallback: load background-image payload as a normal image source to avoid inline styles.
+      img.src = bgImage;
       img.classList.remove(CONFIG.loadingClass);
       img.classList.add(CONFIG.loadedClass);
       img.removeAttribute(CONFIG.bgImageDataAttr);
@@ -46,7 +46,7 @@
       // Regular image
       const imageToLoad = new Image();
 
-      imageToLoad.onload = function() {
+      imageToLoad.addEventListener('load', function() {
         if (src) {
           img.src = src;
           img.removeAttribute(CONFIG.placeholderDataAttr);
@@ -59,13 +59,13 @@
 
         img.classList.remove(CONFIG.loadingClass);
         img.classList.add(CONFIG.loadedClass);
-      };
+      });
 
-      imageToLoad.onerror = function() {
+      imageToLoad.addEventListener('error', function() {
         img.classList.remove(CONFIG.loadingClass);
         img.classList.add(CONFIG.errorClass);
         console.error('Failed to load image:', src || bgImage);
-      };
+      });
 
       imageToLoad.src = src;
       if (srcset) {
@@ -166,37 +166,14 @@
    * Add CSS for lazy loading states
    */
   function addStyles() {
-    const style = document.createElement('style');
-    style.textContent = `
-      .lazy-loading {
-        filter: blur(5px);
-        transition: filter 0.3s;
-      }
-
-      .lazy-loaded {
-        filter: blur(0);
-      }
-
-      .lazy-error {
-        opacity: 0.5;
-      }
-
-      /* Low quality placeholder */
-      img[${CONFIG.placeholderDataAttr}] {
-        background: #f0f0f0;
-      }
-
-      /* Fade-in animation */
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-
-      .lazy-loaded {
-        animation: fadeIn 0.3s ease-in;
-      }
-    `;
-    document.head.appendChild(style);
+    (function loadExtractedStylesheet() {
+    var href = '/css/components/lazyload.css';
+    if (document.querySelector('link[href="' + href + '"]')) return;
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+  })();
   }
 
   // Auto-initialize on DOMContentLoaded
@@ -214,8 +191,8 @@
   window.reinitLazyLoad = init;
 
   // Export for module systems
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { init, loadImage, CONFIG };
+  if (typeof module !== 'undefined' && module.exports) { // eslint-disable-line no-undef
+    module.exports = { init, loadImage, CONFIG }; // eslint-disable-line no-undef
   }
 
   // Expose globally

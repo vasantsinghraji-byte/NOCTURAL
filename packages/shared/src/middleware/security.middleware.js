@@ -198,7 +198,7 @@ const detectSuspiciousRequests = (req, res, next) => {
     suspicious.push('XSS_ATTEMPT');
   }
 
-  const traversalPattern = /\.\.[\/\\]/;
+  const traversalPattern = /\.\.[/\\]/;
   if (traversalPattern.test(req.url)) {
     suspicious.push('PATH_TRAVERSAL_ATTEMPT');
   }

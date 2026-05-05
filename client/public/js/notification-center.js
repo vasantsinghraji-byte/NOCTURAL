@@ -30,7 +30,6 @@ class NotificationCenter {
 
     async fetchApi(endpoint, options = {}) {
         const normalizedEndpoint = endpoint.replace(/^\//, '');
-        const token = localStorage.getItem('token');
 
         if (!this.apiUrl && typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function') {
             return AppConfig.fetch(normalizedEndpoint, options);
@@ -38,8 +37,8 @@ class NotificationCenter {
 
         return fetch(this.buildApiUrl(normalizedEndpoint), {
             ...options,
+            credentials: options.credentials || 'include',
             headers: {
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                 ...options.headers
             }
         });
@@ -54,226 +53,14 @@ class NotificationCenter {
     }
 
     injectStyles() {
-        const style = document.createElement('style');
-        style.textContent = `
-            .notification-bell {
-                position: relative;
-                cursor: pointer;
-                padding: 0.5rem;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .notification-bell i {
-                font-size: 1.3rem;
-                color: #475569;
-                transition: color 0.3s;
-            }
-
-            .notification-bell:hover i {
-                color: #5B8DBE;
-            }
-
-            .notification-badge {
-                position: absolute;
-                top: 0;
-                right: 0;
-                background: #dc3545;
-                color: white;
-                font-size: 0.7rem;
-                font-weight: 700;
-                padding: 0.15rem 0.4rem;
-                border-radius: 10px;
-                min-width: 18px;
-                text-align: center;
-            }
-
-            .notification-panel {
-                position: absolute;
-                top: 60px;
-                right: 20px;
-                width: 400px;
-                max-height: 600px;
-                background: white;
-                border-radius: 15px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-                z-index: 1000;
-                display: none;
-                flex-direction: column;
-            }
-
-            .notification-panel.open {
-                display: flex;
-                animation: slideDown 0.3s ease;
-            }
-
-            @keyframes slideDown {
-                from {
-                    opacity: 0;
-                    transform: translateY(-10px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-            }
-
-            .notification-header {
-                padding: 1.5rem;
-                border-bottom: 2px solid #f0f0f0;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-
-            .notification-title {
-                font-size: 1.2rem;
-                font-weight: 700;
-                color: #2C3E50;
-            }
-
-            .notification-actions {
-                display: flex;
-                gap: 0.5rem;
-            }
-
-            .notification-action-btn {
-                padding: 0.4rem 0.75rem;
-                background: #f8f9fa;
-                border: none;
-                border-radius: 6px;
-                cursor: pointer;
-                font-size: 0.85rem;
-                font-weight: 600;
-                color: #5B8DBE;
-                transition: all 0.3s;
-            }
-
-            .notification-action-btn:hover {
-                background: #e9ecef;
-            }
-
-            .notification-list {
-                flex: 1;
-                overflow-y: auto;
-                max-height: 450px;
-            }
-
-            .notification-item {
-                padding: 1rem 1.5rem;
-                border-bottom: 1px solid #f0f0f0;
-                cursor: pointer;
-                transition: background 0.3s;
-                display: flex;
-                gap: 1rem;
-            }
-
-            .notification-item:hover {
-                background: #f8f9fa;
-            }
-
-            .notification-item.unread {
-                background: #e8f4fd;
-            }
-
-            .notification-icon {
-                flex-shrink: 0;
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 1.1rem;
-            }
-
-            .icon-shift {
-                background: #e8f5e9;
-                color: #28a745;
-            }
-
-            .icon-application {
-                background: #e3f2fd;
-                color: #2196f3;
-            }
-
-            .icon-payment {
-                background: #fff3cd;
-                color: #ffc107;
-            }
-
-            .icon-review {
-                background: #f3e5f5;
-                color: #9c27b0;
-            }
-
-            .icon-system {
-                background: #f5f5f5;
-                color: #666;
-            }
-
-            .notification-content {
-                flex: 1;
-            }
-
-            .notification-content-title {
-                font-weight: 600;
-                color: #2C3E50;
-                margin-bottom: 0.25rem;
-                font-size: 0.95rem;
-            }
-
-            .notification-content-message {
-                color: #666;
-                font-size: 0.85rem;
-                line-height: 1.4;
-            }
-
-            .notification-time {
-                font-size: 0.75rem;
-                color: #999;
-                margin-top: 0.25rem;
-            }
-
-            .notification-empty {
-                padding: 3rem 1.5rem;
-                text-align: center;
-                color: #999;
-            }
-
-            .notification-empty i {
-                font-size: 3rem;
-                color: #ddd;
-                margin-bottom: 1rem;
-            }
-
-            .notification-footer {
-                padding: 1rem 1.5rem;
-                border-top: 2px solid #f0f0f0;
-                text-align: center;
-            }
-
-            .notification-view-all {
-                color: #5B8DBE;
-                text-decoration: none;
-                font-weight: 600;
-                font-size: 0.9rem;
-            }
-
-            .notification-view-all:hover {
-                text-decoration: underline;
-            }
-
-            @media (max-width: 768px) {
-                .notification-panel {
-                    right: 10px;
-                    left: 10px;
-                    width: auto;
-                }
-            }
-        `;
-        document.head.appendChild(style);
+        (function loadExtractedStylesheet() {
+    var href = '/css/components/notification-center.css';
+    if (document.querySelector('link[href="' + href + '"]')) return;
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+  })();
     }
 
     injectHTML() {
@@ -283,7 +70,7 @@ class NotificationCenter {
         container.innerHTML = `
             <div class="notification-bell" id="notificationBell">
                 <i class="fas fa-bell"></i>
-                <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                <span class="notification-badge is-hidden" id="notificationBadge">0</span>
             </div>
             <div class="notification-panel" id="notificationPanel">
                 <div class="notification-header">
@@ -298,9 +85,9 @@ class NotificationCenter {
                     <!-- Notifications will be inserted here -->
                 </div>
                 <div class="notification-footer">
-                    <a href="notifications.html" class="notification-view-all">
-                        View All Notifications
-                    </a>
+                    <button type="button" class="notification-action-btn notification-footer-btn" id="closeNotificationsBtn">
+                        Close
+                    </button>
                 </div>
             </div>
         `;
@@ -335,14 +122,30 @@ class NotificationCenter {
             });
         }
 
+        const closeBtn = document.getElementById('closeNotificationsBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                this.closePanel();
+            });
+        }
+
+        const notificationList = document.getElementById('notificationList');
+        if (notificationList) {
+            notificationList.addEventListener('click', (event) => {
+                const notificationItem = event.target.closest('[data-notification-id]');
+                if (!notificationItem) {
+                    return;
+                }
+
+                this.handleNotificationClick(notificationItem.dataset.notificationId);
+            });
+        }
+
         // Close panel when clicking outside
         document.addEventListener('click', (e) => {
             const panel = document.getElementById('notificationPanel');
             const bell = document.getElementById('notificationBell');
-            if (!panel || !bell) {
-                return;
-            }
-            if (this.isOpen && !panel.contains(e.target) && !bell.contains(e.target)) {
+            if (this.isOpen && panel && bell && !panel.contains(e.target) && !bell.contains(e.target)) {
                 this.closePanel();
             }
         });
@@ -382,9 +185,6 @@ class NotificationCenter {
     }
 
     async loadNotifications() {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
         try {
             const response = await this.fetchApi('notifications?limit=10');
             if (!response.ok) {
@@ -413,9 +213,9 @@ class NotificationCenter {
 
         if (this.unreadCount > 0) {
             badge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount;
-            badge.style.display = 'block';
+            badge.classList.remove('is-hidden');
         } else {
-            badge.style.display = 'none';
+            badge.classList.add('is-hidden');
         }
 
         if (this.notifications.length === 0) {
@@ -434,8 +234,7 @@ class NotificationCenter {
 
             return `
                 <div class="notification-item ${!notif.read ? 'unread' : ''}"
-                     data-notification-id="${notif._id}"
-                     data-action-url="${notif.actionUrl || ''}">
+                     data-notification-id="${notif._id}">
                     <div class="notification-icon ${iconClass}">
                         ${this.getIcon(notif.type)}
                     </div>
@@ -474,12 +273,15 @@ class NotificationCenter {
         if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
         if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
         if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-        return date.toLocaleDateString();
+        return AppFormat.date(date);
     }
 
-    async handleNotificationClick(notificationId, actionUrl) {
+    async handleNotificationClick(notificationId) {
         // Mark as read
         await this.markAsRead(notificationId);
+
+        const notification = this.notifications.find((notif) => notif._id === notificationId);
+        const actionUrl = notification && notification.actionUrl ? notification.actionUrl : '';
 
         // Navigate if there's an action URL
         if (actionUrl) {
@@ -490,9 +292,6 @@ class NotificationCenter {
     }
 
     async markAsRead(notificationId) {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
         try {
             await this.fetchApi(`notifications/${notificationId}/read`, {
                 method: 'PUT'
@@ -511,9 +310,6 @@ class NotificationCenter {
     }
 
     async markAllAsRead() {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
         try {
             await this.fetchApi('notifications/read-all', {
                 method: 'PUT'

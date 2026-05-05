@@ -30,15 +30,22 @@ const Toast = {
         toast.innerHTML = `
             <span class="toast-icon">${icons[type] || icons.info}</span>
             <span class="toast-message">${message}</span>
-            <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            <button type="button" class="toast-close">×</button>
         `;
 
         this.container.appendChild(toast);
 
+        const closeButton = toast.querySelector('.toast-close');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                toast.remove();
+            });
+        }
+
         // Auto remove after duration
         if (duration > 0) {
             setTimeout(() => {
-                toast.style.animation = 'slideOut 0.3s ease forwards';
+                toast.classList.add('toast-is-exiting');
                 setTimeout(() => toast.remove(), 300);
             }, duration);
         }
@@ -70,14 +77,14 @@ const Toast = {
 };
 
 // Add slideOut animation
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-    }
-`;
-document.head.appendChild(style);
+(function loadExtractedStylesheet() {
+    var href = '/css/components/toast.css';
+    if (document.querySelector('link[href="' + href + '"]')) return;
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+  })();
 
 // Make available globally
 window.Toast = Toast;

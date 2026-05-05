@@ -1,0 +1,6 @@
+[allowlist]
+  description = "Allowlist for known test/fixture false positives"
+  paths = [
+    '''tests/setup\.js''',
+    '''\.github/workflows/ci\.yml'''
+  ]

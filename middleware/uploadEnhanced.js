@@ -15,7 +15,8 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
-const { detectFileTypeFromBuffer } = require('../utils/fileType');
+const { roundToDecimals } = require('../utils/number');
+const { detectFileTypeFromBuffer } = require('../utils/fileTypeDetector');
 
 // User upload quota (5MB per file, 50MB total per user)
 const QUOTA_LIMITS = {
@@ -80,7 +81,7 @@ async function checkUserQuota(userId) {
     let fileCount = 0;
 
     // Recursively calculate user's total upload size
-    function calculateUserFiles(dir) {
+    const calculateUserFiles = (dir) => {
       const files = fs.readdirSync(dir);
 
       files.forEach(file => {
@@ -422,8 +423,8 @@ async function getUserQuotaInfo(req, res) {
         files: quota.remainingFiles
       },
       percentUsed: {
-        size: ((quota.totalSize / QUOTA_LIMITS.maxTotalSize) * 100).toFixed(1),
-        files: ((quota.fileCount / QUOTA_LIMITS.maxFiles) * 100).toFixed(1)
+        size: roundToDecimals((quota.totalSize / QUOTA_LIMITS.maxTotalSize) * 100, 1),
+        files: roundToDecimals((quota.fileCount / QUOTA_LIMITS.maxFiles) * 100, 1)
       }
     }
   });

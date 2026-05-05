@@ -1,28 +1,12 @@
-coverage/
-logs/
-uploads/
+# Build output
 client/dist/
-client/build/
-docs/
-terraform/
-grafana/
-k8s/
-prometheus/
-promtail/
-loki/
-logstash/
-filebeat/
-nginx/
-scripts/
-*.bat
+coverage/
+
+# Non-JS files
 *.ps1
-create-mongo-user.js
-create-mongo-users.js
-fix-auth-with-localhost-exception.js
-recreate-dev-prod-users.js
-seed.js
-test-admin-auth.js
-test-compression.js
-test-mongo-connection.js
-update-user.js
-verify-and-fix-auth.js
+*.bat
+*.sh
+*.txt
+
+# Node modules
+node_modules/

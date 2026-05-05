@@ -1,6 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const logger = require('../utils/logger');
+const { createMagicByteValidatedStream } = require('../utils/uploadMagicByteValidator');
 
 // Determine storage backend — only use GCS when explicitly enabled and configured
 const USE_GCS = process.env.USE_GCS === 'true' && !!process.env.GCS_BUCKET;
@@ -18,8 +19,7 @@ if (USE_GCS && process.env.GCS_BUCKET) {
   try {
     const { Storage } = require('@google-cloud/storage');
 
-    // Initialize GCS client
-    // Uses GOOGLE_APPLICATION_CREDENTIALS env var for auth, or inline credentials
+    // Initialize GCS client using application default credentials or inline credentials
     const gcsConfig = {};
 
     if (process.env.GCS_PROJECT_ID) {
@@ -105,13 +105,20 @@ const gcsStorage = {
         }
       });
 
-      let size = 0;
-
-      file.stream.on('data', (chunk) => {
-        size += chunk.length;
+      const validatedUpload = createMagicByteValidatedStream(file, {
+        userId: req.user ? req.user._id.toString() : 'anonymous'
       });
 
-      file.stream.pipe(blobStream);
+      file.stream.pipe(validatedUpload.stream).pipe(blobStream);
+
+      validatedUpload.validation().catch(async (error) => {
+        blobStream.destroy(error);
+        try {
+          await blob.delete();
+        } catch (deleteError) {
+          logger.warn('Failed to delete rejected GCS upload', { key, error: deleteError.message });
+        }
+      });
 
       blobStream.on('error', (error) => {
         cb(error);
@@ -123,7 +130,7 @@ const gcsStorage = {
           key: key,
           location: publicUrl,
           bucket: process.env.GCS_BUCKET,
-          size: size,
+          size: validatedUpload.getSize(),
           mimetype: file.mimetype
         });
       });

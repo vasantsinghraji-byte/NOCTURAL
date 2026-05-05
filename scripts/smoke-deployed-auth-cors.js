@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 
-/* eslint-disable no-console */
-
 const DEFAULT_BASE_URL = 'https://nocturnal-api.onrender.com';
 
 const baseUrl = (process.env.DEPLOYED_BASE_URL ||
   process.env.RENDER_SMOKE_BASE_URL ||
   DEFAULT_BASE_URL).replace(/\/+$/, '');
-const origin = (process.env.SMOKE_ORIGIN || process.env.RENDER_SMOKE_ORIGIN || baseUrl).replace(/\/+$/, '');
+const origin = (process.env.SMOKE_ORIGIN || baseUrl).replace(/\/+$/, '');
 
 const requiredCorsHeaders = (response, label) => {
   const allowOrigin = response.headers.get('access-control-allow-origin');
@@ -39,6 +37,8 @@ const assertNoCorsFailure = async (response, label) => {
   if (body.includes('Not allowed by CORS')) {
     throw new Error(`${label}: response still contains CORS rejection text`);
   }
+
+  return body;
 };
 
 const request = (path, options = {}) => fetch(`${baseUrl}${path}`, {

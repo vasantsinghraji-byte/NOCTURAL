@@ -105,7 +105,7 @@ id_rsa
 id_dsa
 *.cert
 serviceAccountKey.json
-firebase-credentials.json
+gcs-service-account.json
 aws-credentials.json
 EOF
 

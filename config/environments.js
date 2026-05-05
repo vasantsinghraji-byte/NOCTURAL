@@ -105,12 +105,6 @@ const baseConfig = {
         directory: path.join(process.cwd(), 'logs')
     },
 
-    // Firebase
-    firebase: {
-        enabled: process.env.FIREBASE_AUTH_ENABLED === 'true',
-        credentials: process.env.GOOGLE_APPLICATION_CREDENTIALS
-    },
-
     // OpenTelemetry / Distributed Tracing
     // Enable with: npm install @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node
     tracing: {

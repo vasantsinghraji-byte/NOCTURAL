@@ -13,6 +13,15 @@ const {
   SHIFT_PREFERENCES
 } = require('../constants/enums');
 
+const PROVIDER_PROFILE_ROLES = ['doctor', 'nurse', 'physiotherapist'];
+
+const ensureRoleCanUpdateField = (req, roles, fieldLabel) => {
+  if (!roles.includes(req.user?.role)) {
+    throw new Error(`${fieldLabel} cannot be modified for your account type`);
+  }
+  return true;
+};
+
 /**
  * Validation result handler
  */
@@ -319,10 +328,125 @@ const validateUpdateProfile = [
     .trim()
     .matches(FIELD_LIMITS.PHONE_E164).withMessage('Invalid phone number format'),
 
-  body('bio')
+  body('hospital')
     .optional()
-    .trim()
-    .isLength({ max: FIELD_LIMITS.BIO.max }).withMessage('Bio cannot exceed 500 characters'),
+    .custom((value, { req }) => {
+      ensureRoleCanUpdateField(req, ['admin'], 'Hospital');
+
+      if (typeof value !== 'string') {
+        throw new Error('Hospital name must be a string');
+      }
+
+      const trimmed = value.trim();
+      if (trimmed.length < 1 || trimmed.length > 200) {
+        throw new Error('Hospital name must be between 1 and 200 characters');
+      }
+
+      return true;
+    }),
+
+  body('location')
+    .optional()
+    .custom((value) => {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed.length < 1 || trimmed.length > 200) {
+          throw new Error('Location must be between 1 and 200 characters');
+        }
+        return true;
+      }
+
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error('Location must be a string or an object');
+      }
+
+      const city = typeof value.city === 'string' ? value.city.trim() : '';
+      const state = typeof value.state === 'string' ? value.state.trim() : '';
+
+      if (!city && !state) {
+        throw new Error('Location must include at least a city or state');
+      }
+
+      if (city && city.length > 100) {
+        throw new Error('Location city must not exceed 100 characters');
+      }
+
+      if (state && state.length > 100) {
+        throw new Error('Location state must not exceed 100 characters');
+      }
+
+      return true;
+    }),
+
+  body('professional')
+    .optional()
+    .custom((value, { req }) => {
+      ensureRoleCanUpdateField(req, PROVIDER_PROFILE_ROLES, 'Professional details');
+
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error('Professional details must be an object');
+      }
+
+      return true;
+    }),
+
+  body('specialty')
+    .optional()
+    .custom((value, { req }) => {
+      ensureRoleCanUpdateField(req, PROVIDER_PROFILE_ROLES, 'Specialty');
+
+      if (typeof value !== 'string') {
+        throw new Error('Specialty must be a string');
+      }
+
+      const trimmed = value.trim();
+      if (!trimmed || trimmed.length > 120) {
+        throw new Error('Specialty must be between 1 and 120 characters');
+      }
+
+      return true;
+    }),
+
+  body('licenseNumber')
+    .optional()
+    .custom((value, { req }) => {
+      ensureRoleCanUpdateField(req, PROVIDER_PROFILE_ROLES, 'License number');
+
+      if (typeof value !== 'string') {
+        throw new Error('License number must be a string');
+      }
+
+      const trimmed = value.trim();
+      if (!trimmed || trimmed.length > 120) {
+        throw new Error('License number must be between 1 and 120 characters');
+      }
+
+      return true;
+    }),
+
+  body('bankDetails')
+    .optional()
+    .custom((value, { req }) => {
+      ensureRoleCanUpdateField(req, PROVIDER_PROFILE_ROLES, 'Bank details');
+
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error('Bank details must be an object');
+      }
+
+      return true;
+    }),
+
+  body('onboardingCompleted')
+    .optional()
+    .custom((value, { req }) => {
+      ensureRoleCanUpdateField(req, PROVIDER_PROFILE_ROLES, 'Onboarding status');
+
+      if (typeof value !== 'boolean') {
+        throw new Error('Onboarding status must be a boolean');
+      }
+
+      return true;
+    }),
 
   body('professional.mciNumber')
     .optional()

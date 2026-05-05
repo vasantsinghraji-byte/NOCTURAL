@@ -5,8 +5,6 @@
 
 const mongoose = require('mongoose');
 const Application = require('../../../models/application');
-const Duty = require('../../../models/duty');
-const User = require('../../../models/user');
 const {
   connectTestDB,
   disconnectTestDB,

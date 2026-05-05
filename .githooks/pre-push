@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+CURRENT_BRANCH="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+
+if [ -z "$CURRENT_BRANCH" ]; then
+  exit 0
+fi
+
+if [ "${NOCTURNAL_ALLOW_PROTECTED_PUSH:-0}" = "1" ]; then
+  exit 0
+fi
+
+PROTECTED_BRANCH_PATTERN='^(main|develop)$'
+WORKING_BRANCH_PATTERN='^(feature|fix|bugfix|hotfix|refactor|docs|chore|experiment|release)/[a-z0-9._-]+$'
+
+if echo "$CURRENT_BRANCH" | grep -Eq "$PROTECTED_BRANCH_PATTERN"; then
+  cat <<EOF
+Direct pushes to '$CURRENT_BRANCH' are blocked.
+
+Create a short-lived branch and open a pull request instead.
+Emergency override:
+  git push --no-verify
+EOF
+  exit 1
+fi
+
+if ! echo "$CURRENT_BRANCH" | grep -Eq "$WORKING_BRANCH_PATTERN"; then
+  cat <<EOF
+Branch name '$CURRENT_BRANCH' does not match the team convention.
+
+Use one of:
+  feature/<scope>
+  fix/<scope>
+  bugfix/<scope>
+  hotfix/<scope>
+  refactor/<scope>
+  docs/<scope>
+  chore/<scope>
+  experiment/<scope>
+  release/<scope>
+EOF
+  exit 1
+fi
+
+exit 0

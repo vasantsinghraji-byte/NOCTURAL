@@ -63,7 +63,7 @@ async function diagnose() {
         await testColl.insertOne({ test: true, timestamp: new Date() });
         console.log('[OK] Write permission verified');
 
-        const doc = await testColl.findOne({ test: true });
+        await testColl.findOne({ test: true });
         console.log('[OK] Read permission verified');
 
         await testColl.deleteOne({ test: true });

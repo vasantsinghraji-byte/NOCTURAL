@@ -25,7 +25,7 @@ This document outlines the secrets management strategy for the Nocturnal platfor
 
 4. **Third-Party Integrations**
    - Email service credentials (SMTP)
-   - Firebase service account
+   - Google Cloud service account
    - Payment gateway keys
 
 ## Storage Solutions
@@ -55,7 +55,7 @@ nocturnal/production/
 ├── mongodb-uri
 ├── redis-password
 ├── smtp-credentials
-└── firebase-service-account
+└── gcs-service-account
 ```
 
 **Access Pattern**:
@@ -382,7 +382,7 @@ Resources:
 *.pem
 *.key
 *.p12
-firebase-service-account.json
+gcs-service-account.json
 secrets/
 credentials/
 ```
@@ -525,3 +525,4 @@ head -c 32 /dev/urandom | base64
 **Last Updated**: 2025-01-15
 **Next Review**: 2025-04-15
 **Document Owner**: Security Team
+

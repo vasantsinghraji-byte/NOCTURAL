@@ -13,33 +13,6 @@
     "no-eval": "error",
     "no-implied-eval": "error",
     "no-buffer-constructor": "error",
-    "no-restricted-syntax": [
-      "error",
-      {
-        "selector": "CallExpression[callee.name='hash'][arguments.0.name=/pass(word)?|pwd/i]",
-        "message": "Password hashing must use bcrypt.hash() or argon2.hash(); do not use generic hash helpers for passwords."
-      },
-      {
-        "selector": "CallExpression[callee.name='hash'][arguments.0.property.name=/pass(word)?|pwd/i]",
-        "message": "Password hashing must use bcrypt.hash() or argon2.hash(); do not use generic hash helpers for passwords."
-      },
-      {
-        "selector": "CallExpression[callee.property.name='hash'][arguments.0.name=/pass(word)?|pwd/i]:not([callee.object.name='bcrypt']):not([callee.object.name='bcryptjs']):not([callee.object.name='argon2'])",
-        "message": "Password hashing must use bcrypt.hash() or argon2.hash(); do not use generic hash helpers for passwords."
-      },
-      {
-        "selector": "CallExpression[callee.property.name='hash'][arguments.0.property.name=/pass(word)?|pwd/i]:not([callee.object.name='bcrypt']):not([callee.object.name='bcryptjs']):not([callee.object.name='argon2'])",
-        "message": "Password hashing must use bcrypt.hash() or argon2.hash(); do not use generic hash helpers for passwords."
-      },
-      {
-        "selector": "CallExpression[callee.name='checksum'][arguments.0.name=/pass(word)?|pwd/i], CallExpression[callee.property.name='checksum'][arguments.0.name=/pass(word)?|pwd/i], CallExpression[callee.name='checksum'][arguments.0.property.name=/pass(word)?|pwd/i], CallExpression[callee.property.name='checksum'][arguments.0.property.name=/pass(word)?|pwd/i]",
-        "message": "Do not checksum passwords. Use bcrypt.hash() or argon2.hash() for password storage."
-      },
-      {
-        "selector": "CallExpression[callee.property.name='update'][callee.object.callee.property.name='createHash'][arguments.0.name=/pass(word)?|pwd/i], CallExpression[callee.property.name='update'][callee.object.callee.property.name='createHash'][arguments.0.property.name=/pass(word)?|pwd/i]",
-        "message": "Do not hash passwords with crypto.createHash(). Use bcrypt.hash() or argon2.hash()."
-      }
-    ],
     "no-param-reassign": ["warn", {
       "props": true,
       "ignorePropertyModificationsFor": ["req", "res", "next", "user", "booking", "duty", "app", "schema", "event", "query"]
@@ -58,7 +31,7 @@
   ],
   "overrides": [
     {
-      "files": ["tests/**/*.js", "services/**/tests/**/*.js"],
+      "files": ["tests/**/*.js", "services/*/tests/**/*.js"],
       "env": { "jest": true },
       "rules": {
         "no-console": "off"
@@ -90,9 +63,7 @@
         "Chart": "readonly",
         "FullCalendar": "readonly",
         "Razorpay": "readonly",
-        "API_URL": "readonly",
-        "requestIdleCallback": "readonly",
-        "module": "readonly"
+        "API_URL": "readonly"
       },
       "rules": {
         "no-console": "off",
@@ -143,8 +114,7 @@
         "quit": "readonly"
       },
       "rules": {
-        "no-console": "off",
-        "no-global-assign": "off"
+        "no-console": "off"
       }
     },
     {

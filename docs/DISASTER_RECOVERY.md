@@ -169,8 +169,8 @@ This document outlines the disaster recovery procedures for the Nocturnal platfo
    # Trigger deployment
    kubectl rollout restart deployment/nocturnal-app -n nocturnal
 
-   # Or CI/CD pipeline
-   gh workflow run ci-cd.yml --ref main
+   # Or GitHub deployment workflow
+   gh workflow run deploy.yml --ref main -f environment=production -f action=deploy
    ```
 
 3. **Verify Health** (3 min):
