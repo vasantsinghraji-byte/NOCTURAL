@@ -94,3 +94,34 @@ npm ls @aws-sdk/client-s3 @aws-sdk/s3-request-presigner fast-xml-parser axios fo
 ```
 
 Result: production audit reports 0 vulnerabilities.
+
+## Client Tooling Audit
+
+Reviewed separately because the root production audit is clean and the client package is a build/dev-tooling package.
+
+Commands:
+
+```bash
+npm --prefix client audit --omit=dev --json
+npm --prefix client audit --json
+```
+
+Current client production audit result:
+
+- Critical: 0
+- High: 0
+- Moderate: 0
+- Low: 0
+- Total: 0
+
+Current full client audit result, including dev dependencies:
+
+- Critical: 0
+- High: 15
+- Moderate: 11
+- Low: 2
+- Total: 28
+
+Assessment: the remaining client findings are in development/build tooling, not in the deployed Node production dependency graph. The largest chains are `serialize-javascript` through webpack minimizer/copy plugins, `live-server -> chokidar`, `webpack-dev-server -> sockjs`, and direct or transitive build packages such as `webpack`, `postcss`, `svgo`, `ajv`, and `follow-redirects`.
+
+Next cleanup should update or remove the unused client dev-server/build dependencies in controlled groups, then rerun the production frontend build and CSP deployment gate. Do not use a broad forced audit fix without reviewing webpack plugin major-version changes, because that could break the existing static build pipeline.
