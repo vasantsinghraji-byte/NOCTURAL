@@ -81,6 +81,10 @@ describe('Phase 6 — CI/CD Pipeline', () => {
     it('should run npm audit with an audit level', () => {
       expect(ciYaml).toMatch(/--audit-level=/);
     });
+
+    it('should fail on moderate client dev-tooling audit regressions', () => {
+      expect(ciYaml).toMatch(/npm --prefix client audit --audit-level=moderate/);
+    });
   });
 
   describe('CICD-006: Docker image vulnerability scanning', () => {
