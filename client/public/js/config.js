@@ -493,7 +493,7 @@ const AppConfig = {
         );
     },
 
-    setToken: function(token) {
+    setToken: function(_token) {
         this.clearToken();
     },
 

@@ -282,8 +282,6 @@ jobs:
           echo "CI Pipeline completed"
           echo "Lint: ${{ needs.lint.result }}"
           echo "Tests: ${{ needs.test.result }}"
-          echo "Legacy Healthy Tests: ${{ needs.legacy-healthy.result }}"
-          echo "Legacy Quarantine Tests: ${{ needs.legacy-tests.result }}"
           echo "Secret Scan: ${{ needs.secret-scan.result }}"
           echo "Security: ${{ needs.security.result }}"
           echo "Build: ${{ needs.build.result }}"
