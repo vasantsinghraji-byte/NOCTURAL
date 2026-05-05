@@ -117,11 +117,16 @@ Current client production audit result:
 Current full client audit result, including dev dependencies:
 
 - Critical: 0
-- High: 15
-- Moderate: 11
-- Low: 2
-- Total: 28
+- High: 0
+- Moderate: 0
+- Low: 0
+- Total: 0
 
-Assessment: the remaining client findings are in development/build tooling, not in the deployed Node production dependency graph. The largest chains are `serialize-javascript` through webpack minimizer/copy plugins, `live-server -> chokidar`, `webpack-dev-server -> sockjs`, and direct or transitive build packages such as `webpack`, `postcss`, `svgo`, `ajv`, and `follow-redirects`.
+Resolved client dev-tooling changes:
 
-Next cleanup should update or remove the unused client dev-server/build dependencies in controlled groups, then rerun the production frontend build and CSP deployment gate. Do not use a broad forced audit fix without reviewing webpack plugin major-version changes, because that could break the existing static build pipeline.
+- Updated webpack fallback tooling: `copy-webpack-plugin`, `css-minimizer-webpack-plugin`, `terser-webpack-plugin`, `webpack`, `webpack-cli`, `babel-loader`, `html-webpack-plugin`, `postcss`, `postcss-loader`, and `rimraf`.
+- Removed `live-server` and `webpack-dev-server` from the client package.
+- Replaced local frontend serving with `client/scripts/serve-static.js`, a small Node static server used by `npm --prefix client run serve` and `serve:dist`.
+- Refreshed transitive dev packages including `ajv`, `lodash`, `minimatch`, and `brace-expansion`.
+
+Assessment: both the root production audit and client package audits are clean. Keep this separation: deployed production dependencies are audited with `--omit=dev`, while client dev-tooling is reviewed separately because it is not installed into the running Render API container.

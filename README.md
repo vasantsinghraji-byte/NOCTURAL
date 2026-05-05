@@ -213,9 +213,7 @@ Server runs on http://localhost:5000
 #### Start Frontend (Separate Terminal)
 ```bash
 cd client
-npm start
-# or use live-server
-live-server --port=3000
+npm run serve
 ```
 Client runs on http://localhost:3000
 
