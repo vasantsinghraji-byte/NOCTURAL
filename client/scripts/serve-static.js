@@ -83,7 +83,8 @@ function serveFile(rootDir, request, response) {
     return;
   }
 
-  fs.stat(filePath, (statError, stats) => {
+  // The request path is resolved under rootDir before filesystem access.
+  fs.stat(filePath, (statError, stats) => { // eslint-disable-line security/detect-non-literal-fs-filename
     if (statError || !stats.isFile()) {
       send(response, 404, 'Not Found');
       return;
@@ -101,7 +102,7 @@ function serveFile(rootDir, request, response) {
       return;
     }
 
-    fs.createReadStream(filePath).pipe(response);
+    fs.createReadStream(filePath).pipe(response); // eslint-disable-line security/detect-non-literal-fs-filename
   });
 }
 
@@ -113,7 +114,7 @@ if (!Number.isInteger(options.port) || options.port < 1 || options.port > 65535)
   process.exit(1);
 }
 
-if (!fs.existsSync(rootDir)) {
+if (!fs.existsSync(rootDir)) { // eslint-disable-line security/detect-non-literal-fs-filename
   process.stderr.write(`Static root not found: ${rootDir}\n`);
   process.exit(1);
 }

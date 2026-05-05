@@ -179,6 +179,12 @@ jobs:
       - name: Check for vulnerabilities
         run: npm audit --omit=dev --audit-level=high || true
 
+      - name: Install client dependencies
+        run: npm --prefix client ci --include=dev --ignore-scripts
+
+      - name: Check client dev-tooling vulnerabilities
+        run: npm --prefix client audit --audit-level=moderate
+
       - name: Run auth security gate
         run: npm run test:security-gate
 

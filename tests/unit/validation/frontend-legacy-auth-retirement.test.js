@@ -92,8 +92,7 @@ describe('Frontend Legacy Auth Retirement', () => {
   it('should keep the webpack pipeline off deprecated legacy-auth entrypoints', () => {
     expect(webpackConfigSrc).not.toContain("./public/app.js");
     expect(webpackConfigSrc).not.toContain(`./public/${retiredProviderConfig}`);
-    expect(webpackConfigSrc).toContain("./public/js/config.js");
-    expect(webpackConfigSrc).toContain("chunks: ['main', 'api']");
+    expect(webpackConfigSrc).toContain("require('./webpack.config.simple')");
 
     expect(webpackSimpleConfigSrc).not.toContain("public/app.js");
     expect(webpackSimpleConfigSrc).toContain("public/js/config.js");
