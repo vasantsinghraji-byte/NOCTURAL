@@ -92,6 +92,7 @@ describe('Phase 6 — CI/CD Pipeline', () => {
       expect(Number(budgetMatch[1])).toBeLessThan(261);
       expect(Number(budgetMatch[1])).toBeLessThan(241);
       expect(Number(budgetMatch[1])).toBeLessThanOrEqual(231);
+      expect(Number(budgetMatch[1])).toBeLessThanOrEqual(212);
     });
   });
 

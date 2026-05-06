@@ -195,7 +195,7 @@ function createPaginationControls(pagination, onPageChange, options = {}) {
   if (showPageNumbers) {
     const pageNumbers = getPageNumbers(page, pages, maxPageButtons);
 
-    pageNumbers.forEach((pageNum, index) => {
+    pageNumbers.forEach((pageNum) => {
       if (pageNum === '...') {
         html += `<span class="pagination-ellipsis">...</span>`;
       } else {
