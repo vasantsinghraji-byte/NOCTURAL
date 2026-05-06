@@ -309,16 +309,6 @@
             }
         }
 
-        // Go to intake form
-        function goToIntake() {
-            window.location.href = AppConfig.routes.page('patient.healthIntakeForm');
-        }
-
-        // Go to complete medical history form
-        function goToMedicalHistory() {
-            window.location.href = AppConfig.routes.page('patient.clinicalHistoryForm');
-        }
-
         // Logout
         function logout() {
             PatientSession.logout({

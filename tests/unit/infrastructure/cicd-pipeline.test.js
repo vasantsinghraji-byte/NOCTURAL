@@ -23,6 +23,11 @@ const ciYaml = fs.readFileSync(
   'utf8'
 );
 
+const warningBudgetScript = fs.readFileSync(
+  path.resolve(__dirname, '..', '..', '..', 'scripts', 'check-eslint-warning-budget.js'),
+  'utf8'
+);
+
 const deployYaml = fs.readFileSync(
   path.join(workflowDir, 'deploy.yml'),
   'utf8'
@@ -78,6 +83,13 @@ describe('Phase 6 — CI/CD Pipeline', () => {
 
     it('should enforce an ESLint warning budget', () => {
       expect(ciYaml).toMatch(/npm run lint:warning-budget/);
+    });
+
+    it('should ratchet the ESLint warning budget downward from the previous baseline', () => {
+      const budgetMatch = warningBudgetScript.match(/DEFAULT_WARNING_BUDGET\s*=\s*(\d+)/);
+      expect(budgetMatch).not.toBeNull();
+      expect(Number(budgetMatch[1])).toBeLessThan(271);
+      expect(Number(budgetMatch[1])).toBeLessThanOrEqual(261);
     });
   });
 

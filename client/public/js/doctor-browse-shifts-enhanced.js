@@ -1,6 +1,5 @@
 // API_URL is provided by config.js
         let allShifts = [];
-        let currentUser = null;
 
         // Check authentication
         function checkAuth() {
@@ -20,9 +19,10 @@
                         return !!(payload && payload.success && payload.user);
                     }
                 });
-                currentUser = data.user;
+                return data.user;
             } catch (error) {
                 console.error('Error loading user:', error);
+                return null;
             }
         }
 
