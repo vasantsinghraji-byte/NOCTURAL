@@ -36,7 +36,7 @@ describe('Frontend Auth Flow Standardization', () => {
     expect(frontendSessionSrc).toContain('function getPasswordStrengthState(password)');
     expect(frontendSessionSrc).toContain('function validatePasswordStrength(password, container, options)');
     expect(frontendSessionSrc).toContain('function handleValidationFailure(container, message, config)');
-    expect(frontendSessionSrc).toContain('button.dataset.originalHtml');
+    expect(frontendSessionSrc).toContain('targetButton.dataset.originalHtml');
     expect(frontendSessionSrc).toContain('if (config.loadingHtml)');
     expect(frontendSessionSrc).toContain('if (config.htmlContent)');
     expect(frontendSessionSrc).toContain("if (typeof config.onInvalid === 'function')");

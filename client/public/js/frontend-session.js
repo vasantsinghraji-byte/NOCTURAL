@@ -7,7 +7,7 @@ if (typeof AppConfig === 'undefined') {
   console.error('frontend-session.js: AppConfig not loaded - ensure config.js is included before this script');
 }
 
-(function initFrontendSession(window) {
+(function initFrontendSession() {
   var appRoutes = typeof AppConfig !== 'undefined' && AppConfig.routes ? AppConfig.routes : null;
   var DEFAULT_ROUTES = {
     doctorDashboard: appRoutes ? appRoutes.page('doctor.dashboard') : '/roles/doctor/doctor-dashboard.html',
@@ -49,6 +49,20 @@ if (typeof AppConfig === 'undefined') {
     localStorage.removeItem('userId');
   }
 
+  function navigateTo(url) {
+    window.location.href = url;
+  }
+
+  function navigateAfterDelay(url, delayMs) {
+    window.setTimeout(function () {
+      navigateTo(url);
+    }, delayMs);
+  }
+
+  function registerSessionApi(api) {
+    window.NocturnalSession = api;
+  }
+
   function logout(options) {
     var config = Object.assign({
       clearAll: false,
@@ -75,7 +89,7 @@ if (typeof AppConfig === 'undefined') {
     }
 
     if (config.redirectUrl) {
-      window.location.href = config.redirectUrl;
+      navigateTo(config.redirectUrl);
     }
   }
 
@@ -145,7 +159,7 @@ if (typeof AppConfig === 'undefined') {
     if (typeof config.onUnauthorized === 'function') {
       config.onUnauthorized(config);
     } else if (config.redirectUrl) {
-      window.location.href = config.redirectUrl;
+      navigateTo(config.redirectUrl);
     }
 
     return null;
@@ -333,21 +347,21 @@ if (typeof AppConfig === 'undefined') {
 
     if (user.role === 'doctor' || user.role === 'nurse' || user.role === 'physiotherapist') {
       persistSession(user, 'doctor');
-      window.location.href = user.onboardingCompleted
+      navigateTo(user.onboardingCompleted
         ? routes.doctorDashboard
-        : routes.doctorOnboarding;
+        : routes.doctorOnboarding);
       return true;
     }
 
     if (user.role === 'admin') {
       persistSession(user, 'hospital');
-      window.location.href = routes.adminDashboard;
+      navigateTo(routes.adminDashboard);
       return true;
     }
 
     if (user.role === 'patient') {
       persistSession(user, 'patient');
-      window.location.href = routes.patientDashboard;
+      navigateTo(routes.patientDashboard);
       return true;
     }
 
@@ -373,12 +387,13 @@ if (typeof AppConfig === 'undefined') {
     if (!container) {
       return;
     }
+    var targetContainer = container;
 
     var config = Object.assign({
       className: 'error-message'
     }, options || {});
 
-    container.innerHTML = '<div class="' + config.className + '">' + message + '</div>';
+    targetContainer.innerHTML = '<div class="' + config.className + '">' + message + '</div>';
   }
 
   function renderSuccessMessage(container, message, options) {
@@ -391,7 +406,8 @@ if (typeof AppConfig === 'undefined') {
 
   function clearFormMessage(container) {
     if (container) {
-      container.innerHTML = '';
+      var targetContainer = container;
+      targetContainer.innerHTML = '';
     }
   }
 
@@ -399,26 +415,27 @@ if (typeof AppConfig === 'undefined') {
     if (!button) {
       return;
     }
+    var targetButton = button;
 
     var config = Object.assign({
       clearText: false
     }, options || {});
 
-    if (!button.dataset.originalText) {
-      button.dataset.originalText = button.textContent;
+    if (!targetButton.dataset.originalText) {
+      targetButton.dataset.originalText = targetButton.textContent;
     }
 
-    if (!button.dataset.originalHtml) {
-      button.dataset.originalHtml = button.innerHTML;
+    if (!targetButton.dataset.originalHtml) {
+      targetButton.dataset.originalHtml = targetButton.innerHTML;
     }
 
-    button.classList.add('loading');
-    button.disabled = true;
+    targetButton.classList.add('loading');
+    targetButton.disabled = true;
 
     if (config.loadingHtml) {
-      button.innerHTML = config.loadingHtml;
+      targetButton.innerHTML = config.loadingHtml;
     } else if (config.clearText) {
-      button.textContent = '';
+      targetButton.textContent = '';
     }
   }
 
@@ -426,30 +443,31 @@ if (typeof AppConfig === 'undefined') {
     if (!button) {
       return;
     }
+    var targetButton = button;
 
     var config = Object.assign({
-      textContent: button.dataset.originalText || button.textContent
+      textContent: targetButton.dataset.originalText || targetButton.textContent
     }, options || {});
 
-    button.classList.remove('loading');
-    button.disabled = false;
+    targetButton.classList.remove('loading');
+    targetButton.disabled = false;
 
     if (config.htmlContent) {
-      button.innerHTML = config.htmlContent;
+      targetButton.innerHTML = config.htmlContent;
       return;
     }
 
     if (config.textContent !== undefined && config.textContent !== null) {
-      button.textContent = config.textContent;
+      targetButton.textContent = config.textContent;
       return;
     }
 
-    if (button.dataset.originalHtml) {
-      button.innerHTML = button.dataset.originalHtml;
+    if (targetButton.dataset.originalHtml) {
+      targetButton.innerHTML = targetButton.dataset.originalHtml;
       return;
     }
 
-    button.textContent = button.dataset.originalText || button.textContent;
+    targetButton.textContent = targetButton.dataset.originalText || targetButton.textContent;
   }
 
   function handleValidationFailure(container, message, config) {
@@ -810,12 +828,13 @@ if (typeof AppConfig === 'undefined') {
     var button = resolveActionButton(event, config.buttonId);
 
     if (button) {
-      setButtonLoading(button, {
+      var loadingButton = button;
+      setButtonLoading(loadingButton, {
         loadingHtml: config.loadingHtml
       });
 
       if (config.loadingText) {
-        button.textContent = config.loadingText;
+        loadingButton.textContent = config.loadingText;
       }
     }
 
@@ -823,13 +842,14 @@ if (typeof AppConfig === 'undefined') {
       await applyForDuty(dutyId, config);
 
       if (button) {
-        button.classList.remove('loading');
-        button.disabled = true;
+        var targetButton = button;
+        targetButton.classList.remove('loading');
+        targetButton.disabled = true;
 
         if (config.successHtml) {
-          button.innerHTML = config.successHtml;
+          targetButton.innerHTML = config.successHtml;
         } else if (config.successText) {
-          button.textContent = config.successText;
+          targetButton.textContent = config.successText;
         }
       }
 
@@ -844,9 +864,7 @@ if (typeof AppConfig === 'undefined') {
       }
 
       if (config.redirectUrl) {
-        window.setTimeout(function() {
-          window.location.href = config.redirectUrl;
-        }, config.redirectDelayMs);
+        navigateAfterDelay(config.redirectUrl, config.redirectDelayMs);
       }
 
       return true;
@@ -993,12 +1011,12 @@ if (typeof AppConfig === 'undefined') {
 
     if (config.redirectUrl) {
       setTimeout(function () {
-        window.location.href = config.redirectUrl;
+        navigateTo(config.redirectUrl);
       }, config.redirectDelayMs);
     }
   }
 
-  window.NocturnalSession = {
+  registerSessionApi({
     persistSession: persistSession,
     clearSession: clearSession,
       logout: logout,
@@ -1039,5 +1057,5 @@ if (typeof AppConfig === 'undefined') {
     validatePasswordStrength: validatePasswordStrength,
     completeAuthSuccess: completeAuthSuccess,
     routes: Object.assign({}, DEFAULT_ROUTES)
-  };
-})(window);
+  });
+}());

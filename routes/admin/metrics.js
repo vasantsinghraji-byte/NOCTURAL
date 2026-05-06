@@ -196,18 +196,6 @@ router.get('/rate-limits/detailed', protect, authorize('admin'), async (req, res
             };
         });
 
-        // Calculate geographic distribution
-        const geoDistribution = {};
-        recentRequests.forEach(req => {
-            if (req.country) {
-                if (!geoDistribution[req.country]) {
-                    geoDistribution[req.country] = { total: 0, blocked: 0 };
-                }
-                geoDistribution[req.country].total++;
-                if (req.blocked) geoDistribution[req.country].blocked++;
-            }
-        });
-
         // Calculate hourly trends
         const hourlyData = Array(rangeInHours).fill().map(() => ({ total: 0, blocked: 0 }));
         recentRequests.forEach(req => {
@@ -238,7 +226,6 @@ router.get('/rate-limits/detailed', protect, authorize('admin'), async (req, res
                 anomalies: recentAnomalies
             },
             endpoints: endpointStats,
-            geographic: geoDistribution,
             timestamp: new Date().toISOString()
         });
     } catch (error) {

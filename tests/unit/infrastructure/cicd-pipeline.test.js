@@ -89,7 +89,8 @@ describe('Phase 6 — CI/CD Pipeline', () => {
       const budgetMatch = warningBudgetScript.match(/DEFAULT_WARNING_BUDGET\s*=\s*(\d+)/);
       expect(budgetMatch).not.toBeNull();
       expect(Number(budgetMatch[1])).toBeLessThan(271);
-      expect(Number(budgetMatch[1])).toBeLessThanOrEqual(261);
+      expect(Number(budgetMatch[1])).toBeLessThan(261);
+      expect(Number(budgetMatch[1])).toBeLessThanOrEqual(241);
     });
   });
 
