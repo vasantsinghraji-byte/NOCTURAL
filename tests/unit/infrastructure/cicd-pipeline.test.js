@@ -75,11 +75,20 @@ describe('Phase 6 — CI/CD Pipeline', () => {
     it('should run npm run lint directly (no echo fallback)', () => {
       expect(ciYaml).toMatch(/run:\s*npm run lint/);
     });
+
+    it('should enforce an ESLint warning budget', () => {
+      expect(ciYaml).toMatch(/npm run lint:warning-budget/);
+    });
   });
 
   describe('CICD-005: Security audit configured', () => {
     it('should run npm audit with an audit level', () => {
       expect(ciYaml).toMatch(/--audit-level=/);
+    });
+
+    it('should fail on moderate production audit regressions', () => {
+      expect(ciYaml).toMatch(/npm audit --omit=dev --audit-level=moderate/);
+      expect(ciYaml).not.toMatch(/npm audit --omit=dev --audit-level=high \|\| true/);
     });
 
     it('should fail on moderate client dev-tooling audit regressions', () => {

@@ -34,10 +34,11 @@
     "db:indexes": "node scripts/add-indexes.js",
     "db:migrate": "node scripts/add-indexes.js",
     "lint": "eslint .",
+    "lint:warning-budget": "node scripts/check-eslint-warning-budget.js",
     "lint:fix": "eslint . --fix",
     "scan:csp-html": "node scripts/scan-html-csp.js",
     "audit:inline-styles": "node scripts/audit-inline-styles.js",
-    "audit:prod": "npm audit --omit=dev",
+    "audit:prod": "npm audit --omit=dev --audit-level=moderate",
     "scan:inline-styles:strict": "node scripts/audit-inline-styles.js --strict",
     "monitor:db": "node scripts/monitor-db.js",
     "monitor:rate-limits": "node scripts/monitor-rate-limits.js",
@@ -105,15 +106,14 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-mongo-sanitize": "^2.2.0",
-    "express-rate-limit": "^8.1.0",
+    "express-rate-limit": "^8.5.0",
     "express-validator": "^7.3.0",
     "file-type": "^22.0.1",
-    "geoip-lite": "^1.4.10",
     "helmet": "^8.1.0",
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.30.1",
-    "mongoose": "^8.19.0",
+    "mongoose": "^8.23.1",
     "multer": "^2.0.2",
     "multer-s3": "^3.0.1",
     "rate-limit-redis": "^4.2.3",
@@ -143,6 +143,7 @@
   "overrides": {
     "axios": "1.16.0",
     "follow-redirects": "1.16.0",
+    "ip-address": "10.2.0",
     "protobufjs": "7.5.5"
   }
 }

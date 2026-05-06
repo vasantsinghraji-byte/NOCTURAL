@@ -1,6 +1,6 @@
 # NPM Audit Review
 
-Reviewed: 2026-05-05
+Reviewed: 2026-05-06
 
 Command:
 
@@ -8,7 +8,7 @@ Command:
 npm audit --omit=dev --json
 ```
 
-Current production audit result after removing `pm2`, overriding `protobufjs`, upgrading direct `file-type` usage, updating AWS SDK packages, removing the unused Render GCS dependency, and overriding Axios redirect transitives:
+Current production audit result after removing `pm2`, overriding `protobufjs`, upgrading direct `file-type` usage, updating AWS SDK packages, removing the unused Render GCS dependency, overriding Axios redirect transitives, updating Mongoose, removing `geoip-lite`, and overriding the `express-rate-limit` `ip-address` transitive:
 
 - Critical: 0
 - High: 0
@@ -86,14 +86,41 @@ razorpay@2.9.6 -> axios@1.16.0 -> follow-redirects@1.16.0
 
 Reason: `node-vault` is optional, but its Axios chain is still installed when optional dependencies are included. Overriding both Axios and `follow-redirects` keeps the optional Vault path and Razorpay path on patched redirect/client packages.
 
+### `mongoose`
+
+Status: fixed by staying on the Mongoose 8 line and updating to `mongoose@8.23.1`.
+
+Reason: earlier 8.x releases were affected by a `sanitizeFilter` `$nor` advisory. Keeping the upgrade within major version 8 limits compatibility risk while moving to a patched release.
+
+### `ip-address` transitives
+
+Status: fixed for production audit.
+
+Changes:
+
+- Removed `geoip-lite`; it was only enriching an in-memory admin rate-limit analytics view and pulled a stale `ip-address@5.x` range.
+- Added an npm override for `ip-address@10.2.0` so `express-rate-limit` resolves past the vulnerable `10.1.0` release while retaining the current rate-limit implementation.
+
 ## Verification
 
 ```text
 npm audit --omit=dev --json
-npm ls @aws-sdk/client-s3 @aws-sdk/s3-request-presigner fast-xml-parser axios follow-redirects node-vault --omit=dev
+npm ls @aws-sdk/client-s3 @aws-sdk/s3-request-presigner fast-xml-parser axios follow-redirects node-vault mongoose express-rate-limit ip-address --omit=dev
 ```
 
 Result: production audit reports 0 vulnerabilities.
+
+## CI Gate Decision
+
+Decision: make the root production audit a real failing CI gate now.
+
+Reason: the production dependency graph is currently clean at all severities, and Render installs the root package for the running API. CI now runs:
+
+```bash
+npm audit --omit=dev --audit-level=moderate
+```
+
+This should fail on new moderate, high, or critical production dependency advisories. Client dev-tooling remains a separate gate because those dependencies are installed only for frontend build/development workflows.
 
 ## Client Tooling Audit
 
