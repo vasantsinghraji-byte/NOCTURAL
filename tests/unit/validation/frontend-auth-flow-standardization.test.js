@@ -107,7 +107,9 @@ describe('Frontend Auth Flow Standardization', () => {
     expect(providerSessionSrc).toContain('NocturnalSession.createRoleSession({');
     expect(providerSessionSrc).toContain("role: 'provider'");
     expect(providerSessionSrc).toContain("legacyTokenKeys: ['providerToken']");
-    expect(providerSessionSrc).toContain('session.redirectAuthenticatedLogin = function(options)');
+    expect(providerSessionSrc).toContain('function createProviderSessionExtension(baseSession)');
+    expect(providerSessionSrc).toContain('redirectAuthenticatedLogin: function(options)');
+    expect(providerSessionSrc).toContain('extendSession: createProviderSessionExtension');
 
     expect(patientRegisterSrc).toContain('<script src="/js/frontend-session.js"></script>');
     expect(patientRegisterSrc).toContain('<script src="/js/patient-register.js"></script>');

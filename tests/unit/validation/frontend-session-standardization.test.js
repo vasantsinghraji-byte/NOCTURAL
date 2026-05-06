@@ -213,7 +213,9 @@ describe('Frontend Session Standardization', () => {
     expect(providerSessionSrc).toContain('NocturnalSession.createRoleSession({');
     expect(providerSessionSrc).toContain("role: 'provider'");
     expect(providerSessionSrc).toContain("legacyTokenKeys: ['providerToken']");
-    expect(providerSessionSrc).toContain('session.redirectAuthenticatedLogin = function(options)');
+    expect(providerSessionSrc).toContain('function createProviderSessionExtension(baseSession)');
+    expect(providerSessionSrc).toContain('redirectAuthenticatedLogin: function(options)');
+    expect(providerSessionSrc).toContain('extendSession: createProviderSessionExtension');
 
     expect(adminSessionSrc).toContain('NocturnalSession.createRoleSession({');
     expect(adminSessionSrc).toContain("role: 'admin'");

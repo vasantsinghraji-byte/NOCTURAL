@@ -29,41 +29,42 @@
    * Load image
    */
   function loadImage(img) {
-    const src = img.getAttribute(CONFIG.placeholderDataAttr);
-    const srcset = img.getAttribute(CONFIG.srcsetDataAttr);
-    const bgImage = img.getAttribute(CONFIG.bgImageDataAttr);
+    const targetImage = img;
+    const src = targetImage.getAttribute(CONFIG.placeholderDataAttr);
+    const srcset = targetImage.getAttribute(CONFIG.srcsetDataAttr);
+    const bgImage = targetImage.getAttribute(CONFIG.bgImageDataAttr);
 
     // Add loading class
-    img.classList.add(CONFIG.loadingClass);
+    targetImage.classList.add(CONFIG.loadingClass);
 
     if (bgImage) {
       // Fallback: load background-image payload as a normal image source to avoid inline styles.
-      img.src = bgImage;
-      img.classList.remove(CONFIG.loadingClass);
-      img.classList.add(CONFIG.loadedClass);
-      img.removeAttribute(CONFIG.bgImageDataAttr);
+      targetImage.src = bgImage;
+      targetImage.classList.remove(CONFIG.loadingClass);
+      targetImage.classList.add(CONFIG.loadedClass);
+      targetImage.removeAttribute(CONFIG.bgImageDataAttr);
     } else {
       // Regular image
       const imageToLoad = new Image();
 
       imageToLoad.addEventListener('load', function() {
         if (src) {
-          img.src = src;
-          img.removeAttribute(CONFIG.placeholderDataAttr);
+          targetImage.src = src;
+          targetImage.removeAttribute(CONFIG.placeholderDataAttr);
         }
 
         if (srcset) {
-          img.srcset = srcset;
-          img.removeAttribute(CONFIG.srcsetDataAttr);
+          targetImage.srcset = srcset;
+          targetImage.removeAttribute(CONFIG.srcsetDataAttr);
         }
 
-        img.classList.remove(CONFIG.loadingClass);
-        img.classList.add(CONFIG.loadedClass);
+        targetImage.classList.remove(CONFIG.loadingClass);
+        targetImage.classList.add(CONFIG.loadedClass);
       });
 
       imageToLoad.addEventListener('error', function() {
-        img.classList.remove(CONFIG.loadingClass);
-        img.classList.add(CONFIG.errorClass);
+        targetImage.classList.remove(CONFIG.loadingClass);
+        targetImage.classList.add(CONFIG.errorClass);
         console.error('Failed to load image:', src || bgImage);
       });
 
