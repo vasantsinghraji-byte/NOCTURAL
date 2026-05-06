@@ -12,8 +12,9 @@
   }
 
   function setStatus(element, text, isSuccess) {
-    element.textContent = text;
-    element.className = 'status-value ' + (isSuccess ? 'success' : 'error');
+    var statusElement = element;
+    statusElement.textContent = text;
+    statusElement.className = 'status-value ' + (isSuccess ? 'success' : 'error');
   }
 
   function checkAuthStatus() {

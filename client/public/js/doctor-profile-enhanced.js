@@ -235,7 +235,8 @@
             const saveBtn = form.querySelector('.btn-save');
 
             inputs.forEach(input => {
-                input.disabled = !input.disabled;
+                const formInput = input;
+                formInput.disabled = !formInput.disabled;
             });
 
             saveBtn.classList.toggle('is-hidden');

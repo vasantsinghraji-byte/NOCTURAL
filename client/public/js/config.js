@@ -44,8 +44,8 @@ const API_CONFIG = {
 // Helper to build API URLs
 const getApiUrl = (endpoint) => {
     // Remove leading slash if present
-    endpoint = endpoint.replace(/^\//, '');
-    return `${API_CONFIG.BASE_URL}/api/${API_CONFIG.API_VERSION}/${endpoint}`;
+    const normalizedEndpoint = endpoint.replace(/^\//, '');
+    return `${API_CONFIG.BASE_URL}/api/${API_CONFIG.API_VERSION}/${normalizedEndpoint}`;
 };
 
 // Full API URL (for backward compatibility)

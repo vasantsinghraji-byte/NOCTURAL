@@ -101,7 +101,6 @@
         }
 
         function handleFiles(files) {
-            const fileList = document.getElementById('fileList');
             const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 
             Array.from(files).forEach(file => {
@@ -593,7 +592,7 @@
             window.location.href = AppConfig.routes.page('patient.reportDetails', { id: reportId });
         }
 
-        function renderDiabetesContent(summary, chartData) {
+        function renderDiabetesContent(summary) {
             const latest = summary?.latestReadings || {};
 
             return `
@@ -638,7 +637,7 @@
             `;
         }
 
-        function renderHypertensionContent(summary, chartData) {
+        function renderHypertensionContent(summary) {
             const latest = summary?.latestReadings || {};
             const systolic = latest.systolic?.value || '--';
             const diastolic = latest.diastolic?.value || '--';
@@ -702,7 +701,6 @@
             const rbsData = data.chartData?.BLOOD_SUGAR_RBS || { readings: [] };
             const fastingData = data.chartData?.BLOOD_SUGAR_FASTING || { readings: [] };
             const ppData = data.chartData?.BLOOD_SUGAR_PP || { readings: [] };
-            const hba1cData = data.chartData?.HBA1C || { readings: [] };
 
             // Combine all readings into one array with type labels
             const allReadings = [

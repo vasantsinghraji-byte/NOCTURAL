@@ -316,7 +316,10 @@ class NotificationCenter {
             });
 
             // Update local state
-            this.notifications.forEach(n => n.read = true);
+            this.notifications = this.notifications.map(notification => ({
+                ...notification,
+                read: true
+            }));
             this.unreadCount = 0;
             this.updateUI();
         } catch (error) {
@@ -339,11 +342,10 @@ class NotificationCenter {
 }
 
 // Initialize notification center when DOM is ready
-let notificationCenter;
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        notificationCenter = new NotificationCenter();
+        window.NocturnalNotificationCenter = new NotificationCenter();
     });
 } else {
-    notificationCenter = new NotificationCenter();
+    window.NocturnalNotificationCenter = new NotificationCenter();
 }

@@ -101,7 +101,7 @@ Changes:
 - Removed `geoip-lite`; it was only enriching an in-memory admin rate-limit analytics view and pulled a stale `ip-address@5.x` range.
 - Added an npm override for `ip-address@10.2.0` so `express-rate-limit` resolves past the vulnerable `10.1.0` release while retaining the current rate-limit implementation.
 
-GeoIP replacement decision: do not add a new provider yet. The legacy detailed rate-limit analytics page and geography tab have been retired until the dashboard has a clear owner, data source, and acceptance criteria. Adding a maintained GeoIP provider would require either a database refresh process or an external API key, so keep the production dependency graph clean until that feature is owned.
+GeoIP replacement decision: do not add a new provider yet. The legacy rate-limit analytics pages, including the simple HTML dashboard, detailed page, and geography tab, have been retired until the dashboard has a clear owner, data source, and acceptance criteria. The protected JSON rate-limit metrics API remains available for operations and monitoring. Adding a maintained GeoIP provider would require either a database refresh process or an external API key, so keep the production dependency graph clean until that feature is owned.
 
 ## Verification
 

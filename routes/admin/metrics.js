@@ -150,11 +150,6 @@ router.get('/rate-limits', protect, authorize('admin'), async (req, res) => {
     }
 });
 
-// Serve dashboard pages - protected admin routes
-router.get('/dashboard/rate-limits', protect, authorize('admin'), (req, res) => {
-    res.sendFile('rate-limits.html', { root: './views/dashboard' });
-});
-
 module.exports = {
     router,
     recordRequest,

@@ -28,5 +28,6 @@ describe('Admin Route Contract', () => {
   it('should keep the retired detailed rate-limit analytics page route absent until the dashboard is owned', () => {
     expect(adminMetricsRoutesSrc).not.toContain("'/dashboard/analytics'");
     expect(adminMetricsRoutesSrc).not.toContain("'/rate-limits/detailed'");
+    expect(adminMetricsRoutesSrc).not.toContain("'/dashboard/rate-limits'");
   });
 });

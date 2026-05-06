@@ -113,18 +113,20 @@ const toast = {
 // Loading indicator for buttons
 const showLoading = (element, loadingText = 'Loading...') => {
     if (!element) return;
-    element.disabled = true;
-    element.dataset.originalText = element.innerHTML;
-    element.classList.add('btn-loading');
-    element.innerHTML = `<span class="spinner"></span> ${loadingText}`;
+    const targetElement = element;
+    targetElement.disabled = true;
+    targetElement.dataset.originalText = targetElement.innerHTML;
+    targetElement.classList.add('btn-loading');
+    targetElement.innerHTML = `<span class="spinner"></span> ${loadingText}`;
 };
 
 const hideLoading = (element) => {
     if (!element) return;
-    element.disabled = false;
-    element.classList.remove('btn-loading');
-    if (element.dataset.originalText) {
-        element.innerHTML = element.dataset.originalText;
+    const targetElement = element;
+    targetElement.disabled = false;
+    targetElement.classList.remove('btn-loading');
+    if (targetElement.dataset.originalText) {
+        targetElement.innerHTML = targetElement.dataset.originalText;
     }
 };
 
@@ -305,6 +307,9 @@ const debounce = (func, wait = 300) => {
 };
 
 // Export to global scope
+window.ValidationUtils = ValidationUtils;
+window.RateLimiter = RateLimiter;
+window.Logger = Logger;
 window.showToast = showToast;
 window.toast = toast;
 window.showLoading = showLoading;
