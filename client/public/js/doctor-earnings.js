@@ -1,6 +1,4 @@
 // API_URL is provided by config.js
-        let earningsChart;
-
         document.addEventListener('DOMContentLoaded', function() {
             const session = DoctorSession.requireAuthenticatedPage({
                 redirectUrl: AppConfig.routes.page('home')
@@ -114,7 +112,7 @@
             const months = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
             const earnings = [180000, 195000, 213000, 245000, 213000, data.currentMonth.totalEarnings];
 
-            earningsChart = new Chart(ctx, {
+            new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: months,

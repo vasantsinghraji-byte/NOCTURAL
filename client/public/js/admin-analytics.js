@@ -373,6 +373,7 @@
             const ctx3 = document.getElementById('qualityChart').getContext('2d');
             const qualityData = data.qualityMetrics || {};
             const avgRating = parseFloat(qualityData.avgDoctorRating) || 0;
+            const avgRatingScore = avgRating > 0 ? Math.min(avgRating * 20, 100) : 94;
 
             chartInstances.quality = new Chart(ctx3, {
                 type: 'bar',
@@ -380,7 +381,7 @@
                     labels: ['Avg Rating', 'On-Time %', 'Completion %', 'Rehire %'],
                     datasets: [{
                         label: 'Quality Score',
-                        data: [4.7, 95, 98, 89],
+                        data: [avgRatingScore, 95, 98, 89],
                         backgroundColor: ['#5B8DBE', '#28a745', '#17a2b8', '#ffc107']
                     }]
                 },

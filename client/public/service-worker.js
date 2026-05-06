@@ -130,12 +130,6 @@ self.addEventListener('activate', (event) => {
 
   event.waitUntil(
     caches.keys().then((cacheNames) => {
-      const currentCacheNames = new Set(
-        [CACHE_NAME, `default-${CACHE_VERSION}`].concat(
-          CACHE_ROUTES.map((route) => route.cacheName).filter(Boolean)
-        )
-      );
-
       return Promise.all(
         cacheNames.map((cacheName) => {
           const isLegacyCache = LEGACY_CACHE_NAMES.includes(cacheName);
