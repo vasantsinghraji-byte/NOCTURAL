@@ -3,7 +3,7 @@
 const path = require('path');
 const { ESLint } = require('eslint');
 
-const DEFAULT_WARNING_BUDGET = 241;
+const DEFAULT_WARNING_BUDGET = 231;
 
 function parseBudget(value) {
   if (!value) {

@@ -13,20 +13,6 @@ const analyticsStore = {
 };
 const MAX_HISTORY_POINTS = 30;
 
-// Helper function to calculate percentiles
-function percentile(arr, p) {
-    if (arr.length === 0) return 0;
-    const sorted = [...arr].sort((a, b) => a - b);
-    const pos = (sorted.length - 1) * p;
-    const base = Math.floor(pos);
-    const rest = pos - base;
-    if (sorted[base + 1] !== undefined) {
-        return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
-    } else {
-        return sorted[base];
-    }
-}
-
 // Helper function to detect anomalies using Z-score
 function detectAnomalies(data, sensitivity = 2) {
     if (data.length < 2) return [];
@@ -164,86 +150,9 @@ router.get('/rate-limits', protect, authorize('admin'), async (req, res) => {
     }
 });
 
-// Get detailed analytics metrics
-router.get('/rate-limits/detailed', protect, authorize('admin'), async (req, res) => {
-    try {
-        const timeRange = req.query.timeRange || '24h';
-        const rangeInHours = {
-            '24h': 24,
-            '7d': 168,
-            '30d': 720
-        }[timeRange] || 24;
-
-        const cutoff = Date.now() - (rangeInHours * 60 * 60 * 1000);
-        const recentRequests = analyticsStore.requests.filter(r => r.timestamp > cutoff);
-
-        // Calculate basic metrics
-        const totalRequests = recentRequests.length;
-        const blockedRequests = recentRequests.filter(r => r.blocked).length;
-        const uniqueIPs = new Set(recentRequests.map(r => r.ip)).size;
-        const uniqueBlockedIPs = new Set(recentRequests.filter(r => r.blocked).map(r => r.ip)).size;
-
-        // Calculate endpoint statistics
-        const endpointStats = {};
-        analyticsStore.endpointStats.forEach((stats, endpoint) => {
-            const recentEndpointRequests = recentRequests.filter(r => r.endpoint === endpoint);
-            endpointStats[endpoint] = {
-                total: recentEndpointRequests.length,
-                blocked: recentEndpointRequests.filter(r => r.blocked).length,
-                avgResponseTime: stats.responseTimes.length ? 
-                    stats.responseTimes.reduce((a, b) => a + b) / stats.responseTimes.length : 0,
-                p95ResponseTime: percentile(stats.responseTimes, 0.95)
-            };
-        });
-
-        // Calculate hourly trends
-        const hourlyData = Array(rangeInHours).fill().map(() => ({ total: 0, blocked: 0 }));
-        recentRequests.forEach(req => {
-            const hourIndex = Math.floor((Date.now() - req.timestamp) / (60 * 60 * 1000));
-            if (hourIndex < rangeInHours) {
-                hourlyData[hourIndex].total++;
-                if (req.blocked) hourlyData[hourIndex].blocked++;
-            }
-        });
-
-        // Get recent anomalies
-        const recentAnomalies = analyticsStore.anomalies
-            .filter(a => a.timestamp > cutoff)
-            .sort((a, b) => b.timestamp - a.timestamp)
-            .slice(0, 10);
-
-        res.json({
-            metrics: {
-                totalRequests,
-                blockedRequests,
-                uniqueIPs,
-                uniqueBlockedIPs,
-                avgBlockRate: blockedRequests / totalRequests || 0,
-            },
-            trends: {
-                hourly: hourlyData,
-                blockRateHistory: blockRateHistory.filter(h => new Date(h.time).getTime() > cutoff),
-                anomalies: recentAnomalies
-            },
-            endpoints: endpointStats,
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching detailed analytics',
-            error: error.message
-        });
-    }
-});
-
 // Serve dashboard pages - protected admin routes
 router.get('/dashboard/rate-limits', protect, authorize('admin'), (req, res) => {
     res.sendFile('rate-limits.html', { root: './views/dashboard' });
-});
-
-router.get('/dashboard/analytics', protect, authorize('admin'), (req, res) => {
-    res.sendFile('rate-limits-analytics.html', { root: './views/dashboard' });
 });
 
 module.exports = {

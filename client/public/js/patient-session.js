@@ -2,7 +2,7 @@ if (typeof AppConfig === 'undefined' || typeof NocturnalSession === 'undefined')
     console.error('patient-session.js: dependencies missing - ensure config.js and frontend-session.js load first');
 }
 
-(function initPatientSession(window) {
+(function initPatientSession() {
     var patientSession = NocturnalSession.createRoleSession({
         role: 'patient',
         storageKeys: ['patient'],
@@ -18,4 +18,4 @@ if (typeof AppConfig === 'undefined' || typeof NocturnalSession === 'undefined')
     patientSession.getStoredPatient = patientSession.getStoredRole;
 
     window.PatientSession = patientSession;
-})(window);
+}());
