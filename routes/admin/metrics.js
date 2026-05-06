@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { getRateLimitMetrics } = require('../../config/rateLimit');
 const { protect, authorize } = require('../../middleware/auth');
-const geoip = require('geoip-lite');
 
 // Maintain a history of block rates and detailed analytics
 const blockRateHistory = [];
@@ -45,7 +44,6 @@ function detectAnomalies(data, sensitivity = 2) {
 function recordRequest(req, blocked = false) {
     const timestamp = Date.now();
     const ip = req.ip || req.connection.remoteAddress;
-    const geo = geoip.lookup(ip) || {};
     const endpoint = req.originalUrl;
     
     // Store request data
@@ -55,8 +53,6 @@ function recordRequest(req, blocked = false) {
         endpoint,
         method: req.method,
         blocked,
-        country: geo.country,
-        region: geo.region,
         responseTime: req.responseTime,
     });
 

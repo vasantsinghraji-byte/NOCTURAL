@@ -3,6 +3,8 @@
  * Handles minification, bundling, and optimization
  */
 
+/* eslint-disable security/detect-non-literal-fs-filename -- Build paths are discovered under CONFIG.sourceDir and written under CONFIG.buildDir. */
+
 const fs = require('fs').promises;
 const path = require('path');
 const { minify: minifyHTML } = require('html-minifier-terser');
