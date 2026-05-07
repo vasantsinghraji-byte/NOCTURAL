@@ -1,9 +1,4 @@
-const fs = require('fs');
-const path = require('path');
-
-const rootDir = path.resolve(__dirname, '..', '..', '..');
-
-const readProjectFile = (relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+const { readProjectFile } = require('./projectFileReader');
 
 const dutyRoutesSrc = readProjectFile('routes/duties.js');
 const applicationRoutesSrc = readProjectFile('routes/applications.js');

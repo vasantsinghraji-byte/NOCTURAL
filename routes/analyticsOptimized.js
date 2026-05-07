@@ -5,7 +5,6 @@ const { DoctorAnalytics, HospitalAnalytics } = require('../models/analytics');
 const Application = require('../models/application');
 const Duty = require('../models/duty');
 const HospitalSettings = require('../models/hospitalSettings');
-const User = require('../models/user');
 
 // @route   GET /api/analytics/doctor
 // @desc    Get doctor analytics dashboard
@@ -315,7 +314,6 @@ router.get('/hospital/dashboard', protect, async (req, res) => {
 
         // Calculate total spend (current month)
         const now = new Date();
-        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
         const monthlyDuties = duties.filter(d => new Date(d.date) >= monthStart);
@@ -358,9 +356,15 @@ router.get('/hospital/dashboard', protect, async (req, res) => {
 
         // Application stats (single pass through applications array)
         const appStats = applications.reduce((acc, app) => {
-            if (app.status === 'pending') acc.pending++;
-            else if (app.status === 'accepted') acc.accepted++;
-            else if (app.status === 'rejected') acc.rejected++;
+            if (app.status === 'pending') {
+                return { ...acc, pending: acc.pending + 1 };
+            }
+            if (app.status === 'accepted') {
+                return { ...acc, accepted: acc.accepted + 1 };
+            }
+            if (app.status === 'rejected') {
+                return { ...acc, rejected: acc.rejected + 1 };
+            }
             return acc;
         }, { pending: 0, accepted: 0, rejected: 0 });
 

@@ -178,8 +178,9 @@ class PatientService {
 
     // If this is set as default, unset other defaults
     if (addressData.isDefault) {
-      patient.savedAddresses.forEach(addr => {
-        addr.isDefault = false;
+      patient.savedAddresses.forEach((addr) => {
+        const savedAddress = addr;
+        savedAddress.isDefault = false;
       });
     }
 

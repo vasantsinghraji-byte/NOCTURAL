@@ -1,9 +1,4 @@
-const fs = require('fs');
-const path = require('path');
-
-const rootDir = path.resolve(__dirname, '..', '..', '..');
-
-const readProjectFile = (relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+const { readProjectFile } = require('./projectFileReader');
 
 const frontendSessionSrc = readProjectFile('client/public/js/frontend-session.js');
 const configSrc = readProjectFile('client/public/js/config.js');

@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const Earning = require('../models/earning');
-const { DoctorAnalytics } = require('../models/analytics');
 const { paginate, paginationMiddleware, sendPaginatedResponse } = require('../utils/pagination');
 
 // Apply pagination middleware

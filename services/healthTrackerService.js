@@ -557,7 +557,7 @@ const getTrackerTarget = async (patientId, trackerType) => {
  */
 const saveTrackerTarget = async (patientId, trackerType, data) => {
   const { ranges, reminders } = data;
-  const target = await HealthTarget.getOrCreateTracker(patientId, trackerType);
+  await HealthTarget.getOrCreateTracker(patientId, trackerType);
 
   // Update target ranges based on tracker type
   if (trackerType === TRACKER_TYPES.DIABETES && ranges) {

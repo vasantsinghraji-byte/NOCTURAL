@@ -59,12 +59,6 @@ router.post('/conflicts/check', protect, async (req, res) => {
 
         const conflictResult = await calendarService.checkDutyConflicts(req.user._id, dutyId);
 
-        // Also check availability blocks for complete conflict info
-        const availabilities = await Availability.find({
-            user: req.user._id,
-            active: true
-        });
-
         res.json({
             success: true,
             data: {
