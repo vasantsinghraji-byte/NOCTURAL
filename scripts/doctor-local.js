@@ -66,8 +66,8 @@ function checkGitBash() {
   const bashPath = 'C:\\Program Files\\Git\\usr\\bin\\bash.exe';
   const envPath = 'C:\\Program Files\\Git\\usr\\bin\\env.exe';
   const bashOk = logResult(runCommand(bashPath, ['--version']), 'Git Bash');
-  const envOk = logResult(runCommand(envPath, ['bash', '--version']), 'Git env.exe bash');
-  logResult(runCommand(envPath, ['node', '--version']), 'Git env.exe node for hooks');
+  logResult(runCommand(envPath, ['bash', '--version']), 'Git env.exe bash', { optional: true });
+  const envNodeOk = logResult(runCommand(envPath, ['node', '--version']), 'Git env.exe node for hooks');
   const whereBash = runCommand('where.exe', ['bash']);
 
   if (whereBash.ok) {
@@ -83,7 +83,7 @@ function checkGitBash() {
     console.log(`${WARN} PATH bash lookup failed: ${firstLine(whereBash.stderr || whereBash.error)}`);
   }
 
-  return bashOk && envOk;
+  return bashOk && envNodeOk;
 }
 
 function checkRequiredTool(label, command, args = [], options = {}) {
