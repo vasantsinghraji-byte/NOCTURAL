@@ -15,7 +15,6 @@ const logger = require('../utils/logger');
 const path = require('path');
 const {
   INVESTIGATION_REPORT_STATUS,
-  INVESTIGATION_REPORT_TYPES,
   REPORT_ASSIGNMENT_TYPE
 } = require('../constants/healthConstants');
 

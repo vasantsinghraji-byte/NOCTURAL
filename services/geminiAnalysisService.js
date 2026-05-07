@@ -7,7 +7,6 @@
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs').promises;
-const path = require('path');
 const logger = require('../utils/logger');
 
 // Initialize Gemini client

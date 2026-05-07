@@ -37,26 +37,26 @@ const ALLOWED_TYPES = {
  */
 function sanitizeFilename(filename) {
   // Remove any path components
-  filename = path.basename(filename);
+  let sanitizedFilename = path.basename(filename);
 
   // Remove special characters except . - _
-  filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  sanitizedFilename = sanitizedFilename.replace(/[^a-zA-Z0-9._-]/g, '_');
 
   // Prevent double extensions (e.g., file.pdf.exe)
-  const parts = filename.split('.');
+  const parts = sanitizedFilename.split('.');
   if (parts.length > 2) {
     const ext = parts.pop();
-    filename = parts.join('_') + '.' + ext;
+    sanitizedFilename = parts.join('_') + '.' + ext;
   }
 
   // Limit length
-  if (filename.length > 255) {
-    const ext = path.extname(filename);
-    const name = filename.slice(0, 200);
-    filename = name + ext;
+  if (sanitizedFilename.length > 255) {
+    const ext = path.extname(sanitizedFilename);
+    const name = sanitizedFilename.slice(0, 200);
+    sanitizedFilename = name + ext;
   }
 
-  return filename;
+  return sanitizedFilename;
 }
 
 /**

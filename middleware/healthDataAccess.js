@@ -8,7 +8,6 @@
 const HealthAccessToken = require('../models/healthAccessToken');
 const HealthDataAccessLog = require('../models/healthDataAccessLog');
 const HealthRecord = require('../models/healthRecord');
-const Patient = require('../models/patient');
 const logger = require('../utils/logger');
 const { USER_TYPES, ALLOWED_RESOURCES, AUDIT_ACTIONS, ACCESS_REASONS } = require('../constants/healthConstants');
 

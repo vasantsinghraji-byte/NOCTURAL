@@ -7,7 +7,6 @@
 
 const jwt = require('jsonwebtoken');
 const Patient = require('../models/patient');
-const logger = require('../utils/logger');
 
 const normalizeAuthenticatedUser = (user) => {
   if (!user) return user;

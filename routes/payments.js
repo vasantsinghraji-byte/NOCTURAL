@@ -1,12 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { protect, authorize } = require('../middleware/auth');
-const {
-  paymentValidation,
-  validateMongoId,
-  validate,
-  sanitizeInput
-} = require('../middleware/validation');
+const { protect } = require('../middleware/auth');
+const { sanitizeInput } = require('../middleware/validation');
 const Payment = require('../models/payment');
 const Duty = require('../models/duty');
 const User = require('../models/user');

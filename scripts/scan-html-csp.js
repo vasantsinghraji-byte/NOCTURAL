@@ -1,5 +1,5 @@
-const fs = require('fs').promises;
 const path = require('path');
+const { readDirectory, readTextFile } = require('./lib/projectFs');
 
 const DEFAULT_HTML_ROOT = path.resolve(__dirname, '..', 'client', 'public');
 
@@ -18,14 +18,14 @@ const CHECKS = [
   }
 ];
 
-async function collectHtmlFiles(dir, files = []) {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
+async function collectHtmlFiles(rootDir, dir, files = []) {
+  const entries = await readDirectory(rootDir, dir, { withFileTypes: true });
 
   for (const entry of entries) {
     const entryPath = path.join(dir, entry.name);
 
     if (entry.isDirectory()) {
-      await collectHtmlFiles(entryPath, files);
+      await collectHtmlFiles(rootDir, entryPath, files);
     } else if (entry.isFile() && entry.name.endsWith('.html')) {
       files.push(entryPath);
     }
@@ -61,11 +61,11 @@ function scanHtmlContent(content, filePath, rootDir) {
 }
 
 async function scanHtmlCsp(rootDir = DEFAULT_HTML_ROOT) {
-  const files = await collectHtmlFiles(rootDir);
+  const files = await collectHtmlFiles(rootDir, rootDir);
   const violations = [];
 
   for (const file of files) {
-    const content = await fs.readFile(file, 'utf8');
+    const content = await readTextFile(rootDir, file);
     violations.push(...scanHtmlContent(content, file, rootDir));
   }
 

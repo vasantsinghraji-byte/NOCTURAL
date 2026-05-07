@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const fs = require('fs').promises;
 const path = require('path');
+const { readDirectory, readTextFile } = require('./lib/projectFs');
 
 const rootDir = path.resolve(__dirname, '..');
 const publicDir = path.join(rootDir, 'client', 'public');
@@ -15,7 +15,7 @@ const patterns = [
 ];
 
 async function collectFiles(dir, files = []) {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const entries = await readDirectory(publicDir, dir, { withFileTypes: true });
 
   for (const entry of entries) {
     const entryPath = path.join(dir, entry.name);
@@ -62,7 +62,7 @@ async function main() {
   const findings = [];
 
   for (const file of files) {
-    const content = await fs.readFile(file, 'utf8');
+    const content = await readTextFile(publicDir, file);
     findings.push(...scanContent(file, content));
   }
 

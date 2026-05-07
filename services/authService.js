@@ -8,7 +8,7 @@
 const User = require('../models/user');
 const { generateToken } = require('../middleware/auth');
 const logger = require('../utils/logger');
-const { HTTP_STATUS, SUCCESS_MESSAGE, ERROR_MESSAGE } = require('../constants');
+const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
 const { AuthenticationError, AuthorizationError } = require('../utils/errors');
 
 const COMMON_PROFILE_FIELDS = [

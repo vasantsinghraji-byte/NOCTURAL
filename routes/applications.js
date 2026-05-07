@@ -15,7 +15,6 @@ const { protect, authorize } = require('../middleware/auth');
 const {
   validateApplyToDuty,
   validateUpdateApplicationStatus,
-  validateGetApplication,
   validateWithdrawApplication
 } = require('../validators/dutyValidator');
 
