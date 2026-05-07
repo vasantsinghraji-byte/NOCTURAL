@@ -3,7 +3,7 @@ const baseConfig = require('./jest.config');
 module.exports = {
   ...baseConfig,
   verbose: false,
-  forceExit: true,
+  forceExit: false,
   detectOpenHandles: false,
   // The fast CI suite runs only a focused subset of tests, so it should
   // publish coverage artifacts without inheriting the full-suite global gate.
