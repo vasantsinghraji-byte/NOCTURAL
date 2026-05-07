@@ -1,6 +1,4 @@
         // API_URL is provided by config.js
-        let currentTab = 'services';
-
         // Check authentication
         PatientSession.requireAuthenticatedPage({
             redirectUrl: AppConfig.routes.page('patient.login')
@@ -209,7 +207,6 @@
             document.getElementById('servicesTab').classList.toggle('is-hidden', tab !== 'services');
             document.getElementById('bookingsTab').classList.toggle('is-hidden', tab !== 'bookings');
 
-            currentTab = tab;
             if (tab === 'bookings') {
                 loadBookings();
             }

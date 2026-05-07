@@ -900,6 +900,8 @@ if (typeof AppConfig === 'undefined') {
       onInvalid: null
     }, options || {});
 
+    // Client-side confirmation is a UX check; server-side auth remains authoritative.
+    // eslint-disable-next-line security/detect-possible-timing-attacks
     if (password === confirmPassword) {
       return true;
     }

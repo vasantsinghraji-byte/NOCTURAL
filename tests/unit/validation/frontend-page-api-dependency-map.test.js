@@ -1,12 +1,10 @@
-const path = require('path');
 const vm = require('vm');
 
 const {
-  fs,
   frontendJsFilePaths,
-  rootDir,
   toProjectRelativePath
 } = require('./frontend-validation-utils');
+const { readProjectFile } = require('./projectFileReader');
 
 const ROUTE_PARAM_FIXTURES = {
   'duties.detail': { dutyId: 'fixture-duty-id' },
@@ -93,17 +91,17 @@ function extractRouteKeys(source) {
   });
 
   HELPER_ROUTE_PATTERNS.forEach(({ pattern, routeKey }) => {
-    if (pattern.test(source)) {
+    const helperPattern = new RegExp(pattern.source, pattern.flags.replace('g', ''));
+    if (helperPattern.test(source)) {
       routeKeys.add(routeKey);
     }
-    pattern.lastIndex = 0;
   });
 
   return Array.from(routeKeys).sort();
 }
 
 function loadAppConfig() {
-  const configSrc = fs.readFileSync(path.join(rootDir, 'client/public/js/config.js'), 'utf8');
+  const configSrc = readProjectFile('client/public/js/config.js');
   const context = {
     AbortController,
     FormData: function FormData() {},
@@ -158,7 +156,7 @@ describe('Frontend Page API Dependency Map', () => {
 
     frontendJsFilePaths.forEach((absolutePath) => {
       const relativePath = toProjectRelativePath(absolutePath);
-      const routeKeys = extractRouteKeys(fs.readFileSync(absolutePath, 'utf8'));
+      const routeKeys = extractRouteKeys(readProjectFile(toProjectRelativePath(absolutePath)));
 
       if (routeKeys.length > 0) {
         actualMap[relativePath] = routeKeys;
@@ -186,7 +184,7 @@ describe('Frontend Page API Dependency Map', () => {
     const rawFetchUsers = frontendJsFilePaths
       .map((absolutePath) => toProjectRelativePath(absolutePath))
       .filter((relativePath) => {
-        const source = fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+        const source = readProjectFile(relativePath);
         return /AppConfig\.fetch\(/.test(source);
       })
       .sort();

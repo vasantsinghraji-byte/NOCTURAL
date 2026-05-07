@@ -1,13 +1,21 @@
-const fs = require('fs');
 const path = require('path');
-const rootDir = path.resolve(__dirname, '..', '..', '..');
-const publicDir = path.join(rootDir, 'client', 'public');
-const distDir = path.join(rootDir, 'client', 'dist');
+
+const {
+  listProjectFiles,
+  projectPathExists,
+  readProjectFile,
+  rootDir,
+  resolveProjectPath
+} = require('./projectFileReader');
+
+const publicDir = resolveProjectPath('client/public');
+const distDir = resolveProjectPath('client/dist');
 const jsDir = path.join(publicDir, 'js');
 const rolesDir = path.join(publicDir, 'roles');
 
 const readDirectoryRecursively = (directoryPath, shouldIncludeFile) => {
-  const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+  const relativeDirectoryPath = path.relative(rootDir, directoryPath);
+  const entries = listProjectFiles(relativeDirectoryPath, { withFileTypes: true });
 
   return entries.flatMap((entry) => {
     const entryPath = path.join(directoryPath, entry.name);
@@ -44,13 +52,25 @@ const frontendJsFilePaths = readDirectoryRecursively(jsDir, (fileName) => (
   fileName.endsWith('.js') && !fileName.endsWith('.original')
 ));
 
-const buildOutputHtmlPaths = fs.existsSync(distDir)
+const buildOutputHtmlPaths = projectPathExists('client/dist')
   ? readDirectoryRecursively(distDir, (fileName) => (
       fileName.endsWith('.html') && !fileName.endsWith('.original')
     ))
   : [];
 
 const toProjectRelativePath = (absolutePath) => path.relative(rootDir, absolutePath).replace(/\\/g, '/');
+
+const fs = {
+  existsSync(filePath) {
+    return projectPathExists(toProjectRelativePath(filePath));
+  },
+  readFileSync(filePath) {
+    return readProjectFile(toProjectRelativePath(filePath));
+  },
+  readdirSync(filePath, options) {
+    return listProjectFiles(toProjectRelativePath(filePath), options);
+  }
+};
 
 const listProjectRelativePaths = (absolutePaths) => absolutePaths.map(toProjectRelativePath).sort();
 
