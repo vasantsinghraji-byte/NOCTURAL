@@ -1,6 +1,6 @@
 const winston = require('winston');
 const path = require('path');
-const fs = require('fs');
+const localFileSystem = require('./localFileSystem');
 
 /**
  * Create Winston logger with configurable transports
@@ -16,8 +16,8 @@ const createLogger = (options = {}) => {
   } = options;
 
   // Create logs directory if it doesn't exist
-  if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
+  if (!localFileSystem.existsSync(logsDir)) {
+    localFileSystem.mkdirSync(logsDir, { recursive: true });
   }
 
   // Define log format

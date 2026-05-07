@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const notificationService = require('../services/notificationService');
+const logger = require('../utils/logger');
 
 // Get all notifications for logged-in user
 router.get('/', protect, async (req, res) => {
@@ -19,7 +20,7 @@ router.get('/', protect, async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('Error fetching notifications:', error);
+    logger.error('Error fetching notifications', { error: error.message, userId: req.user?._id });
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || 'Error fetching notifications'
@@ -37,7 +38,7 @@ router.get('/unread-count', protect, async (req, res) => {
       data: { unreadCount: count }
     });
   } catch (error) {
-    console.error('Error:', error);
+    logger.error('Error fetching unread notification count', { error: error.message, userId: req.user?._id });
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || 'Error fetching count'
@@ -56,7 +57,7 @@ router.put('/:id/read', protect, async (req, res) => {
       data: notification
     });
   } catch (error) {
-    console.error('Error:', error);
+    logger.error('Error marking notification as read', { error: error.message, notificationId: req.params.id, userId: req.user?._id });
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || 'Error updating notification'
@@ -74,7 +75,7 @@ router.put('/read-all', protect, async (req, res) => {
       message: 'All notifications marked as read'
     });
   } catch (error) {
-    console.error('Error:', error);
+    logger.error('Error marking all notifications as read', { error: error.message, userId: req.user?._id });
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || 'Error updating notifications'
@@ -92,7 +93,7 @@ router.delete('/:id', protect, async (req, res) => {
       message: 'Notification deleted successfully'
     });
   } catch (error) {
-    console.error('Error:', error);
+    logger.error('Error deleting notification', { error: error.message, notificationId: req.params.id, userId: req.user?._id });
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || 'Error deleting notification'
@@ -110,7 +111,7 @@ router.delete('/clear/read', protect, async (req, res) => {
       message: 'Read notifications cleared successfully'
     });
   } catch (error) {
-    console.error('Error:', error);
+    logger.error('Error clearing read notifications', { error: error.message, userId: req.user?._id });
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || 'Error clearing notifications'
@@ -140,7 +141,7 @@ router.post('/', protect, async (req, res) => {
       data: notification
     });
   } catch (error) {
-    console.error('Error creating notification:', error);
+    logger.error('Error creating notification', { error: error.message, userId: req.user?._id });
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || 'Error creating notification'

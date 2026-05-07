@@ -1,8 +1,8 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const logger = require('../utils/logger');
 const storageConfig = require('../config/storage');
+const localFileSystem = require('../utils/localFileSystem');
 const { createMagicByteValidatedStream } = require('../utils/uploadMagicByteValidator');
 const { detectFileTypeFromBuffer } = require('../utils/fileTypeDetector');
 
@@ -26,7 +26,7 @@ const initializeUploadDirs = async () => {
   const promises = uploadDirs.map(async (dir) => {
     const fullPath = path.join(__dirname, '..', dir);
     try {
-      await fs.promises.mkdir(fullPath, { recursive: true });
+      await localFileSystem.mkdirAsync(fullPath, { recursive: true });
     } catch (error) {
       // Directory might already exist, that's OK
       if (error.code !== 'EEXIST') {
@@ -149,12 +149,12 @@ const validateFileType = async (req, res, next) => {
     // Validate each file's magic numbers
     for (const file of filesToValidate) {
       // Use async file reading (non-blocking)
-      const buffer = await fs.promises.readFile(file.path);
+      const buffer = await localFileSystem.readFile(file.path);
       const fileTypeResult = await detectFileTypeFromBuffer(buffer);
 
       if (!fileTypeResult) {
         // Delete uploaded file asynchronously
-        await fs.promises.unlink(file.path).catch(err => logger.warn('Failed to delete invalid file', { path: file.path, error: err.message }));
+        await localFileSystem.unlink(file.path).catch(err => logger.warn('Failed to delete invalid file', { path: file.path, error: err.message }));
         logger.logSecurity('file_validation_failed', {
           filename: file.filename,
           reason: 'Could not determine file type from magic numbers',
@@ -170,7 +170,7 @@ const validateFileType = async (req, res, next) => {
       const allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
       if (!allowedMimes.includes(fileTypeResult.mime)) {
         // Delete uploaded file asynchronously
-        await fs.promises.unlink(file.path).catch(err => logger.warn('Failed to delete invalid file', { path: file.path, error: err.message }));
+        await localFileSystem.unlink(file.path).catch(err => logger.warn('Failed to delete invalid file', { path: file.path, error: err.message }));
         logger.logSecurity('file_type_mismatch', {
           filename: file.filename,
           declaredMime: file.mimetype,
@@ -292,7 +292,7 @@ const createReportUpload = () => {
     reportStorage = multer.diskStorage({
       destination: (_req, _file, cb) => {
         const dir = path.join(__dirname, '..', 'uploads/investigation-reports');
-        fs.mkdir(dir, { recursive: true }, (err) => {
+        localFileSystem.mkdir(dir, { recursive: true }, (err) => {
           if (err && err.code !== 'EEXIST') {
             return cb(err);
           }
