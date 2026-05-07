@@ -98,6 +98,10 @@ const startHealthCheck = () => {
       });
     }
   }, HEALTH_CHECK_INTERVAL);
+
+  if (typeof healthCheckIntervalId.unref === 'function') {
+    healthCheckIntervalId.unref();
+  }
 };
 
 const stopHealthCheck = () => {
@@ -117,6 +121,10 @@ const scheduleReconnect = () => {
     reconnectTimeoutId = null;
     connectDB();
   }, backoffTime);
+
+  if (typeof reconnectTimeoutId.unref === 'function') {
+    reconnectTimeoutId.unref();
+  }
 };
 
 const initializeConnectionMonitoring = () => {

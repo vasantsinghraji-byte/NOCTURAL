@@ -181,6 +181,15 @@ const EmergencySummarySchema = new mongoose.Schema({
 });
 
 function tokenHashesMatch(candidateHash, storedHash) {
+  if (
+    typeof candidateHash !== 'string' ||
+    typeof storedHash !== 'string' ||
+    !/^[a-f0-9]{64}$/i.test(candidateHash) ||
+    !/^[a-f0-9]{64}$/i.test(storedHash)
+  ) {
+    return false;
+  }
+
   const candidateBuffer = Buffer.from(candidateHash, 'hex');
   const storedBuffer = Buffer.from(storedHash, 'hex');
 
@@ -243,6 +252,10 @@ EmergencySummarySchema.methods.validateToken = function(token) {
 
   if (new Date() > this.qrTokenExpiry) {
     return { valid: false, reason: 'EXPIRED' };
+  }
+
+  if (typeof token !== 'string' || token.length === 0) {
+    return { valid: false, reason: 'INVALID' };
   }
 
   const hash = crypto.createHash('sha256').update(token).digest('hex');
