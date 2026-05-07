@@ -1,11 +1,4 @@
-const fs = require('fs');
-const path = require('path');
-
-const rootDir = path.resolve(__dirname, '../../..');
-
-function readProjectFile(relativePath) {
-  return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
-}
+const { readProjectFile } = require('./projectFileReader');
 
 describe('Docker/frontend static runtime contract', () => {
   test('Docker image keeps shipping the optimized frontend build', () => {

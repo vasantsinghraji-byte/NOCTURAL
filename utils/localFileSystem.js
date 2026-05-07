@@ -10,6 +10,26 @@ function mkdirSync(dirPath, options) {
   return fs.mkdirSync(dirPath, options);
 }
 
+function readFileSync(filePath, options) {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  return fs.readFileSync(filePath, options);
+}
+
+function writeFileSync(filePath, content, options) {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  return fs.writeFileSync(filePath, content, options);
+}
+
+function copyFileSync(sourcePath, targetPath) {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  return fs.copyFileSync(sourcePath, targetPath);
+}
+
+function rmSync(filePath, options) {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  return fs.rmSync(filePath, options);
+}
+
 function mkdir(dirPath, options, callback) {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   return fs.mkdir(dirPath, options, callback);
@@ -50,9 +70,13 @@ module.exports = {
   mkdir,
   mkdirAsync,
   mkdirSync,
+  copyFileSync,
   readFile,
+  readFileSync,
   readdirSync,
+  rmSync,
   stat,
   statSync,
-  unlink
+  unlink,
+  writeFileSync
 };

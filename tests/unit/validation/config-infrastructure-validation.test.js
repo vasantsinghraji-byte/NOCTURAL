@@ -10,38 +10,19 @@
  * - ERR-008: Redis connection waits for 'ready' event with timeout
  */
 
-const fs = require('fs');
-const path = require('path');
+const { readProjectFile } = require('./projectFileReader');
 
-const validateEnvSrc = fs.readFileSync(
-  path.resolve(__dirname, '..', '..', '..', 'config', 'validateEnv.js'),
-  'utf8'
-);
+const validateEnvSrc = readProjectFile('config/validateEnv.js');
 
-const storageSrc = fs.readFileSync(
-  path.resolve(__dirname, '..', '..', '..', 'config', 'storage.js'),
-  'utf8'
-);
+const storageSrc = readProjectFile('config/storage.js');
 
-const rateLimiterSrc = fs.readFileSync(
-  path.resolve(__dirname, '..', '..', '..', 'middleware', 'rateLimiter.js'),
-  'utf8'
-);
+const rateLimiterSrc = readProjectFile('middleware/rateLimiter.js');
 
-const redisSrc = fs.readFileSync(
-  path.resolve(__dirname, '..', '..', '..', 'config', 'redis.js'),
-  'utf8'
-);
+const redisSrc = readProjectFile('config/redis.js');
 
-const serverSrc = fs.readFileSync(
-  path.resolve(__dirname, '..', '..', '..', 'server.js'),
-  'utf8'
-);
+const serverSrc = readProjectFile('server.js');
 
-const appSrc = fs.readFileSync(
-  path.resolve(__dirname, '..', '..', '..', 'app.js'),
-  'utf8'
-);
+const appSrc = readProjectFile('app.js');
 
 const auditedScriptFiles = [
   'seed.js',
@@ -152,10 +133,7 @@ describe('Config Infrastructure Validation', () => {
     });
 
     it.each(auditedScriptFiles)('should load dotenv early in %s', (relativePath) => {
-      const scriptSrc = fs.readFileSync(
-        path.resolve(__dirname, '..', '..', '..', relativePath),
-        'utf8'
-      );
+      const scriptSrc = readProjectFile(relativePath);
 
       const dotenvIndex = scriptSrc.indexOf("require('dotenv').config()");
       const envIndex = scriptSrc.indexOf('process.env');

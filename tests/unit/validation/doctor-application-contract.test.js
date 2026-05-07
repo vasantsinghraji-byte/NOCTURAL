@@ -1,16 +1,10 @@
-const fs = require('fs');
-const path = require('path');
-
-const rootDir = path.resolve(__dirname, '..', '..', '..');
-
-const readProjectFile = (relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+const { readProjectFile } = require('./projectFileReader');
 
 const applicationRoutesSrc = readProjectFile('routes/applications.js');
 const applicationControllerSrc = readProjectFile('controllers/applicationController.js');
 const applicationModelSrc = readProjectFile('models/application.js');
 const dutyValidatorSrc = readProjectFile('validators/dutyValidator.js');
 const frontendSessionSrc = readProjectFile('client/public/js/frontend-session.js');
-const doctorDashboardSrc = readProjectFile('client/public/roles/doctor/doctor-dashboard.html');
 const doctorDashboardScriptSrc = readProjectFile('client/public/js/doctor-dashboard.js');
 const myApplicationsSrc = readProjectFile('client/public/roles/doctor/my-applications.html');
 const myApplicationsScriptSrc = readProjectFile('client/public/js/doctor-my-applications.js');

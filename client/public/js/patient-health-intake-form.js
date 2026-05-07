@@ -296,6 +296,12 @@
             review.innerHTML = html;
         }
 
+        function withoutLocalId(item) {
+            const cleanItem = { ...item };
+            delete cleanItem.id;
+            return cleanItem;
+        }
+
         // Save draft
         async function saveDraft() {
             collectStepData(currentStep);
@@ -305,9 +311,9 @@
                 // Clean data (remove internal ids)
                 const cleanData = {
                     ...formData,
-                    conditions: formData.conditions.filter(c => c.name).map(({ id, ...rest }) => rest),
-                    allergies: formData.allergies.filter(a => a.allergen).map(({ id, ...rest }) => rest),
-                    currentMedications: formData.currentMedications.filter(m => m.name).map(({ id, ...rest }) => rest)
+                    conditions: formData.conditions.filter(c => c.name).map(withoutLocalId),
+                    allergies: formData.allergies.filter(a => a.allergen).map(withoutLocalId),
+                    currentMedications: formData.currentMedications.filter(m => m.name).map(withoutLocalId)
                 };
 
                 NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('healthIntake.draft', {
@@ -337,9 +343,9 @@
                 // Clean data
                 const cleanData = {
                     ...formData,
-                    conditions: formData.conditions.filter(c => c.name).map(({ id, ...rest }) => rest),
-                    allergies: formData.allergies.filter(a => a.allergen).map(({ id, ...rest }) => rest),
-                    currentMedications: formData.currentMedications.filter(m => m.name).map(({ id, ...rest }) => rest)
+                    conditions: formData.conditions.filter(c => c.name).map(withoutLocalId),
+                    allergies: formData.allergies.filter(a => a.allergen).map(withoutLocalId),
+                    currentMedications: formData.currentMedications.filter(m => m.name).map(withoutLocalId)
                 };
 
                 NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('healthIntake.submit', {

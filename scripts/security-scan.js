@@ -12,8 +12,11 @@
  *   node scripts/security-scan.js --target http://localhost:5000 --mode full
  */
 
-const fs = require('fs');
 const path = require('path');
+
+const projectFs = require('./lib/projectFs');
+
+const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 // Colors
 const colors = {
@@ -103,20 +106,20 @@ async function runSecurityScan(options) {
 
     // Save report
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const reportDir = path.join(__dirname, '..', 'security-reports');
+    const reportDir = path.join(PROJECT_ROOT, 'security-reports');
 
-    if (!fs.existsSync(reportDir)) {
-      fs.mkdirSync(reportDir, { recursive: true });
+    if (!projectFs.pathExistsSync(PROJECT_ROOT, reportDir)) {
+      projectFs.makeDirectorySync(PROJECT_ROOT, reportDir, { recursive: true });
     }
 
     const reportPath = path.join(reportDir, `security-scan-${timestamp}.json`);
-    fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+    projectFs.writeTextFileSync(PROJECT_ROOT, reportPath, JSON.stringify(report, null, 2));
     log.success(`Report saved: ${reportPath}\n`);
 
     // Generate HTML report
     const htmlReportPath = path.join(reportDir, `security-scan-${timestamp}.html`);
     const htmlReport = await zaproxy.core.htmlreport();
-    fs.writeFileSync(htmlReportPath, htmlReport.replace(/<html/i, '<html'));
+    projectFs.writeTextFileSync(PROJECT_ROOT, htmlReportPath, htmlReport.replace(/<html/i, '<html'));
     log.success(`HTML report saved: ${htmlReportPath}\n`);
 
     // Print summary

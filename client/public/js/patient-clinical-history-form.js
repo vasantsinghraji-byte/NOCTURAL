@@ -16,7 +16,6 @@ PatientSession.requireAuthenticatedPage({
 // State
 var currentSection = 1;
 var totalSections = 11;
-var formData = {};
 
 // Initialize
 function init() {
@@ -397,9 +396,9 @@ function showLoading(show) {
 }
 
 function showToast(message, type) {
-    if (!type) type = 'info';
+    var toastType = type || 'info';
     var toast = document.createElement('div');
-    toast.className = 'toast ' + type;
+    toast.className = 'toast ' + toastType;
     toast.textContent = message;
     document.body.appendChild(toast);
     setTimeout(function() { toast.remove(); }, 3000);

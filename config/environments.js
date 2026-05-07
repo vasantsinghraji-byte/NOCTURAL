@@ -351,7 +351,7 @@ const config = getConfig();
 try {
     validateConfig(config);
 } catch (error) {
-    console.error('Configuration Error:', error.message);
+    process.stderr.write(`Configuration Error: ${error.message}\n`);
     process.exit(1);
 }
 

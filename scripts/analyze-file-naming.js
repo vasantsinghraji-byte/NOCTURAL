@@ -2,8 +2,10 @@
  * Analyze file naming patterns and identify inconsistencies
  */
 
-const fs = require('fs');
 const path = require('path');
+const projectFs = require('./lib/projectFs');
+
+const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 // Naming conventions
 const CONVENTIONS = {
@@ -23,10 +25,11 @@ function detectNamingStyle(filename) {
   return 'other';
 }
 
-function analyzeDirectory(dir, results = {}) {
-  if (!fs.existsSync(dir)) return results;
+function analyzeDirectory(dir, existingResults) {
+  const results = existingResults || {};
+  if (!projectFs.pathExistsSync(PROJECT_ROOT, dir)) return results;
 
-  const files = fs.readdirSync(dir, { withFileTypes: true });
+  const files = projectFs.readDirectorySync(PROJECT_ROOT, dir, { withFileTypes: true });
 
   files.forEach(file => {
     const fullPath = path.join(dir, file.name);
@@ -214,10 +217,7 @@ if (renameSuggestions.length > 0) {
   }
 
   // Save to JSON for rename script
-  fs.writeFileSync(
-    'file-rename-suggestions.json',
-    JSON.stringify(renameSuggestions, null, 2)
-  );
+  projectFs.writeTextFileSync(PROJECT_ROOT, 'file-rename-suggestions.json', JSON.stringify(renameSuggestions, null, 2));
   console.log(`✅ Saved rename suggestions to: file-rename-suggestions.json`);
 } else {
   console.log(`✅ All files follow naming conventions!`);

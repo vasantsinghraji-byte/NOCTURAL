@@ -1,9 +1,4 @@
-const fs = require('fs');
-const path = require('path');
-
-const rootDir = path.resolve(__dirname, '..', '..', '..');
-
-const readProjectFile = (relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+const { readProjectFile } = require('./projectFileReader');
 
 const indexHtmlSrc = readProjectFile('client/public/index.html');
 const frontendSessionSrc = readProjectFile('client/public/js/frontend-session.js');
@@ -47,7 +42,7 @@ describe('Frontend Runtime Config Contract', () => {
   });
 
   it('should keep admin entrypoint pages wired to shared config and session helpers', () => {
-    adminEntryPointPages.forEach(({ relativePath, source }) => {
+    adminEntryPointPages.forEach(({ source }) => {
       expect(source).toContain('<script src="/js/config.js"></script>');
       expect(source).toContain('<script src="/js/frontend-session.js"></script>');
       expect(source).not.toContain('http://localhost:5000');

@@ -131,3 +131,5 @@ class AuthService {
         }
     }
 }
+
+window.AuthService = AuthService;

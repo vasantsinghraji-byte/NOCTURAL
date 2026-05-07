@@ -99,11 +99,15 @@ const createLogger = (options = {}) => {
         json: true,
         format: winston.format.json(),
         replaceTimestamp: true,
-        onConnectionError: (err) => console.error('Loki connection error:', err)
+        onConnectionError: (err) => logger.error('Loki connection error', {
+          error: err.message
+        })
       }));
       logger.info('Loki transport enabled');
     } catch (e) {
-      console.log('Loki transport not available');
+      logger.warn('Loki transport not available', {
+        error: e.message
+      });
     }
   }
 
