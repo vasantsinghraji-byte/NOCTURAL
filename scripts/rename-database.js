@@ -14,7 +14,6 @@ const { MongoClient } = require('mongodb');
 const MONGO_URL = 'mongodb://localhost:27017';
 const OLD_DB_NAME = 'noctural_dev';
 const NEW_DB_NAME = 'nocturnal_dev';
-const OLD_AUTH_DB = 'noctural_dev';
 const NEW_AUTH_DB = 'nocturnal_dev';
 
 // User credentials
@@ -28,8 +27,6 @@ async function renameDatabase() {
     console.log('🔌 Connecting to MongoDB...');
     await client.connect();
     console.log('✅ Connected to MongoDB\n');
-
-    const adminDb = client.db('admin');
 
     // Step 1: List all collections in old database
     console.log(`📋 Listing collections in ${OLD_DB_NAME}...`);
@@ -63,15 +60,15 @@ async function renameDatabase() {
       const indexes = await oldCollection.indexes();
       for (const index of indexes) {
         if (index.name !== '_id_') {
-          const { name, ...indexSpec } = index;
+          const { key, name: indexName, ...indexOptions } = index;
           try {
-            await newCollection.createIndex(indexSpec.key, {
-              name: indexSpec.name,
-              ...indexSpec
+            await newCollection.createIndex(key, {
+              ...indexOptions,
+              name: indexName
             });
-            console.log(`  ✅ Created index: ${indexSpec.name}`);
+            console.log(`  ✅ Created index: ${indexName}`);
           } catch (err) {
-            console.log(`  ⚠️  Index ${indexSpec.name} already exists`);
+            console.log(`  ⚠️  Index ${indexName} already exists`);
           }
         }
       }

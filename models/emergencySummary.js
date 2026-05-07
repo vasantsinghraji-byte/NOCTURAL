@@ -180,6 +180,17 @@ const EmergencySummarySchema = new mongoose.Schema({
   timestamps: true
 });
 
+function tokenHashesMatch(candidateHash, storedHash) {
+  const candidateBuffer = Buffer.from(candidateHash, 'hex');
+  const storedBuffer = Buffer.from(storedHash, 'hex');
+
+  if (candidateBuffer.length !== storedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(candidateBuffer, storedBuffer);
+}
+
 // Compound indexes
 EmergencySummarySchema.index({ qrTokenHash: 1, qrTokenExpiry: 1 });
 
@@ -235,7 +246,7 @@ EmergencySummarySchema.methods.validateToken = function(token) {
   }
 
   const hash = crypto.createHash('sha256').update(token).digest('hex');
-  if (hash !== this.qrTokenHash) {
+  if (!tokenHashesMatch(hash, this.qrTokenHash)) {
     return { valid: false, reason: 'INVALID' };
   }
 

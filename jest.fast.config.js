@@ -1,4 +1,4 @@
-const { coverageThreshold, ...baseConfig } = require('./jest.config');
+const baseConfig = require('./jest.config');
 
 module.exports = {
   ...baseConfig,
