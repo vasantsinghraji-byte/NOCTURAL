@@ -9,6 +9,7 @@
 const mongoose = require('mongoose');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { NOTE_TYPES } = require('../constants/healthConstants');
+const logger = require('../utils/logger');
 
 // Diagnosis sub-schema (ICD-10 compatible)
 const DiagnosisSchema = new mongoose.Schema({
@@ -175,7 +176,7 @@ DoctorNoteSchema.pre('save', function(next) {
       this.contentEncrypted = true;
     } catch (err) {
       // If encryption fails, log but continue (content remains unencrypted)
-      console.error('Failed to encrypt doctor note content:', err);
+      logger.error('Failed to encrypt doctor note content', { error: err.message });
     }
   }
   next();
@@ -187,7 +188,7 @@ DoctorNoteSchema.methods.getDecryptedContent = function() {
     try {
       return decrypt(this.content);
     } catch (err) {
-      console.error('Failed to decrypt doctor note content:', err);
+      logger.error('Failed to decrypt doctor note content', { error: err.message });
       return '[Decryption failed]';
     }
   }

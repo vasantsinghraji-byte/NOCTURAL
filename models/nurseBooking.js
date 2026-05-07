@@ -5,7 +5,7 @@
  */
 
 const mongoose = require('mongoose');
-const { BOOKING_SERVICE_TYPES, BOOKING_STATUSES } = require('../constants/enums');
+const { BOOKING_SERVICE_TYPES } = require('../constants/enums');
 
 const NurseBookingSchema = new mongoose.Schema({
   // Patient Details

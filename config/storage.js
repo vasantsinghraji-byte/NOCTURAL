@@ -1,6 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const logger = require('../utils/logger');
+const localFileSystem = require('../utils/localFileSystem');
 const { createMagicByteValidatedStream } = require('../utils/uploadMagicByteValidator');
 
 // Determine storage backend — only use GCS when explicitly enabled and configured
@@ -59,9 +60,8 @@ const localStorage = multer.diskStorage({
     const uploadPath = path.join(__dirname, '../uploads', folder);
 
     // Create directory if it doesn't exist
-    const fs = require('fs');
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
+    if (!localFileSystem.existsSync(uploadPath)) {
+      localFileSystem.mkdirSync(uploadPath, { recursive: true });
     }
 
     cb(null, uploadPath);
@@ -241,10 +241,9 @@ module.exports = {
         logger.warn('Failed to delete file from GCS', { filename, error: error.message });
       }
     } else {
-      const fs = require('fs').promises;
       const filePath = path.join(__dirname, '../uploads', filename);
       try {
-        await fs.unlink(filePath);
+        await localFileSystem.unlink(filePath);
       } catch (error) {
         // File might not exist, ignore error
       }

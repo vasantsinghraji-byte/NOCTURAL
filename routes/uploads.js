@@ -10,6 +10,7 @@ const {
   uploadDocuments
 } = require('../middleware/upload');
 const User = require('../models/user');
+const logger = require('../utils/logger');
 
 // Upload profile photo
 router.post('/profile-photo', protect, uploadProfilePhoto, async (req, res) => {
@@ -43,7 +44,7 @@ router.post('/profile-photo', protect, uploadProfilePhoto, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('Profile photo upload error', { error: error.message, userId: req.user?._id });
     res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
   }
 });
@@ -83,7 +84,7 @@ router.post('/mci-certificate', protect, uploadMCICertificate, async (req, res) 
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('MCI certificate upload error', { error: error.message, userId: req.user?._id });
     res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
   }
 });
@@ -123,7 +124,7 @@ router.post('/mbbs-degree', protect, uploadMBBSDegree, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('MBBS degree upload error', { error: error.message, userId: req.user?._id });
     res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
   }
 });
@@ -163,7 +164,7 @@ router.post('/photo-id', protect, uploadPhotoId, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('Photo ID upload error', { error: error.message, userId: req.user?._id });
     res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
   }
 });
@@ -209,7 +210,7 @@ router.post('/certificate', protect, uploadCertificate, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('Certificate upload error', { error: error.message, userId: req.user?._id });
     res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
   }
 });
@@ -281,7 +282,7 @@ router.post('/documents', protect, uploadDocuments, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('Document upload error', { error: error.message, userId: req.user?._id });
     res.status(500).json({ success: false, message: 'Error uploading files', error: error.message });
   }
 });
@@ -305,7 +306,7 @@ router.get('/status', protect, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error:', error);
+    logger.error('Upload status fetch error', { error: error.message, userId: req.user?._id });
     res.status(500).json({ success: false, message: 'Error fetching upload status', error: error.message });
   }
 });
@@ -339,7 +340,7 @@ router.delete('/:documentType', protect, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Delete error:', error);
+    logger.error('Document delete error', { error: error.message, userId: req.user?._id, documentType: req.params.documentType });
     res.status(500).json({ success: false, message: 'Error deleting document', error: error.message });
   }
 });

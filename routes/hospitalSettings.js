@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const HospitalSettings = require('../models/hospitalSettings');
 const { protect } = require('../middleware/auth');
+const logger = require('../utils/logger');
 
 // Get hospital settings
 router.get('/', protect, async (req, res) => {
@@ -9,7 +10,7 @@ router.get('/', protect, async (req, res) => {
         const settings = await HospitalSettings.getOrCreateSettings(req.user._id);
         res.json({ success: true, data: settings });
     } catch (error) {
-        console.error('Error fetching settings:', error);
+        logger.error('Error fetching settings', { error: error.message, userId: req.user?._id });
         res.status(500).json({ success: false, message: 'Failed to fetch settings' });
     }
 });
@@ -48,7 +49,7 @@ router.put('/', protect, async (req, res) => {
             data: settings
         });
     } catch (error) {
-        console.error('Error updating settings:', error);
+        logger.error('Error updating settings', { error: error.message, userId: req.user?._id });
         res.status(500).json({ success: false, message: 'Failed to update settings' });
     }
 });
@@ -85,7 +86,7 @@ router.post('/preferred-doctors', protect, async (req, res) => {
             data: settings
         });
     } catch (error) {
-        console.error('Error adding preferred doctor:', error);
+        logger.error('Error adding preferred doctor', { error: error.message, userId: req.user?._id });
         res.status(500).json({ success: false, message: 'Failed to add preferred doctor' });
     }
 });
@@ -107,7 +108,7 @@ router.delete('/preferred-doctors/:doctorId', protect, async (req, res) => {
             data: settings
         });
     } catch (error) {
-        console.error('Error removing preferred doctor:', error);
+        logger.error('Error removing preferred doctor', { error: error.message, userId: req.user?._id });
         res.status(500).json({ success: false, message: 'Failed to remove preferred doctor' });
     }
 });

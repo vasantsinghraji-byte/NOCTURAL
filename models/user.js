@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { STAFF_ROLES, SPECIALIZATIONS, EMPLOYMENT_STATUSES, SHIFT_PREFERENCES } = require('../constants/enums');
+const logger = require('../utils/logger');
 
 const UserSchema = new mongoose.Schema({
   // Basic Information
@@ -348,7 +349,7 @@ UserSchema.methods.getDecryptedBankDetails = function() {
       verified: this.bankDetails.verified
     };
   } catch (error) {
-    console.error('Error decrypting bank details:', error);
+    logger.error('Error decrypting bank details', { error: error.message, userId: this._id });
     return null;
   }
 };

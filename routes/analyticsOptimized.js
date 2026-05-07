@@ -5,6 +5,7 @@ const { DoctorAnalytics, HospitalAnalytics } = require('../models/analytics');
 const Application = require('../models/application');
 const Duty = require('../models/duty');
 const HospitalSettings = require('../models/hospitalSettings');
+const logger = require('../utils/logger');
 
 // @route   GET /api/analytics/doctor
 // @desc    Get doctor analytics dashboard
@@ -515,7 +516,7 @@ router.get('/hospital/dashboard', protect, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error fetching hospital dashboard analytics:', error);
+        logger.error('Error fetching hospital dashboard analytics', { error: error.message, userId: req.user?._id });
         res.status(500).json({
             success: false,
             message: 'Failed to fetch analytics',

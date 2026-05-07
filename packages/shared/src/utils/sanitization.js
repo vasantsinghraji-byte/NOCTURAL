@@ -101,10 +101,11 @@ function sanitizeData(obj, depth = 0) {
 }
 
 function sanitizeString(str) {
+  let sanitizedString = str;
   if (str.includes('\0')) {
-    str = str.replace(/\0/g, '');
+    sanitizedString = str.replace(/\0/g, '');
   }
-  return str;
+  return sanitizedString;
 }
 
 function hasDangerousCharacters(key) {

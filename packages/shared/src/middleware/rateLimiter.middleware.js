@@ -122,7 +122,7 @@ const createRateLimiterFactory = (redisUrl) => {
       max: 5,
       message: 'Too many authentication attempts, please try again later',
       skipSuccessfulRequests: true,
-      onLimitReached: (req, res) => {
+      onLimitReached: (req, _res) => {
         monitoring.triggerAlert('auth_rate_limit_exceeded', {
           ip: req.ip,
           endpoint: req.url,
