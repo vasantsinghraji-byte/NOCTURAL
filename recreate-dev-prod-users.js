@@ -83,8 +83,6 @@ async function recreateUsers() {
         // Verify users were created
         console.log('Step 3: Verifying users...\n');
 
-        const adminDb = client.db('admin');
-
         console.log('Users in nocturnal_dev:');
         try {
             const devUsers = await devDb.command({ usersInfo: 1 });

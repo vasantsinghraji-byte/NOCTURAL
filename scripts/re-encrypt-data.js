@@ -138,7 +138,7 @@ async function reEncryptUserBankDetails(oldKey, newKey) {
 }
 
 // Add more re-encryption functions for other encrypted fields
-async function reEncryptOtherSensitiveData(oldKey, newKey) {
+async function reEncryptOtherSensitiveData(_oldKey, _newKey) {
   // TODO: Add re-encryption for any other encrypted fields in your models
   // Example:
   // - Patient medical records
