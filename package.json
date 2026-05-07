@@ -17,6 +17,7 @@
     "install:shared": "cd packages/shared && npm install",
     "hooks:install": "git config core.hooksPath .githooks",
     "hooks:path": "git config --get core.hooksPath",
+    "doctor:local": "node scripts/doctor-local.js",
     "test:shared": "npm test --workspace=@nocturnal/shared",
     "test:patient-booking": "npm test --workspace=@nocturnal/patient-booking-service",
     "start:patient-booking": "npm start --workspace=@nocturnal/patient-booking-service",
