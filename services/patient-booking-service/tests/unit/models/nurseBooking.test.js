@@ -2,17 +2,10 @@
  * Unit Tests - NurseBooking Model
  */
 
-const mongoose = require('mongoose');
 const { NurseBooking, Patient } = require('../../../src/models');
 
 describe('NurseBooking Model', () => {
   let testPatient;
-
-  beforeAll(async () => {
-    if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(process.env.MONGODB_URI);
-    }
-  });
 
   beforeEach(async () => {
     await NurseBooking.deleteMany({});
@@ -25,10 +18,6 @@ describe('NurseBooking Model', () => {
       phone: '9876543210',
       password: 'password123'
     });
-  });
-
-  afterAll(async () => {
-    await mongoose.connection.close();
   });
 
   describe('Booking Creation', () => {

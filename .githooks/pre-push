@@ -1,5 +1,2 @@
-#!/usr/bin/env node
-
-const { run } = require('../scripts/git-hooks/run-hook');
-
-process.exit(run('pre-push'));
+#!/bin/sh
+exec node scripts/git-hooks/run-hook.js pre-push
