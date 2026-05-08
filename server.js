@@ -1,7 +1,7 @@
 const dotenv = require('dotenv');
 
 // Load environment variables before importing env-sensitive local modules.
-dotenv.config();
+dotenv.config({ quiet: process.env.NODE_ENV === 'test' });
 
 const app = require('./app');
 const logger = require('./utils/logger');

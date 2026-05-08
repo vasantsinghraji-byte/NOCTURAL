@@ -3,7 +3,7 @@
  * Centralized configuration for the patient booking microservice
  */
 
-require('dotenv').config();
+require('dotenv').config({ quiet: process.env.NODE_ENV === 'test' });
 
 const config = {
   // Service Information

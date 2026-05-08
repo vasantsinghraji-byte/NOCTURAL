@@ -81,6 +81,7 @@ const createLogger = (options = {}) => {
   if (process.env.NODE_ENV !== 'production') {
     logger.add(new winston.transports.Console({
       format: consoleFormat,
+      silent: process.env.NODE_ENV === 'test' && process.env.NOCTURNAL_TEST_LOGS !== '1',
       handleExceptions: true,
       handleRejections: true
     }));

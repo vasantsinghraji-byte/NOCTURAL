@@ -21,7 +21,7 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   testTimeout: 10000,
   verbose: true,
-  forceExit: true,
+  forceExit: false,
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true

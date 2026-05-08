@@ -67,17 +67,17 @@ Credentials     Auth Bypass      Performance      Code Quality
 
 | # | File | Line(s) | Issue | Severity | Status |
 |---|------|---------|-------|----------|--------|
-| SEC-001 | `create-mongo-users.js` | 16-18 | Hardcoded admin/dev/prod passwords (`NocturnalAdmin2025!Secure`, `DevPass2025!ChangeMe`, `ProdPass2025!VeryStrong`) | P0-CRITICAL | [x] |
-| SEC-002 | `create-mongo-user.js` | 19 | Hardcoded password `DevPass2025!ChangeMe` | P0-CRITICAL | [x] |
+| SEC-001 | `create-mongo-users.js` | 16-18 | Hardcoded admin/dev/prod password literals | P0-CRITICAL | [x] |
+| SEC-002 | `create-mongo-user.js` | 19 | Hardcoded development password literal | P0-CRITICAL | [x] |
 | SEC-003 | `fix-auth-with-localhost-exception.js` | 11-13 | Three hardcoded passwords (admin, dev, prod) | P0-CRITICAL | [x] |
 | SEC-004 | `verify-and-fix-auth.js` | 11 | Dev credentials in connection string URI | P0-CRITICAL | [x] |
 | SEC-005 | `recreate-dev-prod-users.js` | 8-10 | Admin, dev, prod passwords hardcoded | P0-CRITICAL | [x] |
-| SEC-006 | `services/paymentService.js` | 15-18 | Razorpay fallback credentials (`rzp_test_YOUR_KEY_HERE`) | P0-CRITICAL | [x] |
-| SEC-007 | `docker/mongo-init.js` | 8-9 | Default password `changeme` for MongoDB app user | P0-CRITICAL | [x] |
+| SEC-006 | `services/paymentService.js` | 15-18 | Razorpay fallback placeholder credentials | P0-CRITICAL | [x] |
+| SEC-007 | `docker/mongo-init.js` | 8-9 | Default placeholder password for MongoDB app user | P0-CRITICAL | [x] |
 | SEC-008 | `.github/workflows/ci.yml` | 74-76 | Hardcoded JWT_SECRET and ENCRYPTION_KEY in CI | P1-HIGH | [x] |
 | SEC-009 | `.github/workflows/ci.yml` | 150-152 | Plaintext credentials in build validation step | P1-HIGH | [x] |
-| SEC-010 | `docker-compose.yml` | 10,28,47 | Weak default passwords (`admin123`, `redis123`) | P0-CRITICAL | [x] |
-| SEC-011 | `docker-compose.prod.yml` | 21,56,86,140,188 | Production defaults to `changeme` passwords | P0-CRITICAL | [x] |
+| SEC-010 | `docker-compose.yml` | 10,28,47 | Weak default service passwords | P0-CRITICAL | [x] |
+| SEC-011 | `docker-compose.prod.yml` | 21,56,86,140,188 | Production default placeholder passwords | P0-CRITICAL | [x] |
 | SEC-012 | `k8s/secrets.yaml` | 13-25 | Plaintext secrets in Kubernetes manifest | P0-CRITICAL | [x] |
 
 ### - [x] 1.2 Payment Security (3/3)
@@ -390,7 +390,7 @@ Credentials     Auth Bypass      Performance      Code Quality
 **Implementation Pattern:**
 ```javascript
 // BEFORE (bad)
-const ADMIN_PASSWORD = 'NocturnalAdmin2025!Secure';
+const ADMIN_PASSWORD = '<hardcoded-password-literal>';
 
 // AFTER (good)
 const ADMIN_PASSWORD = process.env.MONGO_ADMIN_PASSWORD;
