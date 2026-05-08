@@ -12,11 +12,34 @@ process.env.LOG_LEVEL = 'error'; // Reduce noise in tests
 process.env.DOTENV_CONFIG_QUIET = 'true';
 process.env.NOCTURNAL_TEST_LOGS = process.env.NOCTURNAL_TEST_LOGS || '0';
 
+const mongoose = require('mongoose');
+const { MongoMemoryServer } = require('mongodb-memory-server');
+
+let mongoServer;
+
 // Mock external service calls by default
 jest.mock('axios');
 
 // Increase timeout for database operations
 jest.setTimeout(10000);
+
+beforeAll(async () => {
+  if (process.env.PATIENT_BOOKING_TEST_DB === 'external') {
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(process.env.MONGODB_URI);
+    }
+    return;
+  }
+
+  mongoServer = await MongoMemoryServer.create({
+    instance: {
+      dbName: 'nocturnal-patient-booking-test'
+    }
+  });
+
+  process.env.MONGODB_URI = mongoServer.getUri();
+  await mongoose.connect(process.env.MONGODB_URI);
+});
 
 // Global test utilities
 global.mockRequest = (overrides = {}) => ({
@@ -42,8 +65,11 @@ global.mockNext = () => jest.fn();
 // Cleanup after all tests
 afterAll(async () => {
   // Close database connections
-  const mongoose = require('mongoose');
   if (mongoose.connection.readyState !== 0) {
-    await mongoose.connection.close();
+    await mongoose.disconnect();
+  }
+
+  if (mongoServer) {
+    await mongoServer.stop();
   }
 });
