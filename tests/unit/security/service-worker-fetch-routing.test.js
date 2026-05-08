@@ -14,6 +14,13 @@ const serviceWorkerSrc = fs.readFileSync(
 
 const loadServiceWorker = () => {
   const handlers = {};
+  const silentConsole = {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn()
+  };
   const cache = {
     match: jest.fn().mockResolvedValue(undefined),
     put: jest.fn().mockResolvedValue(undefined),
@@ -32,7 +39,7 @@ const loadServiceWorker = () => {
   };
 
   const context = vm.createContext({
-    console,
+    console: silentConsole,
     URL,
     Request,
     Response,

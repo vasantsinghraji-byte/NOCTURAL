@@ -115,7 +115,8 @@ describe('Config Infrastructure Validation', () => {
 
   describe('ERR-009: Environment loaded before env-sensitive imports', () => {
     it('should call dotenv.config() before requiring env-sensitive local modules and route bootstrap code', () => {
-      const dotenvIndex = serverSrc.indexOf('dotenv.config()');
+      const dotenvMatch = serverSrc.match(/dotenv\.config\([^)]*\)/);
+      const dotenvIndex = dotenvMatch ? dotenvMatch.index : -1;
       const databaseIndex = serverSrc.indexOf("require('./config/database')");
       const rateLimitIndex = serverSrc.indexOf("require('./config/rateLimit')");
       const appBootstrapIndex = serverSrc.indexOf("require('./app')");
