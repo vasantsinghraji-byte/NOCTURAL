@@ -67,6 +67,19 @@ npm run test:watch
 
 # Run tests in CI environment
 npm run test:ci
+
+# Run patient booking service tests with the default in-memory MongoDB
+npm run test:patient-booking -- -- --runInBand
+```
+
+Patient booking service tests start an in-memory MongoDB by default. To run
+them against a real local MongoDB instead, set `PATIENT_BOOKING_TEST_DB=external`
+and provide `MONGODB_URI`, for example:
+
+```bash
+PATIENT_BOOKING_TEST_DB=external \
+MONGODB_URI=mongodb://localhost:27017/nocturnal-patient-booking-test \
+npm run test:patient-booking -- -- --runInBand
 ```
 
 ---
