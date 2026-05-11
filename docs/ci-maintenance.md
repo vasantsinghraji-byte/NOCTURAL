@@ -3,8 +3,9 @@
 ## Required gates
 
 The deploy-blocking GitHub Actions path now uses a narrow smoke suite through
-`npm run test:ci`, plus lint, secret scanning, auth static analysis, deployment
-gate validation, and a container smoke build.
+`npm run test:ci`, patient booking service tests through
+`npm run test:patient-booking -- -- --runInBand`, plus lint, secret scanning,
+auth static analysis, deployment gate validation, and a container smoke build.
 
 ## Legacy Jest cleanup
 

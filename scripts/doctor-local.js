@@ -5,6 +5,7 @@ const { spawnSync } = require('child_process');
 const CHECK = '\u2713';
 const CROSS = '\u2717';
 const WARN = '!';
+const HOOKS_PATH = '.githooks';
 
 function commandLabel(command, args) {
   return [command, ...args].join(' ');
@@ -64,10 +65,8 @@ function checkGitBash() {
   }
 
   const bashPath = 'C:\\Program Files\\Git\\usr\\bin\\bash.exe';
-  const shellPath = 'C:\\Program Files\\Git\\usr\\bin\\sh.exe';
   const envPath = 'C:\\Program Files\\Git\\usr\\bin\\env.exe';
   const bashOk = logResult(runCommand(bashPath, ['--version']), 'Git Bash');
-  const shellOk = logResult(runCommand(shellPath, ['--version']), 'Git hook shell');
   logResult(runCommand(envPath, ['bash', '--version']), 'Git env.exe bash', { optional: true });
   logResult(runCommand(envPath, ['node', '--version']), 'Git env.exe node', { optional: true });
   const whereBash = runCommand('where.exe', ['bash']);
@@ -85,11 +84,41 @@ function checkGitBash() {
     console.log(`${WARN} PATH bash lookup failed: ${firstLine(whereBash.stderr || whereBash.error)}`);
   }
 
-  if (!shellOk) {
-    console.log(`${WARN} Git hooks will be skipped until Git for Windows shell execution is repaired.`);
+  return bashOk;
+}
+
+function gitHookShellCommand() {
+  if (process.platform === 'win32') {
+    return 'C:\\Program Files\\Git\\usr\\bin\\sh.exe';
   }
 
-  return bashOk;
+  return 'sh';
+}
+
+function checkGitHookConfiguration() {
+  const hooksPath = runCommand('git', ['config', '--get', 'core.hooksPath']);
+  const configuredPath = firstLine(hooksPath.stdout);
+  const hooksPathOk = hooksPath.ok && configuredPath === HOOKS_PATH;
+
+  if (hooksPathOk) {
+    console.log(`${CHECK} Git hooks path: ${configuredPath}`);
+  } else {
+    const detail = configuredPath || firstLine(hooksPath.stderr || hooksPath.error) || 'not configured';
+    console.log(`${CROSS} Git hooks path: expected ${HOOKS_PATH}, got ${detail}`);
+  }
+
+  const hookShell = gitHookShellCommand();
+  const shellOk = logResult(runCommand(hookShell, ['--version']), 'Git hook runner shell');
+
+  if (process.platform === 'win32') {
+    if (shellOk && /\\Git\\usr\\bin\\sh\.exe$/iu.test(hookShell)) {
+      console.log(`${CHECK} Git hooks use Git for Windows shell, not WSL bash: ${hookShell}`);
+    } else {
+      console.log(`${WARN} Git hooks are not confirmed to use Git for Windows shell.`);
+    }
+  }
+
+  return hooksPathOk && shellOk;
 }
 
 function checkRequiredTool(label, command, args = [], options = {}) {
@@ -110,6 +139,7 @@ function main() {
 
   const checks = [
     checkGitBash(),
+    checkGitHookConfiguration(),
     checkRequiredTool('Git', 'git', ['--version']),
     checkRequiredTool('Node', 'node', ['--version']),
     checkRequiredTool('npm', process.platform === 'win32' ? 'npm.cmd' : 'npm', ['--version'], { shell: process.platform === 'win32' }),

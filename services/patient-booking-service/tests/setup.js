@@ -6,7 +6,7 @@
 // Set test environment variables
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-jwt-secret-key';
-process.env.MONGODB_URI = 'mongodb://localhost:27017/nocturnal-patient-booking-test';
+process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nocturnal-patient-booking-test';
 process.env.REDIS_URL = 'redis://localhost:6379';
 process.env.LOG_LEVEL = 'error'; // Reduce noise in tests
 process.env.DOTENV_CONFIG_QUIET = 'true';
