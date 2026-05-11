@@ -82,6 +82,10 @@ MONGODB_URI=mongodb://localhost:27017/nocturnal-patient-booking-test \
 npm run test:patient-booking -- -- --runInBand
 ```
 
+GitHub Actions runs these tests with `PATIENT_BOOKING_TEST_DB=external` against
+the workflow MongoDB service. That avoids MongoMemoryServer binary downloads on
+Ubuntu runners while keeping local development simple by default.
+
 ---
 
 ## Test Infrastructure
@@ -177,7 +181,7 @@ db.createUser({
 MONGODB_URI=mongodb://test_user:test_password@localhost:27017/nocturnal_test?authSource=nocturnal_test
 ```
 
-#### Option 3: Use MongoDB Memory Server (Best for CI/CD)
+#### Option 3: Use MongoDB Memory Server (Default Local Fallback)
 
 Install MongoDB Memory Server:
 ```bash

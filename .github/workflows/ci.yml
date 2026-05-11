@@ -123,6 +123,8 @@ jobs:
         run: npm run test:patient-booking -- -- --runInBand
         env:
           NODE_ENV: test
+          PATIENT_BOOKING_TEST_DB: external
+          MONGODB_URI: mongodb://admin:testpass@localhost:27017/nocturnal_patient_booking_test?authSource=admin
 
       - name: Upload test coverage artifact
         if: success() && env.ACT != 'true'
