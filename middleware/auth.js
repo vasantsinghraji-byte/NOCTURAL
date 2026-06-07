@@ -3,6 +3,26 @@ const User = require('../models/user');
 const { isValidRole } = require('../constants/roles');
 const logger = require('../utils/logger');
 
+const JWT_ALGORITHM = 'HS256';
+const JWT_ISSUER = 'nocturnal-api';
+const JWT_AUDIENCE = 'nocturnal';
+
+const JWT_ACCESS_SIGN_OPTIONS = Object.freeze({
+  algorithm: JWT_ALGORITHM,
+  issuer: JWT_ISSUER,
+  audience: JWT_AUDIENCE
+});
+
+const JWT_REFRESH_SIGN_OPTIONS = JWT_ACCESS_SIGN_OPTIONS;
+
+const JWT_ACCESS_VERIFY_OPTIONS = Object.freeze({
+  algorithms: [JWT_ALGORITHM],
+  issuer: JWT_ISSUER,
+  audience: JWT_AUDIENCE
+});
+
+const JWT_REFRESH_VERIFY_OPTIONS = JWT_ACCESS_VERIFY_OPTIONS;
+
 const normalizeAuthenticatedUser = (user) => {
   if (!user) return user;
 
@@ -13,15 +33,57 @@ const normalizeAuthenticatedUser = (user) => {
   return user;
 };
 
+const parseCookieHeader = (cookieHeader) => {
+  if (!cookieHeader || typeof cookieHeader !== 'string') {
+    return {};
+  }
+
+  return cookieHeader.split(';').reduce((cookies, cookiePair) => {
+    const separatorIndex = cookiePair.indexOf('=');
+    if (separatorIndex === -1) {
+      return cookies;
+    }
+
+    const name = cookiePair.slice(0, separatorIndex).trim();
+    const value = cookiePair.slice(separatorIndex + 1).trim();
+
+    if (name) {
+      cookies[name] = decodeURIComponent(value);
+    }
+
+    return cookies;
+  }, {});
+};
+
+const getAccessTokenFromRequest = (req) => {
+  if (req.cookies && req.cookies.accessToken) {
+    return req.cookies.accessToken;
+  }
+
+  const cookieToken = parseCookieHeader(req.headers.cookie).accessToken;
+  if (cookieToken) {
+    return cookieToken;
+  }
+
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    return req.headers.authorization.split(' ')[1];
+  }
+
+  return null;
+};
+
+const verifyAccessToken = (token) => jwt.verify(token, process.env.JWT_SECRET, JWT_ACCESS_VERIFY_OPTIONS);
+
+const verifyRefreshToken = (token) => jwt.verify(
+  token,
+  process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+  JWT_REFRESH_VERIFY_OPTIONS
+);
+
 // Protect routes - SECURED with proper JWT verification
 exports.protect = async (req, res, next) => {
   try {
-    let token;
-
-    // Get token from header
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
+    const token = getAccessTokenFromRequest(req);
 
     if (!token) {
       return res.status(401).json({
@@ -31,7 +93,7 @@ exports.protect = async (req, res, next) => {
     }
 
     // Verify JWT token with signature validation - CRITICAL FIX
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifyAccessToken(token);
 
     // Get user from database
     const user = await User.findById(decoded.id).select('-password');
@@ -143,8 +205,29 @@ exports.authorize = (...roles) => {
 };
 
 // Generate JWT Token with strong expiration
-exports.generateToken = (id) => {
+exports.generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '7d' // Reduced from 30d to 7d for security
+    ...JWT_ACCESS_SIGN_OPTIONS,
+    expiresIn: process.env.JWT_ACCESS_EXPIRE || '15m'
   });
 };
+
+exports.generateRefreshToken = (id) => {
+  return jwt.sign({ id, type: 'refresh' }, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
+    ...JWT_REFRESH_SIGN_OPTIONS,
+    expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d'
+  });
+};
+
+exports.generateToken = exports.generateAccessToken;
+exports.parseCookieHeader = parseCookieHeader;
+exports.getAccessTokenFromRequest = getAccessTokenFromRequest;
+exports.verifyAccessToken = verifyAccessToken;
+exports.verifyRefreshToken = verifyRefreshToken;
+exports.JWT_ALGORITHM = JWT_ALGORITHM;
+exports.JWT_ISSUER = JWT_ISSUER;
+exports.JWT_AUDIENCE = JWT_AUDIENCE;
+exports.JWT_ACCESS_SIGN_OPTIONS = JWT_ACCESS_SIGN_OPTIONS;
+exports.JWT_REFRESH_SIGN_OPTIONS = JWT_REFRESH_SIGN_OPTIONS;
+exports.JWT_ACCESS_VERIFY_OPTIONS = JWT_ACCESS_VERIFY_OPTIONS;
+exports.JWT_REFRESH_VERIFY_OPTIONS = JWT_REFRESH_VERIFY_OPTIONS;

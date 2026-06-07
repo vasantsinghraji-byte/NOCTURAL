@@ -10,6 +10,8 @@
  * - ERR-008: Redis connection waits for 'ready' event with timeout
  */
 
+/* eslint-disable security/detect-non-literal-fs-filename */
+
 const fs = require('fs');
 const path = require('path');
 
@@ -80,9 +82,11 @@ describe('Config Infrastructure Validation', () => {
   });
 
   describe('VAL-014: Rate limiter key generation', () => {
-    it('should use user ID when available, otherwise IP', () => {
+    it('should use user ID when available, otherwise IPv6-safe IP helper', () => {
       expect(rateLimiterSrc).toMatch(/keyGenerator/);
-      expect(rateLimiterSrc).toMatch(/req\.user\s*\?\s*req\.user\._id\s*:\s*req\.ip/);
+      expect(rateLimiterSrc).toMatch(/rateLimitKeyGenerator/);
+      expect(rateLimiterSrc).toMatch(/req\.user\?\._id\s*\|\|\s*req\.user\?\.id/);
+      expect(rateLimiterSrc).toMatch(/ipKeyGenerator\(req\.ip/);
     });
   });
 

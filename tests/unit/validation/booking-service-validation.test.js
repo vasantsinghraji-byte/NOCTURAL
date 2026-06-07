@@ -3,7 +3,9 @@
  *
  * Verifies:
  * - VAL-001: Surge pricing time format validation (regex + bounds)
+ * - TZ-014: Surge pricing uses explicit client timezone offsets
  * - VAL-016: Service availability by city validation
+ * - PERF-013: Review aggregate uses pipeline + supporting index
  * - NULL-003: Cannot complete booking without startTime
  * - NULL-004: startTime null check prevents NaN duration
  */
@@ -59,8 +61,8 @@ describe('Booking Service Validation', () => {
       const methodBody = methodMatch[0];
 
       // Should validate time format with regex
-      expect(methodBody).toMatch(/timeFormatRegex/);
-      expect(methodBody).toMatch(/\\d\{1,2\}:\\d\{2\}/);
+      expect(src).toMatch(/TIME_FORMAT_REGEX/);
+      expect(src).toMatch(/\\d\{1,2\}:\\d\{2\}/);
     });
 
     it('source code should validate surge hour bounds (0-23)', () => {
@@ -84,7 +86,48 @@ describe('Booking Service Validation', () => {
       );
 
       expect(src).toContain('Invalid scheduled date/time format');
-      expect(src).toMatch(/isNaN\(bookingDate\.getTime\(\)\)/);
+      expect(src).toMatch(/Number\.isNaN\(bookingDate\.getTime\(\)\)/);
+    });
+  });
+
+  describe('TZ-014: Explicit timezone offset contract', () => {
+    it('source code should resolve surge pricing hour using an explicit timezone offset instead of server-local Date parsing', () => {
+      const src = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'services', 'bookingService.js'),
+        'utf8'
+      );
+
+      expect(src).toMatch(/resolveScheduledLocalHour/);
+      expect(src).toMatch(/scheduledTimezoneOffsetMinutes/);
+      expect(src).toMatch(/formatUtcOffset/);
+      expect(src).not.toContain('new Date(`${scheduledDate}T${scheduledTime}`)');
+    });
+
+    it('route validation should require scheduledTimezoneOffsetMinutes on booking creation', () => {
+      const routesSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'routes', 'booking.js'),
+        'utf8'
+      );
+
+      expect(routesSrc).toMatch(/body\('scheduledTimezoneOffsetMinutes'\)/);
+      expect(routesSrc).toContain('Scheduled timezone offset is required');
+    });
+
+    it('route validation should require a valid scheduledTimezone on booking creation', () => {
+      const routesSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'routes', 'booking.js'),
+        'utf8'
+      );
+      const modelSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'models', 'nurseBooking.js'),
+        'utf8'
+      );
+
+      expect(routesSrc).toMatch(/body\('scheduledTimezone'\)/);
+      expect(routesSrc).toContain('Scheduled timezone is required');
+      expect(routesSrc).toContain('valid IANA timezone');
+      expect(modelSrc).toContain('scheduledTimezone: {');
+      expect(modelSrc).toContain('scheduledTimezoneOffsetMinutes: {');
     });
   });
 
@@ -98,6 +141,51 @@ describe('Booking Service Validation', () => {
       expect(src).toMatch(/availableCities/);
       expect(src).toMatch(/toLowerCase\(\)/);
       expect(src).toMatch(/not available in/);
+    });
+  });
+
+  describe('PERF-013: Review aggregate and index contract', () => {
+    it('source code should aggregate provider review stats instead of loading reviewed bookings into memory', () => {
+      const src = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'services', 'bookingService.js'),
+        'utf8'
+      );
+
+      const methodMatch = src.match(/async syncProviderReviewStats[\s\S]*?(?=\n\s{2}async |\n\s{2}\/\*\*)/);
+      expect(methodMatch).not.toBeNull();
+      const methodBody = methodMatch[0];
+
+      expect(methodBody).toMatch(/NurseBooking\.aggregate/);
+      expect(methodBody).toMatch(/\$group/);
+      expect(methodBody).toMatch(/\$avg:\s*['"]\$rating\.stars['"]/);
+      expect(methodBody).not.toMatch(/NurseBooking\.find\(/);
+    });
+
+    it('source code should gate provider review aggregate recompute on aggregate-driving review field changes', () => {
+      const bookingServiceSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'services', 'bookingService.js'),
+        'utf8'
+      );
+      const aggregateHelperSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'utils', 'bookingReviewAggregate.js'),
+        'utf8'
+      );
+
+      expect(bookingServiceSrc).toMatch(/syncProviderReviewStatsIfNeeded/);
+      expect(bookingServiceSrc).toMatch(/bookingReviewAggregate/);
+      expect(bookingServiceSrc).toMatch(/hasReviewAggregateStateChanged/);
+      expect(aggregateHelperSrc).toMatch(/normalizeReviewAggregateState/);
+      expect(aggregateHelperSrc).toMatch(/previousState\.stars !== nextState\.stars/);
+      expect(aggregateHelperSrc).toMatch(/previousState\.hasRatedAt !== nextState\.hasRatedAt/);
+    });
+
+    it('booking model should define the provider review aggregate index', () => {
+      const modelSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'models', 'nurseBooking.js'),
+        'utf8'
+      );
+
+      expect(modelSrc).toContain("NurseBookingSchema.index({ serviceProvider: 1, 'rating.ratedAt': 1 });");
     });
   });
 
@@ -135,6 +223,62 @@ describe('Booking Service Validation', () => {
       // Should check startTime before calculating duration
       expect(methodBody).toMatch(/!booking\.actualService\.startTime/);
       expect(methodBody).toContain('Cannot complete booking without a start time');
+    });
+  });
+
+  describe('REVIEW-010: Booking review route contract', () => {
+    it('should expose explicit booking review CRUD routes in the main API', () => {
+      const routesSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'routes', 'booking.js'),
+        'utf8'
+      );
+
+      expect(routesSrc).toMatch(/router\.post\(\s*['"`]\/:id\/review['"`]/);
+      expect(routesSrc).toMatch(/router\.put\(\s*['"`]\/:id\/review['"`]/);
+      expect(routesSrc).toMatch(/router\.delete\(\s*['"`]\/:id\/review['"`]/);
+      expect(routesSrc).not.toMatch(/router\.patch\(\s*['"`]\/:id\/review['"`]/);
+    });
+
+    it('should restrict booking review mutations to authenticated patients', () => {
+      const routesSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'routes', 'booking.js'),
+        'utf8'
+      );
+
+      const addReviewRouteMatch = routesSrc.match(
+        /router\.post\(\s*['"`]\/:id\/review['"`][\s\S]*?addReview\s*\)/
+      );
+      const updateReviewRouteMatch = routesSrc.match(
+        /router\.put\(\s*['"`]\/:id\/review['"`][\s\S]*?updateReview\s*\)/
+      );
+      const deleteReviewRouteMatch = routesSrc.match(
+        /router\.delete\(\s*['"`]\/:id\/review['"`][\s\S]*?deleteReview\s*\)/
+      );
+
+      expect(addReviewRouteMatch).not.toBeNull();
+      expect(updateReviewRouteMatch).not.toBeNull();
+      expect(deleteReviewRouteMatch).not.toBeNull();
+      expect(addReviewRouteMatch[0]).toMatch(/authorize\(\s*['"`]patient['"`]\s*\)/);
+      expect(updateReviewRouteMatch[0]).toMatch(/authorize\(\s*['"`]patient['"`]\s*\)/);
+      expect(deleteReviewRouteMatch[0]).toMatch(/authorize\(\s*['"`]patient['"`]\s*\)/);
+    });
+
+    it('should verify booking ownership before addReview writes rating data', () => {
+      const bookingServiceSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'services', 'bookingService.js'),
+        'utf8'
+      );
+
+      const methodMatch = bookingServiceSrc.match(
+        /async addReview[\s\S]*?(?=\n\s{2}async |\n\s{2}\/\*\*)/
+      );
+
+      expect(methodMatch).not.toBeNull();
+      expect(methodMatch[0]).toMatch(/booking\.patient\.toString\(\)\s*!==\s*patientId/);
+      expect(methodMatch[0]).toMatch(/throw new AuthorizationError/);
+      expect(methodMatch[0].indexOf('throw new AuthorizationError')).toBeLessThan(
+        methodMatch[0].indexOf('booking.rating =')
+      );
     });
   });
 });

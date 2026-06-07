@@ -6,6 +6,7 @@
  * - VAL-003: Token expiry bounds validation in generateQRToken()
  * - VAL-004: Critical intake fields required validation
  * - VAL-005: Non-diabetic patient metric rejection
+ * - SEC-041: Emergency QR endpoint brute-force protection
  * - VAL-007: Medical history structure validation per category
  * - NULL-005: statusTimestamps?.completedAt optional chaining
  * - ERR-010: New patients not blocked from emergency summary
@@ -82,6 +83,80 @@ describe('Service Health Validation', () => {
       await expect(
         emergencySummaryService.generateQRToken('patient1', 0)
       ).rejects.toThrow(/expiryHours must be between/);
+    });
+  });
+
+  describe('SEC-041: Emergency QR brute-force protection', () => {
+    it('doctor access route should rate-limit the public emergency QR endpoint', () => {
+      const routesSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'routes', 'doctorAccess.js'),
+        'utf8'
+      );
+
+      const emergencyRouteMatch = routesSrc.match(
+        /router\.get\(\s*['"`]\/emergency\/:qrToken['"`][\s\S]*?getEmergencyData\s*\)/
+      );
+
+      expect(routesSrc).toMatch(/emergencyQrLimiter/);
+      expect(emergencyRouteMatch).not.toBeNull();
+      expect(emergencyRouteMatch[0]).toMatch(/emergencyQrLimiter/);
+    });
+
+    it('emergency QR limiter should allow only three attempts per minute and escalate', () => {
+      const limiterSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'middleware', 'rateLimiter.js'),
+        'utf8'
+      );
+
+      expect(limiterSrc).toMatch(/createEmergencyQrLimiter/);
+      expect(limiterSrc).toMatch(/windowMs = options\.windowMs \|\| 60 \* 1000/);
+      expect(limiterSrc).toMatch(/max = options\.max \|\| 3/);
+      expect(limiterSrc).toMatch(/2 \*\* \(bucket\.violations - 1\)/);
+      expect(limiterSrc).toMatch(/captchaRequired/);
+      expect(limiterSrc).toMatch(/Retry-After/);
+    });
+
+    it('emergency QR limiter should use Redis-backed atomic state when configured', () => {
+      const limiterSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'middleware', 'rateLimiter.js'),
+        'utf8'
+      );
+      const redisSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'config', 'redis.js'),
+        'utf8'
+      );
+
+      expect(limiterSrc).toMatch(/getRedisClient/);
+      expect(limiterSrc).toMatch(/REDIS_ENABLED/);
+      expect(limiterSrc).toMatch(/REDIS_URL/);
+      expect(limiterSrc).toMatch(/redisClient\.eval/);
+      expect(limiterSrc).toMatch(/emergencyQrRedisScript/);
+      expect(limiterSrc).toMatch(/PEXPIRE/);
+      expect(limiterSrc).toMatch(/per-instance memory fallback/);
+      expect(redisSrc).toMatch(/new Redis\(REDIS_URL/);
+    });
+
+    it('emergency QR tokens should be signed opaque tokens with legacy-token compatibility', () => {
+      const modelSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'models', 'emergencySummary.js'),
+        'utf8'
+      );
+
+      expect(modelSrc).toMatch(/createHmac\(['"]sha256['"]/);
+      expect(modelSrc).toMatch(/generateSignedQRToken/);
+      expect(modelSrc).toMatch(/SIGNED_QR_TOKEN_REGEX/);
+      expect(modelSrc).toMatch(/LEGACY_QR_TOKEN_REGEX/);
+      expect(modelSrc).toMatch(/timingSafeEqual/);
+      expect(modelSrc).toMatch(/isValidQRTokenFormat\(token\)/);
+    });
+
+    it('emergency controller should pass caller IP for access tracking', () => {
+      const controllerSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'controllers', 'doctorAccessController.js'),
+        'utf8'
+      );
+
+      expect(controllerSrc).toMatch(/getEmergencyDataByToken\(qrToken,\s*req\.ip\)/);
     });
   });
 

@@ -59,29 +59,30 @@ function loadAppConfig(storageValues = {}) {
 }
 
 describe('AppConfig auth token storage', () => {
-  it('should migrate legacy patientToken values into the shared token key', () => {
+  it('should remove legacy patientToken values instead of migrating JWTs into localStorage', () => {
     const { AppConfig, localStorage } = loadAppConfig({
       patientToken: 'legacy-patient-token'
     });
 
-    expect(AppConfig.getToken()).toBe('legacy-patient-token');
-    expect(localStorage.getItem('token')).toBe('legacy-patient-token');
+    expect(AppConfig.getToken()).toBeNull();
+    expect(localStorage.getItem('token')).toBeNull();
     expect(localStorage.getItem('patientToken')).toBeNull();
   });
 
-  it('should migrate legacy providerToken values into the shared token key', () => {
+  it('should remove legacy providerToken values instead of migrating JWTs into localStorage', () => {
     const { AppConfig, localStorage } = loadAppConfig({
       providerToken: 'legacy-provider-token'
     });
 
-    expect(AppConfig.getToken({ tokenKeys: ['providerToken'] })).toBe('legacy-provider-token');
-    expect(localStorage.getItem('token')).toBe('legacy-provider-token');
+    expect(AppConfig.getToken({ tokenKeys: ['providerToken'] })).toBeNull();
+    expect(localStorage.getItem('token')).toBeNull();
     expect(localStorage.getItem('providerToken')).toBeNull();
   });
 
-  it('should report authentication state through isAuthenticated()', () => {
+  it('should report authentication state from non-sensitive profile metadata', () => {
     const authenticated = loadAppConfig({
-      token: 'shared-token'
+      userType: 'doctor',
+      userId: 'user123'
     });
     const unauthenticated = loadAppConfig();
 
@@ -101,5 +102,16 @@ describe('AppConfig auth token storage', () => {
     expect(localStorage.getItem('token')).toBeNull();
     expect(localStorage.getItem('patientToken')).toBeNull();
     expect(localStorage.getItem('providerToken')).toBeNull();
+  });
+
+  it('should not add Authorization headers for cookie-backed sessions', () => {
+    const { AppConfig } = loadAppConfig({
+      userType: 'doctor',
+      userId: 'user123'
+    });
+
+    expect(AppConfig.getAuthHeaders()).toEqual({
+      'Content-Type': 'application/json'
+    });
   });
 });

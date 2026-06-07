@@ -14,7 +14,10 @@ jest.mock('../../utils/logger', () => ({
 }));
 
 const User = require('../../models/user');
-const { generateToken } = require('../../middleware/auth');
+const {
+  generateToken,
+  JWT_ACCESS_SIGN_OPTIONS
+} = require('../../middleware/auth');
 
 const mockUserStore = new Map();
 
@@ -129,6 +132,7 @@ function setupAuthIntegrationHarness() {
 module.exports = {
   jwt,
   generateToken,
+  JWT_ACCESS_SIGN_OPTIONS,
   createPersistedUser,
   setupAuthIntegrationHarness
 };

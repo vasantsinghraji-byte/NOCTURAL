@@ -2,9 +2,11 @@
  * Calendar & Health Intake Tests
  *
  * Verifies:
- * - TXN-005: setAvailability uses insert-first-delete-old two-phase pattern
+ * - TXN-005: setAvailability validates upfront and swaps availability atomically
  * - TXN-006 / RACE-005: submitIntake validates status before processing
  */
+
+const mongoose = require('mongoose');
 
 jest.mock('../../../models/availability');
 jest.mock('../../../models/calendarEvent');
@@ -47,19 +49,35 @@ const calendarService = require('../../../services/calendarService');
 const healthIntakeService = require('../../../services/healthIntakeService');
 
 describe('Phase 2 — Calendar & Health Intake', () => {
+  let session;
+
   beforeEach(() => {
     jest.clearAllMocks();
+
+    session = {
+      withTransaction: jest.fn(async (work) => work()),
+      endSession: jest.fn().mockResolvedValue()
+    };
+
+    jest.spyOn(mongoose, 'startSession').mockResolvedValue(session);
+    Availability.validate = jest.fn().mockResolvedValue(true);
   });
 
-  describe('TXN-005: setAvailability insert-first-delete-old pattern', () => {
-    it('should call insertMany BEFORE deleteMany', async () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('TXN-005: setAvailability validates upfront and swaps availability atomically', () => {
+    it('should validate all slots before insertMany and deleteMany', async () => {
       const callOrder = [];
 
+      Availability.validate.mockImplementation(async () => {
+        callOrder.push('validate');
+      });
       Availability.insertMany.mockImplementation(async (slots) => {
         callOrder.push('insertMany');
-        return slots.map((s, i) => ({ ...s, _id: `new${i}` }));
+        return slots.map((slot, index) => ({ ...slot, _id: `new${index}` }));
       });
-
       Availability.deleteMany.mockImplementation(async () => {
         callOrder.push('deleteMany');
         return { deletedCount: 2 };
@@ -69,10 +87,10 @@ describe('Phase 2 — Calendar & Health Intake', () => {
         { dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '17:00' }
       ]);
 
-      expect(callOrder).toEqual(['insertMany', 'deleteMany']);
+      expect(callOrder).toEqual(['validate', 'insertMany', 'deleteMany']);
     });
 
-    it('should exclude newly created IDs from deleteMany', async () => {
+    it('should use insertMany ordered:false inside the transaction session', async () => {
       Availability.insertMany.mockResolvedValue([
         { _id: 'newSlot1' },
         { _id: 'newSlot2' }
@@ -84,23 +102,61 @@ describe('Phase 2 — Calendar & Health Intake', () => {
         { dayOfWeek: 'TUESDAY', startTime: '09:00', endTime: '17:00' }
       ]);
 
-      const [deleteFilter] = Availability.deleteMany.mock.calls[0];
+      expect(mongoose.startSession).toHaveBeenCalledTimes(1);
+      expect(session.withTransaction).toHaveBeenCalledTimes(1);
+      expect(Availability.insertMany).toHaveBeenCalledWith(
+        expect.any(Array),
+        expect.objectContaining({
+          ordered: false,
+          session
+        })
+      );
+
+      const [deleteFilter, deleteOptions] = Availability.deleteMany.mock.calls[0];
       expect(deleteFilter).toEqual(expect.objectContaining({
         user: 'user1',
         _id: { $nin: ['newSlot1', 'newSlot2'] }
       }));
+      expect(deleteOptions).toEqual({ session });
+      expect(session.endSession).toHaveBeenCalledTimes(1);
     });
 
-    it('should NOT call deleteMany if insertMany fails (preserves old data)', async () => {
-      Availability.insertMany.mockRejectedValue(new Error('Insert failed'));
+    it('should NOT call insertMany when upfront validation fails', async () => {
+      Availability.validate.mockRejectedValue(new Error('Validation failed'));
 
       await expect(
         calendarService.setAvailability('user1', [
           { dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '17:00' }
         ])
-      ).rejects.toThrow('Insert failed');
+      ).rejects.toThrow('Validation failed');
 
+      expect(Availability.insertMany).not.toHaveBeenCalled();
       expect(Availability.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('should compensate newly created slots if the transactional swap fails after insert', async () => {
+      Availability.insertMany.mockResolvedValue([
+        { _id: 'newSlot1' },
+        { _id: 'newSlot2' }
+      ]);
+      Availability.deleteMany
+        .mockRejectedValueOnce(new Error('Delete failed'))
+        .mockResolvedValueOnce({ deletedCount: 2 });
+
+      await expect(
+        calendarService.setAvailability('user1', [
+          { dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '17:00' }
+        ])
+      ).rejects.toThrow('Delete failed');
+
+      expect(Availability.deleteMany).toHaveBeenNthCalledWith(
+        2,
+        {
+          user: 'user1',
+          _id: { $in: ['newSlot1', 'newSlot2'] }
+        }
+      );
+      expect(session.endSession).toHaveBeenCalledTimes(1);
     });
   });
 

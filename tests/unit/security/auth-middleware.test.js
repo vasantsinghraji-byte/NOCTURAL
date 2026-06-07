@@ -3,7 +3,7 @@
  *
  * Covers Phase 1 fixes:
  * - SEC-001: JWT signature validation
- * - SEC-002: Token expiry (reduced to 7d)
+ * - SEC-002: Short-lived cookie-backed access token expiry
  * - SEC-003: Password change invalidation
  * - SEC-004: Role authorization validation
  * - SEC-014: Error handling (no stack trace leakage)
@@ -21,12 +21,23 @@ jest.mock('../../../utils/logger', () => ({
 }));
 
 const User = require('../../../models/user');
-const { protect, authorize, generateToken } = require('../../../middleware/auth');
+const {
+  protect,
+  authorize,
+  generateToken,
+  JWT_ACCESS_SIGN_OPTIONS,
+  JWT_ACCESS_VERIFY_OPTIONS
+} = require('../../../middleware/auth');
 const { mockRequest, mockResponse, mockNext } = require('../../helpers');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
+  const signAccessToken = (payload, options = {}) => jwt.sign(payload, JWT_SECRET, {
+    ...JWT_ACCESS_SIGN_OPTIONS,
+    ...options
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -42,7 +53,7 @@ describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
     };
 
     it('should authenticate with a valid JWT token', async () => {
-      const token = jwt.sign({ id: mockUser._id }, JWT_SECRET, { expiresIn: '1h' });
+      const token = signAccessToken({ id: mockUser._id }, { expiresIn: '1h' });
       const req = mockRequest({
         headers: { authorization: `Bearer ${token}` }
       });
@@ -60,6 +71,24 @@ describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
       expect(req.user.id).toBe(mockUser._id);
     });
 
+    it('should authenticate with a valid accessToken cookie', async () => {
+      const token = signAccessToken({ id: mockUser._id }, { expiresIn: '15m' });
+      const req = mockRequest({
+        headers: { cookie: `accessToken=${encodeURIComponent(token)}` }
+      });
+      const res = mockResponse();
+      const next = mockNext();
+
+      User.findById = jest.fn().mockReturnValue({
+        select: jest.fn().mockResolvedValue(mockUser)
+      });
+
+      await protect(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(req.user).toEqual(mockUser);
+    });
+
     it('should reject request with no token (SEC-001)', async () => {
       const req = mockRequest({ headers: {} });
       const res = mockResponse();
@@ -75,7 +104,10 @@ describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
     });
 
     it('should reject tampered/invalid JWT signature (SEC-001)', async () => {
-      const token = jwt.sign({ id: mockUser._id }, 'wrong-secret', { expiresIn: '1h' });
+      const token = jwt.sign({ id: mockUser._id }, 'wrong-secret', {
+        ...JWT_ACCESS_SIGN_OPTIONS,
+        expiresIn: '1h'
+      });
       const req = mockRequest({
         headers: { authorization: `Bearer ${token}` }
       });
@@ -91,8 +123,29 @@ describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
+    it('should reject signed tokens missing the required issuer and audience', async () => {
+      const token = jwt.sign({ id: mockUser._id }, JWT_SECRET, {
+        algorithm: 'HS256',
+        expiresIn: '1h'
+      });
+      const req = mockRequest({
+        headers: { authorization: `Bearer ${token}` }
+      });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await protect(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('Invalid token') })
+      );
+      expect(next).not.toHaveBeenCalled();
+      expect(User.findById).not.toHaveBeenCalled();
+    });
+
     it('should reject expired token (SEC-002)', async () => {
-      const token = jwt.sign({ id: mockUser._id }, JWT_SECRET, { expiresIn: '-1s' });
+      const token = signAccessToken({ id: mockUser._id }, { expiresIn: '-1s' });
       const req = mockRequest({
         headers: { authorization: `Bearer ${token}` }
       });
@@ -108,7 +161,7 @@ describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
     });
 
     it('should reject token when user not found in database', async () => {
-      const token = jwt.sign({ id: mockUser._id }, JWT_SECRET, { expiresIn: '1h' });
+      const token = signAccessToken({ id: mockUser._id }, { expiresIn: '1h' });
       const req = mockRequest({
         headers: { authorization: `Bearer ${token}` }
       });
@@ -128,7 +181,7 @@ describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
     });
 
     it('should reject deactivated user account', async () => {
-      const token = jwt.sign({ id: mockUser._id }, JWT_SECRET, { expiresIn: '1h' });
+      const token = signAccessToken({ id: mockUser._id }, { expiresIn: '1h' });
       const req = mockRequest({
         headers: { authorization: `Bearer ${token}` }
       });
@@ -150,7 +203,7 @@ describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
     it('should reject token issued before password change (SEC-003)', async () => {
       // Token issued at time T
       const iat = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
-      const token = jwt.sign({ id: mockUser._id, iat }, JWT_SECRET, { expiresIn: '7d' });
+      const token = signAccessToken({ id: mockUser._id, iat }, { expiresIn: '7d' });
 
       // Password changed after token was issued
       const passwordChangedAt = new Date(Date.now() - 1800 * 1000); // 30 min ago
@@ -179,7 +232,7 @@ describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
 
       // Token issued 1 hour ago (after password change)
       const iat = Math.floor(Date.now() / 1000) - 3600;
-      const token = jwt.sign({ id: mockUser._id, iat }, JWT_SECRET, { expiresIn: '7d' });
+      const token = signAccessToken({ id: mockUser._id, iat }, { expiresIn: '7d' });
 
       const req = mockRequest({
         headers: { authorization: `Bearer ${token}` }
@@ -317,15 +370,17 @@ describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
   describe('generateToken() - Token Security (SEC-002)', () => {
     it('should generate a valid JWT token', () => {
       const token = generateToken('507f1f77bcf86cd799439011');
-      const decoded = jwt.verify(token, JWT_SECRET);
+      const decoded = jwt.verify(token, JWT_SECRET, JWT_ACCESS_VERIFY_OPTIONS);
 
       expect(decoded.id).toBe('507f1f77bcf86cd799439011');
       expect(decoded.exp).toBeDefined();
+      expect(decoded.iss).toBe('nocturnal-api');
+      expect(decoded.aud).toBe('nocturnal');
     });
 
-    it('should set token expiry to 7d by default (not 30d)', () => {
-      const originalExpire = process.env.JWT_EXPIRE;
-      delete process.env.JWT_EXPIRE;
+    it('should set access token expiry to 15m by default', () => {
+      const originalExpire = process.env.JWT_ACCESS_EXPIRE;
+      delete process.env.JWT_ACCESS_EXPIRE;
 
       // Need to re-require to get the default
       jest.resetModules();
@@ -338,11 +393,11 @@ describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
       const token = genToken('507f1f77bcf86cd799439011');
       const decoded = jwt.decode(token);
 
-      const expiryDays = (decoded.exp - decoded.iat) / (60 * 60 * 24);
-      expect(expiryDays).toBe(7);
+      const expiryMinutes = (decoded.exp - decoded.iat) / 60;
+      expect(expiryMinutes).toBe(15);
 
       // Restore
-      if (originalExpire) process.env.JWT_EXPIRE = originalExpire;
+      if (originalExpire) process.env.JWT_ACCESS_EXPIRE = originalExpire;
     });
 
     it('should include user ID in token payload', () => {

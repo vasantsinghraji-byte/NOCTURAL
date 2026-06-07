@@ -6,9 +6,13 @@
  */
 
 const Patient = require('../models/patient');
-const { generateToken } = require('../middleware/auth');
+const authTokens = require('../middleware/auth');
 const logger = require('../utils/logger');
+const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
 const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
+
+const generateAccessToken = authTokens.generateAccessToken || authTokens.generateToken;
+const generateRefreshToken = authTokens.generateRefreshToken || authTokens.generateToken;
 
 class PatientService {
   /**
@@ -56,8 +60,9 @@ class PatientService {
       };
     }
 
-    // Generate token
-    const token = generateToken(patient._id);
+    // Generate short-lived access token and refresh token for cookie-backed sessions.
+    const token = generateAccessToken(patient._id);
+    const refreshToken = generateRefreshToken(patient._id);
 
     logger.logAuth('patient_register', email, true);
     logger.info('New Patient Registered', {
@@ -68,6 +73,7 @@ class PatientService {
 
     return {
       token,
+      refreshToken,
       patient: {
         id: patient._id,
         name: patient.name,
@@ -128,8 +134,9 @@ class PatientService {
       };
     }
 
-    // Generate token
-    const token = generateToken(patient._id);
+    // Generate short-lived access token and refresh token for cookie-backed sessions.
+    const token = generateAccessToken(patient._id);
+    const refreshToken = generateRefreshToken(patient._id);
 
     // Update last active
     patient.lastActive = new Date();
@@ -143,6 +150,7 @@ class PatientService {
 
     return {
       token,
+      refreshToken,
       patient: {
         id: patient._id,
         name: patient.name,
@@ -238,13 +246,13 @@ class PatientService {
       // Atomically clear all existing defaults and push new address
       await Patient.findByIdAndUpdate(patientId, {
         $set: { 'savedAddresses.$[].isDefault': false }
-      });
+      }, VALIDATED_QUERY_UPDATE_OPTIONS);
     }
 
     updatedPatient = await Patient.findByIdAndUpdate(
       patientId,
       { $push: { savedAddresses: addressToSave } },
-      { new: true }
+      VALIDATED_QUERY_UPDATE_OPTIONS
     );
 
     logger.info('Patient Address Added', {
@@ -288,6 +296,7 @@ class PatientService {
       await Patient.findByIdAndUpdate(patientId, {
         $set: { 'savedAddresses.$[other].isDefault': false }
       }, {
+        ...VALIDATED_QUERY_UPDATE_OPTIONS,
         arrayFilters: [{ 'other._id': { $ne: addressId } }]
       });
     }
@@ -301,7 +310,7 @@ class PatientService {
     const updatedPatient = await Patient.findOneAndUpdate(
       { _id: patientId, 'savedAddresses._id': addressId },
       { $set: setFields },
-      { new: true }
+      VALIDATED_QUERY_UPDATE_OPTIONS
     );
 
     logger.info('Patient Address Updated', {

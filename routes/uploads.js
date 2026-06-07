@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const { protect } = require('../middleware/auth');
 const {
   uploadProfilePhoto,
@@ -10,6 +11,44 @@ const {
   uploadDocuments
 } = require('../middleware/upload');
 const User = require('../models/user');
+const logger = require('../utils/logger');
+
+function getRequestId(req) {
+  if (!req.requestId) {
+    req.requestId = req.get('x-request-id') || crypto.randomUUID();
+  }
+
+  return req.requestId;
+}
+
+function toPublic(_err, req) {
+  return {
+    success: false,
+    error: 'upload_failed',
+    requestId: getRequestId(req)
+  };
+}
+
+function logUploadError(err, req, action) {
+  const requestId = getRequestId(req);
+
+  logger.error('Upload route error', {
+    action,
+    requestId,
+    userId: req.user?._id,
+    path: req.originalUrl,
+    method: req.method,
+    error: err.message,
+    stack: err.stack
+  });
+
+  return requestId;
+}
+
+function sendUploadError(res, req, err, action) {
+  logUploadError(err, req, action);
+  res.status(500).json(toPublic(err, req));
+}
 
 // Upload profile photo
 router.post('/profile-photo', protect, uploadProfilePhoto, async (req, res) => {
@@ -43,8 +82,7 @@ router.post('/profile-photo', protect, uploadProfilePhoto, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
+    sendUploadError(res, req, error, 'profile_photo_upload');
   }
 });
 
@@ -83,8 +121,7 @@ router.post('/mci-certificate', protect, uploadMCICertificate, async (req, res) 
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
+    sendUploadError(res, req, error, 'mci_certificate_upload');
   }
 });
 
@@ -123,8 +160,7 @@ router.post('/mbbs-degree', protect, uploadMBBSDegree, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
+    sendUploadError(res, req, error, 'mbbs_degree_upload');
   }
 });
 
@@ -163,8 +199,7 @@ router.post('/photo-id', protect, uploadPhotoId, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
+    sendUploadError(res, req, error, 'photo_id_upload');
   }
 });
 
@@ -209,8 +244,7 @@ router.post('/certificate', protect, uploadCertificate, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
+    sendUploadError(res, req, error, 'certificate_upload');
   }
 });
 
@@ -281,8 +315,7 @@ router.post('/documents', protect, uploadDocuments, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ success: false, message: 'Error uploading files', error: error.message });
+    sendUploadError(res, req, error, 'documents_upload');
   }
 });
 
@@ -305,8 +338,7 @@ router.get('/status', protect, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ success: false, message: 'Error fetching upload status', error: error.message });
+    sendUploadError(res, req, error, 'upload_status');
   }
 });
 
@@ -339,8 +371,7 @@ router.delete('/:documentType', protect, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Delete error:', error);
-    res.status(500).json({ success: false, message: 'Error deleting document', error: error.message });
+    sendUploadError(res, req, error, 'document_delete');
   }
 });
 

@@ -2,6 +2,7 @@ const request = require('supertest');
 const {
   jwt,
   generateToken,
+  JWT_ACCESS_SIGN_OPTIONS,
   createPersistedUser,
   setupAuthIntegrationHarness
 } = require('./auth-integration-helpers');
@@ -193,7 +194,7 @@ describe('Auth Integration: PUT /api/v1/auth/change-password', () => {
     const expiredToken = jwt.sign(
       { id: doctor._id },
       process.env.JWT_SECRET,
-      { expiresIn: -1 }
+      { ...JWT_ACCESS_SIGN_OPTIONS, expiresIn: -1 }
     );
 
     const changePasswordResponse = await request(getApp())

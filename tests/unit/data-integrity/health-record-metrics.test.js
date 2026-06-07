@@ -120,7 +120,7 @@ describe('Phase 2 — Health Record & Metrics', () => {
       await healthRecordService.appendUpdate('patient1', { allergies: [{ allergen: 'Pollen' }] });
 
       expect(Patient.findOneAndUpdate).toHaveBeenCalledTimes(1);
-      const [filter] = Patient.findOneAndUpdate.mock.calls[0];
+      const [filter, , options] = Patient.findOneAndUpdate.mock.calls[0];
 
       // Version guard: must match expected version
       expect(filter).toEqual(expect.objectContaining({
@@ -129,6 +129,11 @@ describe('Phase 2 — Health Record & Metrics', () => {
           expect.objectContaining({ currentHealthRecordVersion: 3 })
         ])
       }));
+      expect(options).toEqual({
+        new: true,
+        runValidators: true,
+        context: 'query'
+      });
     });
 
     it('should roll back record and throw when concurrent update detected', async () => {
@@ -161,7 +166,52 @@ describe('Phase 2 — Health Record & Metrics', () => {
         'record1',
         expect.objectContaining({
           $set: expect.objectContaining({ isActive: false })
-        })
+        }),
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
+      );
+    });
+
+    it('should persist computed changes with validated query-update options', async () => {
+      Patient.findById.mockResolvedValue({
+        _id: 'patient1',
+        currentHealthRecordVersion: 2
+      });
+
+      HealthRecord.getLatestApproved = jest.fn().mockResolvedValue({
+        healthSnapshot: { toObject: () => ({ allergies: [] }) }
+      });
+
+      const mockRecord = {
+        _id: 'record2',
+        version: 3,
+        previousVersion: 'record1',
+        save: jest.fn().mockResolvedValue(true),
+        computeChanges: jest.fn().mockResolvedValue({ allergies: { added: ['Pollen'] } })
+      };
+
+      HealthRecord.mockImplementation(() => mockRecord);
+      HealthRecord.findByIdAndUpdate = jest.fn().mockResolvedValue(true);
+      Patient.findOneAndUpdate.mockResolvedValue({
+        _id: 'patient1',
+        currentHealthRecordVersion: 3
+      });
+      EmergencySummary.updateFromHealthRecord = jest.fn().mockResolvedValue(true);
+
+      await healthRecordService.appendUpdate('patient1', { allergies: [{ allergen: 'Pollen' }] });
+
+      expect(HealthRecord.findByIdAndUpdate).toHaveBeenNthCalledWith(
+        1,
+        'record2',
+        { $set: { changes: { allergies: { added: ['Pollen'] } } } },
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
       );
     });
   });

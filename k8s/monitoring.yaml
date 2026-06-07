@@ -12,8 +12,13 @@ spec:
       app: nocturnal
   endpoints:
   - port: http
-    path: /api/admin/metrics
+    path: /api/v1/admin/metrics
     interval: 30s
+    authorization:
+      type: Bearer
+      credentials:
+        name: nocturnal-secrets
+        key: prometheus-metrics-token
 ---
 # PrometheusRule for alerting
 apiVersion: monitoring.coreos.com/v1

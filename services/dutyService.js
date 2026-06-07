@@ -14,6 +14,7 @@ const {  HTTP_STATUS,
   PAGINATION
 } = require('../constants');
 const logger = require('../utils/logger');
+const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
 
 class DutyService {
   /**
@@ -124,8 +125,7 @@ class DutyService {
     }
 
     duty = await Duty.findByIdAndUpdate(dutyId, updateData, {
-      new: true,
-      runValidators: true
+      ...VALIDATED_QUERY_UPDATE_OPTIONS
     });
 
     // Invalidate cache

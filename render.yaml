@@ -35,15 +35,36 @@ services:
       # Security
       - key: JWT_SECRET
         sync: false  # Set manually in Render dashboard
-      - key: JWT_EXPIRE
+      # Token lifetimes consumed by middleware/auth.js (the live signing path).
+      # JWT_EXPIRE was removed: it only fed config/environments.js, which is not
+      # imported by the runtime auth path, so it had no effect on issued tokens.
+      - key: JWT_ACCESS_EXPIRE
+        value: 15m
+      - key: JWT_REFRESH_EXPIRE
         value: 7d
       - key: ENCRYPTION_KEY
         sync: false  # Set manually in Render dashboard
+      - key: APP_URL
+        value: https://nocturnal-api.onrender.com
+      # Set this to the final custom frontend domain when chosen.
+      # middleware/security.js automatically adds it to the production CORS allowlist.
+      - key: FRONTEND_URL
+        value: https://nocturnal.com
       - key: ALLOWED_ORIGINS
-        sync: false  # Set manually: https://yourdomain.com,https://nocturnal-frontend.onrender.com
+        value: https://nocturnal-api.onrender.com,https://nocturnal-frontend.onrender.com,https://nocturnal-frontend-208z.onrender.com,https://nocturnal.com
       # Optional Services
       - key: REDIS_ENABLED
         value: false
+      # Optional email webhook used by hospital waitlist notifications.
+      # Set EMAIL_WEBHOOK_URL and EMAIL_WEBHOOK_TOKEN manually in Render.
+      - key: EMAIL_WEBHOOK_URL
+        sync: false
+      - key: EMAIL_WEBHOOK_TOKEN
+        sync: false
+      - key: EMAIL_FROM
+        value: Nocturnal <no-reply@nocturnal.com>
+      - key: WAITLIST_ADMIN_EMAIL
+        sync: false
       - key: LOG_LEVEL
         value: warn
     autoDeploy: true

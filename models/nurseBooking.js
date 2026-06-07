@@ -58,6 +58,16 @@ const NurseBookingSchema = new mongoose.Schema({
     type: String, // "09:00 AM", "02:30 PM"
     required: true
   },
+  scheduledTimezone: {
+    type: String,
+    required: true
+  },
+  scheduledTimezoneOffsetMinutes: {
+    type: Number,
+    required: true,
+    min: -840,
+    max: 840
+  },
   estimatedDuration: {
     type: Number, // in minutes
     default: 60
@@ -301,6 +311,7 @@ const NurseBookingSchema = new mongoose.Schema({
 // Indexes for performance
 NurseBookingSchema.index({ patient: 1, createdAt: -1 });
 NurseBookingSchema.index({ serviceProvider: 1, scheduledDate: 1 });
+NurseBookingSchema.index({ serviceProvider: 1, 'rating.ratedAt': 1 });
 NurseBookingSchema.index({ status: 1, scheduledDate: 1 });
 NurseBookingSchema.index({ 'serviceLocation.address.pincode': 1, serviceType: 1 });
 NurseBookingSchema.index({ scheduledDate: 1, scheduledTime: 1 });

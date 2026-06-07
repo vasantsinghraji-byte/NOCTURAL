@@ -35,7 +35,7 @@ const User = require('../../../models/user');
 const Patient = require('../../../models/patient');
 const healthRecordService = require('../../../services/healthRecordService');
 
-describe('Phase 3 — Health Record Authorization', () => {
+describe('Authorization Unit: health record access rules', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });

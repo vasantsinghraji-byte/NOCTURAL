@@ -214,7 +214,10 @@ const connectDB = async () => {
       retryWrites: true,
       retryReads: true,
       writeConcern: { w: 'majority', j: true, wtimeout: 10000 },
-      readPreference: process.env.MONGODB_READ_PREFERENCE || 'secondaryPreferred'
+      // Default to primaryPreferred to match render.yaml and give read-after-write
+      // consistency for health data. Set MONGODB_READ_PREFERENCE=secondaryPreferred
+      // to offload reads on a true replica set when eventual consistency is acceptable.
+      readPreference: process.env.MONGODB_READ_PREFERENCE || 'primaryPreferred'
     };
 
     await mongoose.connect(process.env.MONGODB_URI, options);

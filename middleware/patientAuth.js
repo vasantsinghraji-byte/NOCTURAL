@@ -5,9 +5,9 @@
  * Separate from provider/admin authentication
  */
 
-const jwt = require('jsonwebtoken');
 const Patient = require('../models/patient');
 const logger = require('../utils/logger');
+const { getAccessTokenFromRequest, verifyAccessToken } = require('./auth');
 
 const normalizeAuthenticatedUser = (user) => {
   if (!user) return user;
@@ -24,12 +24,7 @@ const normalizeAuthenticatedUser = (user) => {
  */
 exports.protectPatient = async (req, res, next) => {
   try {
-    let token;
-
-    // Get token from header
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
+    const token = getAccessTokenFromRequest(req);
 
     if (!token) {
       return res.status(401).json({
@@ -39,7 +34,7 @@ exports.protectPatient = async (req, res, next) => {
     }
 
     // Verify JWT token with signature validation
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifyAccessToken(token);
 
     // Get patient from database
     const patient = await Patient.findById(decoded.id).select('-password');
@@ -103,12 +98,7 @@ exports.protectPatient = async (req, res, next) => {
  */
 exports.protectBoth = async (req, res, next) => {
   try {
-    let token;
-
-    // Get token from header
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
+    const token = getAccessTokenFromRequest(req);
 
     if (!token) {
       return res.status(401).json({
@@ -118,7 +108,7 @@ exports.protectBoth = async (req, res, next) => {
     }
 
     // Verify JWT token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifyAccessToken(token);
 
     // Try to find user in Patient model first
     let user = await Patient.findById(decoded.id).select('-password');

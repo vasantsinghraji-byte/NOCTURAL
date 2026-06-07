@@ -57,7 +57,8 @@ describe('Frontend Final Contract Closures', () => {
     expect(doctorOnboardingScriptSrc).toContain('agreeToTerms: true');
     expect(doctorOnboardingScriptSrc).toContain('const profileUpdatePayload = buildProfileUpdatePayload();');
     expect(doctorOnboardingScriptSrc).toContain('onboardingCompleted: true');
-    expect(doctorOnboardingScriptSrc).toContain("'Authorization': `Bearer ${token}`");
+    expect(doctorOnboardingScriptSrc).not.toContain("'Authorization': `Bearer ${token}`");
+    expect(doctorOnboardingScriptSrc).toContain('await uploadDocuments();');
 
     expect(authServiceSrc).toContain("'licenseNumber'");
     expect(authServiceSrc).toContain("'bankDetails'");

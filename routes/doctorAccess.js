@@ -9,6 +9,7 @@ const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const { protectPatient } = require('../middleware/patientAuth');
+const { emergencyQrLimiter } = require('../middleware/rateLimiter');
 const {
   validateHealthAccess,
   checkNotePermission,
@@ -190,6 +191,7 @@ router.get(
  */
 router.get(
   '/emergency/:qrToken',
+  emergencyQrLimiter,
   doctorAccessController.getEmergencyData
 );
 

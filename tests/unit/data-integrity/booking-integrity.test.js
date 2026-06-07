@@ -89,6 +89,8 @@ describe('Phase 2 — Booking Integrity', () => {
         serviceType: 'INJECTION',
         scheduledDate: '2026-03-15',
         scheduledTime: '10:00',
+        scheduledTimezone: 'Asia/Kolkata',
+        scheduledTimezoneOffsetMinutes: 330,
         serviceLocation: { type: 'HOME' }
       }, 'patient1');
 
@@ -199,6 +201,8 @@ describe('Phase 2 — Booking Integrity', () => {
         serviceType: 'INJECTION',
         scheduledDate: '2026-03-15',
         scheduledTime: '10:00',
+        scheduledTimezone: 'Asia/Kolkata',
+        scheduledTimezoneOffsetMinutes: 330,
         serviceLocation: { type: 'HOME' }
       }, 'patient1');
 
@@ -208,6 +212,17 @@ describe('Phase 2 — Booking Integrity', () => {
     });
 
     it('should complete service with warnings when health metric capture fails', async () => {
+      const completedBooking = {
+        _id: 'booking1',
+        status: 'COMPLETED',
+        actualService: {
+          serviceReport: {
+            vitalsChecked: { bloodPressure: '120/80' },
+            observations: 'Patient stable'
+          }
+        },
+        toObject: function () { return { ...this }; }
+      };
       const mockBooking = {
         _id: 'booking1',
         patient: 'patient1',
@@ -218,7 +233,7 @@ describe('Phase 2 — Booking Integrity', () => {
         toObject: function () { return { ...this }; }
       };
       NurseBooking.findById.mockResolvedValue(mockBooking);
-      NurseBooking.findByIdAndUpdate.mockResolvedValue(true);
+      NurseBooking.findByIdAndUpdate.mockResolvedValue(completedBooking);
       Patient.findByIdAndUpdate.mockResolvedValue(true);
 
       // Health metric service throws
@@ -234,6 +249,173 @@ describe('Phase 2 — Booking Integrity', () => {
       expect(result.warnings).toBeDefined();
       expect(result.warnings.length).toBeGreaterThan(0);
       expect(result.warnings[0].type).toBe('HEALTH_METRICS_FAILED');
+    });
+
+    it('should complete service using query validators on the booking update', async () => {
+      const mockBooking = {
+        _id: 'booking1',
+        patient: 'patient1',
+        serviceProvider: { toString: () => 'provider1' },
+        status: 'IN_PROGRESS',
+        actualService: { startTime: new Date(Date.now() - 3600000) },
+        pricing: { payableAmount: 500 },
+        toObject: function () { return { ...this }; }
+      };
+
+      NurseBooking.findById.mockResolvedValue(mockBooking);
+      NurseBooking.findByIdAndUpdate.mockResolvedValue(mockBooking);
+      Patient.findByIdAndUpdate.mockResolvedValue(true);
+
+      await bookingService.completeService('booking1', 'provider1', {
+        observations: 'Done'
+      });
+
+      expect(NurseBooking.findByIdAndUpdate).toHaveBeenCalledTimes(1);
+      expect(NurseBooking.findByIdAndUpdate.mock.calls[0][2]).toEqual({
+        new: true,
+        runValidators: true,
+        context: 'query'
+      });
+    });
+  });
+
+  describe('TZ-014: Surge pricing timezone-safe evaluation', () => {
+    it('should apply surge pricing using the client-supplied offset before a DST spring-forward transition', async () => {
+      Patient.findById.mockResolvedValue({
+        _id: 'patient1',
+        totalBookings: 1,
+        intakeStatus: 'APPROVED'
+      });
+
+      ServiceCatalog.findOne.mockResolvedValue({
+        name: 'INJECTION_IM',
+        pricing: {
+          basePrice: 500,
+          surgePricing: {
+            enabled: true,
+            surgeMultiplier: 2,
+            surgeHours: [{ start: '01:00', end: '03:00' }]
+          }
+        },
+        requirements: {},
+        availability: { isActive: true }
+      });
+
+      NurseBooking.create.mockResolvedValue({ _id: 'booking1', pricing: {} });
+
+      await bookingService.createBooking({
+        serviceType: 'INJECTION',
+        scheduledDate: '2026-03-08',
+        scheduledTime: '01:30',
+        scheduledTimezone: 'America/New_York',
+        scheduledTimezoneOffsetMinutes: -300,
+        serviceLocation: { type: 'HOME' }
+      }, 'patient1');
+
+      expect(NurseBooking.create.mock.calls[0][0].pricing.basePrice).toBe(1000);
+    });
+
+    it('should not apply surge pricing after a DST spring-forward transition when the local hour is outside surge hours', async () => {
+      Patient.findById.mockResolvedValue({
+        _id: 'patient1',
+        totalBookings: 1,
+        intakeStatus: 'APPROVED'
+      });
+
+      ServiceCatalog.findOne.mockResolvedValue({
+        name: 'INJECTION_IM',
+        pricing: {
+          basePrice: 500,
+          surgePricing: {
+            enabled: true,
+            surgeMultiplier: 2,
+            surgeHours: [{ start: '01:00', end: '03:00' }]
+          }
+        },
+        requirements: {},
+        availability: { isActive: true }
+      });
+
+      NurseBooking.create.mockResolvedValue({ _id: 'booking1', pricing: {} });
+
+      await bookingService.createBooking({
+        serviceType: 'INJECTION',
+        scheduledDate: '2026-03-08',
+        scheduledTime: '03:30',
+        scheduledTimezone: 'America/New_York',
+        scheduledTimezoneOffsetMinutes: -240,
+        serviceLocation: { type: 'HOME' }
+      }, 'patient1');
+
+      expect(NurseBooking.create.mock.calls[0][0].pricing.basePrice).toBe(500);
+    });
+
+    it('should apply surge pricing consistently across a repeated DST fall-back hour when the offset is explicit', async () => {
+      Patient.findById.mockResolvedValue({
+        _id: 'patient1',
+        totalBookings: 1,
+        intakeStatus: 'APPROVED'
+      });
+
+      ServiceCatalog.findOne.mockResolvedValue({
+        name: 'INJECTION_IM',
+        pricing: {
+          basePrice: 500,
+          surgePricing: {
+            enabled: true,
+            surgeMultiplier: 2,
+            surgeHours: [{ start: '01:00', end: '02:00' }]
+          }
+        },
+        requirements: {},
+        availability: { isActive: true }
+      });
+
+      NurseBooking.create.mockResolvedValue({ _id: 'booking1', pricing: {} });
+
+      await bookingService.createBooking({
+        serviceType: 'INJECTION',
+        scheduledDate: '2026-11-01',
+        scheduledTime: '01:30',
+        scheduledTimezone: 'America/New_York',
+        scheduledTimezoneOffsetMinutes: -300,
+        serviceLocation: { type: 'HOME' }
+      }, 'patient1');
+
+      expect(NurseBooking.create.mock.calls[0][0].pricing.basePrice).toBe(1000);
+    });
+
+    it('should reject surge-priced bookings without an explicit timezone offset', async () => {
+      Patient.findById.mockResolvedValue({
+        _id: 'patient1',
+        totalBookings: 1,
+        intakeStatus: 'APPROVED'
+      });
+
+      ServiceCatalog.findOne.mockResolvedValue({
+        name: 'INJECTION_IM',
+        pricing: {
+          basePrice: 500,
+          surgePricing: {
+            enabled: true,
+            surgeMultiplier: 2,
+            surgeHours: [{ start: '01:00', end: '03:00' }]
+          }
+        },
+        requirements: {},
+        availability: { isActive: true }
+      });
+
+      await expect(
+        bookingService.createBooking({
+          serviceType: 'INJECTION',
+          scheduledDate: '2026-03-08',
+          scheduledTime: '01:30',
+          serviceLocation: { type: 'HOME' }
+        }, 'patient1')
+      ).rejects.toThrow(/timezone offset is required/i);
+
+      expect(NurseBooking.create).not.toHaveBeenCalled();
     });
   });
 
@@ -307,6 +489,274 @@ describe('Phase 2 — Booking Integrity', () => {
         reason: 'Unable to reach patient'
       }));
       expect(mockBooking.save).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('TYPE-009: Numeric rounding integrity', () => {
+    it('should delegate provider review aggregate recompute through the shared helper', async () => {
+      const mockBooking = {
+        _id: 'booking1',
+        patient: { toString: () => 'patient1' },
+        serviceProvider: 'provider1',
+        status: 'COMPLETED',
+        rating: {},
+        save: jest.fn().mockResolvedValue(true)
+      };
+
+      NurseBooking.findById.mockResolvedValue(mockBooking);
+      const syncSpy = jest.spyOn(bookingService, 'syncProviderReviewStats').mockResolvedValue();
+
+      await bookingService.addReview('booking1', 'patient1', {
+        stars: 4,
+        comment: 'Very good care'
+      });
+
+      expect(syncSpy).toHaveBeenCalledWith('provider1');
+    });
+
+    it('should reject a second review for the same booking', async () => {
+      const mockBooking = {
+        _id: 'booking1',
+        patient: { toString: () => 'patient1' },
+        serviceProvider: 'provider1',
+        status: 'COMPLETED',
+        rating: {
+          stars: 5,
+          comment: 'Already reviewed',
+          ratedAt: new Date()
+        },
+        save: jest.fn().mockResolvedValue(true)
+      };
+
+      NurseBooking.findById.mockResolvedValue(mockBooking);
+
+      await expect(
+        bookingService.addReview('booking1', 'patient1', {
+          stars: 4,
+          comment: 'Trying to edit review'
+        })
+      ).rejects.toThrow(/already reviewed/i);
+
+      expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('should update an existing review and recompute provider aggregates through the shared helper', async () => {
+      const ratedAt = new Date('2026-01-15T10:00:00.000Z');
+      const mockBooking = {
+        _id: 'booking1',
+        patient: { toString: () => 'patient1' },
+        serviceProvider: 'provider1',
+        status: 'COMPLETED',
+        rating: {
+          stars: 5,
+          comment: 'Original review',
+          ratedAt
+        },
+        save: jest.fn().mockResolvedValue(true)
+      };
+
+      NurseBooking.findById.mockResolvedValue(mockBooking);
+      const syncSpy = jest.spyOn(bookingService, 'syncProviderReviewStats').mockResolvedValue();
+
+      const result = await bookingService.updateReview('booking1', 'patient1', {
+        stars: 3,
+        comment: 'Updated review'
+      });
+
+      expect(result.rating).toEqual(expect.objectContaining({
+        stars: 3,
+        comment: 'Updated review',
+        ratedAt
+      }));
+      expect(mockBooking.save).toHaveBeenCalledTimes(1);
+      expect(syncSpy).toHaveBeenCalledWith('provider1');
+    });
+
+    it('should delete an existing review and recompute provider aggregates through the shared helper', async () => {
+      const mockBooking = {
+        _id: 'booking1',
+        patient: { toString: () => 'patient1' },
+        serviceProvider: 'provider1',
+        status: 'COMPLETED',
+        rating: {
+          stars: 5,
+          comment: 'Original review',
+          ratedAt: new Date('2026-01-15T10:00:00.000Z')
+        },
+        save: jest.fn().mockResolvedValue(true)
+      };
+
+      NurseBooking.findById.mockResolvedValue(mockBooking);
+      const syncSpy = jest.spyOn(bookingService, 'syncProviderReviewStats').mockResolvedValue();
+
+      const result = await bookingService.deleteReview('booking1', 'patient1');
+
+      expect(result.rating).toEqual({});
+      expect(mockBooking.save).toHaveBeenCalledTimes(1);
+      expect(syncSpy).toHaveBeenCalledWith('provider1');
+    });
+
+    it('should skip provider review aggregate recompute when only review comment changes', async () => {
+      const ratedAt = new Date('2026-01-15T10:00:00.000Z');
+      const mockBooking = {
+        _id: 'booking1',
+        patient: { toString: () => 'patient1' },
+        serviceProvider: 'provider1',
+        status: 'COMPLETED',
+        rating: {
+          stars: 5,
+          comment: 'Original review',
+          ratedAt
+        },
+        save: jest.fn().mockResolvedValue(true)
+      };
+
+      NurseBooking.findById.mockResolvedValue(mockBooking);
+      const syncSpy = jest.spyOn(bookingService, 'syncProviderReviewStats').mockResolvedValue();
+
+      const result = await bookingService.updateReview('booking1', 'patient1', {
+        stars: 5,
+        comment: 'Edited wording only'
+      });
+
+      expect(result.rating).toEqual(expect.objectContaining({
+        stars: 5,
+        comment: 'Edited wording only',
+        ratedAt
+      }));
+      expect(mockBooking.save).toHaveBeenCalledTimes(1);
+      expect(syncSpy).not.toHaveBeenCalled();
+    });
+
+    it('should recompute provider rating and totalReviews from reviewed bookings via shared helper', async () => {
+      NurseBooking.aggregate.mockResolvedValue([
+        { _id: null, avgRating: 4.333333333333333, totalReviews: 3 }
+      ]);
+      User.findByIdAndUpdate.mockResolvedValue(true);
+
+      await bookingService.syncProviderReviewStats('provider1');
+
+      expect(NurseBooking.aggregate).toHaveBeenCalledWith([
+        {
+          $match: {
+            serviceProvider: 'provider1',
+            'rating.ratedAt': { $exists: true }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalReviews: { $sum: 1 },
+            avgRating: { $avg: '$rating.stars' }
+          }
+        }
+      ]);
+      expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+        'provider1',
+        {
+          rating: 4.33,
+          totalReviews: 3
+        },
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
+      );
+    });
+
+    it('should persist provider rating as a number rounded to two decimals', async () => {
+      const mockBooking = {
+        _id: 'booking1',
+        patient: { toString: () => 'patient1' },
+        serviceProvider: 'provider1',
+        status: 'COMPLETED',
+        rating: {},
+        save: jest.fn().mockResolvedValue(true)
+      };
+
+      NurseBooking.findById.mockResolvedValue(mockBooking);
+      NurseBooking.aggregate.mockResolvedValue([
+        { _id: null, avgRating: 4.333333333333333, totalReviews: 3 }
+      ]);
+      User.findByIdAndUpdate.mockResolvedValue(true);
+
+      await bookingService.addReview('booking1', 'patient1', {
+        stars: 4,
+        comment: 'Very good care'
+      });
+
+      expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+        'provider1',
+        {
+          rating: 4.33,
+          totalReviews: 3
+        },
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
+      );
+      expect(typeof User.findByIdAndUpdate.mock.calls[0][1].rating).toBe('number');
+      expect(User.findByIdAndUpdate.mock.calls[0][1].totalReviews).toBe(3);
+    });
+
+    it('should persist zeroed provider review metrics when no reviewed bookings remain', async () => {
+      NurseBooking.aggregate.mockResolvedValue([]);
+      User.findByIdAndUpdate.mockResolvedValue(true);
+
+      await bookingService.syncProviderReviewStats('provider1');
+
+      expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+        'provider1',
+        {
+          rating: 0,
+          totalReviews: 0
+        },
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
+      );
+    });
+
+    it('should no-op the conditional provider review sync helper when aggregate-driving fields are unchanged', async () => {
+      const syncSpy = jest.spyOn(bookingService, 'syncProviderReviewStats').mockResolvedValue();
+
+      const didSync = await bookingService.syncProviderReviewStatsIfNeeded(
+        'provider1',
+        {
+          stars: 4,
+          comment: 'Original',
+          ratedAt: new Date('2026-01-15T10:00:00.000Z')
+        },
+        {
+          stars: 4,
+          comment: 'Updated comment only',
+          ratedAt: new Date('2026-01-15T10:00:00.000Z')
+        }
+      );
+
+      expect(didSync).toBe(false);
+      expect(syncSpy).not.toHaveBeenCalled();
+    });
+
+    it('should return completionRate as a number rounded to two decimals', async () => {
+      NurseBooking.countDocuments
+        .mockResolvedValueOnce(3)
+        .mockResolvedValueOnce(2)
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(0);
+      NurseBooking.aggregate.mockResolvedValue([
+        { totalRevenue: 1500, platformRevenue: 225 }
+      ]);
+
+      const stats = await bookingService.getBookingStats();
+
+      expect(stats.completionRate).toBe(66.67);
+      expect(typeof stats.completionRate).toBe('number');
     });
   });
 });

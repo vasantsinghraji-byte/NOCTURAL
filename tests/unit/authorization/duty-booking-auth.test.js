@@ -42,7 +42,7 @@ const NurseBooking = require('../../../models/nurseBooking');
 const dutyService = require('../../../services/dutyService');
 const bookingService = require('../../../services/bookingService');
 
-describe('Phase 3 — Duty & Booking Authorization', () => {
+describe('Authorization Unit: duty and booking access rules', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -77,7 +77,15 @@ describe('Phase 3 — Duty & Booking Authorization', () => {
       const result = await dutyService.updateDuty('duty1', { title: 'Updated' }, user);
 
       expect(result).toBeDefined();
-      expect(Duty.findByIdAndUpdate).toHaveBeenCalled();
+      expect(Duty.findByIdAndUpdate).toHaveBeenCalledWith(
+        'duty1',
+        { title: 'Updated' },
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
+      );
     });
 
     it('should reject when postedBy and user._id differ', async () => {

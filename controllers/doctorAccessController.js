@@ -356,7 +356,7 @@ exports.getEmergencyData = async (req, res, next) => {
   try {
     const { qrToken } = req.params;
 
-    const data = await emergencySummaryService.getEmergencyDataByToken(qrToken);
+    const data = await emergencySummaryService.getEmergencyDataByToken(qrToken, req.ip);
 
     if (!data) {
       return responseHelper.sendNotFound(res, 'Emergency data not found or token expired');

@@ -10,6 +10,7 @@ const router = express.Router();
 const { body, param } = require('express-validator');
 const { validate } = require('../middleware/validation');
 const { protectPatient } = require('../middleware/patientAuth');
+const { rejectHoneypotSubmissions } = require('../middleware/spamTrap');
 const {
   register,
   login,
@@ -114,7 +115,7 @@ const mongoIdValidation = [
 ];
 
 // Public routes
-router.post('/register', registerValidation, validate, register);
+router.post('/register', rejectHoneypotSubmissions, registerValidation, validate, register);
 router.post('/login', loginValidation, validate, login);
 
 // Protected routes - require patient authentication

@@ -21,6 +21,7 @@ const {
   USER_TYPES
 } = require('../constants/healthConstants');
 const { NotFoundError, ValidationError, AuthorizationError } = require('../utils/errors');
+const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
 
 class HealthRecordService {
   /**
@@ -115,7 +116,11 @@ class HealthRecordService {
     // Compute and store changes atomically (avoid double full-save)
     const changes = await record.computeChanges();
     if (changes) {
-      await HealthRecord.findByIdAndUpdate(record._id, { $set: { changes } });
+      await HealthRecord.findByIdAndUpdate(
+        record._id,
+        { $set: { changes } },
+        VALIDATED_QUERY_UPDATE_OPTIONS
+      );
       record.changes = changes;
     }
 
@@ -129,20 +134,28 @@ class HealthRecordService {
         ]
       },
       { $set: { currentHealthRecordVersion: record.version } },
-      { new: true }
+      VALIDATED_QUERY_UPDATE_OPTIONS
     );
 
     if (!updatedPatient) {
       // Concurrent update won — roll back the orphaned record
-      await HealthRecord.findByIdAndUpdate(record._id, {
-        $set: { isActive: false, isLatest: false, deletedAt: new Date() }
-      });
+      await HealthRecord.findByIdAndUpdate(
+        record._id,
+        {
+          $set: { isActive: false, isLatest: false, deletedAt: new Date() }
+        },
+        VALIDATED_QUERY_UPDATE_OPTIONS
+      );
 
       // Restore previous record's isLatest flag
       if (record.previousVersion) {
-        await HealthRecord.findByIdAndUpdate(record.previousVersion, {
-          $set: { isLatest: true }
-        });
+        await HealthRecord.findByIdAndUpdate(
+          record.previousVersion,
+          {
+            $set: { isLatest: true }
+          },
+          VALIDATED_QUERY_UPDATE_OPTIONS
+        );
       }
 
       throw new ValidationError(

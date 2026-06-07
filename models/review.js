@@ -101,7 +101,7 @@ reviewSchema.pre('save', function(next) {
 // Static method to calculate user's average rating
 reviewSchema.statics.getUserAverageRating = async function(userId) {
     const result = await this.aggregate([
-        { $match: { reviewedUser: mongoose.Types.ObjectId(userId) } },
+        { $match: { reviewedUser: new mongoose.Types.ObjectId(userId) } },
         {
             $group: {
                 _id: null,

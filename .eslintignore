@@ -1,6 +1,9 @@
 # Build output
 client/dist/
+client/build/
 coverage/
+logs/
+uploads/
 
 # Non-JS files
 *.ps1
@@ -10,3 +13,15 @@ coverage/
 
 # Node modules
 node_modules/
+
+# Generated and operational artifacts
+docs/
+terraform/
+grafana/
+k8s/
+prometheus/
+promtail/
+loki/
+logstash/
+filebeat/
+nginx/

@@ -83,7 +83,7 @@ describe('Production Smoke: GET /api/v1/health via server.js entrypoint', () => 
     Object.assign(process.env, global.testUtils.productionFixtureEnv({
       NODE_ENV: 'production',
       PORT: String(port),
-      ALLOWED_ORIGINS: `https://127.0.0.1:${port}`
+      ALLOWED_ORIGINS: `https://127.0.0.1:${port},http://127.0.0.1:${port}`
     }));
 
     jest.resetModules();

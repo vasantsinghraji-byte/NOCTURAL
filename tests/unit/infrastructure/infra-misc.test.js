@@ -153,6 +153,22 @@ describe('Phase 6 — Rate Limiting & Miscellaneous', () => {
     });
   });
 
+  describe('MISC-006B: HTTP server Slowloris timeouts', () => {
+    const src = fs.readFileSync(
+      path.resolve(__dirname, '..', '..', '..', 'server.js'),
+      'utf8'
+    );
+
+    it('should configure header, request, and keep-alive timeouts on the Node server', () => {
+      expect(src).toMatch(/SERVER_HEADERS_TIMEOUT_MS\s*=\s*10_000/);
+      expect(src).toMatch(/SERVER_REQUEST_TIMEOUT_MS\s*=\s*30_000/);
+      expect(src).toMatch(/SERVER_KEEP_ALIVE_TIMEOUT_MS\s*=\s*5_000/);
+      expect(src).toMatch(/server\.headersTimeout\s*=\s*SERVER_HEADERS_TIMEOUT_MS/);
+      expect(src).toMatch(/server\.requestTimeout\s*=\s*SERVER_REQUEST_TIMEOUT_MS/);
+      expect(src).toMatch(/server\.keepAliveTimeout\s*=\s*SERVER_KEEP_ALIVE_TIMEOUT_MS/);
+    });
+  });
+
   describe('MISC-007: Content-Length limit middleware', () => {
     const src = fs.readFileSync(
       path.resolve(__dirname, '..', '..', '..', 'app.js'),

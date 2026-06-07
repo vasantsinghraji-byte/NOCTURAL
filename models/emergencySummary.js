@@ -9,6 +9,64 @@ const mongoose = require('mongoose');
 const crypto = require('crypto');
 const { ALLERGY_SEVERITY, QR_TOKEN_CONFIG } = require('../constants/healthConstants');
 
+const QR_TOKEN_VERSION = 'qr1';
+const LEGACY_QR_TOKEN_REGEX = /^[a-f0-9]{64}$/i;
+const SIGNED_QR_TOKEN_REGEX = /^qr1_[A-Za-z0-9_-]{43}\.[A-Za-z0-9_-]{43}$/;
+
+const getQRTokenSecret = () => {
+  const secret = process.env.QR_TOKEN_SECRET || process.env.JWT_SECRET || process.env.JWT_REFRESH_SECRET;
+
+  if (secret) {
+    return secret;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('QR_TOKEN_SECRET or JWT_SECRET is required for emergency QR tokens');
+  }
+
+  return 'development-emergency-qr-token-secret';
+};
+
+const hashQRToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+const signQRTokenPayload = (payload) => (
+  crypto
+    .createHmac('sha256', getQRTokenSecret())
+    .update(payload)
+    .digest('base64url')
+);
+
+const secureCompare = (left, right) => {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+};
+
+const generateSignedQRToken = () => {
+  const payload = `${QR_TOKEN_VERSION}_${crypto.randomBytes(32).toString('base64url')}`;
+  return `${payload}.${signQRTokenPayload(payload)}`;
+};
+
+const isValidQRTokenFormat = (token) => {
+  if (typeof token !== 'string') {
+    return false;
+  }
+
+  const trimmedToken = token.trim();
+
+  if (LEGACY_QR_TOKEN_REGEX.test(trimmedToken)) {
+    return true;
+  }
+
+  if (!SIGNED_QR_TOKEN_REGEX.test(trimmedToken)) {
+    return false;
+  }
+
+  const [payload, signature] = trimmedToken.split('.');
+  return secureCompare(signature, signQRTokenPayload(payload));
+};
+
 // Critical condition sub-schema
 const CriticalConditionSchema = new mongoose.Schema({
   name: {
@@ -206,11 +264,13 @@ EmergencySummarySchema.methods.generateQRToken = function(expiryHours = QR_TOKEN
     QR_TOKEN_CONFIG.MAX_EXPIRY_HOURS
   );
 
-  // Generate secure random token
-  const token = crypto.randomBytes(32).toString('hex');
+  // Generate a signed opaque token. Legacy 64-char hex tokens remain valid
+  // until expiry, but newly issued QR links fail fast before any DB lookup if
+  // the HMAC signature is missing or invalid.
+  const token = generateSignedQRToken();
 
   // Hash for storage (we only store hash, return plain token)
-  this.qrTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  this.qrTokenHash = hashQRToken(token);
   this.qrTokenExpiry = new Date(Date.now() + hours * 60 * 60 * 1000);
   this.qrTokenCreatedAt = new Date();
 
@@ -234,8 +294,12 @@ EmergencySummarySchema.methods.validateToken = function(token) {
     return { valid: false, reason: 'EXPIRED' };
   }
 
-  const hash = crypto.createHash('sha256').update(token).digest('hex');
-  if (hash !== this.qrTokenHash) {
+  if (!isValidQRTokenFormat(token)) {
+    return { valid: false, reason: 'INVALID' };
+  }
+
+  const hash = hashQRToken(token.trim());
+  if (!secureCompare(hash, this.qrTokenHash)) {
     return { valid: false, reason: 'INVALID' };
   }
 
@@ -261,13 +325,19 @@ EmergencySummarySchema.methods.revokeToken = function() {
 
 // Static: Find by QR token
 EmergencySummarySchema.statics.findByToken = async function(token) {
-  const hash = crypto.createHash('sha256').update(token).digest('hex');
+  if (!isValidQRTokenFormat(token)) {
+    return null;
+  }
+
+  const hash = hashQRToken(token.trim());
 
   return this.findOne({
     qrTokenHash: hash,
     qrTokenExpiry: { $gt: new Date() }
   });
 };
+
+EmergencySummarySchema.statics.isValidQRTokenFormat = isValidQRTokenFormat;
 
 // Static: Update from health record
 EmergencySummarySchema.statics.updateFromHealthRecord = async function(patientId, healthRecord, patientData) {

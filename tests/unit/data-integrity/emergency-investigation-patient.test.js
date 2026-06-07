@@ -4,7 +4,7 @@
  * Verifies:
  * - RACE-004: revokeQRToken uses atomic findOneAndUpdate with $unset
  * - RACE-007: pickReportFromQueue uses findOneAndUpdate with unassigned guard
- * - RACE-008: updateAddress atomically unsets other defaults before setting new
+ * - RACE-008: patient address query updates validate nested payloads atomically
  */
 
 jest.mock('../../../models/emergencySummary');
@@ -132,6 +132,63 @@ describe('Phase 2 — Emergency, Investigation & Patient', () => {
   });
 
   describe('RACE-008: updateAddress atomic default flag management', () => {
+    it('should add a new default address with validated query-update options', async () => {
+      Patient.findById.mockResolvedValue({
+        _id: 'patient1',
+        savedAddresses: [
+          { _id: 'addr1', isDefault: true }
+        ]
+      });
+
+      Patient.findByIdAndUpdate
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce({
+          _id: 'patient1',
+          savedAddresses: [
+            { _id: 'addr1', isDefault: false },
+            { _id: 'addr2', isDefault: true, label: 'Work' }
+          ]
+        });
+
+      await patientService.addAddress('patient1', {
+        label: 'Work',
+        isDefault: true,
+        city: 'Kolkata'
+      });
+
+      expect(Patient.findByIdAndUpdate).toHaveBeenNthCalledWith(
+        1,
+        'patient1',
+        {
+          $set: { 'savedAddresses.$[].isDefault': false }
+        },
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
+      );
+
+      expect(Patient.findByIdAndUpdate).toHaveBeenNthCalledWith(
+        2,
+        'patient1',
+        {
+          $push: {
+            savedAddresses: expect.objectContaining({
+              label: 'Work',
+              city: 'Kolkata',
+              isDefault: true
+            })
+          }
+        },
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
+      );
+    });
+
     it('should atomically unset other defaults before setting new default', async () => {
       Patient.findOne.mockResolvedValue({
         _id: 'patient1',
@@ -161,6 +218,11 @@ describe('Phase 2 — Emergency, Investigation & Patient', () => {
       expect(updateArg.$set).toEqual(expect.objectContaining({
         'savedAddresses.$[other].isDefault': false
       }));
+      expect(updateOptions).toEqual(expect.objectContaining({
+        new: true,
+        runValidators: true,
+        context: 'query'
+      }));
       expect(updateOptions.arrayFilters).toEqual([
         { 'other._id': { $ne: 'addr2' } }
       ]);
@@ -172,10 +234,16 @@ describe('Phase 2 — Emergency, Investigation & Patient', () => {
         _id: 'patient1',
         'savedAddresses._id': 'addr2'
       }));
+      const updateOneOptions = Patient.findOneAndUpdate.mock.calls[0][2];
       // Should use positional $ for field updates
       expect(findUpdate.$set).toEqual(expect.objectContaining({
         'savedAddresses.$.isDefault': true,
         'savedAddresses.$.label': 'Work'
+      }));
+      expect(updateOneOptions).toEqual(expect.objectContaining({
+        new: true,
+        runValidators: true,
+        context: 'query'
       }));
     });
   });

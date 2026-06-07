@@ -5,6 +5,7 @@
  * - VAL-008: String-based time comparison fix (minutes arithmetic)
  * - VAL-009: Page/limit clamping with Math.max/min
  * - VAL-011: recipientModel allowlist validation
+ * - VAL-017: ObjectId constructor compatibility
  * - NULL-001: acceptedApp.applicant null guard in analytics
  * - NULL-002: duty.createdAt null guard in analytics
  * - ERR-009: createError helper attaches statusCode
@@ -12,6 +13,41 @@
 
 const fs = require('fs');
 const path = require('path');
+
+const ROOT = path.resolve(__dirname, '..', '..', '..');
+const OBJECT_ID_SCAN_DIRECTORIES = [
+  'config',
+  'constants',
+  'controllers',
+  'middleware',
+  'models',
+  'routes',
+  'services',
+  'utils',
+  'validators'
+];
+const OBJECT_ID_SCAN_ROOT_FILES = ['app.js', 'server.js'];
+const RAW_OBJECT_ID_PATTERN = /(?<!new\s)mongoose\.Types\.ObjectId\s*\(/;
+
+function listJavaScriptFiles(directoryPath) {
+  const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(directoryPath, entry.name);
+
+    if (entry.isDirectory()) {
+      files.push(...listJavaScriptFiles(fullPath));
+      continue;
+    }
+
+    if (entry.isFile() && fullPath.endsWith('.js')) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
 
 // Mocks for VAL-011 runtime test
 jest.mock('../../../models/notification');
@@ -81,6 +117,29 @@ describe('Phase 4 — Service Miscellaneous Validation', () => {
     });
   });
 
+  describe('VAL-017: ObjectId constructor compatibility', () => {
+    it('should not use raw mongoose.Types.ObjectId(...) in production JavaScript files', () => {
+      const filesToScan = [
+        ...OBJECT_ID_SCAN_DIRECTORIES.flatMap((relativeDir) =>
+          listJavaScriptFiles(path.join(ROOT, relativeDir))
+        ),
+        ...OBJECT_ID_SCAN_ROOT_FILES
+          .map((relativeFile) => path.join(ROOT, relativeFile))
+          .filter((fullPath) => fs.existsSync(fullPath))
+      ];
+
+      const offenders = filesToScan
+        .map((fullPath) => ({
+          file: path.relative(ROOT, fullPath),
+          source: fs.readFileSync(fullPath, 'utf8')
+        }))
+        .filter(({ source }) => RAW_OBJECT_ID_PATTERN.test(source))
+        .map(({ file }) => file);
+
+      expect(offenders).toEqual([]);
+    });
+  });
+
   describe('NULL-001: acceptedApp.applicant null guard', () => {
     it('source code should guard against null acceptedApp.applicant', () => {
       const src = fs.readFileSync(
@@ -115,6 +174,22 @@ describe('Phase 4 — Service Miscellaneous Validation', () => {
       // Should have createError helper
       expect(src).toMatch(/const createError\s*=/);
       expect(src).toMatch(/err\.statusCode\s*=\s*statusCode/);
+    });
+
+    it('source code patient updateProfile should use validated query-update options', () => {
+      const patientServiceSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'services', 'patient-booking-service', 'src', 'services', 'patientService.js'),
+        'utf8'
+      );
+      const sharedOptionsSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'utils', 'queryUpdateOptions.js'),
+        'utf8'
+      );
+
+      expect(patientServiceSrc).toMatch(/queryUpdateOptions/);
+      expect(patientServiceSrc).toMatch(/VALIDATED_QUERY_UPDATE_OPTIONS/);
+      expect(sharedOptionsSrc).toMatch(/runValidators:\s*true/);
+      expect(sharedOptionsSrc).toMatch(/context:\s*['"]query['"]/);
     });
   });
 });

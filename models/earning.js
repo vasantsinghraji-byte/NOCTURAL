@@ -135,7 +135,7 @@ earningSchema.statics.getMonthlyEarnings = async function(userId, year, month) {
     const earnings = await this.aggregate([
         {
             $match: {
-                user: mongoose.Types.ObjectId(userId),
+                user: new mongoose.Types.ObjectId(userId),
                 shiftDate: { $gte: startDate, $lte: endDate }
             }
         },

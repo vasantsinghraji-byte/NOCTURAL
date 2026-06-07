@@ -8,6 +8,10 @@
 const patientService = require('../services/patientService');
 const { SUCCESS_MESSAGE } = require('../constants');
 const responseHelper = require('../utils/responseHelper');
+const { setAuthCookies } = require('../utils/authCookies');
+const refreshSessionService = require('../services/refreshSessionService');
+
+const getPatientId = (result) => result.patient && (result.patient.id || result.patient._id);
 
 /**
  * @desc    Register a new patient
@@ -17,8 +21,15 @@ const responseHelper = require('../utils/responseHelper');
 exports.register = async (req, res, next) => {
   try {
     const result = await patientService.register(req.body);
+    await refreshSessionService.create({
+      token: result.refreshToken,
+      userId: getPatientId(result),
+      userType: 'patient',
+      req
+    });
+    setAuthCookies(res, result);
 
-    responseHelper.sendCreated(res, result, 'Patient registered successfully');
+    responseHelper.sendCreated(res, { patient: result.patient }, 'Patient registered successfully');
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
   }
@@ -32,8 +43,15 @@ exports.register = async (req, res, next) => {
 exports.login = async (req, res, next) => {
   try {
     const result = await patientService.login(req.body);
+    await refreshSessionService.create({
+      token: result.refreshToken,
+      userId: getPatientId(result),
+      userType: 'patient',
+      req
+    });
+    setAuthCookies(res, result);
 
-    responseHelper.sendSuccess(res, result, 'Login successful');
+    responseHelper.sendSuccess(res, { patient: result.patient }, 'Login successful');
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
   }

@@ -44,7 +44,7 @@ const HealthRecord = require('../../../models/healthRecord');
 const logger = require('../../../utils/logger');
 const doctorAccessService = require('../../../services/doctorAccessService');
 
-describe('Phase 3 — Doctor Access Control', () => {
+describe('Authorization Unit: doctor access control rules', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });

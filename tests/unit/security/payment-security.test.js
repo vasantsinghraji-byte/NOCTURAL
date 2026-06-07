@@ -26,6 +26,12 @@ const mockRazorpayInstance = {
 
 jest.mock('razorpay', () => jest.fn().mockImplementation(() => mockRazorpayInstance));
 jest.mock('../../../models/nurseBooking');
+jest.mock('../../../models/refundOutbox', () => ({
+  create: jest.fn(),
+  updateOne: jest.fn(),
+  find: jest.fn(),
+  findOneAndUpdate: jest.fn()
+}));
 jest.mock('../../../utils/logger', () => ({
   error: jest.fn(),
   warn: jest.fn(),
@@ -40,6 +46,7 @@ const loadPaymentHarness = () => {
     harness = {
       Razorpay: require('razorpay'),
       Booking: require('../../../models/nurseBooking'),
+      RefundOutbox: require('../../../models/refundOutbox'),
       logger: require('../../../utils/logger'),
       paymentService: require('../../../services/paymentService')
     };
@@ -57,6 +64,23 @@ describe('Security Unit: payment flow safeguards', () => {
     mockRazorpayInstance.payments.fetch.mockReset();
     mockRazorpayInstance.payments.refund.mockReset();
   });
+
+  const configureRefundOutbox = (RefundOutbox, overrides = {}) => {
+    const outbox = {
+      _id: 'outbox_123',
+      booking: 'booking123',
+      paymentId: 'pay_123',
+      amount: 500,
+      attemptCount: 0,
+      maxAttempts: 10,
+      ...overrides
+    };
+
+    RefundOutbox.create.mockResolvedValue(outbox);
+    RefundOutbox.updateOne.mockResolvedValue({ modifiedCount: 1 });
+
+    return outbox;
+  };
 
   describe('SEC-006: No Fallback Razorpay Credentials', () => {
     it('should not contain hardcoded test credentials in source', () => {
@@ -269,6 +293,47 @@ describe('Security Unit: payment flow safeguards', () => {
       });
     });
 
+    it('should persist order payment fields with validated query-update options', async () => {
+      const { paymentService, Booking } = loadPaymentHarness();
+      const mockBooking = {
+        _id: 'booking123',
+        patient: 'user123',
+        pricing: { payableAmount: 500 },
+        payment: null,
+        serviceType: 'NURSE'
+      };
+
+      Booking.findById = jest.fn().mockResolvedValue(mockBooking);
+      Booking.findOneAndUpdate = jest.fn().mockResolvedValue({
+        ...mockBooking,
+        payment: { status: 'PENDING' }
+      });
+      Booking.findByIdAndUpdate = jest.fn().mockResolvedValue(true);
+      mockRazorpayInstance.orders.create.mockResolvedValue({
+        id: 'order_123',
+        amount: 50000,
+        currency: 'INR',
+        receipt: 'booking_booking123'
+      });
+
+      await paymentService.createOrder('booking123', 'user123');
+
+      expect(Booking.findByIdAndUpdate).toHaveBeenCalledWith(
+        'booking123',
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            'payment.orderId': 'order_123',
+            'payment.status': 'PENDING'
+          })
+        }),
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
+      );
+    });
+
     it('should prevent order creation for already paid booking', async () => {
       const { paymentService, Booking } = loadPaymentHarness();
       Booking.findById = jest.fn().mockResolvedValue({
@@ -288,7 +353,7 @@ describe('Security Unit: payment flow safeguards', () => {
 
   describe('PAY-003: Refund Atomic Locking + Rollback', () => {
     it('should atomically lock booking before processing refund', async () => {
-      const { paymentService, Booking } = loadPaymentHarness();
+      const { paymentService, Booking, RefundOutbox } = loadPaymentHarness();
       const mockBooking = {
         _id: 'booking123',
         payment: { paymentId: 'pay_123', status: 'PAID' },
@@ -299,11 +364,15 @@ describe('Security Unit: payment flow safeguards', () => {
       Booking.findOneAndUpdate = jest.fn().mockResolvedValueOnce({
         ...mockBooking,
         payment: { ...mockBooking.payment, status: 'REFUND_PENDING' }
+      }).mockResolvedValueOnce({
+        ...mockBooking,
+        payment: { ...mockBooking.payment, status: 'REFUNDED', refundId: 'refund_123' }
       });
       Booking.findByIdAndUpdate = jest.fn().mockResolvedValue({
         ...mockBooking,
         payment: { ...mockBooking.payment, status: 'REFUNDED', refundId: 'refund_123' }
       });
+      configureRefundOutbox(RefundOutbox);
 
       mockRazorpayInstance.payments.refund.mockResolvedValue({
         id: 'refund_123',
@@ -324,10 +393,22 @@ describe('Security Unit: payment flow safeguards', () => {
         }),
         expect.any(Object)
       );
+      expect(RefundOutbox.create.mock.invocationCallOrder[0]).toBeLessThan(
+        mockRazorpayInstance.payments.refund.mock.invocationCallOrder[0]
+      );
+      expect(mockRazorpayInstance.payments.refund).toHaveBeenCalledWith(
+        'pay_123',
+        expect.objectContaining({
+          receipt: 'refund_outbox_123',
+          notes: expect.objectContaining({
+            refundOutboxId: 'outbox_123'
+          })
+        })
+      );
     });
 
     it('should rollback to PAID if Razorpay refund fails', async () => {
-      const { paymentService, Booking } = loadPaymentHarness();
+      const { paymentService, Booking, RefundOutbox } = loadPaymentHarness();
       const mockBooking = {
         _id: 'booking123',
         payment: { paymentId: 'pay_123', status: 'PAID' },
@@ -340,6 +421,7 @@ describe('Security Unit: payment flow safeguards', () => {
         payment: { paymentId: 'pay_123', status: 'REFUND_PENDING' }
       });
       Booking.findByIdAndUpdate = jest.fn().mockResolvedValue(true);
+      configureRefundOutbox(RefundOutbox);
 
       mockRazorpayInstance.payments.refund.mockRejectedValue(new Error('Razorpay gateway error'));
 
@@ -353,6 +435,118 @@ describe('Security Unit: payment flow safeguards', () => {
         'booking123',
         expect.objectContaining({
           $set: { 'payment.status': 'PAID' }
+        }),
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
+      );
+      expect(RefundOutbox.updateOne).toHaveBeenCalledWith(
+        { _id: 'outbox_123' },
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            status: 'GATEWAY_FAILED'
+          })
+        })
+      );
+    });
+
+    it('should queue automatic reconciliation when DB update fails after Razorpay refund succeeds', async () => {
+      const { paymentService, Booking, RefundOutbox } = loadPaymentHarness();
+      const mockBooking = {
+        _id: 'booking123',
+        payment: { paymentId: 'pay_123', status: 'PAID' },
+        pricing: { payableAmount: 500 }
+      };
+
+      Booking.findById = jest.fn().mockResolvedValue(mockBooking);
+      Booking.findOneAndUpdate = jest.fn()
+        .mockResolvedValueOnce({
+          ...mockBooking,
+          payment: { paymentId: 'pay_123', status: 'REFUND_PENDING' }
+        })
+        .mockRejectedValueOnce(new Error('Mongo write failed'));
+      configureRefundOutbox(RefundOutbox);
+
+      mockRazorpayInstance.payments.refund.mockResolvedValue({
+        id: 'refund_123',
+        status: 'processed'
+      });
+
+      const result = await paymentService.processRefund('booking123');
+
+      expect(result.refund.warning).toContain('queued for automatic reconciliation');
+      expect(RefundOutbox.updateOne).toHaveBeenCalledWith(
+        { _id: 'outbox_123' },
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            status: 'GATEWAY_CONFIRMED',
+            gatewayRefundId: 'refund_123'
+          })
+        })
+      );
+      expect(RefundOutbox.updateOne).toHaveBeenCalledWith(
+        { _id: 'outbox_123' },
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            status: 'RETRY_PENDING',
+            attemptCount: 1
+          })
+        })
+      );
+    });
+
+    it('should commit due refund outbox records from the worker', async () => {
+      const { paymentService, Booking, RefundOutbox } = loadPaymentHarness();
+      const dueOutbox = {
+        _id: 'outbox_123',
+        booking: 'booking123',
+        paymentId: 'pay_123',
+        gatewayRefundId: 'refund_123',
+        amount: 500,
+        attemptCount: 1,
+        maxAttempts: 10
+      };
+      const query = {
+        sort: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([dueOutbox])
+      };
+
+      RefundOutbox.find.mockReturnValue(query);
+      RefundOutbox.findOneAndUpdate.mockResolvedValue(dueOutbox);
+      RefundOutbox.updateOne.mockResolvedValue({ modifiedCount: 1 });
+      Booking.findOneAndUpdate = jest.fn().mockResolvedValue({
+        _id: 'booking123',
+        payment: { status: 'REFUNDED', refundId: 'refund_123' }
+      });
+
+      const result = await paymentService.processRefundOutboxBatch();
+
+      expect(result.processed).toBe(1);
+      expect(Booking.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          _id: 'booking123',
+          'payment.paymentId': 'pay_123'
+        }),
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            'payment.refundId': 'refund_123',
+            'payment.status': 'REFUNDED'
+          })
+        }),
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
+      );
+      expect(RefundOutbox.updateOne).toHaveBeenCalledWith(
+        { _id: 'outbox_123' },
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            status: 'COMPLETED'
+          })
         })
       );
     });

@@ -189,11 +189,13 @@ services:
       USE_S3: ${USE_S3:-false}
       # Resource monitoring
       NODE_OPTIONS: --max-old-space-size=384
+      PROMETHEUS_METRICS_TOKEN_FILE: /run/secrets/prometheus-metrics-token
     env_file:
       - .env
     volumes:
       - uploads_data:/app/uploads
       - ./logs:/app/logs
+      - ./secrets/prometheus-metrics-token:/run/secrets/prometheus-metrics-token:ro
     networks:
       - nocturnal-network
     depends_on:
@@ -295,6 +297,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./secrets/prometheus-metrics-token:/etc/prometheus/secrets/nocturnal-metrics-token:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'

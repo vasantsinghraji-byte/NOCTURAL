@@ -51,6 +51,25 @@ ALLOW_PATTERNS=(
 
 staged_files=$(git diff --cached --name-only --diff-filter=ACR 2>/dev/null || true)
 
+# ==============================================================================
+# Layer 0: Run Gitleaks when available, using the repo config
+# ==============================================================================
+
+GITLEAKS_BIN=""
+if command -v gitleaks >/dev/null 2>&1; then
+  GITLEAKS_BIN="$(command -v gitleaks)"
+elif [ -n "${LOCALAPPDATA:-}" ] && [ -x "${LOCALAPPDATA}/Microsoft/WinGet/Packages/Gitleaks.Gitleaks_Microsoft.Winget.Source_8wekyb3d8bbwe/gitleaks.exe" ]; then
+  GITLEAKS_BIN="${LOCALAPPDATA}/Microsoft/WinGet/Packages/Gitleaks.Gitleaks_Microsoft.Winget.Source_8wekyb3d8bbwe/gitleaks.exe"
+fi
+
+if [ -n "$GITLEAKS_BIN" ]; then
+  if ! "$GITLEAKS_BIN" git --pre-commit --redact --staged --verbose --config .gitleaks.toml; then
+    BLOCKED=1
+  fi
+else
+  echo -e "${YELLOW}WARN${NC} gitleaks is not installed; using built-in secret checks only."
+fi
+
 if [ -n "$staged_files" ]; then
   while IFS= read -r file; do
     # Check if file matches an allow pattern

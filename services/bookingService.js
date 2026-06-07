@@ -5,12 +5,16 @@
  * Handles booking creation, assignment, status updates, and completion
  */
 
+const mongoose = require('mongoose');
 const NurseBooking = require('../models/nurseBooking');
 const ServiceCatalog = require('../models/serviceCatalog');
 const Patient = require('../models/patient');
 const User = require('../models/user');
 const { invalidateCache } = require('../middleware/queryCache');
 const logger = require('../utils/logger');
+const { roundToTwoDecimals } = require('../utils/number');
+const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
+const { hasReviewAggregateStateChanged } = require('../utils/bookingReviewAggregate');
 const { HTTP_STATUS, PAGINATION } = require('../constants');
 const {
   ValidationError,
@@ -32,6 +36,47 @@ const resolveCancellationActor = ({ userRole, isPatient = false, isProvider = fa
   return 'SYSTEM';
 };
 
+const TIME_FORMAT_REGEX = /^\d{1,2}:\d{2}$/;
+
+const formatUtcOffset = (offsetMinutes) => {
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const absoluteMinutes = Math.abs(offsetMinutes);
+  const hours = String(Math.floor(absoluteMinutes / 60)).padStart(2, '0');
+  const minutes = String(absoluteMinutes % 60).padStart(2, '0');
+
+  return `${sign}${hours}:${minutes}`;
+};
+
+const resolveScheduledLocalHour = ({ scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes }) => {
+  if (!Number.isInteger(scheduledTimezoneOffsetMinutes)) {
+    throw new ValidationError('Scheduled timezone offset is required');
+  }
+
+  if (!TIME_FORMAT_REGEX.test(scheduledTime)) {
+    throw new ValidationError('Invalid scheduled date/time format');
+  }
+
+  const [hours, minutes] = scheduledTime.split(':').map(Number);
+  if (
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    throw new ValidationError('Invalid scheduled date/time format');
+  }
+
+  const explicitOffsetDateTime = `${scheduledDate}T${scheduledTime}:00${formatUtcOffset(scheduledTimezoneOffsetMinutes)}`;
+  const bookingDate = new Date(explicitOffsetDateTime);
+  if (Number.isNaN(bookingDate.getTime())) {
+    throw new ValidationError('Invalid scheduled date/time format');
+  }
+
+  return hours;
+};
+
 class BookingService {
   /**
    * Create a new booking
@@ -44,6 +89,8 @@ class BookingService {
       serviceType,
       scheduledDate,
       scheduledTime,
+      scheduledTimezone,
+      scheduledTimezoneOffsetMinutes,
       serviceLocation,
       specialRequirements,
       patientDetails,
@@ -101,14 +148,13 @@ class BookingService {
 
     // Check for surge pricing
     if (service.pricing.surgePricing?.enabled) {
-      const bookingDate = new Date(`${scheduledDate}T${scheduledTime}`);
-      if (isNaN(bookingDate.getTime())) {
-        throw new ValidationError('Invalid scheduled date/time format');
-      }
-      const bookingHour = bookingDate.getHours();
-      const timeFormatRegex = /^\d{1,2}:\d{2}$/;
+      const bookingHour = resolveScheduledLocalHour({
+        scheduledDate,
+        scheduledTime,
+        scheduledTimezoneOffsetMinutes
+      });
       const isSurgeHour = service.pricing.surgePricing.surgeHours.some(sh => {
-        if (!sh.start || !sh.end || !timeFormatRegex.test(sh.start) || !timeFormatRegex.test(sh.end)) {
+        if (!sh.start || !sh.end || !TIME_FORMAT_REGEX.test(sh.start) || !TIME_FORMAT_REGEX.test(sh.end)) {
           return false;
         }
         const start = parseInt(sh.start.split(':')[0], 10);
@@ -137,6 +183,8 @@ class BookingService {
       serviceType,
       scheduledDate,
       scheduledTime,
+      scheduledTimezone,
+      scheduledTimezoneOffsetMinutes,
       serviceLocation,
       specialRequirements,
       patientDetails,
@@ -316,7 +364,7 @@ class BookingService {
           status: 'ASSIGNED'
         }
       },
-      { new: true }
+      VALIDATED_QUERY_UPDATE_OPTIONS
     );
 
     if (!booking) {
@@ -351,7 +399,7 @@ class BookingService {
       await NurseBooking.findByIdAndUpdate(bookingId, {
         $set: { status: 'SEARCHING' },
         $unset: { serviceProvider: 1 }
-      });
+      }, VALIDATED_QUERY_UPDATE_OPTIONS);
 
       logger.error('Provider assignment rolled back - access grant failed', {
         bookingId: booking._id,
@@ -566,7 +614,11 @@ class BookingService {
       }
     };
 
-    await NurseBooking.findByIdAndUpdate(booking._id, completionUpdate);
+    const completedBooking = await NurseBooking.findByIdAndUpdate(
+      booking._id,
+      completionUpdate,
+      VALIDATED_QUERY_UPDATE_OPTIONS
+    );
 
     // Update patient statistics
     await Patient.findByIdAndUpdate(booking.patient, {
@@ -574,7 +626,7 @@ class BookingService {
         totalBookings: 1,
         totalSpent: booking.pricing.payableAmount
       }
-    });
+    }, VALIDATED_QUERY_UPDATE_OPTIONS);
 
     // Invalidate cache
     await invalidateCache('*:/api/bookings*');
@@ -586,9 +638,70 @@ class BookingService {
       warnings: warnings.length > 0 ? warnings : undefined
     });
 
-    const result = booking.toObject ? booking.toObject() : booking;
+    const resultSource = completedBooking || booking;
+    const result = resultSource.toObject ? resultSource.toObject() : resultSource;
     if (warnings.length > 0) result.warnings = warnings;
     return result;
+  }
+
+  /**
+   * Recompute provider review aggregates
+   * @param {String|ObjectId} providerId - Provider ID
+   * @returns {Promise<void>}
+   */
+  async syncProviderReviewStats(providerId) {
+    if (!providerId) {
+      return;
+    }
+
+    const aggregateProviderId = (
+      typeof providerId === 'string' && mongoose.Types.ObjectId.isValid(providerId)
+    )
+      ? new mongoose.Types.ObjectId(providerId)
+      : providerId;
+
+    const reviewStats = await NurseBooking.aggregate([
+      {
+        $match: {
+          serviceProvider: aggregateProviderId,
+          'rating.ratedAt': { $exists: true }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalReviews: { $sum: 1 },
+          avgRating: { $avg: '$rating.stars' }
+        }
+      }
+    ]);
+
+    const { totalReviews = 0, avgRating = 0 } = reviewStats[0] || {};
+
+    await User.findByIdAndUpdate(
+      providerId,
+      {
+        rating: roundToTwoDecimals(avgRating),
+        totalReviews
+      },
+      VALIDATED_QUERY_UPDATE_OPTIONS
+    );
+  }
+
+  /**
+   * Recompute provider review aggregates only when aggregate-driving review fields changed
+   * @param {String|ObjectId} providerId - Provider ID
+   * @param {Object} previousRating - Previous booking rating snapshot
+   * @param {Object} nextRating - Next booking rating snapshot
+   * @returns {Promise<boolean>} Whether a recompute was performed
+   */
+  async syncProviderReviewStatsIfNeeded(providerId, previousRating = {}, nextRating = {}) {
+    if (!providerId || !hasReviewAggregateStateChanged(previousRating, nextRating)) {
+      return false;
+    }
+
+    await this.syncProviderReviewStats(providerId);
+    return true;
   }
 
   /**
@@ -620,6 +733,8 @@ class BookingService {
       throw new ValidationError('Booking already reviewed');
     }
 
+    const previousRating = { ...booking.rating };
+
     // Add rating and review
     booking.rating = {
       stars: reviewData.stars,
@@ -629,20 +744,7 @@ class BookingService {
 
     await booking.save();
 
-    // Update provider's average rating
-    if (booking.serviceProvider) {
-      const providerBookings = await NurseBooking.find({
-        serviceProvider: booking.serviceProvider,
-        'rating.ratedAt': { $exists: true }
-      });
-
-      const totalRatings = providerBookings.reduce((sum, b) => sum + b.rating.stars, 0);
-      const avgRating = totalRatings / providerBookings.length;
-
-      await User.findByIdAndUpdate(booking.serviceProvider, {
-        'professional.rating': avgRating.toFixed(2)
-      });
-    }
+    await this.syncProviderReviewStatsIfNeeded(booking.serviceProvider, previousRating, booking.rating);
 
     // Invalidate cache
     await invalidateCache('*:/api/bookings*');
@@ -651,6 +753,94 @@ class BookingService {
       bookingId: booking._id,
       patientId,
       rating: reviewData.stars
+    });
+
+    return booking;
+  }
+
+  /**
+   * Update rating and review
+   * @param {String} bookingId - Booking ID
+   * @param {String} patientId - Patient ID
+   * @param {Object} reviewData - Updated rating and review data
+   * @returns {Promise<Object>} Updated booking
+   */
+  async updateReview(bookingId, patientId, reviewData) {
+    const booking = await NurseBooking.findById(bookingId);
+
+    if (!booking) {
+      throw new NotFoundError('Booking', bookingId);
+    }
+
+    if (booking.patient.toString() !== patientId) {
+      throw new AuthorizationError('Only the patient can update this review');
+    }
+
+    if (booking.status !== 'COMPLETED') {
+      throw new ValidationError('Can only update reviews for completed bookings');
+    }
+
+    if (!booking.rating.ratedAt) {
+      throw new ValidationError('Booking has not been reviewed yet');
+    }
+
+    const previousRating = { ...booking.rating };
+
+    booking.rating = {
+      ...booking.rating,
+      stars: reviewData.stars,
+      comment: reviewData.comment
+    };
+
+    await booking.save();
+    await this.syncProviderReviewStatsIfNeeded(booking.serviceProvider, previousRating, booking.rating);
+    await invalidateCache('*:/api/bookings*');
+
+    logger.info('Booking Review Updated', {
+      bookingId: booking._id,
+      patientId,
+      rating: reviewData.stars
+    });
+
+    return booking;
+  }
+
+  /**
+   * Delete rating and review
+   * @param {String} bookingId - Booking ID
+   * @param {String} patientId - Patient ID
+   * @returns {Promise<Object>} Updated booking
+   */
+  async deleteReview(bookingId, patientId) {
+    const booking = await NurseBooking.findById(bookingId);
+
+    if (!booking) {
+      throw new NotFoundError('Booking', bookingId);
+    }
+
+    if (booking.patient.toString() !== patientId) {
+      throw new AuthorizationError('Only the patient can delete this review');
+    }
+
+    if (booking.status !== 'COMPLETED') {
+      throw new ValidationError('Can only delete reviews for completed bookings');
+    }
+
+    if (!booking.rating.ratedAt) {
+      throw new ValidationError('Booking has not been reviewed yet');
+    }
+
+    const previousRating = { ...booking.rating };
+
+    booking.rating = {};
+
+    await booking.save();
+    await this.syncProviderReviewStatsIfNeeded(booking.serviceProvider, previousRating, booking.rating);
+    await invalidateCache('*:/api/bookings*');
+
+    logger.info('Booking Review Deleted', {
+      bookingId: booking._id,
+      patientId
     });
 
     return booking;
@@ -744,7 +934,7 @@ class BookingService {
       cancelledBookings,
       activeBookings,
       completionRate: totalBookings > 0
-        ? ((completedBookings / totalBookings) * 100).toFixed(2)
+        ? roundToTwoDecimals((completedBookings / totalBookings) * 100)
         : 0,
       totalRevenue: revenueData[0]?.totalRevenue || 0,
       platformRevenue: revenueData[0]?.platformRevenue || 0

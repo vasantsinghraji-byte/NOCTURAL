@@ -6,7 +6,7 @@
  */
 
 const User = require('../models/user');
-const { generateToken } = require('../middleware/auth');
+const authTokens = require('../middleware/auth');
 const logger = require('../utils/logger');
 const { HTTP_STATUS, SUCCESS_MESSAGE, ERROR_MESSAGE } = require('../constants');
 const { AuthenticationError, AuthorizationError } = require('../utils/errors');
@@ -42,6 +42,8 @@ const BLOCKED_PROFILE_FIELDS = new Set([
 ]);
 
 const getAllowedProfileFields = (role) => PROFILE_FIELDS_BY_ROLE[role] || COMMON_PROFILE_FIELDS;
+const generateAccessToken = authTokens.generateAccessToken || authTokens.generateToken;
+const generateRefreshToken = authTokens.generateRefreshToken || authTokens.generateToken;
 
 const getDisallowedProfileFields = (updateData, role) => {
   const allowedFields = new Set(getAllowedProfileFields(role));
@@ -92,8 +94,9 @@ class AuthService {
       };
     }
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Generate short-lived access token and refresh token for cookie-backed sessions.
+    const token = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
 
     logger.logAuth('register', email, true);
     logger.info('New User Registered', {
@@ -104,6 +107,7 @@ class AuthService {
 
     return {
       token,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
@@ -156,8 +160,9 @@ class AuthService {
       };
     }
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Generate short-lived access token and refresh token for cookie-backed sessions.
+    const token = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
 
     // Update last active — don't block login if this fails
     try {
@@ -179,6 +184,7 @@ class AuthService {
 
     return {
       token,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,

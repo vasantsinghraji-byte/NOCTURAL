@@ -47,7 +47,7 @@ describe('Frontend Transport Helper Contract', () => {
     expect(notificationCenterSrc).toContain('buildApiUrl(endpoint)');
     expect(notificationCenterSrc).toContain('async fetchApi(endpoint, options = {})');
     expect(notificationCenterSrc).toContain("return AppConfig.fetch(normalizedEndpoint, options);");
-    expect(notificationCenterSrc).toContain("typeof AppConfig !== 'undefined' && typeof AppConfig.getToken === 'function'");
+    expect(notificationCenterSrc).not.toContain("localStorage.getItem('token')");
     expect(notificationCenterSrc).toContain("const response = await this.fetchApi('notifications?limit=10');");
     expect(notificationCenterSrc).toContain("await this.fetchApi(`notifications/${notificationId}/read`, {");
     expect(notificationCenterSrc).toContain("await this.fetchApi('notifications/read-all', {");
@@ -55,16 +55,15 @@ describe('Frontend Transport Helper Contract', () => {
     expect(unifiedNavSrc).toContain('buildApiUrl(endpoint)');
     expect(unifiedNavSrc).toContain('request(endpoint, options = {})');
     expect(unifiedNavSrc).toContain("return AppConfig.fetch(normalizedEndpoint, options);");
-    expect(unifiedNavSrc).toContain("typeof AppConfig !== 'undefined' && typeof AppConfig.getToken === 'function'");
     expect(unifiedNavSrc).toContain("typeof AppConfig !== 'undefined' && typeof AppConfig.clearToken === 'function'");
-    expect(unifiedNavSrc).toContain("const response = await this.request('auth/me', {");
+    expect(unifiedNavSrc).toContain("const response = await this.request('auth/me');");
     expect(unifiedNavSrc).toContain('window.location.origin');
   });
 
   it('should standardize pagination and generic utility fetch wrappers through AppConfig.fetch()', () => {
     expect(paginationSrc).toContain('async function fetchWithStandardConfig(endpoint, options = {})');
     expect(paginationSrc).toContain("typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function'");
-    expect(paginationSrc).toContain('return AppConfig.fetch(toAppConfigEndpoint(endpoint), {');
+    expect(paginationSrc).toContain('return AppConfig.fetch(toAppConfigEndpoint(endpoint), options);');
 
     expect(utilsSrc).toContain("typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function'");
     expect(utilsSrc).toContain('await AppConfig.fetch(toStandardApiEndpoint(url), mergedOptions)');
@@ -80,7 +79,8 @@ describe('Frontend Transport Helper Contract', () => {
     expect(configSrc).toContain('setToken: function(token)');
     expect(configSrc).toContain('clearToken: function()');
     expect(configSrc).toContain('getAuthHeaders: function(options = {})');
-    expect(configSrc).toContain("if (token && !options.skipAuth)");
+    expect(configSrc).not.toContain("headers['Authorization']");
+    expect(configSrc).toContain("credentials: requestOptions.credentials || 'include'");
     expect(configSrc).toContain('const requestOptions = { ...options };');
     expect(configSrc).toContain('const shouldParseJson = requestOptions.parseJson === true;');
     expect(configSrc).toContain('const shouldParseText = requestOptions.parseText === true;');

@@ -5,11 +5,23 @@
  * Handles events, availability, and conflict detection
  */
 
+const mongoose = require('mongoose');
 const CalendarEvent = require('../models/calendarEvent');
 const Availability = require('../models/availability');
 const Duty = require('../models/duty');
 const logger = require('../utils/logger');
 const { HTTP_STATUS } = require('../constants');
+
+async function validateAvailabilitySlots(slots) {
+  if (typeof Availability.validate === 'function') {
+    await Promise.all(slots.map(slot => Availability.validate(slot)));
+    return;
+  }
+
+  if (typeof Availability === 'function' && typeof Availability.prototype?.validate === 'function') {
+    await Promise.all(slots.map(slot => new Availability(slot).validate()));
+  }
+}
 
 class CalendarService {
   /**
@@ -206,15 +218,51 @@ class CalendarService {
       user: userId
     }));
 
-    // Insert new slots FIRST — if this fails, old data is preserved
-    const created = await Availability.insertMany(slots);
-    const newIds = created.map(s => s._id);
+    await validateAvailabilitySlots(slots);
 
-    // Only delete old slots after new ones are successfully created
-    await Availability.deleteMany({
-      user: userId,
-      _id: { $nin: newIds }
-    });
+    const session = await mongoose.startSession();
+    let created = [];
+
+    try {
+      await session.withTransaction(async () => {
+        created = await Availability.insertMany(slots, {
+          ordered: false,
+          session
+        });
+        const newIds = created.map(slot => slot._id);
+
+        await Availability.deleteMany(
+          {
+            user: userId,
+            _id: { $nin: newIds }
+          },
+          { session }
+        );
+      });
+    } catch (error) {
+      const createdIds = created
+        .map(slot => slot?._id)
+        .filter(Boolean);
+
+      if (createdIds.length > 0) {
+        try {
+          await Availability.deleteMany({
+            user: userId,
+            _id: { $in: createdIds }
+          });
+        } catch (cleanupError) {
+          logger.error('Availability compensation failed', {
+            userId,
+            createdIds,
+            cleanupError: cleanupError.message
+          });
+        }
+      }
+
+      throw error;
+    } finally {
+      await session.endSession();
+    }
 
     logger.info('Availability updated', { userId, slotsCount: created.length });
 

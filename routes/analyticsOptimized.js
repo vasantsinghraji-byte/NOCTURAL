@@ -6,6 +6,7 @@ const Application = require('../models/application');
 const Duty = require('../models/duty');
 const HospitalSettings = require('../models/hospitalSettings');
 const User = require('../models/user');
+const { roundToDecimals } = require('../utils/number');
 
 // @route   GET /api/analytics/doctor
 // @desc    Get doctor analytics dashboard
@@ -464,7 +465,7 @@ router.get('/hospital/dashboard', protect, async (req, res) => {
         // Quality metrics
         const qualityMetrics = {
             avgDoctorRating: topDoctors.length > 0
-                ? (topDoctors.reduce((sum, d) => sum + d.rating, 0) / topDoctors.length).toFixed(1)
+                ? roundToDecimals(topDoctors.reduce((sum, d) => sum + d.rating, 0) / topDoctors.length, 1)
                 : 0,
             repeatHires: topDoctors.filter(d => d.shiftsCompleted > 1).length,
             totalDoctorsHired: doctorPerformance.size

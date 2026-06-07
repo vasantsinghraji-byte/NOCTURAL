@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
+const fs = require('fs');
 const { getRateLimitMetrics } = require('../../config/rateLimit');
 const { protect, authorize } = require('../../middleware/auth');
 const geoip = require('geoip-lite');
-const moment = require('moment');
 
 // Maintain a history of block rates and detailed analytics
 const blockRateHistory = [];
@@ -119,6 +120,96 @@ function cleanup() {
         blockRateInterval = null;
     }
 }
+
+function getPrometheusMetricsToken() {
+    if (process.env.PROMETHEUS_METRICS_TOKEN) {
+        return process.env.PROMETHEUS_METRICS_TOKEN.trim();
+    }
+
+    if (process.env.PROMETHEUS_METRICS_TOKEN_FILE) {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        return fs.readFileSync(process.env.PROMETHEUS_METRICS_TOKEN_FILE, 'utf8').trim();
+    }
+
+    return null;
+}
+
+function tokensEqual(providedToken, expectedToken) {
+    const provided = Buffer.from(providedToken);
+    const expected = Buffer.from(expectedToken);
+
+    return provided.length === expected.length && crypto.timingSafeEqual(provided, expected);
+}
+
+function requirePrometheusBearerToken(req, res, next) {
+    let expectedToken;
+
+    try {
+        expectedToken = getPrometheusMetricsToken();
+    } catch (error) {
+        return res.status(503).json({
+            success: false,
+            message: 'Metrics authentication is not available'
+        });
+    }
+
+    if (!expectedToken) {
+        return res.status(503).json({
+            success: false,
+            message: 'Metrics authentication is not configured'
+        });
+    }
+
+    const authHeader = req.get('authorization') || '';
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+
+    if (!match || !tokensEqual(match[1], expectedToken)) {
+        return res.status(401).json({
+            success: false,
+            message: 'Unauthorized metrics scrape'
+        });
+    }
+
+    next();
+}
+
+function formatPrometheusMetrics() {
+    const rateLimitMetrics = getRateLimitMetrics();
+    const authMetrics = rateLimitMetrics.metrics.auth;
+    const apiMetrics = rateLimitMetrics.metrics.api;
+    const uploadMetrics = rateLimitMetrics.metrics.upload;
+    const totalRequests = analyticsStore.requests.length;
+    const blockedRequests = analyticsStore.requests.filter(req => req.blocked).length;
+
+    return [
+        '# HELP nocturnal_rate_limit_total Total rate-limit checks by limiter.',
+        '# TYPE nocturnal_rate_limit_total counter',
+        `nocturnal_rate_limit_total{limiter="auth"} ${authMetrics.total || 0}`,
+        `nocturnal_rate_limit_total{limiter="api"} ${apiMetrics.total || 0}`,
+        `nocturnal_rate_limit_total{limiter="upload"} ${uploadMetrics.total || 0}`,
+        '# HELP nocturnal_rate_limit_blocked_total Total blocked requests by limiter.',
+        '# TYPE nocturnal_rate_limit_blocked_total counter',
+        `nocturnal_rate_limit_blocked_total{limiter="auth"} ${authMetrics.blocked || 0}`,
+        `nocturnal_rate_limit_blocked_total{limiter="api"} ${apiMetrics.blocked || 0}`,
+        `nocturnal_rate_limit_blocked_total{limiter="upload"} ${uploadMetrics.blocked || 0}`,
+        '# HELP nocturnal_admin_tracked_requests Total requests tracked by admin metrics analytics.',
+        '# TYPE nocturnal_admin_tracked_requests gauge',
+        `nocturnal_admin_tracked_requests ${totalRequests}`,
+        '# HELP nocturnal_admin_tracked_blocked_requests Blocked requests tracked by admin metrics analytics.',
+        '# TYPE nocturnal_admin_tracked_blocked_requests gauge',
+        `nocturnal_admin_tracked_blocked_requests ${blockedRequests}`,
+        '# HELP nocturnal_admin_metrics_block_rate_points Block-rate history points retained.',
+        '# TYPE nocturnal_admin_metrics_block_rate_points gauge',
+        `nocturnal_admin_metrics_block_rate_points ${blockRateHistory.length}`,
+        ''
+    ].join('\n');
+}
+
+// Prometheus scrape endpoint - protected by a dedicated bearer token.
+router.get('/', requirePrometheusBearerToken, (req, res) => {
+    res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+    res.send(formatPrometheusMetrics());
+});
 
 // Get rate limit metrics - protected admin route
 router.get('/rate-limits', protect, authorize('admin'), async (req, res) => {
