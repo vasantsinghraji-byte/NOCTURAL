@@ -61,13 +61,11 @@ const PRECACHE_ASSETS = [
   '/shared/register.html',
   '/shared/privacy.html',
   '/roles/admin/admin-waitlist.html',
-  '/provider-login.html',
-  '/provider-dashboard.html',
-  '/patient-login.html',
-  '/patient-dashboard.html',
+  '/roles/provider/provider-login.html',
+  '/roles/provider/provider-dashboard.html',
+  '/roles/patient/patient-login.html',
+  '/roles/patient/patient-dashboard.html',
   '/manifest.json',
-  '/css/common.css',
-  '/js/lazyload.js',
   '/shared/offline.html' // Offline fallback page
 ];
 
