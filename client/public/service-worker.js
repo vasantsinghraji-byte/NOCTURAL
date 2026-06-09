@@ -61,14 +61,12 @@ const PRECACHE_ASSETS = [
   '/shared/register.html',
   '/shared/privacy.html',
   '/roles/admin/admin-waitlist.html',
-  '/provider-login.html',
-  '/provider-dashboard.html',
-  '/patient-login.html',
-  '/patient-dashboard.html',
+  '/roles/provider/provider-login.html',
+  '/roles/provider/provider-dashboard.html',
+  '/roles/patient/patient-login.html',
+  '/roles/patient/patient-dashboard.html',
   '/manifest.json',
-  '/css/common.css',
-  '/js/lazyload.js',
-  '/offline.html' // Offline fallback page
+  '/shared/offline.html' // Offline fallback page
 ];
 
 // Route-specific cache strategies
@@ -289,7 +287,7 @@ async function networkFirst(request, route) {
 
     // Return offline page for navigation requests
     if (request.mode === 'navigate') {
-      return cache.match('/offline.html');
+      return cache.match('/shared/offline.html');
     }
 
     return new Response('Network error', {
@@ -362,7 +360,7 @@ async function fetchAndCache(request, cache) {
 
     // Try to return offline page
     if (request.mode === 'navigate') {
-      const offlinePage = await cache.match('/offline.html');
+      const offlinePage = await cache.match('/shared/offline.html');
       if (offlinePage) {
         return offlinePage;
       }
