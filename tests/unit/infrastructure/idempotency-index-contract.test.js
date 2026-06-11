@@ -1,12 +1,8 @@
-const fs = require('fs');
-const path = require('path');
-
-const rootDir = path.resolve(__dirname, '..', '..', '..');
-const read = (relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+const { readProjectFile } = require('../validation/projectFileReader');
 
 describe('idempotency production contract', () => {
   it('creates the unique claim and TTL indexes explicitly', () => {
-    const script = read('scripts/add-indexes.js');
+    const script = readProjectFile('scripts/add-indexes.js');
 
     expect(script).toContain("db.collection('idempotencykeys').createIndex({ scope: 1 }");
     expect(script).toContain("name: 'scope_unique_idx'");
@@ -16,8 +12,8 @@ describe('idempotency production contract', () => {
   });
 
   it('sends keys on exactly the approved booking and payment mutations', () => {
-    const config = read('client/public/js/config.js');
-    const bookingForm = read('client/public/js/patient-booking-form.js');
+    const config = readProjectFile('client/public/js/config.js');
+    const bookingForm = readProjectFile('client/public/js/patient-booking-form.js');
 
     expect(config).toContain('createIdempotencyKey');
     expect(config).toContain('crypto.randomUUID');
