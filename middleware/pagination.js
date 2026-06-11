@@ -3,8 +3,6 @@
  * Provides standardized pagination for list endpoints
  */
 
-const logger = require('../utils/logger');
-
 /**
  * Default pagination limits
  */
@@ -94,20 +92,20 @@ const paginationMiddleware = (req, res, next) => {
  */
 const paginateQuery = async (query, page = DEFAULT_PAGE, limit = DEFAULT_LIMIT) => {
   // Validate inputs
-  page = Math.max(1, parseInt(page));
-  limit = Math.min(Math.max(1, parseInt(limit)), MAX_LIMIT);
+  const normalizedPage = Math.max(1, parseInt(page));
+  const normalizedLimit = Math.min(Math.max(1, parseInt(limit)), MAX_LIMIT);
 
-  const skip = (page - 1) * limit;
+  const skip = (normalizedPage - 1) * normalizedLimit;
 
   // Execute query with pagination and count in parallel
   const [items, total] = await Promise.all([
-    query.skip(skip).limit(limit).lean().exec(),
+    query.skip(skip).limit(normalizedLimit).lean().exec(),
     query.model.countDocuments(query.getFilter())
   ]);
 
   return {
     items,
-    pagination: buildPaginationMeta(page, limit, total)
+    pagination: buildPaginationMeta(normalizedPage, normalizedLimit, total)
   };
 };
 
@@ -165,10 +163,10 @@ const cursorPaginationMiddleware = (req, res, next) => {
  * Aggregation pipeline pagination helper
  */
 const paginateAggregation = async (model, pipeline, page = DEFAULT_PAGE, limit = DEFAULT_LIMIT) => {
-  page = Math.max(1, parseInt(page));
-  limit = Math.min(Math.max(1, parseInt(limit)), MAX_LIMIT);
+  const normalizedPage = Math.max(1, parseInt(page));
+  const normalizedLimit = Math.min(Math.max(1, parseInt(limit)), MAX_LIMIT);
 
-  const skip = (page - 1) * limit;
+  const skip = (normalizedPage - 1) * normalizedLimit;
 
   // Add pagination stages to pipeline
   const paginatedPipeline = [
@@ -176,7 +174,7 @@ const paginateAggregation = async (model, pipeline, page = DEFAULT_PAGE, limit =
     {
       $facet: {
         metadata: [{ $count: 'total' }],
-        data: [{ $skip: skip }, { $limit: limit }]
+        data: [{ $skip: skip }, { $limit: normalizedLimit }]
       }
     }
   ];
@@ -188,7 +186,7 @@ const paginateAggregation = async (model, pipeline, page = DEFAULT_PAGE, limit =
 
   return {
     items,
-    pagination: buildPaginationMeta(page, limit, total)
+    pagination: buildPaginationMeta(normalizedPage, normalizedLimit, total)
   };
 };
 

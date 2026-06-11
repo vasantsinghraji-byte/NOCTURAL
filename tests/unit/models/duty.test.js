@@ -100,11 +100,11 @@ describe('Duty Model - Schema Validation', () => {
       await expect(duty.validate()).rejects.toThrow();
     });
 
-    test('should require duration', async () => {
+    test('should allow duration to be calculated from start and end time', async () => {
       const dutyData = dutyFactory(hospital._id, { duration: undefined });
       const duty = new Duty(dutyData);
 
-      await expect(duty.validate()).rejects.toThrow();
+      await expect(duty.validate()).resolves.not.toThrow();
     });
 
     test('should require hourlyRate', async () => {
@@ -660,7 +660,7 @@ describe('Duty Model - Integration Tests', () => {
     const dutyData = urgentDutyFactory(hospital._id);
     const duty = await Duty.create(dutyData);
 
-    expect(duty.urgency).toBe('HIGH');
+    expect(duty.urgency).toBe('URGENT');
     expect(duty.date).toBeDefined();
   });
 

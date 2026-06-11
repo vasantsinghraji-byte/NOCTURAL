@@ -141,39 +141,38 @@ class NotificationService {
    */
   async createNotification(notificationData) {
     const VALID_RECIPIENT_MODELS = ['User', 'Patient'];
+    const normalizedNotificationData = {
+      ...notificationData,
+      user: notificationData.user || notificationData.recipient
+    };
 
-    if (notificationData.recipientModel && !VALID_RECIPIENT_MODELS.includes(notificationData.recipientModel)) {
+    if (normalizedNotificationData.recipientModel && !VALID_RECIPIENT_MODELS.includes(normalizedNotificationData.recipientModel)) {
       throw {
         statusCode: HTTP_STATUS.BAD_REQUEST,
-        message: `Invalid recipientModel: "${notificationData.recipientModel}". Must be one of: ${VALID_RECIPIENT_MODELS.join(', ')}`
+        message: `Invalid recipientModel: "${normalizedNotificationData.recipientModel}". Must be one of: ${VALID_RECIPIENT_MODELS.join(', ')}`
       };
     }
 
-    // Normalize: callers may pass 'recipient' instead of 'user'
-    if (notificationData.recipient && !notificationData.user) {
-      notificationData.user = notificationData.recipient;
-    }
-
-    if (!notificationData.user) {
+    if (!normalizedNotificationData.user) {
       throw {
         statusCode: HTTP_STATUS.BAD_REQUEST,
         message: 'Notification recipient (user) is required'
       };
     }
 
-    if (!notificationData.type) {
+    if (!normalizedNotificationData.type) {
       throw {
         statusCode: HTTP_STATUS.BAD_REQUEST,
         message: 'Notification type is required'
       };
     }
 
-    const notification = await Notification.createNotification(notificationData);
+    const notification = await Notification.createNotification(normalizedNotificationData);
 
     logger.info('Notification created', {
       notificationId: notification._id,
-      userId: notificationData.user,
-      type: notificationData.type
+      userId: normalizedNotificationData.user,
+      type: normalizedNotificationData.type
     });
 
     return notification;
@@ -232,7 +231,7 @@ class NotificationService {
    * @returns {Promise<Object>} Created notification
    */
   async notifyPayment(params) {
-    const { userId, amount, bookingId, status } = params;
+    const { userId, amount, status } = params;
 
     const notificationData = {
       user: userId,

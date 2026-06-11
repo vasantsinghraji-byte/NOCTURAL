@@ -2,7 +2,6 @@
  * Unit Tests - NurseBooking Model
  */
 
-const mongoose = require('mongoose');
 const { NurseBooking, Patient } = require('../../../src/models');
 
 describe('NurseBooking Model', () => {
@@ -19,10 +18,6 @@ describe('NurseBooking Model', () => {
       phone: '9876543210',
       password: 'password123'
     });
-  });
-
-  afterAll(async () => {
-    await mongoose.connection.close();
   });
 
   describe('Booking Creation', () => {

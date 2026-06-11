@@ -66,8 +66,7 @@ const DutySchema = new mongoose.Schema({
     required: true
   },
   duration: {
-    type: Number, // in hours
-    required: true
+    type: Number // in hours; calculated from startTime/endTime before save when omitted
   },
 
   // Compensation

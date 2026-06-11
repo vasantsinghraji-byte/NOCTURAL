@@ -17,8 +17,9 @@
 require('dotenv').config();
 const { exec } = require('child_process');
 const path = require('path');
-const fs = require('fs');
+const projectFs = require('./lib/projectFs');
 
+const PROJECT_ROOT = path.resolve(__dirname, '..');
 const BACKUP_DIR = path.join(__dirname, '..', 'backups');
 const MAX_BACKUPS = 7; // Keep last 7 backups
 
@@ -26,8 +27,8 @@ async function createBackup() {
   console.log('🔄 Starting database backup...\n');
 
   // Ensure backup directory exists
-  if (!fs.existsSync(BACKUP_DIR)) {
-    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  if (!projectFs.pathExistsSync(PROJECT_ROOT, BACKUP_DIR)) {
+    projectFs.makeDirectorySync(PROJECT_ROOT, BACKUP_DIR, { recursive: true });
   }
 
   // Generate backup filename with timestamp
@@ -71,12 +72,12 @@ async function createBackup() {
 function cleanupOldBackups() {
   console.log('\n🧹 Cleaning up old backups...');
 
-  const backups = fs.readdirSync(BACKUP_DIR)
+  const backups = projectFs.readDirectorySync(PROJECT_ROOT, BACKUP_DIR)
     .filter(f => f.startsWith('backup-'))
     .map(f => ({
       name: f,
       path: path.join(BACKUP_DIR, f),
-      time: fs.statSync(path.join(BACKUP_DIR, f)).mtime.getTime()
+      time: projectFs.statSync(PROJECT_ROOT, path.join(BACKUP_DIR, f)).mtime.getTime()
     }))
     .sort((a, b) => b.time - a.time);
 
@@ -84,7 +85,7 @@ function cleanupOldBackups() {
     const toDelete = backups.slice(MAX_BACKUPS);
     toDelete.forEach(backup => {
       console.log(`  Deleting: ${backup.name}`);
-      fs.rmSync(backup.path, { recursive: true, force: true });
+      projectFs.removeSync(PROJECT_ROOT, backup.path, { recursive: true, force: true });
     });
     console.log(`  Removed ${toDelete.length} old backup(s)`);
   } else {
@@ -105,7 +106,7 @@ async function restoreBackup(backupPath) {
   const command = `mongorestore --uri="${mongoUri}" --gzip --drop "${backupPath}"`;
 
   return new Promise((resolve, reject) => {
-    exec(command, (error, stdout, stderr) => {
+    exec(command, (error, stdout, _stderr) => {
       if (error) {
         console.error('❌ Restore failed:', error.message);
         reject(error);
@@ -122,15 +123,15 @@ async function restoreBackup(backupPath) {
 function listBackups() {
   console.log('\n📋 Available Backups:\n');
 
-  if (!fs.existsSync(BACKUP_DIR)) {
+  if (!projectFs.pathExistsSync(PROJECT_ROOT, BACKUP_DIR)) {
     console.log('  No backups found');
     return [];
   }
 
-  const backups = fs.readdirSync(BACKUP_DIR)
+  const backups = projectFs.readDirectorySync(PROJECT_ROOT, BACKUP_DIR)
     .filter(f => f.startsWith('backup-'))
     .map(f => {
-      const stat = fs.statSync(path.join(BACKUP_DIR, f));
+      const stat = projectFs.statSync(PROJECT_ROOT, path.join(BACKUP_DIR, f));
       return {
         name: f,
         size: `${(stat.size / 1024 / 1024).toFixed(2)} MB`,

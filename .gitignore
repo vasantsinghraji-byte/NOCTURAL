@@ -49,6 +49,8 @@ desktop.ini
 # Build files
 dist/
 build/
+coverage/
+test-results/
 
 # Backups
 backups/

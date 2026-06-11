@@ -53,12 +53,12 @@ describe('Security Unit: auth service profile-field lockdown', () => {
       phone: '1111111111',
       location: { city: 'Old City' },
       professional: { primarySpecialization: 'Emergency Medicine' },
+      bankDetails: { accountHolderName: 'Original Name' },
+      onboardingCompleted: false,
       notificationSettings: { email: true },
       isAvailableForShifts: true,
       specialty: 'Emergency Medicine',
       licenseNumber: 'OLD-LICENSE',
-      bankDetails: { accountHolderName: 'Old Name' },
-      onboardingCompleted: false,
       calculateProfileStrength: jest.fn(),
       save: jest.fn().mockResolvedValue(true)
     };
@@ -70,24 +70,34 @@ describe('Security Unit: auth service profile-field lockdown', () => {
       phone: '9999999999',
       location: { city: 'New City' },
       professional: { primarySpecialization: 'General Medicine' },
+      bankDetails: {
+        accountHolderName: 'Updated Name',
+        accountNumber: '123456789012',
+        ifscCode: 'HDFC0001234',
+        bankName: 'HDFC Bank'
+      },
+      onboardingCompleted: true,
       notificationSettings: { email: false },
       isAvailableForShifts: false,
       specialty: 'General Medicine',
-      licenseNumber: 'NEW-LICENSE',
-      bankDetails: { accountHolderName: 'Updated Name' },
-      onboardingCompleted: true
+      licenseNumber: 'NEW-LICENSE'
     });
 
     expect(result.name).toBe('Updated Name');
     expect(result.phone).toBe('9999999999');
     expect(result.location).toEqual({ city: 'New City' });
     expect(result.professional).toEqual({ primarySpecialization: 'General Medicine' });
+    expect(result.bankDetails).toEqual({
+      accountHolderName: 'Updated Name',
+      accountNumber: '123456789012',
+      ifscCode: 'HDFC0001234',
+      bankName: 'HDFC Bank'
+    });
+    expect(result.onboardingCompleted).toBe(true);
     expect(result.notificationSettings).toEqual({ email: false });
     expect(result.isAvailableForShifts).toBe(false);
     expect(result.specialty).toBe('General Medicine');
     expect(result.licenseNumber).toBe('NEW-LICENSE');
-    expect(result.bankDetails).toEqual({ accountHolderName: 'Updated Name' });
-    expect(result.onboardingCompleted).toBe(true);
     expect(mockUser.calculateProfileStrength).toHaveBeenCalledTimes(1);
     expect(mockUser.save).toHaveBeenCalledTimes(1);
   });

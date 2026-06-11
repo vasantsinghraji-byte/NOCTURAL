@@ -4,9 +4,6 @@
  */
 
 const { ServiceCatalog } = require('../models');
-const { createLogger } = require('@nocturnal/shared');
-
-const logger = createLogger({ serviceName: 'patient-booking-service' });
 
 // In-memory cache for service catalog data (changes infrequently)
 const SERVICE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes

@@ -56,6 +56,24 @@ cd ..
 npm run db:indexes
 ```
 
+If `IDEMPOTENCY_TTL_SECONDS` changes after `idempotency_ttl_idx` exists, update
+the live index before deploying the new value. MongoDB does not allow
+`createIndex` to change options on an existing named index:
+
+```javascript
+db.runCommand({
+  collMod: 'idempotencykeys',
+  index: {
+    name: 'idempotency_ttl_idx',
+    expireAfterSeconds: 86400 // Match the new IDEMPOTENCY_TTL_SECONDS value.
+  }
+})
+```
+
+Until the unique and TTL indexes verify successfully, only the protected
+booking/payment mutation routes return `503`; database reads, login, and other
+API routes remain available.
+
 ### Step 2: Configure Environment
 
 ```bash

@@ -139,32 +139,6 @@ async function getReplicaSetStatus(connection) {
 }
 
 /**
- * Add member to replica set
- */
-async function addMember(connection, memberConfig) {
-  try {
-    const adminDb = connection.db('admin');
-
-    // Get current config
-    const config = await adminDb.admin().command({ replSetGetConfig: 1 });
-    const rsConfig = config.config;
-
-    // Add new member
-    rsConfig.version++;
-    rsConfig.members.push(memberConfig);
-
-    // Reconfigure
-    await adminDb.admin().command({ replSetReconfig: rsConfig });
-
-    log.success(`Added member: ${memberConfig.host}`);
-    return true;
-  } catch (error) {
-    log.error(`Failed to add member: ${error.message}`);
-    return false;
-  }
-}
-
-/**
  * Display replica set status
  */
 function displayReplicaSetStatus(status) {

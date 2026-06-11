@@ -33,11 +33,11 @@
 | SEC-004 | [x] | [x] | `hardcoded-secrets.test.js` | No inline credentials in connection strings |
 | SEC-005 | [x] | [x] | `hardcoded-secrets.test.js` | Passwords replaced with env vars |
 | SEC-006 | [x] | [x] | `hardcoded-secrets.test.js` + `payment-security.test.js` | Startup throws on missing creds |
-| SEC-007 | [x] | [x] | `hardcoded-secrets.test.js` | `changeme` default removed |
+| SEC-007 | [x] | [x] | `hardcoded-secrets.test.js` | Placeholder default password removed |
 | SEC-008 | [x] | [x] | `hardcoded-secrets.test.js` | Uses GitHub secrets |
 | SEC-009 | [x] | [x] | `hardcoded-secrets.test.js` | No plaintext in build step |
 | SEC-010 | [x] | [x] | `hardcoded-secrets.test.js` | Uses `${VAR}` syntax |
-| SEC-011 | [x] | [x] | `hardcoded-secrets.test.js` | No `changeme` defaults |
+| SEC-011 | [x] | [x] | `hardcoded-secrets.test.js` | No placeholder defaults |
 | SEC-012 | [x] | [x] | `hardcoded-secrets.test.js` | Base64-encoded placeholders |
 
 ### 1.2 Payment Security (PAY-001 to PAY-003)

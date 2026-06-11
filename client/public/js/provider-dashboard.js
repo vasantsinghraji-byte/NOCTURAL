@@ -1,4 +1,4 @@
-var token = ProviderSession.requireAuthenticatedPage({
+ProviderSession.requireAuthenticatedPage({
     redirectUrl: AppConfig.routes.page('provider.login')
 });
 var allBookings = [];
@@ -33,8 +33,7 @@ function getBookingLocationLabel(booking) {
 
 function loadBookings() {
     AppConfig.fetchRoute('bookings.providerMine', {
-        parseJson: true,
-        headers: { 'Authorization': 'Bearer ' + token }
+        parseJson: true
     }).then(function (response) {
         var data = NocturnalSession.expectJsonSuccess(response, 'Failed to load bookings', {
             isSuccess: function (payload) {
@@ -66,7 +65,7 @@ function updateStats() {
 
     document.getElementById('todayBookings').textContent = todayBookings.length;
     document.getElementById('completedToday').textContent = completedToday.length;
-    document.getElementById('todayEarnings').textContent = '₹' + earnings.toFixed(0);
+    document.getElementById('todayEarnings').textContent = AppFormat.currency(earnings, 0);
 }
 
 function filterBookings(status) {
@@ -111,11 +110,15 @@ function displayBookings(status) {
             '<div class="booking-details">' +
             '<div class="detail-row">' +
             '<span class="detail-label">📅 Date</span>' +
-            '<span class="detail-value">' + new Date(booking.scheduledDate).toLocaleDateString() + '</span>' +
+            '<span class="detail-value">' + AppFormat.date(booking.scheduledDate) + '</span>' +
             '</div>' +
             '<div class="detail-row">' +
             '<span class="detail-label">⏰ Time</span>' +
-            '<span class="detail-value">' + booking.scheduledTime + '</span>' +
+            '<span class="detail-value">' + AppFormat.timeInZone(booking.scheduledDate, booking.scheduledTime, booking.scheduledTimezone, booking.scheduledTimezoneOffsetMinutes) + '</span>' +
+            '</div>' +
+            '<div class="detail-row">' +
+            '<span class="detail-label">Timezone</span>' +
+            '<span class="detail-value">' + (booking.scheduledTimezone || 'Not specified') + '</span>' +
             '</div>' +
             '<div class="detail-row">' +
             '<span class="detail-label">👤 Patient</span>' +
@@ -127,7 +130,7 @@ function displayBookings(status) {
             '</div>' +
             '<div class="detail-row">' +
             '<span class="detail-label">💰 Amount</span>' +
-            '<span class="detail-value">₹' + booking.pricing.payableAmount.toFixed(2) + '</span>' +
+            '<span class="detail-value">' + AppFormat.currency(booking.pricing.payableAmount, 2) + '</span>' +
             '</div>' +
             '</div>' +
             '<div class="booking-actions">' +
@@ -181,8 +184,7 @@ function confirmBooking(bookingId) {
         method: 'PUT',
         parseJson: true,
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
+            'Content-Type': 'application/json'
         }
     }, {
         params: { bookingId: bookingId }
@@ -200,8 +202,7 @@ function markEnRoute(bookingId) {
         method: 'PUT',
         parseJson: true,
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
+            'Content-Type': 'application/json'
         }
     }, {
         params: { bookingId: bookingId }
@@ -219,8 +220,7 @@ function startService(bookingId) {
         method: 'PUT',
         parseJson: true,
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
+            'Content-Type': 'application/json'
         }
     }, {
         params: { bookingId: bookingId }
@@ -240,8 +240,7 @@ function completeService(bookingId) {
         method: 'PUT',
         parseJson: true,
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
+            'Content-Type': 'application/json'
         }
     }, {
         params: { bookingId: bookingId }
@@ -296,3 +295,5 @@ setInterval(loadBookings, 30000);
 
 // Initialize
 loadBookings();
+
+

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const { Message, Conversation } = require('../models/message');
-const { paginate, paginateCursor, paginationMiddleware, sendPaginatedResponse } = require('../utils/pagination');
+const { paginate, paginateCursor, paginationMiddleware } = require('../utils/pagination');
 
 // Apply pagination middleware
 router.use(paginationMiddleware);

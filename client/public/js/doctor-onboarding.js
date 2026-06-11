@@ -1,13 +1,13 @@
-        // Secure JWT-based authentication
+        // Cookie-backed authentication
         let currentStep = 1;
         let formData = {};
         let uploadedFiles = {};
 
         // Check if user already registered and pre-fill data
         const existingUser = localStorage.getItem('user');
-        const existingToken = localStorage.getItem('token');
+        const hasSessionProfile = !!localStorage.getItem('userId');
 
-        if (existingUser && existingToken) {
+        if (existingUser && hasSessionProfile) {
             try {
                 const userData = JSON.parse(existingUser);
                 // Pre-fill and disable already registered fields
@@ -21,20 +21,20 @@
                     if (emailField && userData.email) {
                         emailField.value = userData.email;
                         emailField.readOnly = true;
-                        emailField.style.backgroundColor = '#e9ecef';
+                        emailField.classList.add('readonly-field');
                     }
                     if (phoneField && userData.phone) {
                         phoneField.value = userData.phone;
                         phoneField.readOnly = true;
-                        phoneField.style.backgroundColor = '#e9ecef';
+                        phoneField.classList.add('readonly-field');
                     }
                     if (nameField && userData.name) {
                         nameField.value = userData.name;
                     }
                     // Hide password fields since user already registered
                     if (passwordField && confirmPasswordField) {
-                        passwordField.closest('.form-group').style.display = 'none';
-                        confirmPasswordField.closest('.form-group').style.display = 'none';
+                        AppUi.setDisplay(passwordField.closest('.form-group'), 'none');
+                        AppUi.setDisplay(confirmPasswordField.closest('.form-group'), 'none');
                         // Set dummy values to pass validation
                         passwordField.value = 'already-registered';
                         confirmPasswordField.value = 'already-registered';
@@ -129,10 +129,10 @@
 
             inputs.forEach(input => {
                 if (!input.value.trim()) {
-                    input.style.borderColor = 'var(--danger)';
+                    input.classList.add('field-error');
                     isValid = false;
                 } else {
-                    input.style.borderColor = '#e0e0e0';
+                    input.classList.remove('field-error');
                 }
             });
 
@@ -141,8 +141,8 @@
                 const confirmPassword = document.getElementById('confirmPassword').value;
 
                 // Skip password validation if user already registered
-                const existingToken = localStorage.getItem('token');
-                if (!existingToken) {
+                const hasRegisteredSession = !!localStorage.getItem('userId');
+                if (!hasRegisteredSession) {
                     if (!NocturnalSession.validatePasswordStrength(password, null, {
                         onInvalid: (message) => showAlert(message, 'danger')
                     })) {
@@ -179,8 +179,8 @@
                 formData.phone = document.getElementById('phone').value;
 
                 // Only include password if user is registering (not already registered)
-                const existingToken = localStorage.getItem('token');
-                if (!existingToken) {
+                const hasRegisteredSession = !!localStorage.getItem('userId');
+                if (!hasRegisteredSession) {
                     formData.password = document.getElementById('password').value;
                 }
             } else if (step === 2) {
@@ -242,13 +242,12 @@
             return payload;
         }
 
-        async function updateOnboardingProfile(token, payload) {
+        async function updateOnboardingProfile(payload) {
             const data = await AppConfig.fetchRoute('auth.me', {
                 method: 'PUT',
                 parseJson: true,
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
             });
@@ -310,11 +309,11 @@
             try {
                 showAlert('Saving your profile...', 'success');
 
-                // Get existing token (user already registered from landing page)
-                const existingToken = localStorage.getItem('token');
+                // Get existing profile marker (user already registered from landing page)
+                const hasRegisteredSession = !!localStorage.getItem('userId');
                 const profileUpdatePayload = buildProfileUpdatePayload();
 
-                if (!existingToken) {
+                if (!hasRegisteredSession) {
                     // If no token, register new user, then persist the onboarding fields
                     const data = await AppConfig.fetchRoute('auth.register', {
                         method: 'POST',
@@ -324,21 +323,19 @@
                     });
                     var authData = NocturnalSession.expectJsonSuccess(data, 'Registration failed', {
                         isSuccess: function (payload) {
-                            return !!(payload && payload.success && payload.token && payload.user);
+                            return !!(payload && payload.success && payload.user);
                         }
                     });
-                    localStorage.setItem('token', authData.token);
                     NocturnalSession.persistSession(authData.user, 'doctor');
-                    const updatedUser = await updateOnboardingProfile(authData.token, profileUpdatePayload);
+                    const updatedUser = await updateOnboardingProfile(profileUpdatePayload);
                     NocturnalSession.persistSession(updatedUser, 'doctor');
                 } else {
-                    const updatedUser = await updateOnboardingProfile(existingToken, profileUpdatePayload);
+                    const updatedUser = await updateOnboardingProfile(profileUpdatePayload);
                     NocturnalSession.persistSession(updatedUser, 'doctor');
                 }
 
                 // Upload documents
-                const token = existingToken || localStorage.getItem('token');
-                await uploadDocuments(token);
+                await uploadDocuments();
 
                 showAlert('Onboarding completed successfully! Redirecting...', 'success');
 
@@ -353,7 +350,7 @@
             }
         });
 
-        async function uploadDocuments(token) {
+        async function uploadDocuments() {
             for (const [type, file] of Object.entries(uploadedFiles)) {
                 const formData = new FormData();
 
@@ -362,7 +359,6 @@
                 let requestOptions = {
                     method: 'POST',
                     parseJson: true,
-                    headers: { 'Authorization': `Bearer ${token}` },
                     body: formData
                 };
                 let result = null;

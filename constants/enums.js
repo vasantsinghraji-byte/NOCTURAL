@@ -18,6 +18,9 @@ const REGISTRATION_ROLES = ['doctor', 'nurse', 'physiotherapist', 'patient'];
 // ── Medical Specializations ────────────────────────────────────────────
 
 const SPECIALIZATIONS = [
+  'Home Healthcare',
+  'Nursing Care',
+  'Physiotherapy',
   'Internal Medicine',
   'Emergency Medicine',
   'General Surgery',

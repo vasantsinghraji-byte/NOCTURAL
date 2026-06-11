@@ -3,8 +3,6 @@
  * Allows clients to request specific fields to reduce payload size
  */
 
-const logger = require('../utils/logger');
-
 /**
  * Parse field selection from query parameter
  * Supports formats:
@@ -85,7 +83,6 @@ const buildFieldSelection = (fields, excludeSensitive = true) => {
 const fieldSelectionMiddleware = (options = {}) => {
   const {
     excludeSensitive = true,
-    allowAll = false,
     defaultFields = null
   } = options;
 
@@ -175,27 +172,35 @@ const autoFilterResponseMiddleware = (req, res, next) => {
   const originalJson = res.json.bind(res);
 
   res.json = function(data) {
+    let responseData = data;
+
     // Only filter successful responses
-    if (res.statusCode === 200 && data) {
+    if (res.statusCode === 200 && responseData) {
       // Handle paginated responses
-      if (data.data && Array.isArray(data.data)) {
-        data.data = req.fieldSelection.filterArray(data.data);
+      if (responseData.data && Array.isArray(responseData.data)) {
+        responseData = {
+          ...responseData,
+          data: req.fieldSelection.filterArray(responseData.data)
+        };
       }
       // Handle single object responses
-      else if (data.data && typeof data.data === 'object') {
-        data.data = req.fieldSelection.filterObject(data.data);
+      else if (responseData.data && typeof responseData.data === 'object') {
+        responseData = {
+          ...responseData,
+          data: req.fieldSelection.filterObject(responseData.data)
+        };
       }
       // Handle direct array responses
-      else if (Array.isArray(data)) {
-        data = req.fieldSelection.filterArray(data);
+      else if (Array.isArray(responseData)) {
+        responseData = req.fieldSelection.filterArray(responseData);
       }
       // Handle direct object responses
-      else if (typeof data === 'object' && !data.success) {
-        data = req.fieldSelection.filterObject(data);
+      else if (typeof responseData === 'object' && !responseData.success) {
+        responseData = req.fieldSelection.filterObject(responseData);
       }
     }
 
-    return originalJson(data);
+    return originalJson(responseData);
   };
 
   next();

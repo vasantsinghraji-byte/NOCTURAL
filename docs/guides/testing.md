@@ -67,7 +67,24 @@ npm run test:watch
 
 # Run tests in CI environment
 npm run test:ci
+
+# Run patient booking service tests with the default in-memory MongoDB
+npm run test:patient-booking -- -- --runInBand
 ```
+
+Patient booking service tests start an in-memory MongoDB by default. To run
+them against a real local MongoDB instead, set `PATIENT_BOOKING_TEST_DB=external`
+and provide `MONGODB_URI`, for example:
+
+```bash
+PATIENT_BOOKING_TEST_DB=external \
+MONGODB_URI=mongodb://localhost:27017/nocturnal-patient-booking-test \
+npm run test:patient-booking -- -- --runInBand
+```
+
+GitHub Actions runs these tests with `PATIENT_BOOKING_TEST_DB=external` against
+the workflow MongoDB service. That avoids MongoMemoryServer binary downloads on
+Ubuntu runners while keeping local development simple by default.
 
 ---
 
@@ -164,7 +181,7 @@ db.createUser({
 MONGODB_URI=mongodb://test_user:test_password@localhost:27017/nocturnal_test?authSource=nocturnal_test
 ```
 
-#### Option 3: Use MongoDB Memory Server (Best for CI/CD)
+#### Option 3: Use MongoDB Memory Server (Default Local Fallback)
 
 Install MongoDB Memory Server:
 ```bash

@@ -312,8 +312,8 @@
             document.getElementById('acceptedApps').textContent = stats.accepted || 0;
             document.getElementById('rejectedApps').textContent = stats.rejected || 0;
             document.getElementById('withdrawnApps').textContent = stats.withdrawn || 0;
-            document.getElementById('acceptedEarnings').textContent = `INR ${(stats.totalEarnings || 0).toLocaleString()}`;
-            document.getElementById('acceptanceRate').textContent = `${stats.acceptanceRate || 0}%`;
+            document.getElementById('acceptedEarnings').textContent = AppFormat.currencyWhole(stats.totalEarnings || 0, 'INR ');
+            document.getElementById('acceptanceRate').textContent = AppFormat.percent(stats.acceptanceRate || 0);
             document.getElementById('statsScope').textContent = displayed.scopeLabel;
         }
 
@@ -328,13 +328,13 @@
 
             container.innerHTML = applications.map(app => {
                 const duty = app.duty || {};
-                const appliedDate = new Date(app.appliedAt || app.createdAt).toLocaleDateString('en-IN', {
+                const appliedDate = AppFormat.date(app.appliedAt || app.createdAt, 'en-IN', {
                     day: 'numeric',
                     month: 'short',
                     year: 'numeric'
                 });
                 const dutyDate = duty.date
-                    ? new Date(duty.date).toLocaleDateString('en-IN', {
+                    ? AppFormat.date(duty.date, 'en-IN', {
                         day: 'numeric',
                         month: 'short',
                         year: 'numeric'
@@ -369,7 +369,7 @@
                             </div>
                             <div class="detail-item">
                                 <span class="icon">💰</span>
-                                <span>₹${duty.pay?.toLocaleString() || '0'}</span>
+                                <span>${AppFormat.currencyWhole(duty.pay || 0)}</span>
                             </div>
                         </div>
 
@@ -581,3 +581,4 @@
                 }
             });
         }
+

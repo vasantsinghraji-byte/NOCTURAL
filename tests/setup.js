@@ -6,6 +6,8 @@
 // Set test environment
 process.env.NODE_ENV = process.env.NODE_ENV || 'test';
 process.env.PORT = process.env.PORT || '5001'; // Different port for tests
+process.env.DOTENV_CONFIG_QUIET = process.env.DOTENV_CONFIG_QUIET || 'true';
+process.env.NOCTURNAL_TEST_LOGS = process.env.NOCTURNAL_TEST_LOGS || '0';
 
 // Test database configuration (no auth for test DB)
 process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nocturnal_test';

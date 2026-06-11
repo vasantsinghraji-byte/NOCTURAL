@@ -43,6 +43,9 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      - name: Check ESLint warning budget
+        run: npm run lint:warning-budget
+
   # Unit & Integration Tests
   test:
     name: Run Tests
@@ -86,6 +89,8 @@ jobs:
           CI_RAZORPAY_KEY_ID: ${{ secrets.CI_RAZORPAY_KEY_ID }}
           CI_RAZORPAY_KEY_SECRET: ${{ secrets.CI_RAZORPAY_KEY_SECRET }}
         run: |
+          DEFAULT_JWT_SECRET="ci-test-jwt-secret-placeholder-for-actions-only-not-a-real-secret-0001"
+          DEFAULT_ENCRYPTION_KEY="$(printf 'a%.0s' {1..64})"
           cat > .env.test <<EOF
           NODE_ENV=test
           PORT=5001
@@ -174,8 +179,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      - name: Check for vulnerabilities
-        run: npm audit --omit=dev --audit-level=high || true
+      - name: Check production dependency vulnerabilities
+        run: npm audit --omit=dev --audit-level=moderate
+
+      - name: Install client dependencies
+        run: npm --prefix client ci --include=dev --ignore-scripts
+
+      - name: Check client dev-tooling vulnerabilities
+        run: npm --prefix client audit --audit-level=moderate
 
       - name: Run auth security gate
         run: npm run test:security-gate

@@ -2,8 +2,11 @@
  * Script to replace hardcoded constants with centralized constant imports
  */
 
-const fs = require('fs');
 const path = require('path');
+
+const projectFs = require('./lib/projectFs');
+
+const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 // Patterns to find and replace
 const replacements = {
@@ -53,7 +56,7 @@ const filesToProcess = [
   'controllers/dutyController.js'
 ];
 
-function addImportIfMissing(content, filePath) {
+function addImportIfMissing(content) {
   // Check if constants are already imported
   if (content.includes("require('../constants')") || content.includes("require('./constants')")) {
     console.log(`  ⏭  Constants already imported`);
@@ -109,16 +112,16 @@ function replaceConstants(content) {
 function processFile(filePath) {
   console.log(`\n📝 Processing: ${filePath}`);
 
-  if (!fs.existsSync(filePath)) {
+  if (!projectFs.pathExistsSync(PROJECT_ROOT, filePath)) {
     console.log(`  ❌ File not found: ${filePath}`);
     return false;
   }
 
-  let content = fs.readFileSync(filePath, 'utf8');
+  let content = projectFs.readTextFileSync(PROJECT_ROOT, filePath);
   const original = content;
 
   // Add import
-  content = addImportIfMissing(content, filePath);
+  content = addImportIfMissing(content);
 
   // Replace constants
   const { content: newContent, changes } = replaceConstants(content);
@@ -126,13 +129,13 @@ function processFile(filePath) {
   if (newContent !== original) {
     // Create backup
     const backupPath = filePath + '.before-constants';
-    if (!fs.existsSync(backupPath)) {
-      fs.writeFileSync(backupPath, original);
+    if (!projectFs.pathExistsSync(PROJECT_ROOT, backupPath)) {
+      projectFs.writeTextFileSync(PROJECT_ROOT, backupPath, original);
       console.log(`  💾 Created backup: ${path.basename(backupPath)}`);
     }
 
     // Write modified file
-    fs.writeFileSync(filePath, newContent);
+    projectFs.writeTextFileSync(PROJECT_ROOT, filePath, newContent);
     console.log(`  ✨ Replaced ${changes} hardcoded constants`);
     return true;
   } else {

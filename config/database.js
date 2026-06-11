@@ -1,10 +1,12 @@
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 const monitoring = require('../utils/monitoring');
+const idempotencyIndexes = require('./idempotencyIndexes');
 
 const RECONNECT_INTERVAL = 5000; // 5 seconds
 const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
 const MAX_RECONNECT_ATTEMPTS = 10;
+const IDEMPOTENCY_TTL_SECONDS = parseInt(process.env.IDEMPOTENCY_TTL_SECONDS, 10) || 86400;
 
 let isConnected = false;
 let reconnectAttempts = 0;
@@ -19,6 +21,70 @@ let connectionMetrics = {
   lastHealthCheck: null,
   lastReconnectAttempt: null,
   errors: []
+};
+
+const ensureIdempotencyIndexes = async () => {
+  const collection = mongoose.connection.db.collection('idempotencykeys');
+
+  try {
+    // Creating this first also creates the collection on a fresh environment.
+    await collection.createIndex({ scope: 1 }, {
+      name: 'scope_unique_idx',
+      unique: true,
+      background: true
+    });
+
+    const existingIndexes = await collection.indexes();
+    const existingTtlIndex = existingIndexes.find((index) => index.name === 'idempotency_ttl_idx');
+
+    // MongoDB rejects createIndex when the same named TTL index exists with a
+    // different expiry. Change TTL intentionally with collMod or the index
+    // migration script before deploying a new IDEMPOTENCY_TTL_SECONDS value.
+    if (existingTtlIndex && existingTtlIndex.expireAfterSeconds !== IDEMPOTENCY_TTL_SECONDS) {
+      throw new Error(
+        `idempotency_ttl_idx retention mismatch: expected ${IDEMPOTENCY_TTL_SECONDS}, ` +
+        `found ${existingTtlIndex.expireAfterSeconds}; update it with collMod before deployment`
+      );
+    }
+
+    if (!existingTtlIndex) {
+      await collection.createIndex({ createdAt: 1 }, {
+        name: 'idempotency_ttl_idx',
+        expireAfterSeconds: IDEMPOTENCY_TTL_SECONDS,
+        background: true
+      });
+    }
+
+    const indexes = await collection.indexes();
+    const scopeIndex = indexes.find((index) => index.name === 'scope_unique_idx');
+    const ttlIndex = indexes.find((index) => index.name === 'idempotency_ttl_idx');
+
+    if (!scopeIndex?.unique || ttlIndex?.expireAfterSeconds !== IDEMPOTENCY_TTL_SECONDS) {
+      throw new Error('Idempotency index verification failed');
+    }
+
+    idempotencyIndexes.markReady();
+    logger.info('Idempotency indexes verified', {
+      uniqueScope: true,
+      retentionSeconds: IDEMPOTENCY_TTL_SECONDS
+    });
+  } catch (error) {
+    idempotencyIndexes.markUnavailable(error);
+    throw error;
+  }
+};
+
+const verifyIdempotencyIndexesAvailability = async () => {
+  try {
+    await ensureIdempotencyIndexes();
+  } catch (error) {
+    logger.error('Idempotency indexes unavailable; protected mutations disabled', {
+      error: error.message
+    });
+    monitoring.triggerAlert('idempotency_indexes_unavailable', {
+      error: error.message
+    });
+  }
 };
 
 // Helper function to update connection metrics
@@ -98,6 +164,10 @@ const startHealthCheck = () => {
       });
     }
   }, HEALTH_CHECK_INTERVAL);
+
+  if (typeof healthCheckIntervalId.unref === 'function') {
+    healthCheckIntervalId.unref();
+  }
 };
 
 const stopHealthCheck = () => {
@@ -117,6 +187,10 @@ const scheduleReconnect = () => {
     reconnectTimeoutId = null;
     connectDB();
   }, backoffTime);
+
+  if (typeof reconnectTimeoutId.unref === 'function') {
+    reconnectTimeoutId.unref();
+  }
 };
 
 const initializeConnectionMonitoring = () => {
@@ -152,6 +226,7 @@ const initializeConnectionMonitoring = () => {
 
   mongoose.connection.on('disconnected', () => {
     isConnected = false;
+    idempotencyIndexes.markUnavailable('MongoDB disconnected');
     connectionMetrics.lastReconnectAttempt = new Date();
 
     logger.warn('MongoDB disconnected', {
@@ -177,10 +252,11 @@ const initializeConnectionMonitoring = () => {
     });
   });
 
-  mongoose.connection.on('reconnected', () => {
+  mongoose.connection.on('reconnected', async () => {
     isConnected = true;
     reconnectAttempts = 0;
     updateConnectionMetrics();
+    await verifyIdempotencyIndexesAvailability();
 
     logger.info('MongoDB reconnected', {
       metrics: connectionMetrics
@@ -218,6 +294,8 @@ const connectDB = async () => {
     };
 
     await mongoose.connect(process.env.MONGODB_URI, options);
+
+    await verifyIdempotencyIndexesAvailability();
 
     isConnected = true;
     reconnectAttempts = 0; // Reset reconnect attempts on successful connection
@@ -278,6 +356,8 @@ module.exports = {
   isConnected: () => isConnected,
   getConnectionStatus,
   checkDatabaseHealth,
+  ensureIdempotencyIndexes,
+  verifyIdempotencyIndexesAvailability,
   // Export connection events for external monitoring
   events: {
     HEALTH_CHECK_INTERVAL,

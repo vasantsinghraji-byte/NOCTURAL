@@ -8,7 +8,6 @@
  */
 
 const mongoose = require('mongoose');
-const { encrypt, decrypt } = require('../utils/encryption');
 const {
   RECORD_TYPES,
   RECORD_STATUS,

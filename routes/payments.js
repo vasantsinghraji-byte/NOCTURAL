@@ -1,15 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { protect, authorize } = require('../middleware/auth');
-const {
-  paymentValidation,
-  validateMongoId,
-  validate,
-  sanitizeInput
-} = require('../middleware/validation');
+const { protect } = require('../middleware/auth');
+const { sanitizeInput } = require('../middleware/validation');
 const Payment = require('../models/payment');
 const Duty = require('../models/duty');
 const User = require('../models/user');
+const logger = require('../utils/logger');
 
 // Apply input sanitization to all routes
 router.use(sanitizeInput);
@@ -30,7 +26,7 @@ router.get('/earnings', protect, async (req, res) => {
       data: earnings
     });
   } catch (error) {
-    console.error('Error fetching earnings:', error);
+    logger.error('Error fetching earnings', { error: error.message, userId: req.user?._id });
     res.status(500).json({ success: false, message: 'Error fetching earnings', error: error.message });
   }
 });
@@ -50,7 +46,7 @@ router.get('/earnings/monthly/:year', protect, async (req, res) => {
       data: monthlyEarnings
     });
   } catch (error) {
-    console.error('Error fetching monthly earnings:', error);
+    logger.error('Error fetching monthly earnings', { error: error.message, userId: req.user?._id, year: req.params.year });
     res.status(500).json({ success: false, message: 'Error fetching monthly earnings', error: error.message });
   }
 });
@@ -93,7 +89,7 @@ router.get('/history', protect, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching payment history:', error);
+    logger.error('Error fetching payment history', { error: error.message, userId: req.user?._id });
     res.status(500).json({ success: false, message: 'Error fetching payment history', error: error.message });
   }
 });
@@ -123,7 +119,7 @@ router.get('/:id', protect, async (req, res) => {
       data: payment
     });
   } catch (error) {
-    console.error('Error fetching payment:', error);
+    logger.error('Error fetching payment', { error: error.message, userId: req.user?._id, paymentId: req.params.id });
     res.status(500).json({ success: false, message: 'Error fetching payment', error: error.message });
   }
 });
@@ -204,7 +200,7 @@ router.post('/', protect, async (req, res) => {
       data: payment
     });
   } catch (error) {
-    console.error('Error creating payment:', error);
+    logger.error('Error creating payment', { error: error.message, userId: req.user?._id });
     res.status(500).json({ success: false, message: 'Error creating payment', error: error.message });
   }
 });
@@ -256,7 +252,7 @@ router.put('/:id/status', protect, async (req, res) => {
       data: payment
     });
   } catch (error) {
-    console.error('Error updating payment:', error);
+    logger.error('Error updating payment', { error: error.message, userId: req.user?._id, paymentId: req.params.id });
     res.status(500).json({ success: false, message: 'Error updating payment', error: error.message });
   }
 });
@@ -282,7 +278,7 @@ router.get('/pending/list', protect, async (req, res) => {
       data: pendingPayments
     });
   } catch (error) {
-    console.error('Error fetching pending payments:', error);
+    logger.error('Error fetching pending payments', { error: error.message, userId: req.user?._id });
     res.status(500).json({ success: false, message: 'Error fetching pending payments', error: error.message });
   }
 });

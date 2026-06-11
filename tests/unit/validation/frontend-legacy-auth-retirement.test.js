@@ -1,9 +1,6 @@
-const fs = require('fs');
 const path = require('path');
 
-const rootDir = path.resolve(__dirname, '..', '..', '..');
-
-const readProjectFile = (relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+const { projectPathExists, readProjectFile } = require('./projectFileReader');
 const retiredProviderPrefix = ['fire', 'base'].join('');
 const retiredProviderConfig = `${retiredProviderPrefix}-config.js`;
 const retiredAuthGlobal = `window.${retiredProviderPrefix}Auth`;
@@ -85,15 +82,14 @@ describe('Frontend Legacy Auth Retirement', () => {
   });
 
   it('should remove legacy auth frontend stubs from served assets', () => {
-    expect(fs.existsSync(path.join(rootDir, 'client/public/app.js'))).toBe(false);
-    expect(fs.existsSync(path.join(rootDir, 'client/public', retiredProviderConfig))).toBe(false);
+    expect(projectPathExists('client/public/app.js')).toBe(false);
+    expect(projectPathExists(path.join('client/public', retiredProviderConfig))).toBe(false);
   });
 
   it('should keep the webpack pipeline off deprecated legacy-auth entrypoints', () => {
     expect(webpackConfigSrc).not.toContain("./public/app.js");
     expect(webpackConfigSrc).not.toContain(`./public/${retiredProviderConfig}`);
-    expect(webpackConfigSrc).toContain("./public/js/config.js");
-    expect(webpackConfigSrc).toContain("chunks: ['main', 'api']");
+    expect(webpackConfigSrc).toContain("require('./webpack.config.simple')");
 
     expect(webpackSimpleConfigSrc).not.toContain("public/app.js");
     expect(webpackSimpleConfigSrc).toContain("public/js/config.js");

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Waitlist - Nocturnal Admin</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/css/pages/roles-admin-admin-waitlist.css">
+    <script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/admin-session.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Nocturnal Admin</div>
+        <div class="nav-links">
+            <a href="/roles/admin/admin-dashboard.html">Dashboard</a>
+            <a href="/roles/admin/admin-post-duty.html">Post Duty</a>
+            <a href="/roles/admin/admin-applications.html">Applications</a>
+            <a href="/roles/admin/admin-analytics.html">Analytics</a>
+            <a href="/roles/admin/admin-waitlist.html" class="active">Waitlist</a>
+            <a href="/roles/admin/admin-settings.html">Settings</a>
+            <a href="/roles/admin/admin-profile.html">Profile</a>
+        </div>
+    </nav>
+
+    <main>
+        <header>
+            <div>
+                <h1>Hospital Waitlist</h1>
+                <p>Filter, export, and mark B2B pilot leads as contacted.</p>
+            </div>
+            <button id="exportBtn" type="button">Export CSV</button>
+        </header>
+
+        <div id="error" class="error"></div>
+
+        <section class="filters" aria-label="Waitlist filters">
+            <select id="statusFilter">
+                <option value="">All statuses</option>
+                <option value="new">New</option>
+                <option value="contacted">Contacted</option>
+                <option value="qualified">Qualified</option>
+                <option value="closed">Closed</option>
+            </select>
+            <select id="facilityTypeFilter">
+                <option value="">All facility types</option>
+                <option value="hospital">Hospital</option>
+                <option value="tertiary_care">Tertiary care centre</option>
+                <option value="clinic">Clinic</option>
+                <option value="care_centre">Care centre</option>
+                <option value="other">Other</option>
+            </select>
+            <input id="cityFilter" type="search" placeholder="City">
+            <button id="filterBtn" type="button">Apply Filters</button>
+        </section>
+
+        <section id="summary" class="summary" aria-label="Waitlist summary"></section>
+
+        <section class="charts-grid" aria-label="Funnel analytics charts">
+            <div class="chart-card">
+                <h2>Daily Funnel Events</h2>
+                <div class="chart-frame">
+                    <canvas id="funnelDailyChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h2>Event Totals</h2>
+                <div id="funnelTotals"></div>
+            </div>
+        </section>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Facility</th>
+                    <th>Contact</th>
+                    <th>Location</th>
+                    <th>Need</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="waitlistRows"></tbody>
+        </table>
+    </main>
+
+    <script src="/js/admin-waitlist.js"></script>
+</body>
+</html>

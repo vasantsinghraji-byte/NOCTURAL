@@ -1,9 +1,11 @@
-const fs = require('fs');
 const path = require('path');
 
-const rootDir = path.resolve(__dirname, '..', '..', '..');
-
-const readProjectFile = (relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+const {
+  listProjectFiles,
+  projectPathExists,
+  readProjectFile,
+  rootDir
+} = require('./projectFileReader');
 
 const doctorProfileEnhancedScriptSrc = readProjectFile('client/public/js/doctor-profile-enhanced.js');
 const doctorOnboardingScriptSrc = readProjectFile('client/public/js/doctor-onboarding.js');
@@ -14,11 +16,12 @@ const configSrc = readProjectFile('client/public/js/config.js');
 const authServiceSrc = readProjectFile('services/authService.js');
 const authValidatorSrc = readProjectFile('validators/authValidator.js');
 const listFilesRecursive = (directoryPath) => {
-  if (!fs.existsSync(directoryPath)) {
+  const relativeDirectoryPath = path.relative(rootDir, directoryPath);
+  if (!projectPathExists(relativeDirectoryPath)) {
     return [];
   }
 
-  return fs.readdirSync(directoryPath, { withFileTypes: true }).flatMap((entry) => {
+  return listProjectFiles(relativeDirectoryPath, { withFileTypes: true }).flatMap((entry) => {
     const entryPath = path.join(directoryPath, entry.name);
 
     if (entry.isDirectory()) {
@@ -57,7 +60,8 @@ describe('Frontend Final Contract Closures', () => {
     expect(doctorOnboardingScriptSrc).toContain('agreeToTerms: true');
     expect(doctorOnboardingScriptSrc).toContain('const profileUpdatePayload = buildProfileUpdatePayload();');
     expect(doctorOnboardingScriptSrc).toContain('onboardingCompleted: true');
-    expect(doctorOnboardingScriptSrc).toContain("'Authorization': `Bearer ${token}`");
+    expect(doctorOnboardingScriptSrc).toContain("AppConfig.fetchRoute('auth.me'");
+    expect(doctorOnboardingScriptSrc).toContain("'Content-Type': 'application/json'");
 
     expect(authServiceSrc).toContain("'licenseNumber'");
     expect(authServiceSrc).toContain("'bankDetails'");
@@ -115,7 +119,7 @@ describe('Frontend Final Contract Closures', () => {
       'client/public/roles/patient/payments-dashboard.html',
       'client/public/js/patient-payments-dashboard.js'
     ].forEach((relativePath) => {
-      expect(fs.existsSync(path.join(rootDir, relativePath))).toBe(false);
+      expect(projectPathExists(relativePath)).toBe(false);
     });
   });
 

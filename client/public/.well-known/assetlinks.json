@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.onrender.nocturnal_frontend_208z.twa",
+    "sha256_cert_fingerprints": ["95:E1:98:CD:7D:F4:F5:42:1A:8E:4F:37:F2:C7:56:6C:0E:1D:6B:AE:C1:3E:04:4C:AF:6F:96:39:C9:CA:66:A8"]
+  }
+}]

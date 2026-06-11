@@ -12,10 +12,11 @@
 
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-const { fromBuffer } = require('file-type');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const localFileSystem = require('../utils/localFileSystem');
+const { roundToDecimals } = require('../utils/number');
+const { detectFileTypeFromBuffer } = require('../utils/fileTypeDetector');
 
 // User upload quota (5MB per file, 50MB total per user)
 const QUOTA_LIMITS = {
@@ -36,26 +37,26 @@ const ALLOWED_TYPES = {
  */
 function sanitizeFilename(filename) {
   // Remove any path components
-  filename = path.basename(filename);
+  let sanitizedFilename = path.basename(filename);
 
   // Remove special characters except . - _
-  filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  sanitizedFilename = sanitizedFilename.replace(/[^a-zA-Z0-9._-]/g, '_');
 
   // Prevent double extensions (e.g., file.pdf.exe)
-  const parts = filename.split('.');
+  const parts = sanitizedFilename.split('.');
   if (parts.length > 2) {
     const ext = parts.pop();
-    filename = parts.join('_') + '.' + ext;
+    sanitizedFilename = parts.join('_') + '.' + ext;
   }
 
   // Limit length
-  if (filename.length > 255) {
-    const ext = path.extname(filename);
-    const name = filename.slice(0, 200);
-    filename = name + ext;
+  if (sanitizedFilename.length > 255) {
+    const ext = path.extname(sanitizedFilename);
+    const name = sanitizedFilename.slice(0, 200);
+    sanitizedFilename = name + ext;
   }
 
-  return filename;
+  return sanitizedFilename;
 }
 
 /**
@@ -81,11 +82,11 @@ async function checkUserQuota(userId) {
 
     // Recursively calculate user's total upload size
     const calculateUserFiles = (dir) => {
-      const files = fs.readdirSync(dir);
+      const files = localFileSystem.readdirSync(dir);
 
       files.forEach(file => {
         const filePath = path.join(dir, file);
-        const stat = fs.statSync(filePath);
+        const stat = localFileSystem.statSync(filePath);
 
         if (stat.isDirectory()) {
           calculateUserFiles(filePath);
@@ -96,7 +97,7 @@ async function checkUserQuota(userId) {
       });
     }
 
-    if (fs.existsSync(uploadsDir)) {
+    if (localFileSystem.existsSync(uploadsDir)) {
       calculateUserFiles(uploadsDir);
     }
 
@@ -120,8 +121,8 @@ async function checkUserQuota(userId) {
 async function validateImageDimensions(filePath) {
   try {
     // Use async file operations (non-blocking)
-    const stats = await fs.promises.stat(filePath);
-    const buffer = await fs.promises.readFile(filePath);
+    const stats = await localFileSystem.stat(filePath);
+    const buffer = await localFileSystem.readFile(filePath);
 
     // Check for potential zip bomb (compressed size much smaller than expected)
     if (buffer.length < 1000 && stats.size > 100000) {
@@ -145,7 +146,7 @@ async function scanFile(filePath) {
   // In production, integrate with ClamAV, VirusTotal, or similar
 
   try {
-    const stats = fs.statSync(filePath);
+    const stats = localFileSystem.statSync(filePath);
 
     // Basic checks
     if (stats.size === 0) {
@@ -191,7 +192,7 @@ const storage = multer.diskStorage({
 
     // Ensure directory exists (async)
     const fullPath = path.join(__dirname, '..', uploadPath);
-    fs.promises.mkdir(fullPath, { recursive: true })
+    localFileSystem.mkdirAsync(fullPath, { recursive: true })
       .then(() => cb(null, uploadPath))
       .catch(err => {
         // Directory might already exist, that's OK
@@ -308,11 +309,11 @@ const validateFileTypeEnhanced = async (req, res, next) => {
       const filePath = file.path;
 
       // 1. Magic number validation (async)
-      const buffer = await fs.promises.readFile(filePath);
-      const fileTypeResult = await fromBuffer(buffer);
+      const buffer = await localFileSystem.readFile(filePath);
+      const fileTypeResult = await detectFileTypeFromBuffer(buffer);
 
       if (!fileTypeResult || !ALLOWED_TYPES[fileTypeResult.mime]) {
-        await fs.promises.unlink(filePath).catch(console.error);
+        await localFileSystem.unlink(filePath).catch(err => logger.warn('Failed to delete invalid upload', { path: filePath, error: err.message }));
         logger.logSecurity('magic_number_validation_failed', {
           filename: file.filename,
           detectedType: fileTypeResult?.mime,
@@ -328,7 +329,7 @@ const validateFileTypeEnhanced = async (req, res, next) => {
       if (fileTypeResult.mime.startsWith('image/')) {
         const dimensionCheck = await validateImageDimensions(filePath);
         if (!dimensionCheck.valid) {
-          await fs.promises.unlink(filePath).catch(console.error);
+          await localFileSystem.unlink(filePath).catch(err => logger.warn('Failed to delete invalid image upload', { path: filePath, error: err.message }));
           logger.logSecurity('image_validation_failed', {
             filename: file.filename,
             reason: dimensionCheck.reason,
@@ -344,7 +345,7 @@ const validateFileTypeEnhanced = async (req, res, next) => {
       // 3. Scan for malicious content
       const scanResult = await scanFile(filePath);
       if (!scanResult.clean) {
-        await fs.promises.unlink(filePath).catch(console.error);
+        await localFileSystem.unlink(filePath).catch(err => logger.warn('Failed to delete unsafe upload', { path: filePath, error: err.message }));
         logger.logSecurity('file_scan_failed', {
           filename: file.filename,
           reason: scanResult.reason,
@@ -376,10 +377,13 @@ const validateFileTypeEnhanced = async (req, res, next) => {
     // Clean up uploaded files on error (async)
     const files = req.file ? [req.file] : req.files ? Object.values(req.files).flat() : [];
     await Promise.all(files.map(file =>
-      fs.promises.unlink(file.path).catch(err => {
+      localFileSystem.unlink(file.path).catch(err => {
         // File might not exist, that's OK
         if (err.code !== 'ENOENT') {
-          console.error(`Failed to delete file ${file.path}:`, err);
+          logger.warn('Failed to delete uploaded file after validation error', {
+            path: file.path,
+            error: err.message
+          });
         }
       })
     ));
@@ -422,8 +426,8 @@ async function getUserQuotaInfo(req, res) {
         files: quota.remainingFiles
       },
       percentUsed: {
-        size: ((quota.totalSize / QUOTA_LIMITS.maxTotalSize) * 100).toFixed(1),
-        files: ((quota.fileCount / QUOTA_LIMITS.maxFiles) * 100).toFixed(1)
+        size: roundToDecimals((quota.totalSize / QUOTA_LIMITS.maxTotalSize) * 100, 1),
+        files: roundToDecimals((quota.fileCount / QUOTA_LIMITS.maxFiles) * 100, 1)
       }
     }
   });

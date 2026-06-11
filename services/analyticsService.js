@@ -8,7 +8,6 @@
 const { DoctorAnalytics, HospitalAnalytics } = require('../models/analytics');
 const Application = require('../models/application');
 const Duty = require('../models/duty');
-const User = require('../models/user');
 const logger = require('../utils/logger');
 const { HTTP_STATUS } = require('../constants');
 

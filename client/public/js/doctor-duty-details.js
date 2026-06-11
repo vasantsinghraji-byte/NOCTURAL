@@ -64,7 +64,7 @@
 
         // Display duty details
         function displayDutyDetails(duty, isApplied) {
-            const date = new Date(duty.date).toLocaleDateString('en-IN', { 
+            const date = AppFormat.date(duty.date, 'en-IN', { 
                 weekday: 'long',
                 day: 'numeric', 
                 month: 'long', 
@@ -92,7 +92,7 @@
                             <div class="detail-box">
                                 <div class="icon">💰</div>
                                 <div class="label">Payment</div>
-                                <div class="value pay">₹${duty.pay?.toLocaleString() || '0'}</div>
+                                <div class="value pay">${AppFormat.currencyWhole(duty.pay || 0)}</div>
                             </div>
                             <div class="detail-box">
                                 <div class="icon">📅</div>

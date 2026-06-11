@@ -19,7 +19,7 @@
             // All day checkbox handler
             document.getElementById('allDay').addEventListener('change', function() {
                 const timeFields = document.getElementById('timeFields');
-                timeFields.style.display = this.checked ? 'none' : 'block';
+                AppUi.setDisplay(timeFields, this.checked ? 'none' : 'block');
             });
         });
 
@@ -50,12 +50,8 @@
 
         async function loadCalendarEvents() {
             try {
-                const token = localStorage.getItem('token');
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('calendar.events', {
-                    parseJson: true,
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    parseJson: true
                 }), 'Failed to load calendar events');
                 allEvents = Array.isArray(data.data) ? data.data : [];
                 renderEvents();
@@ -128,7 +124,7 @@
             });
 
             warningsList.innerHTML = html;
-            warningsCard.style.display = 'block';
+            AppUi.setDisplay(warningsCard, 'block');
         }
 
         async function loadMonthStats() {
@@ -166,7 +162,7 @@
             let html = `
                 <h2>${event.title}</h2>
                 <p><strong>Type:</strong> ${props.eventType.replace(/_/g, ' ')}</p>
-                <p><strong>Date:</strong> ${new Date(event.start).toLocaleDateString()}</p>
+                <p><strong>Date:</strong> ${AppFormat.date(event.start)}</p>
             `;
 
             if (props.description) {
@@ -186,7 +182,7 @@
             }
 
             if (props.conflicts && props.conflicts.length > 0) {
-                html += '<h3 style="color: var(--danger); margin-top: 20px;">Conflicts</h3>';
+                html += '<h3 class="conflicts-heading">Conflicts</h3>';
                 html += '<div class="conflict-list">';
                 props.conflicts.forEach(conflict => {
                     html += `<div class="conflict-item">${conflict.message}</div>`;
@@ -199,26 +195,25 @@
             }
 
             content.innerHTML = html;
-            modal.style.display = 'block';
+            AppUi.setDisplay(modal, 'block');
         }
 
         function openAddEventModal() {
-            document.getElementById('addEventModal').style.display = 'block';
+            AppUi.setDisplay(document.getElementById('addEventModal'), 'block');
         }
 
         function closeAddEventModal() {
-            document.getElementById('addEventModal').style.display = 'none';
+            AppUi.setDisplay(document.getElementById('addEventModal'), 'none');
             document.getElementById('addEventForm').reset();
         }
 
         function closeEventDetailsModal() {
-            document.getElementById('eventDetailsModal').style.display = 'none';
+            AppUi.setDisplay(document.getElementById('eventDetailsModal'), 'none');
         }
 
         document.getElementById('addEventForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const token = localStorage.getItem('token');
             const allDay = document.getElementById('allDay').checked;
 
             const eventData = {
@@ -240,7 +235,6 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(eventData)

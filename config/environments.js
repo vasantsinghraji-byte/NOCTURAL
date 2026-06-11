@@ -22,7 +22,7 @@ const path = require('path');
 const dotenv = require('dotenv');
 
 // Load single .env file (contains all secrets)
-dotenv.config();
+dotenv.config({ quiet: process.env.NODE_ENV === 'test' });
 
 // Determine current environment from loaded .env or system
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -351,7 +351,7 @@ const config = getConfig();
 try {
     validateConfig(config);
 } catch (error) {
-    console.error('Configuration Error:', error.message);
+    process.stderr.write(`Configuration Error: ${error.message}\n`);
     process.exit(1);
 }
 

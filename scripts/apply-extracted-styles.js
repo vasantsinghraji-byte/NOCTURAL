@@ -2,15 +2,18 @@
  * Apply extracted styles - replaces original HTML files with modularized versions
  */
 
-const fs = require('fs');
+const path = require('path');
 
-const results = JSON.parse(fs.readFileSync('style-extraction-results.json', 'utf8'));
+const projectFs = require('./lib/projectFs');
+
+const PROJECT_ROOT = path.resolve(__dirname, '..');
+const results = JSON.parse(projectFs.readTextFileSync(PROJECT_ROOT, 'style-extraction-results.json'));
 
 console.log('📝 Applying extracted styles to HTML files...\n');
 
 results.forEach(result => {
   // Write the modified HTML
-  fs.writeFileSync(result.original, result.modified);
+  projectFs.writeTextFileSync(PROJECT_ROOT, result.original, result.modified);
   console.log(`✅ Applied: ${result.original}`);
 });
 

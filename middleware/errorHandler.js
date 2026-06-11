@@ -1,5 +1,12 @@
-const errorHandler = (err, req, res, next) => {
-  console.error(err);
+const logger = require('../utils/logger');
+
+const errorHandler = (err, req, res, _next) => {
+  logger.error('Unhandled middleware error', {
+    error: err.message,
+    stack: err.stack,
+    url: req.originalUrl,
+    method: req.method
+  });
 
   let error = { ...err };
   error.message = err.message;

@@ -6,8 +6,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest --coverage",
-    "test:unit": "jest tests/unit --coverage",
+    "test": "jest",
+    "test:unit": "jest tests/unit",
+    "test:coverage": "jest --coverage",
     "test:integration": "jest tests/integration",
     "test:e2e": "jest tests/e2e",
     "test:watch": "jest --watch",
@@ -25,20 +26,21 @@
   "license": "ISC",
   "dependencies": {
     "@nocturnal/shared": "1.0.0",
-    "express": "^5.1.0",
-    "mongoose": "^8.0.3",
-    "dotenv": "^16.3.1",
-    "bcryptjs": "^3.0.2",
-    "cors": "^2.8.5",
     "amqplib": "^0.10.3",
     "axios": "^1.6.5",
-    "joi": "^17.11.0"
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^5.1.0",
+    "joi": "^17.11.0",
+    "mongoose": "^8.0.3"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
-    "nodemon": "^3.0.2",
-    "supertest": "^6.3.3",
+    "@types/jest": "^29.5.11",
     "eslint": "^8.56.0",
-    "@types/jest": "^29.5.11"
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^9.1.5",
+    "nodemon": "^3.0.2",
+    "supertest": "^6.3.3"
   }
 }

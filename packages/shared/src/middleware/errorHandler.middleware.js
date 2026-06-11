@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
  * Enhanced Error Handler Middleware
  * Handles various error types and provides consistent error responses
  */
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, _next) => {
   logger.error('Error handler caught error', {
     error: err.message,
     stack: err.stack,

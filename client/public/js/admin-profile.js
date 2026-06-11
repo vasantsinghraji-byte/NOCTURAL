@@ -8,7 +8,6 @@ if (typeof AppConfig === 'undefined') {
   console.error('admin-profile.js: AppConfig not loaded - ensure config.js is included before this script');
 }
 
-var isEditing = false;
 var originalData = {};
 
 function formatLocationValue(location) {
@@ -87,11 +86,10 @@ async function loadProfile() {
 }
 
 function toggleEditMode(editing) {
-  isEditing = editing;
-
   var formInputs = document.querySelectorAll('#profileForm input, #profileForm textarea');
   formInputs.forEach(function (input) {
-    input.disabled = !editing;
+    var formInput = input;
+    formInput.disabled = !editing;
   });
 
   document.getElementById('editBtn').classList.toggle('is-hidden', editing);
