@@ -43,6 +43,11 @@ const v1Routes = require('./routes/v1');
 // Import error handler
 const errorHandler = require('./middleware/errorHandler');
 
+// Request correlation ID, centralized request limits, and safe response wrapping
+const requestId = require('./middleware/requestId');
+const { MAX_CONTENT_LENGTH } = require('./config/requestLimits');
+const { wrapResponseMethod } = require('./utils/responseOverride');
+
 const app = express();
 
 // Render and similar managed platforms terminate TLS and forward client IPs
@@ -64,6 +69,10 @@ const isHealthCheckPath = (req) => {
   const requestPath = (req.originalUrl || req.path || '').split('?')[0];
   return requestPath === '/api/v1/health' || requestPath === '/api/health';
 };
+
+// Request correlation ID — assign/propagate X-Request-Id before anything else so
+// every downstream log and response carries a stable identifier.
+app.use(requestId);
 
 // 0. Global request timeout — prevent stalled requests from holding connections open
 const REQUEST_TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT_MS) || 30000; // 30 seconds default
@@ -157,8 +166,10 @@ if (!isTest) {
   app.use('/api/v1/security', strictRateLimiter);
 }
 
-// Reject oversized requests early — refuse to read bodies larger than allowed
-const MAX_CONTENT_LENGTH = parseInt(process.env.MAX_CONTENT_LENGTH) || 1048576; // 1MB default
+// Reject oversized requests early — refuse to read bodies larger than allowed.
+// MAX_CONTENT_LENGTH is sourced from config/requestLimits.js (env-overridable via
+// MAX_CONTENT_LENGTH, default 10MB) so this global guard no longer rejects
+// legitimate uploads that sit below the multer file-size cap.
 app.use((req, res, next) => {
   const contentLength = parseInt(req.headers['content-length'], 10);
   if (contentLength && contentLength > MAX_CONTENT_LENGTH) {
@@ -213,14 +224,16 @@ if (!isTest) {
   app.use((req, res, next) => {
     req.startTime = Date.now();
 
-    const originalEnd = res.end;
-
-    res.end = function() {
-      const responseTime = Date.now() - req.startTime;
-      req.responseTime = responseTime;
-      metricsRouter.recordRequest(req, res.statusCode === 429);
-      originalEnd.apply(res, arguments);
-    };
+    // Wrap res.end so request metrics are recorded even if tracking throws,
+    // rather than letting an error in the override break the response.
+    wrapResponseMethod(res, 'end', {
+      req,
+      errorMessage: 'Request tracking failed',
+      beforeCall: () => {
+        req.responseTime = Date.now() - req.startTime;
+        metricsRouter.recordRequest(req, res.statusCode === 429);
+      }
+    });
 
     next();
   });
