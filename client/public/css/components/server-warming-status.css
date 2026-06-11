@@ -1,0 +1,18 @@
+.server-warming-status {
+    position: fixed;
+    z-index: 10000;
+    right: 1rem;
+    bottom: 1rem;
+    max-width: min(24rem, calc(100vw - 2rem));
+    padding: 0.75rem 1rem;
+    border: 1px solid #93c5fd;
+    border-radius: 0.5rem;
+    background: #eff6ff;
+    color: #1e3a8a;
+    box-shadow: 0 0.5rem 1.5rem rgba(15, 23, 42, 0.18);
+    font: 600 0.9rem/1.4 system-ui, sans-serif;
+}
+
+.server-warming-status[hidden] {
+    display: none;
+}
