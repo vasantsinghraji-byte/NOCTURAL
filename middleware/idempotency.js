@@ -39,27 +39,35 @@ const getIdentity = (req) => {
  *   - caches only successful (2xx) responses, encrypted, and releases the claim
  *     on failure so the client may retry.
  *
- * @param {{ route: string }} options - stable route identifier for scoping.
+ * @param {{ route: string, failClosed?: boolean }} options - stable route
+ * identifier for scoping. Set failClosed=false only for naturally idempotent
+ * operations that must remain available when index verification is unavailable.
  */
 module.exports = function idempotency(options = {}) {
   const route = options.route;
+  const failClosed = options.failClosed !== false;
   if (!route) {
     throw new Error('idempotency() requires a non-empty { route } identifier');
   }
 
   return async function idempotencyMiddleware(req, res, next) {
+    const rawKey = req.get('Idempotency-Key');
+    if (!rawKey || typeof rawKey !== 'string' || !rawKey.trim()) {
+      return next(); // No key => no protection requested.
+    }
+
     if (!idempotencyIndexes.isReady()) {
+      if (!failClosed) {
+        logger.warn('Idempotency unavailable; allowing naturally idempotent operation', { route });
+        return next();
+      }
+
       logger.error('Idempotent mutation blocked because indexes are unavailable', { route });
       res.set('Retry-After', '30');
       return res.status(503).json({
         success: false,
         message: 'This operation is temporarily unavailable'
       });
-    }
-
-    const rawKey = req.get('Idempotency-Key');
-    if (!rawKey || typeof rawKey !== 'string' || !rawKey.trim()) {
-      return next(); // No key => no protection requested.
     }
 
     const key = rawKey.trim();

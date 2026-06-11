@@ -47,7 +47,7 @@ router.post(
       .isMongoId().withMessage('Invalid booking ID format'),
     validate
   ],
-  idempotency({ route: 'payments/verify' }),
+  idempotency({ route: 'payments/verify', failClosed: false }),
   paymentController.verifyPayment
 );
 

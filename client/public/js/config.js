@@ -564,7 +564,10 @@ const AppConfig = {
                 }
                 return result;
             } catch (error) {
-                if (error && error.isRetriableNetworkError && canRetry && attempt < MAX_ATTEMPTS) {
+                const isRetriableWarmingError =
+                    error &&
+                    (error.isRetriableNetworkError || error.isRetriableServerWarming);
+                if (isRetriableWarmingError && canRetry && attempt < MAX_ATTEMPTS) {
                     warmingStarted = true;
                     this._dispatchRetryEvent('nocturnal:server-warming', {
                         attempt: attempt + 1,
@@ -689,6 +692,10 @@ const AppConfig = {
                 const requestError = new Error((data && data.message) || 'Request failed');
                 requestError.status = response.status;
                 requestError.payload = data;
+                requestError.isRetriableServerWarming =
+                    response.status === 503 &&
+                    response.headers &&
+                    response.headers.get('Retry-After') !== null;
                 throw requestError;
             }
 

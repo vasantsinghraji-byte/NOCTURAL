@@ -47,6 +47,7 @@ function loadAppConfig(fetchImpl) {
 const okResponse = (body = { ok: true }) => ({
   ok: true,
   status: 200,
+  headers: { get: () => null },
   text: async () => JSON.stringify(body)
 });
 
@@ -108,6 +109,7 @@ describe('AppConfig.fetch server-warming retry', () => {
     const fetchImpl = jest.fn().mockResolvedValue({
       ok: false,
       status: 400,
+      headers: { get: () => null },
       text: async () => JSON.stringify({ message: 'Validation failed' })
     });
     const { AppConfig, events } = loadAppConfig(fetchImpl);
@@ -116,6 +118,30 @@ describe('AppConfig.fetch server-warming retry', () => {
       .rejects.toMatchObject({ status: 400 });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(events).toEqual([]);
+  });
+
+  it('retries a key-bearing mutation once on a guarded 503 with Retry-After', async () => {
+    const fetchImpl = jest.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        headers: { get: (name) => name === 'Retry-After' ? '30' : null },
+        text: async () => JSON.stringify({ message: 'This operation is temporarily unavailable' })
+      })
+      .mockResolvedValueOnce(okResponse());
+    const { AppConfig, events } = loadAppConfig(fetchImpl);
+
+    await AppConfig.fetch('/bookings', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': 'private-key' },
+      parseJson: true
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(events[0]).toEqual({
+      type: 'nocturnal:server-warming',
+      detail: { attempt: 2, method: 'POST' }
+    });
   });
 
   it('dispatches failure completion after the single retry fails', async () => {

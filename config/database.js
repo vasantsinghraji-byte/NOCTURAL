@@ -74,6 +74,19 @@ const ensureIdempotencyIndexes = async () => {
   }
 };
 
+const verifyIdempotencyIndexesAvailability = async () => {
+  try {
+    await ensureIdempotencyIndexes();
+  } catch (error) {
+    logger.error('Idempotency indexes unavailable; protected mutations disabled', {
+      error: error.message
+    });
+    monitoring.triggerAlert('idempotency_indexes_unavailable', {
+      error: error.message
+    });
+  }
+};
+
 // Helper function to update connection metrics
 const updateConnectionMetrics = async () => {
   const db = mongoose.connection.db;
@@ -213,6 +226,7 @@ const initializeConnectionMonitoring = () => {
 
   mongoose.connection.on('disconnected', () => {
     isConnected = false;
+    idempotencyIndexes.markUnavailable('MongoDB disconnected');
     connectionMetrics.lastReconnectAttempt = new Date();
 
     logger.warn('MongoDB disconnected', {
@@ -238,10 +252,11 @@ const initializeConnectionMonitoring = () => {
     });
   });
 
-  mongoose.connection.on('reconnected', () => {
+  mongoose.connection.on('reconnected', async () => {
     isConnected = true;
     reconnectAttempts = 0;
     updateConnectionMetrics();
+    await verifyIdempotencyIndexesAvailability();
 
     logger.info('MongoDB reconnected', {
       metrics: connectionMetrics
@@ -280,16 +295,7 @@ const connectDB = async () => {
 
     await mongoose.connect(process.env.MONGODB_URI, options);
 
-    try {
-      await ensureIdempotencyIndexes();
-    } catch (error) {
-      logger.error('Idempotency indexes unavailable; protected mutations disabled', {
-        error: error.message
-      });
-      monitoring.triggerAlert('idempotency_indexes_unavailable', {
-        error: error.message
-      });
-    }
+    await verifyIdempotencyIndexesAvailability();
 
     isConnected = true;
     reconnectAttempts = 0; // Reset reconnect attempts on successful connection
@@ -351,6 +357,7 @@ module.exports = {
   getConnectionStatus,
   checkDatabaseHealth,
   ensureIdempotencyIndexes,
+  verifyIdempotencyIndexesAvailability,
   // Export connection events for external monitoring
   events: {
     HEALTH_CHECK_INTERVAL,

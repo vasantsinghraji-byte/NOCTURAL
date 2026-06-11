@@ -74,16 +74,42 @@ describe('idempotency middleware', () => {
     idempotencyIndexes.isReady.mockReturnValue(true);
   });
 
-  it('returns 503 only on protected mutations when indexes are unavailable', async () => {
+  it('passes through keyless requests when indexes are unavailable', async () => {
     idempotencyIndexes.isReady.mockReturnValue(false);
     const res = makeRes();
     const next = jest.fn();
 
     await idempotency({ route: 'bookings/create' })(makeReq(), res, next);
 
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.sent).toBeNull();
+  });
+
+  it('returns 503 for key-bearing state-creating mutations when indexes are unavailable', async () => {
+    idempotencyIndexes.isReady.mockReturnValue(false);
+    const res = makeRes();
+    const next = jest.fn();
+
+    await idempotency({ route: 'bookings/create' })(makeReq({ headers: KEY }), res, next);
+
     expect(next).not.toHaveBeenCalled();
     expect(res.sent.statusCode).toBe(503);
     expect(res.headers['Retry-After']).toBe('30');
+  });
+
+  it('allows naturally idempotent verification when indexes are unavailable', async () => {
+    idempotencyIndexes.isReady.mockReturnValue(false);
+    const res = makeRes();
+    const next = jest.fn();
+
+    await idempotency({ route: 'payments/verify', failClosed: false })(
+      makeReq({ headers: KEY }),
+      res,
+      next
+    );
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.sent).toBeNull();
   });
 
   it('passes through when no Idempotency-Key header is present', async () => {
