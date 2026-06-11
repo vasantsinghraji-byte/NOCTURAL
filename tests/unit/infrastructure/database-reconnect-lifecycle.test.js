@@ -10,10 +10,19 @@ describe('Database reconnect lifecycle', () => {
         }
       })
     };
+    const mockCollection = {
+      createIndex: jest.fn().mockResolvedValue('created'),
+      indexes: jest.fn().mockResolvedValue([
+        { name: '_id_' },
+        { name: 'scope_unique_idx', unique: true },
+        { name: 'idempotency_ttl_idx', expireAfterSeconds: 86400 }
+      ])
+    };
     const mockConnection = {
       db: {
         command: jest.fn().mockResolvedValue({ ok: 1 }),
-        admin: jest.fn(() => mockAdmin)
+        admin: jest.fn(() => mockAdmin),
+        collection: jest.fn(() => mockCollection)
       },
       on: jest.fn((event, handler) => {
         eventHandlers[event] = handler;
