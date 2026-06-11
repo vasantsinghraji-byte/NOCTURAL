@@ -5,7 +5,7 @@ const DEFAULT_BASE_URL = 'https://nocturnal-api.onrender.com';
 const baseUrl = (process.env.DEPLOYED_BASE_URL ||
   process.env.RENDER_SMOKE_BASE_URL ||
   DEFAULT_BASE_URL).replace(/\/+$/, '');
-const origin = (process.env.SMOKE_ORIGIN || baseUrl).replace(/\/+$/, '');
+const origin = (process.env.SMOKE_ORIGIN || process.env.RENDER_SMOKE_ORIGIN || baseUrl).replace(/\/+$/, '');
 
 const requiredCorsHeaders = (response, label) => {
   const allowOrigin = response.headers.get('access-control-allow-origin');

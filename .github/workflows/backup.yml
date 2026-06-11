@@ -1,10 +1,9 @@
 name: Scheduled Database Backup
 
 on:
-  # Schedule disabled until MONGODB_URI secret is configured in repo/environment secrets.
-  # Uncomment to re-enable once secrets are set:
-  # schedule:
-  #   - cron: '0 2 * * *'
+  schedule:
+    # Daily at 02:00 UTC. Requires MONGODB_URI in the selected GitHub environment.
+    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       environment:
