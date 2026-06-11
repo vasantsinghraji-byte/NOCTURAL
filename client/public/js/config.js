@@ -35,6 +35,7 @@ const API_CONFIG = {
     BASE_URL: getBaseUrl(),
     API_VERSION: 'v1',
     TIMEOUT: 10000,
+    NATIVE_TIMEOUT: 60000,
 
     // Environment detection
     isDevelopment: isLocalDevelopmentHost(window.location.hostname),
@@ -454,6 +455,7 @@ const AppConfig = {
     BASE_URL: API_CONFIG.BASE_URL,
     API_VERSION: API_CONFIG.API_VERSION,
     TIMEOUT: API_CONFIG.TIMEOUT,
+    NATIVE_TIMEOUT: API_CONFIG.NATIVE_TIMEOUT,
     isDevelopment: API_CONFIG.isDevelopment,
     isProduction: API_CONFIG.isProduction,
     routes: AppRoutes,
@@ -509,17 +511,112 @@ const AppConfig = {
         return headers;
     },
 
-    // Make authenticated API call with timeout
+    createIdempotencyKey: function() {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID();
+        }
+
+        if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+            const bytes = new Uint8Array(16);
+            crypto.getRandomValues(bytes);
+            return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+        }
+
+        throw new Error('Secure idempotency key generation is unavailable');
+    },
+
+    _canRetryRequest: function(options = {}) {
+        const method = String(options.method || 'GET').toUpperCase();
+        if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+            return true;
+        }
+
+        const headers = options.headers || {};
+        return Object.keys(headers).some((name) => name.toLowerCase() === 'idempotency-key');
+    },
+
+    _dispatchRetryEvent: function(type, detail) {
+        if (
+            typeof window !== 'undefined'
+            && typeof window.dispatchEvent === 'function'
+            && typeof CustomEvent === 'function'
+        ) {
+            window.dispatchEvent(new CustomEvent(type, { detail }));
+        }
+    },
+
+    // Retry one safe/idempotent request after a network failure or timeout.
     fetch: async function(endpoint, options = {}) {
+        const MAX_ATTEMPTS = 2; // initial attempt + one retry
+        const method = String(options.method || 'GET').toUpperCase();
+        const canRetry = this._canRetryRequest(options);
+        let warmingStarted = false;
+
+        for (let attempt = 1; ; attempt++) {
+            try {
+                const result = await this._fetchOnce(endpoint, options);
+                if (warmingStarted) {
+                    this._dispatchRetryEvent('nocturnal:server-warming-complete', {
+                        attempt,
+                        method,
+                        outcome: 'success'
+                    });
+                }
+                return result;
+            } catch (error) {
+                const isRetriableWarmingError =
+                    error &&
+                    (error.isRetriableNetworkError || error.isRetriableServerWarming);
+                if (isRetriableWarmingError && canRetry && attempt < MAX_ATTEMPTS) {
+                    warmingStarted = true;
+                    this._dispatchRetryEvent('nocturnal:server-warming', {
+                        attempt: attempt + 1,
+                        method
+                    });
+                    continue;
+                }
+                if (warmingStarted) {
+                    this._dispatchRetryEvent('nocturnal:server-warming-complete', {
+                        attempt,
+                        method,
+                        outcome: 'failure'
+                    });
+                }
+                throw error;
+            }
+        }
+    },
+
+    // Single authenticated API attempt with timeout (no retry).
+    _fetchOnce: async function(endpoint, options = {}) {
         const requestOptions = { ...options };
+        const nativeBridge = window.NocturnalNative;
+        const isNativeRequest = !!(nativeBridge && nativeBridge.isNative);
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT);
+        const requestTimeout = isNativeRequest ? this.NATIVE_TIMEOUT : this.TIMEOUT;
+        const timeoutId = setTimeout(() => controller.abort(), requestTimeout);
         const shouldParseJson = requestOptions.parseJson === true;
         const shouldParseText = requestOptions.parseText === true;
         const isFormDataBody =
             typeof FormData !== 'undefined' &&
             requestOptions.body instanceof FormData;
         const defaultHeaders = this.getAuthHeaders(requestOptions);
+
+        if (isNativeRequest) {
+            defaultHeaders['X-Nocturnal-Mobile'] = 'capacitor';
+            const accessToken = await nativeBridge.getAccessToken();
+            if (accessToken && !requestOptions.skipAuth) {
+                defaultHeaders.Authorization = `Bearer ${accessToken}`;
+            }
+            if (
+                endpoint.replace(/^\//, '').startsWith('auth/logout')
+                && !requestOptions.body
+            ) {
+                requestOptions.body = JSON.stringify({
+                    refreshToken: await nativeBridge.getRefreshToken()
+                });
+            }
+        }
 
         delete requestOptions.skipAuth;
         delete requestOptions.parseJson;
@@ -549,14 +646,26 @@ const AppConfig = {
                 !endpoint.replace(/^\//, '').startsWith('auth/logout');
 
             if (canRefreshSession) {
+                const refreshToken = isNativeRequest
+                    ? await nativeBridge.getRefreshToken()
+                    : null;
                 const refreshResponse = await fetch(getApiUrl('auth/refresh'), {
                     method: 'POST',
                     credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(isNativeRequest ? { 'X-Nocturnal-Mobile': 'capacitor' } : {})
+                    },
+                    body: isNativeRequest ? JSON.stringify({ refreshToken }) : undefined,
                     signal: controller.signal
                 });
 
                 if (refreshResponse.ok) {
+                    if (isNativeRequest) {
+                        const refreshData = await parseJsonBody(refreshResponse);
+                        await nativeBridge.saveAuthResponse(refreshData);
+                        requestInit.headers.Authorization = `Bearer ${await nativeBridge.getAccessToken()}`;
+                    }
                     response = await fetch(requestUrl, requestInit);
                 }
             }
@@ -583,14 +692,44 @@ const AppConfig = {
                 const requestError = new Error((data && data.message) || 'Request failed');
                 requestError.status = response.status;
                 requestError.payload = data;
+                requestError.isRetriableServerWarming =
+                    response.status === 503 &&
+                    response.headers &&
+                    response.headers.get('Retry-After') !== null;
                 throw requestError;
+            }
+
+            if (isNativeRequest) {
+                await nativeBridge.saveAuthResponse(data);
+                if (endpoint.replace(/^\//, '').startsWith('auth/logout')) {
+                    await nativeBridge.clearAuth();
+                }
             }
 
             return data;
         } catch (error) {
             clearTimeout(timeoutId);
+            if (
+                isNativeRequest &&
+                nativeBridge &&
+                typeof nativeBridge.logError === 'function'
+            ) {
+                await nativeBridge.logError('api-request-failed', error, {
+                    endpoint: endpoint.replace(/[?#].*$/, '').slice(0, 120),
+                    method: requestOptions.method || 'GET',
+                    status: error.status
+                });
+            }
             if (error.name === 'AbortError') {
-                throw new Error('Request timeout');
+                const timeoutError = new Error('Request timeout');
+                timeoutError.isRetriableNetworkError = true;
+                throw timeoutError;
+            }
+            // A rejected fetch (no HTTP response received) surfaces as a TypeError
+            // with no .status — treat that as a retriable network failure. HTTP
+            // error responses always carry a status and are left untouched.
+            if (error && error.name === 'TypeError' && error.status === undefined) {
+                error.isRetriableNetworkError = true;
             }
             throw error;
         }

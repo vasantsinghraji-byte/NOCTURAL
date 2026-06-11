@@ -4,24 +4,14 @@
   "description": "Nocturnal Healthcare Platform - Microservices Architecture",
   "main": "server.js",
   "private": true,
-  "workspaces": [
-    "packages/*",
-    "services/*"
-  ],
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "install:all": "npm install && npm run install:shared",
-    "install:shared": "cd packages/shared && npm install",
     "hooks:install": "node scripts/git-hooks/install-hooks.js",
     "hooks:path": "git config --get core.hooksPath",
     "doctor:local": "node scripts/doctor-local.js",
-    "test:shared": "npm test --workspace=@nocturnal/shared",
-    "test:patient-booking": "npm test --workspace=@nocturnal/patient-booking-service",
-    "start:patient-booking": "npm start --workspace=@nocturnal/patient-booking-service",
-    "dev:patient-booking": "npm run dev --workspace=@nocturnal/patient-booking-service",
     "start": "node --max-old-space-size=2048 server.js",
     "dev": "nodemon --max-old-space-size=2048 server.js",
     "dev:all": "concurrently \"npm run dev\" \"npm --prefix client run serve\"",
@@ -132,7 +122,7 @@
   "devDependencies": {
     "@types/jest": "^29.5.5",
     "baseline-browser-mapping": "^2.10.27",
-    "concurrently": "^9.2.1",
+    "concurrently": "^10.0.3",
     "cross-env": "^10.1.0",
     "eslint": "^8.51.0",
     "eslint-plugin-security": "^1.7.1",

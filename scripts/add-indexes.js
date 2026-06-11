@@ -159,9 +159,29 @@ async function addIndexes() {
             console.log('   ⚠ Some user indexes may already exist:', err.message);
         }
 
+        // Idempotency Key Collection Indexes
+        console.log('\n6. Idempotency Keys Collection:');
+        try {
+            await db.collection('idempotencykeys').createIndex({ scope: 1 }, {
+                name: 'scope_unique_idx',
+                unique: true,
+                background: true
+            });
+            console.log('   scope_unique_idx created (atomic idempotency claims)');
+
+            await db.collection('idempotencykeys').createIndex({ createdAt: 1 }, {
+                name: 'idempotency_ttl_idx',
+                expireAfterSeconds: parseInt(process.env.IDEMPOTENCY_TTL_SECONDS, 10) || 86400,
+                background: true
+            });
+            console.log('   idempotency_ttl_idx created');
+        } catch (err) {
+            console.log('   Some idempotency indexes may already exist:', err.message);
+        }
+
         // List all indexes
         console.log('\n=== Index Summary ===\n');
-        const collections = ['duties', 'applications', 'earnings', 'notifications', 'users'];
+        const collections = ['duties', 'applications', 'earnings', 'notifications', 'users', 'idempotencykeys'];
 
         for (const collName of collections) {
             try {

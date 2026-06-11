@@ -10,6 +10,7 @@ const { body } = require('express-validator');
 const { validate } = require('../middleware/validation');
 const { protectPatient } = require('../middleware/patientAuth');
 const paymentController = require('../controllers/paymentController');
+const idempotency = require('../middleware/idempotency');
 
 /**
  * @route   POST /api/v1/payments/create-order
@@ -25,6 +26,7 @@ router.post(
       .isMongoId().withMessage('Invalid booking ID format'),
     validate
   ],
+  idempotency({ route: 'payments/create-order' }),
   paymentController.createOrder
 );
 
@@ -45,6 +47,7 @@ router.post(
       .isMongoId().withMessage('Invalid booking ID format'),
     validate
   ],
+  idempotency({ route: 'payments/verify', failClosed: false }),
   paymentController.verifyPayment
 );
 

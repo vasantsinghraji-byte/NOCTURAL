@@ -195,6 +195,14 @@ async function minifyHTMLFile(sourceFile, destFile) {
   try {
     let content = await fs.readFile(sourceFile, 'utf8');
 
+    // Capacitor pages need runtime API configuration before AppConfig and the
+    // native capability bridge immediately after it. Browser builds safely
+    // no-op because both scripts check for a native Capacitor platform.
+    content = content.replace(
+      /(<script\s+src=["']\/?js\/config\.js["']><\/script>)/,
+      '<link rel="stylesheet" href="/css/components/server-warming-status.css"><script src="/js/native-runtime-config.js"></script>$1<script src="/js/server-warming-status.js"></script><script src="/js/native-capabilities.js"></script>'
+    );
+
     // Replace asset references with versioned ones
     for (const [original, versioned] of Object.entries(assetManifest)) {
       const regex = new RegExp(original.replace(/\./g, '\\.'), 'g');
