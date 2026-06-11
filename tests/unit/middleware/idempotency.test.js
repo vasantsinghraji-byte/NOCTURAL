@@ -38,8 +38,12 @@ jest.mock('../../../utils/encryptionV2', () => ({
 }));
 
 jest.mock('../../../utils/logger', () => ({ error: jest.fn(), warn: jest.fn(), info: jest.fn() }));
+jest.mock('../../../config/idempotencyIndexes', () => ({
+  isReady: jest.fn(() => true)
+}));
 
 const IdempotencyKey = require('../../../models/idempotencyKey');
+const idempotencyIndexes = require('../../../config/idempotencyIndexes');
 const idempotency = require('../../../middleware/idempotency');
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -65,7 +69,22 @@ const makeRes = () => {
 const KEY = { 'Idempotency-Key': 'key-123' };
 
 describe('idempotency middleware', () => {
-  beforeEach(() => IdempotencyKey.__store.clear());
+  beforeEach(() => {
+    IdempotencyKey.__store.clear();
+    idempotencyIndexes.isReady.mockReturnValue(true);
+  });
+
+  it('returns 503 only on protected mutations when indexes are unavailable', async () => {
+    idempotencyIndexes.isReady.mockReturnValue(false);
+    const res = makeRes();
+    const next = jest.fn();
+
+    await idempotency({ route: 'bookings/create' })(makeReq(), res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.sent.statusCode).toBe(503);
+    expect(res.headers['Retry-After']).toBe('30');
+  });
 
   it('passes through when no Idempotency-Key header is present', async () => {
     const next = jest.fn();

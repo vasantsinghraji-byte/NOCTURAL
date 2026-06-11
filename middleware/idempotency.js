@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const IdempotencyKey = require('../models/idempotencyKey');
 const { encrypt, decrypt } = require('../utils/encryptionV2');
 const logger = require('../utils/logger');
+const idempotencyIndexes = require('../config/idempotencyIndexes');
 
 const MAX_KEY_LENGTH = 255;
 
@@ -47,6 +48,15 @@ module.exports = function idempotency(options = {}) {
   }
 
   return async function idempotencyMiddleware(req, res, next) {
+    if (!idempotencyIndexes.isReady()) {
+      logger.error('Idempotent mutation blocked because indexes are unavailable', { route });
+      res.set('Retry-After', '30');
+      return res.status(503).json({
+        success: false,
+        message: 'This operation is temporarily unavailable'
+      });
+    }
+
     const rawKey = req.get('Idempotency-Key');
     if (!rawKey || typeof rawKey !== 'string' || !rawKey.trim()) {
       return next(); // No key => no protection requested.

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 const monitoring = require('../utils/monitoring');
+const idempotencyIndexes = require('./idempotencyIndexes');
 
 const RECONNECT_INTERVAL = 5000; // 5 seconds
 const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
@@ -25,30 +26,52 @@ let connectionMetrics = {
 const ensureIdempotencyIndexes = async () => {
   const collection = mongoose.connection.db.collection('idempotencykeys');
 
-  await collection.createIndex({ scope: 1 }, {
-    name: 'scope_unique_idx',
-    unique: true,
-    background: true
-  });
+  try {
+    // Creating this first also creates the collection on a fresh environment.
+    await collection.createIndex({ scope: 1 }, {
+      name: 'scope_unique_idx',
+      unique: true,
+      background: true
+    });
 
-  await collection.createIndex({ createdAt: 1 }, {
-    name: 'idempotency_ttl_idx',
-    expireAfterSeconds: IDEMPOTENCY_TTL_SECONDS,
-    background: true
-  });
+    const existingIndexes = await collection.indexes();
+    const existingTtlIndex = existingIndexes.find((index) => index.name === 'idempotency_ttl_idx');
 
-  const indexes = await collection.indexes();
-  const scopeIndex = indexes.find((index) => index.name === 'scope_unique_idx');
-  const ttlIndex = indexes.find((index) => index.name === 'idempotency_ttl_idx');
+    // MongoDB rejects createIndex when the same named TTL index exists with a
+    // different expiry. Change TTL intentionally with collMod or the index
+    // migration script before deploying a new IDEMPOTENCY_TTL_SECONDS value.
+    if (existingTtlIndex && existingTtlIndex.expireAfterSeconds !== IDEMPOTENCY_TTL_SECONDS) {
+      throw new Error(
+        `idempotency_ttl_idx retention mismatch: expected ${IDEMPOTENCY_TTL_SECONDS}, ` +
+        `found ${existingTtlIndex.expireAfterSeconds}; update it with collMod before deployment`
+      );
+    }
 
-  if (!scopeIndex?.unique || ttlIndex?.expireAfterSeconds !== IDEMPOTENCY_TTL_SECONDS) {
-    throw new Error('Idempotency index verification failed');
+    if (!existingTtlIndex) {
+      await collection.createIndex({ createdAt: 1 }, {
+        name: 'idempotency_ttl_idx',
+        expireAfterSeconds: IDEMPOTENCY_TTL_SECONDS,
+        background: true
+      });
+    }
+
+    const indexes = await collection.indexes();
+    const scopeIndex = indexes.find((index) => index.name === 'scope_unique_idx');
+    const ttlIndex = indexes.find((index) => index.name === 'idempotency_ttl_idx');
+
+    if (!scopeIndex?.unique || ttlIndex?.expireAfterSeconds !== IDEMPOTENCY_TTL_SECONDS) {
+      throw new Error('Idempotency index verification failed');
+    }
+
+    idempotencyIndexes.markReady();
+    logger.info('Idempotency indexes verified', {
+      uniqueScope: true,
+      retentionSeconds: IDEMPOTENCY_TTL_SECONDS
+    });
+  } catch (error) {
+    idempotencyIndexes.markUnavailable(error);
+    throw error;
   }
-
-  logger.info('Idempotency indexes verified', {
-    uniqueScope: true,
-    retentionSeconds: IDEMPOTENCY_TTL_SECONDS
-  });
 };
 
 // Helper function to update connection metrics
@@ -256,7 +279,17 @@ const connectDB = async () => {
     };
 
     await mongoose.connect(process.env.MONGODB_URI, options);
-    await ensureIdempotencyIndexes();
+
+    try {
+      await ensureIdempotencyIndexes();
+    } catch (error) {
+      logger.error('Idempotency indexes unavailable; protected mutations disabled', {
+        error: error.message
+      });
+      monitoring.triggerAlert('idempotency_indexes_unavailable', {
+        error: error.message
+      });
+    }
 
     isConnected = true;
     reconnectAttempts = 0; // Reset reconnect attempts on successful connection
@@ -270,11 +303,6 @@ const connectDB = async () => {
       environment: process.env.NODE_ENV
     });
   } catch (error) {
-    isConnected = false;
-    if (mongoose.connection.readyState) {
-      await mongoose.connection.close().catch(() => {});
-    }
-
     logger.error('MongoDB connection error', {
       error: error.message,
       stack: error.stack
