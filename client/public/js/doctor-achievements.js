@@ -12,9 +12,7 @@
                 return;
             }
 
-            // Get current user ID from token
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            currentUserId = payload.id;
+            currentUserId = localStorage.getItem('userId');
 
             loadAchievements();
             loadLeaderboard();
@@ -36,12 +34,8 @@
 
         async function loadAchievements() {
             try {
-                const token = localStorage.getItem('token');
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('achievements.list', {
-                    parseJson: true,
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    parseJson: true
                 }), 'Failed to load achievements');
                 displayAchievements(Array.isArray(data.data) ? data.data : []);
             } catch (error) {
@@ -53,7 +47,7 @@
             const list = document.getElementById('achievementsList');
 
             if (achievements.length === 0) {
-                list.innerHTML = '<p style="text-align: center; color: var(--gray); grid-column: 1/-1;">No achievements yet. Start completing shifts to earn badges!</p>';
+                list.innerHTML = '<p class="achievement-empty">No achievements yet. Start completing shifts to earn badges!</p>';
                 return;
             }
 
@@ -72,14 +66,14 @@
                         ${!isEarned ? `
                             <div class="achievement-progress">
                                 <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                                    <div class="progress-fill ${AppUi.percentWidthClass(progressPercent)}"></div>
                                 </div>
                                 <div class="progress-text">${achievement.progress.current} / ${achievement.progress.target} ${achievement.progress.unit}</div>
                             </div>
                         ` : ''}
 
                         ${achievement.reward === 'BONUS' && achievement.rewardAmount ?
-                            `<div class="reward-badge">Reward: ₹${achievement.rewardAmount.toLocaleString()}</div>` : ''}
+                            `<div class="reward-badge">Reward: ${AppFormat.currencyWhole(achievement.rewardAmount)}</div>` : ''}
 
                         ${isEarned && achievement.reward === 'BONUS' && !achievement.rewardClaimed ?
                             `<button class="claim-btn" data-action="claim-reward" data-achievement-id="${achievement._id}">Claim Reward</button>` : ''}
@@ -87,7 +81,7 @@
                         ${isEarned ?
                             `<button class="share-btn" data-action="share-achievement" data-achievement-id="${achievement._id}"><i class="fab fa-linkedin"></i> Share</button>` : ''}
 
-                        ${isEarned ? `<p style="margin-top: 15px; font-size: 0.85rem; color: var(--success);">Earned: ${new Date(achievement.earnedAt).toLocaleDateString()}</p>` : ''}
+                        ${isEarned ? `<p class="achievement-earned">Earned: ${AppFormat.date(achievement.earnedAt)}</p>` : ''}
                     </div>
                 `;
             });
@@ -97,12 +91,8 @@
 
         async function loadLeaderboard() {
             try {
-                const token = localStorage.getItem('token');
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('achievements.leaderboard', {
-                    parseJson: true,
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    parseJson: true
                 }, {
                     query: {
                         category: currentCategory,
@@ -143,9 +133,9 @@
                             </div>
                         </div>
                         <div class="stat-value">${entry.shifts}</div>
-                        <div class="stat-value">₹${(entry.earnings/1000).toFixed(0)}k</div>
+                        <div class="stat-value">${AppFormat.currencyCompactThousands(entry.earnings, 0)}</div>
                         <div class="badge-display">
-                            <span style="font-size: 1.2rem;">${entry.badges} 🏆</span>
+                            <span class="leaderboard-badge-count">${entry.badges} 🏆</span>
                         </div>
                     </div>
                 `;
@@ -182,13 +172,9 @@
 
         async function claimReward(achievementId) {
             try {
-                const token = localStorage.getItem('token');
                 NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('achievements.claim', {
                     method: 'POST',
-                    parseJson: true,
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    parseJson: true
                 }, {
                     params: { achievementId: achievementId }
                 }), 'Failed to claim reward');
@@ -202,12 +188,10 @@
 
         async function shareAchievement(achievementId) {
             try {
-                const token = localStorage.getItem('token');
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('achievements.share', {
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ platform: 'LINKEDIN' })
@@ -272,3 +256,5 @@
         }
 
         bindUiEvents();
+
+

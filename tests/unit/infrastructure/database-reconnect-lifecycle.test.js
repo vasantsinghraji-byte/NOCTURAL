@@ -10,10 +10,19 @@ describe('Database reconnect lifecycle', () => {
         }
       })
     };
+    const mockCollection = {
+      createIndex: jest.fn().mockResolvedValue('created'),
+      indexes: jest.fn().mockResolvedValue([
+        { name: '_id_' },
+        { name: 'scope_unique_idx', unique: true },
+        { name: 'idempotency_ttl_idx', expireAfterSeconds: 86400 }
+      ])
+    };
     const mockConnection = {
       db: {
         command: jest.fn().mockResolvedValue({ ok: 1 }),
-        admin: jest.fn(() => mockAdmin)
+        admin: jest.fn(() => mockAdmin),
+        collection: jest.fn(() => mockCollection)
       },
       on: jest.fn((event, handler) => {
         eventHandlers[event] = handler;
@@ -35,6 +44,10 @@ describe('Database reconnect lifecycle', () => {
       trackError: jest.fn(),
       triggerAlert: jest.fn()
     };
+    const mockIdempotencyIndexes = {
+      markReady: jest.fn(),
+      markUnavailable: jest.fn()
+    };
 
     let databaseModule;
 
@@ -42,6 +55,7 @@ describe('Database reconnect lifecycle', () => {
       jest.doMock('mongoose', () => mockMongoose);
       jest.doMock('../../../utils/logger', () => mockLogger);
       jest.doMock('../../../utils/monitoring', () => mockMonitoring);
+      jest.doMock('../../../config/idempotencyIndexes', () => mockIdempotencyIndexes);
 
       databaseModule = require('../../../config/database');
     });
@@ -52,7 +66,8 @@ describe('Database reconnect lifecycle', () => {
       mockMongoose,
       mockConnection,
       mockLogger,
-      mockMonitoring
+      mockMonitoring,
+      mockIdempotencyIndexes
     };
   };
 
@@ -111,10 +126,17 @@ describe('Database reconnect lifecycle', () => {
     });
     const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout').mockImplementation(() => {});
 
-    const { databaseModule, eventHandlers, mockConnection, mockLogger } = loadDatabaseModule();
+    const {
+      databaseModule,
+      eventHandlers,
+      mockConnection,
+      mockLogger,
+      mockIdempotencyIndexes
+    } = loadDatabaseModule();
 
     await databaseModule.connectDB();
     eventHandlers.disconnected();
+    expect(mockIdempotencyIndexes.markUnavailable).toHaveBeenCalledWith('MongoDB disconnected');
 
     expect(setIntervalSpy).toHaveBeenCalledTimes(1);
     expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
@@ -128,7 +150,7 @@ describe('Database reconnect lifecycle', () => {
     expect(clearIntervalSpy).toHaveBeenCalledWith(intervalHandle);
     expect(clearTimeoutSpy).toHaveBeenCalledWith(timeoutHandles[0]);
 
-    eventHandlers.reconnected();
+    await eventHandlers.reconnected();
     expect(
       mockLogger.info.mock.calls.filter(([message]) => message === 'MongoDB reconnected')
     ).toHaveLength(1);

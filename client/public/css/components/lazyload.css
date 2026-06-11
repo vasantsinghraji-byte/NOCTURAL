@@ -1,0 +1,27 @@
+.lazy-loading {
+        filter: blur(5px);
+        transition: filter 0.3s;
+      }
+
+      .lazy-loaded {
+        filter: blur(0);
+      }
+
+      .lazy-error {
+        opacity: 0.5;
+      }
+
+      /* Low quality placeholder */
+      img[data-src] {
+        background: #f0f0f0;
+      }
+
+      /* Fade-in animation */
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      .lazy-loaded {
+        animation: fadeIn 0.3s ease-in;
+      }

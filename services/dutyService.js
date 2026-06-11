@@ -9,7 +9,6 @@ const Duty = require('../models/duty');
 const { invalidateCache } = require('../middleware/queryCache');
 const {  HTTP_STATUS,
   DUTY_STATUS,
-  SUCCESS_MESSAGE,
   ERROR_MESSAGE,
   PAGINATION
 } = require('../constants');
@@ -77,14 +76,13 @@ class DutyService {
    * @returns {Promise<Object>} Created duty
    */
   async createDuty(dutyData, user) {
-    // Add user data
-    dutyData.postedBy = user._id;
+    const dutyPayload = {
+      ...dutyData,
+      postedBy: user._id,
+      ...(user.role === 'admin' ? { hospital: user.hospital } : {})
+    };
 
-    if (user.role === 'admin') {
-      dutyData.hospital = user.hospital;
-    }
-
-    const duty = await Duty.create(dutyData);
+    const duty = await Duty.create(dutyPayload);
 
     // Invalidate duty list cache
     await invalidateCache('*:/api/duties*');

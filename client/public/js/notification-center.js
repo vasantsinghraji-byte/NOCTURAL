@@ -30,10 +30,6 @@ class NotificationCenter {
 
     async fetchApi(endpoint, options = {}) {
         const normalizedEndpoint = endpoint.replace(/^\//, '');
-        const token =
-            typeof AppConfig !== 'undefined' && typeof AppConfig.getToken === 'function'
-                ? AppConfig.getToken()
-                : localStorage.getItem('token');
 
         if (!this.apiUrl && typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function') {
             return AppConfig.fetch(normalizedEndpoint, options);
@@ -41,8 +37,8 @@ class NotificationCenter {
 
         return fetch(this.buildApiUrl(normalizedEndpoint), {
             ...options,
+            credentials: options.credentials || 'include',
             headers: {
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                 ...options.headers
             }
         });
@@ -57,227 +53,19 @@ class NotificationCenter {
     }
 
     injectStyles() {
-        const style = document.createElement('style');
-        style.textContent = `
-            .notification-bell {
-                position: relative;
-                cursor: pointer;
-                padding: 0.5rem;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .notification-bell i {
-                font-size: 1.3rem;
-                color: #475569;
-                transition: color 0.3s;
-            }
-
-            .notification-bell:hover i {
-                color: #5B8DBE;
-            }
-
-            .notification-badge {
-                position: absolute;
-                top: 0;
-                right: 0;
-                background: #dc3545;
-                color: white;
-                font-size: 0.7rem;
-                font-weight: 700;
-                padding: 0.15rem 0.4rem;
-                border-radius: 10px;
-                min-width: 18px;
-                text-align: center;
-            }
-
-            .notification-badge.is-hidden {
-                display: none;
-            }
-
-            .notification-panel {
-                position: absolute;
-                top: 60px;
-                right: 20px;
-                width: 400px;
-                max-height: 600px;
-                background: white;
-                border-radius: 15px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-                z-index: 1000;
-                display: none;
-                flex-direction: column;
-            }
-
-            .notification-panel.open {
-                display: flex;
-                animation: slideDown 0.3s ease;
-            }
-
-            @keyframes slideDown {
-                from {
-                    opacity: 0;
-                    transform: translateY(-10px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-            }
-
-            .notification-header {
-                padding: 1.5rem;
-                border-bottom: 2px solid #f0f0f0;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-
-            .notification-title {
-                font-size: 1.2rem;
-                font-weight: 700;
-                color: #2C3E50;
-            }
-
-            .notification-actions {
-                display: flex;
-                gap: 0.5rem;
-            }
-
-            .notification-action-btn {
-                padding: 0.4rem 0.75rem;
-                background: #f8f9fa;
-                border: none;
-                border-radius: 6px;
-                cursor: pointer;
-                font-size: 0.85rem;
-                font-weight: 600;
-                color: #5B8DBE;
-                transition: all 0.3s;
-            }
-
-            .notification-action-btn:hover {
-                background: #e9ecef;
-            }
-
-            .notification-list {
-                flex: 1;
-                overflow-y: auto;
-                max-height: 450px;
-            }
-
-            .notification-item {
-                padding: 1rem 1.5rem;
-                border-bottom: 1px solid #f0f0f0;
-                cursor: pointer;
-                transition: background 0.3s;
-                display: flex;
-                gap: 1rem;
-            }
-
-            .notification-item:hover {
-                background: #f8f9fa;
-            }
-
-            .notification-item.unread {
-                background: #e8f4fd;
-            }
-
-            .notification-icon {
-                flex-shrink: 0;
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 1.1rem;
-            }
-
-            .icon-shift {
-                background: #e8f5e9;
-                color: #28a745;
-            }
-
-            .icon-application {
-                background: #e3f2fd;
-                color: #2196f3;
-            }
-
-            .icon-payment {
-                background: #fff3cd;
-                color: #ffc107;
-            }
-
-            .icon-review {
-                background: #f3e5f5;
-                color: #9c27b0;
-            }
-
-            .icon-system {
-                background: #f5f5f5;
-                color: #666;
-            }
-
-            .notification-content {
-                flex: 1;
-            }
-
-            .notification-content-title {
-                font-weight: 600;
-                color: #2C3E50;
-                margin-bottom: 0.25rem;
-                font-size: 0.95rem;
-            }
-
-            .notification-content-message {
-                color: #666;
-                font-size: 0.85rem;
-                line-height: 1.4;
-            }
-
-            .notification-time {
-                font-size: 0.75rem;
-                color: #999;
-                margin-top: 0.25rem;
-            }
-
-            .notification-empty {
-                padding: 3rem 1.5rem;
-                text-align: center;
-                color: #999;
-            }
-
-            .notification-empty i {
-                font-size: 3rem;
-                color: #ddd;
-                margin-bottom: 1rem;
-            }
-
-            .notification-footer {
-                padding: 1rem 1.5rem;
-                border-top: 2px solid #f0f0f0;
-                text-align: center;
-            }
-
-            .notification-footer-btn {
-                width: 100%;
-            }
-
-            @media (max-width: 768px) {
-                .notification-panel {
-                    right: 10px;
-                    left: 10px;
-                    width: auto;
-                }
-            }
-        `;
-        document.head.appendChild(style);
+        (function loadExtractedStylesheet() {
+    var href = '/css/components/notification-center.css';
+    if (document.querySelector('link[href="' + href + '"]')) return;
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+  })();
     }
 
     injectHTML() {
-        const container = document.createElement('div');
+        const existingContainer = document.getElementById('notificationCenter');
+        const container = existingContainer || document.createElement('div');
         container.id = 'notificationCenter';
         container.innerHTML = `
             <div class="notification-bell" id="notificationBell">
@@ -304,10 +92,15 @@ class NotificationCenter {
             </div>
         `;
 
-        // Find nav bar and append
-        const navbar = document.querySelector('.navbar .nav-links') || document.querySelector('.navbar');
-        if (navbar) {
+        if (!existingContainer) {
+            // Find nav bar and append
+            const navbar = document.querySelector('.navbar .nav-links') ||
+                document.querySelector('.navbar') ||
+                document.querySelector('.unified-navbar .nav-menu') ||
+                document.querySelector('.unified-navbar');
+            if (navbar) {
             navbar.appendChild(container);
+            }
         }
     }
 
@@ -356,11 +149,26 @@ class NotificationCenter {
                 this.closePanel();
             }
         });
+
+        const list = document.getElementById('notificationList');
+        if (list) {
+            list.addEventListener('click', (event) => {
+                const item = event.target.closest('[data-notification-id]');
+                if (!item) {
+                    return;
+                }
+
+                this.handleNotificationClick(item.dataset.notificationId, item.dataset.actionUrl || '');
+            });
+        }
     }
 
     togglePanel() {
         this.isOpen = !this.isOpen;
         const panel = document.getElementById('notificationPanel');
+        if (!panel) {
+            return;
+        }
         panel.classList.toggle('open', this.isOpen);
 
         if (this.isOpen) {
@@ -370,18 +178,21 @@ class NotificationCenter {
 
     closePanel() {
         this.isOpen = false;
-        document.getElementById('notificationPanel').classList.remove('open');
+        const panel = document.getElementById('notificationPanel');
+        if (panel) {
+            panel.classList.remove('open');
+        }
     }
 
     async loadNotifications() {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
         try {
             const response = await this.fetchApi('notifications?limit=10');
+            if (!response.ok) {
+                throw new Error(`Notifications request failed with status ${response.status}`);
+            }
 
             const data = await response.json();
-            if (data.success) {
+            if (data.success && data.data) {
                 this.notifications = data.data.notifications || [];
                 this.unreadCount = data.data.unreadCount || 0;
                 this.updateUI();
@@ -394,15 +205,18 @@ class NotificationCenter {
     updateUI() {
         // Update badge
         const badge = document.getElementById('notificationBadge');
+        const list = document.getElementById('notificationList');
+
+        if (!badge || !list) {
+            return;
+        }
+
         if (this.unreadCount > 0) {
             badge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount;
             badge.classList.remove('is-hidden');
         } else {
             badge.classList.add('is-hidden');
         }
-
-        // Update notification list
-        const list = document.getElementById('notificationList');
 
         if (this.notifications.length === 0) {
             list.innerHTML = `
@@ -459,7 +273,7 @@ class NotificationCenter {
         if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
         if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
         if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-        return date.toLocaleDateString();
+        return AppFormat.date(date);
     }
 
     async handleNotificationClick(notificationId) {
@@ -478,9 +292,6 @@ class NotificationCenter {
     }
 
     async markAsRead(notificationId) {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
         try {
             await this.fetchApi(`notifications/${notificationId}/read`, {
                 method: 'PUT'
@@ -499,16 +310,16 @@ class NotificationCenter {
     }
 
     async markAllAsRead() {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
         try {
             await this.fetchApi('notifications/read-all', {
                 method: 'PUT'
             });
 
             // Update local state
-            this.notifications.forEach(n => n.read = true);
+            this.notifications = this.notifications.map(notification => ({
+                ...notification,
+                read: true
+            }));
             this.unreadCount = 0;
             this.updateUI();
         } catch (error) {
@@ -531,11 +342,10 @@ class NotificationCenter {
 }
 
 // Initialize notification center when DOM is ready
-let notificationCenter;
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        notificationCenter = new NotificationCenter();
+        window.NocturnalNotificationCenter = new NotificationCenter();
     });
 } else {
-    notificationCenter = new NotificationCenter();
+    window.NocturnalNotificationCenter = new NotificationCenter();
 }

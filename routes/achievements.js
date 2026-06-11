@@ -41,7 +41,6 @@ router.get('/leaderboard', protect, async (req, res) => {
     try {
         const { category = 'shifts', period = 'month' } = req.query;
 
-        const User = require('../models/user');
         const { DoctorAnalytics } = require('../models/analytics');
 
         let sortField = 'completedDuties';

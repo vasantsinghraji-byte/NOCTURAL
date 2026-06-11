@@ -1,9 +1,11 @@
 name: Render Smoke
 
 on:
+  pull_request:
+    branches: [ main ]
   workflow_run:
     workflows:
-      - Deploy
+      - CI - Continuous Integration
     types:
       - completed
   workflow_dispatch:
@@ -24,22 +26,46 @@ permissions:
 
 jobs:
   auth-cors-smoke:
-    name: Deployed Auth CORS Smoke
+    name: Required Post-Deploy Render Smoke
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    timeout-minutes: 5
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    timeout-minutes: 12
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Wait for Render auto-deploy
+        if: github.event_name == 'workflow_run'
+        env:
+          RENDER_SMOKE_WAIT_SECONDS: ${{ vars.RENDER_SMOKE_WAIT_SECONDS || '240' }}
+        shell: bash
+        run: sleep "$RENDER_SMOKE_WAIT_SECONDS"
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: node ./node_modules/playwright/cli.js install --with-deps chromium
 
       - name: Smoke test deployed login/register CORS
         env:
           DEPLOYED_BASE_URL: ${{ github.event.inputs.deployed_base_url || vars.RENDER_SMOKE_BASE_URL || 'https://nocturnal-api.onrender.com' }}
           SMOKE_ORIGIN: ${{ github.event.inputs.origin || vars.RENDER_SMOKE_ORIGIN || 'https://nocturnal.com' }}
         run: npm run smoke:deployed-auth-cors
+
+      - name: Smoke test deployed service worker cache headers
+        env:
+          DEPLOYED_BASE_URL: ${{ github.event.inputs.deployed_base_url || vars.RENDER_SMOKE_BASE_URL || 'https://nocturnal-api.onrender.com' }}
+        run: npm run smoke:deployed-service-worker
+
+      - name: Smoke test deployed CSP
+        env:
+          DEPLOYED_BASE_URL: ${{ github.event.inputs.deployed_base_url || vars.RENDER_SMOKE_BASE_URL || 'https://nocturnal-api.onrender.com' }}
+        run: npm run smoke:deployed-csp

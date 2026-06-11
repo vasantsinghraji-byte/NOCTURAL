@@ -98,7 +98,7 @@
                     document.getElementById('userQualifications').textContent = qualifications;
                     document.getElementById('userPhone').textContent = user.phone || 'Not specified';
                     document.getElementById('userEmail').textContent = user.email || 'Not specified';
-                    document.getElementById('profileStrength').textContent = user.profileStrength ? `${user.profileStrength}%` : 'Not calculated';
+                    document.getElementById('profileStrength').textContent = user.profileStrength ? AppFormat.percent(user.profileStrength) : 'Not calculated';
 
                     // Display preferences if available
                     if (user.preferences && Object.keys(user.preferences).length > 0) {
@@ -123,7 +123,7 @@
                     document.getElementById('userPreferences').textContent = getProfilePreferences(user);
 
                     // Show profile section
-                    document.getElementById('profileInfo').style.display = 'block';
+                    AppUi.setDisplay(document.getElementById('profileInfo'), 'block');
 
                     // Update localStorage with latest user data
                     localStorage.setItem('userName', user.name);
@@ -165,9 +165,7 @@
 
                     // Calculate total earnings from accepted duties
                     const totalEarnings = stats.totalEarnings || 0;
-                    document.getElementById('totalEarnings').textContent = `₹${totalEarnings.toLocaleString()}`;
-
-                    document.getElementById('totalEarnings').textContent = `INR ${totalEarnings.toLocaleString()}`;
+                    document.getElementById('totalEarnings').textContent = AppFormat.currencyWhole(totalEarnings, 'INR ');
 
                     // Display recent applications
                     displayRecentApplications(applications);
@@ -192,7 +190,7 @@
                 <div class="application-item">
                     <div class="application-info">
                         <h3>${app.duty?.hospitalName || 'Hospital'} - ${app.duty?.specialty || 'General'}</h3>
-                        <p>📅 ${app.duty?.date ? new Date(app.duty.date).toLocaleDateString() : 'TBD'} | ⏰ ${app.duty?.startTime || 'TBD'} | 💰 ₹${app.duty?.compensation?.totalAmount || 0}</p>
+                        <p>📅 ${app.duty?.date ? AppFormat.date(app.duty.date) : 'TBD'} | ⏰ ${app.duty?.startTime || 'TBD'} | 💰 ${AppFormat.currencyWhole(app.duty?.compensation?.totalAmount || 0)}</p>
                     </div>
                     <span class="status-badge ${NocturnalSession.getApplicationStatusClass(app.status)}">${NocturnalSession.normalizeApplicationStatus(app.status)}</span>
                 </div>

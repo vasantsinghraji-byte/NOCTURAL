@@ -2,7 +2,7 @@
   "name": "Nocturnal Healthcare",
   "short_name": "Nocturnal",
   "description": "Healthcare services at your doorstep - For nurses and physiotherapists",
-  "start_url": "/provider-login.html",
+  "start_url": "/roles/provider/provider-login.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#667eea",

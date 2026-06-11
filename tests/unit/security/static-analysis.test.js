@@ -11,13 +11,10 @@
  * - Encryption key validation and IV uniqueness
  */
 
-const fs = require('fs');
-const path = require('path');
-
-const ROOT = path.resolve(__dirname, '..', '..', '..');
+const { readProjectFile } = require('../validation/projectFileReader');
 
 function readFile(relativePath) {
-  return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
+  return readProjectFile(relativePath);
 }
 
 // Known vulnerable passwords that were hardcoded before fixes

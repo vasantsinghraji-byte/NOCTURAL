@@ -6,9 +6,8 @@
  */
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const fs = require('fs').promises;
-const path = require('path');
 const logger = require('../utils/logger');
+const localFileSystem = require('../utils/localFileSystem');
 
 // Initialize Gemini client
 let genAI = null;
@@ -90,7 +89,7 @@ const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
  * Convert file to Gemini-compatible format
  */
 const fileToGenerativePart = async (filePath, mimeType) => {
-  const stat = await fs.stat(filePath);
+  const stat = await localFileSystem.stat(filePath);
   if (stat.size > MAX_FILE_SIZE_BYTES) {
     throw new Error(`File exceeds maximum size of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB: ${(stat.size / (1024 * 1024)).toFixed(1)}MB`);
   }
@@ -98,7 +97,7 @@ const fileToGenerativePart = async (filePath, mimeType) => {
     throw new Error('File is empty');
   }
 
-  const data = await fs.readFile(filePath);
+  const data = await localFileSystem.readFile(filePath);
   return {
     inlineData: {
       data: data.toString('base64'),

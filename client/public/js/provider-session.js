@@ -2,7 +2,29 @@ if (typeof AppConfig === 'undefined' || typeof NocturnalSession === 'undefined')
     console.error('provider-session.js: dependencies missing - ensure config.js and frontend-session.js load first');
 }
 
-(function initProviderSession(window) {
+(function initProviderSession() {
+    function navigateTo(url) {
+        window.location.href = url;
+    }
+
+    function createProviderSessionExtension(baseSession) {
+        return Object.assign({}, baseSession, {
+            getStoredProvider: baseSession.getStoredRole,
+            redirectAuthenticatedLogin: function(options) {
+                var config = Object.assign({
+                    redirectUrl: AppConfig.routes.page('provider.dashboard')
+                }, options || {});
+
+                if (!baseSession.isAuthenticated()) {
+                    return false;
+                }
+
+                navigateTo(config.redirectUrl);
+                return true;
+            }
+        });
+    }
+
     var providerSession = NocturnalSession.createRoleSession({
         role: 'provider',
         storageKeys: ['provider'],
@@ -19,24 +41,8 @@ if (typeof AppConfig === 'undefined' || typeof NocturnalSession === 'undefined')
                 ? provider.role.charAt(0).toUpperCase() + provider.role.slice(1)
                 : 'Healthcare Professional';
         },
-        extendSession: function(session) {
-            session.getStoredProvider = session.getStoredRole;
-            session.redirectAuthenticatedLogin = function(options) {
-                var config = Object.assign({
-                    redirectUrl: AppConfig.routes.page('provider.dashboard')
-                }, options || {});
-
-                if (!session.isAuthenticated()) {
-                    return false;
-                }
-
-                window.location.href = config.redirectUrl;
-                return true;
-            };
-
-            return session;
-        }
+        extendSession: createProviderSessionExtension
     });
 
     window.ProviderSession = providerSession;
-})(window);
+}());

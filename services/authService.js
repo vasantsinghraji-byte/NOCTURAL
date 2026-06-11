@@ -8,7 +8,7 @@
 const User = require('../models/user');
 const { generateToken } = require('../middleware/auth');
 const logger = require('../utils/logger');
-const { HTTP_STATUS, SUCCESS_MESSAGE, ERROR_MESSAGE } = require('../constants');
+const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
 const { AuthenticationError, AuthorizationError } = require('../utils/errors');
 
 const COMMON_PROFILE_FIELDS = [
@@ -59,7 +59,19 @@ class AuthService {
    * @returns {Promise<Object>} Created user and token
    */
   async register(userData) {
-    const { name, email, password, role, specialty, hospital, location, phone } = userData;
+    const {
+      name,
+      email,
+      password,
+      role,
+      specialty,
+      hospital,
+      location,
+      phone,
+      professional,
+      bankDetails,
+      onboardingCompleted
+    } = userData;
 
     // Check if user exists
     const existingUser = await User.findOne({ email });
@@ -82,7 +94,10 @@ class AuthService {
         specialty,
         hospital,
         location,
-        phone
+        phone,
+        professional,
+        bankDetails,
+        onboardingCompleted
       });
     } catch (error) {
       logger.error('User creation error', { email, error: error.message, stack: error.stack });

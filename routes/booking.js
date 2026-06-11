@@ -7,10 +7,11 @@
 
 const express = require('express');
 const router = express.Router();
-const { body, param, query } = require('express-validator');
+const { body, param } = require('express-validator');
 const { validate } = require('../middleware/validation');
 const { authorize } = require('../middleware/auth');
 const { protectBoth } = require('../middleware/patientAuth');
+const idempotency = require('../middleware/idempotency');
 const { queryCache } = require('../middleware/queryCache');
 const { CACHE_TTL } = require('../constants');
 const { BOOKING_SERVICE_TYPES, BOOKING_STATUSES } = require('../constants/enums');
@@ -176,6 +177,7 @@ router.post(
   '/',
   createBookingValidation,
   validate,
+  idempotency({ route: 'bookings/create' }),
   createBooking
 );
 

@@ -2,17 +2,12 @@
  * Unit Tests - Patient Model
  */
 
-const mongoose = require('mongoose');
 const { Patient } = require('../../../src/models');
 
 describe('Patient Model', () => {
   // Clear database before each test
   beforeEach(async () => {
     await Patient.deleteMany({});
-  });
-
-  afterAll(async () => {
-    await mongoose.connection.close();
   });
 
   describe('Patient Creation', () => {

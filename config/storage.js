@@ -1,6 +1,8 @@
 const multer = require('multer');
 const path = require('path');
 const logger = require('../utils/logger');
+const localFileSystem = require('../utils/localFileSystem');
+const { createMagicByteValidatedStream } = require('../utils/uploadMagicByteValidator');
 
 // Determine storage backend — only use GCS when explicitly enabled and configured
 const USE_GCS = process.env.USE_GCS === 'true' && !!process.env.GCS_BUCKET;
@@ -45,6 +47,9 @@ if (USE_GCS && process.env.GCS_BUCKET) {
     logger.info('Google Cloud Storage initialized', { bucket: process.env.GCS_BUCKET });
   } catch (error) {
     logger.error('Failed to initialize Google Cloud Storage', { error: error.message });
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    }
   }
 }
 
@@ -55,9 +60,8 @@ const localStorage = multer.diskStorage({
     const uploadPath = path.join(__dirname, '../uploads', folder);
 
     // Create directory if it doesn't exist
-    const fs = require('fs');
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
+    if (!localFileSystem.existsSync(uploadPath)) {
+      localFileSystem.mkdirSync(uploadPath, { recursive: true });
     }
 
     cb(null, uploadPath);
@@ -101,13 +105,20 @@ const gcsStorage = {
         }
       });
 
-      let size = 0;
-
-      file.stream.on('data', (chunk) => {
-        size += chunk.length;
+      const validatedUpload = createMagicByteValidatedStream(file, {
+        userId: req.user ? req.user._id.toString() : 'anonymous'
       });
 
-      file.stream.pipe(blobStream);
+      file.stream.pipe(validatedUpload.stream).pipe(blobStream);
+
+      validatedUpload.validation().catch(async (error) => {
+        blobStream.destroy(error);
+        try {
+          await blob.delete();
+        } catch (deleteError) {
+          logger.warn('Failed to delete rejected GCS upload', { key, error: deleteError.message });
+        }
+      });
 
       blobStream.on('error', (error) => {
         cb(error);
@@ -119,7 +130,7 @@ const gcsStorage = {
           key: key,
           location: publicUrl,
           bucket: process.env.GCS_BUCKET,
-          size: size,
+          size: validatedUpload.getSize(),
           mimetype: file.mimetype
         });
       });
@@ -230,10 +241,9 @@ module.exports = {
         logger.warn('Failed to delete file from GCS', { filename, error: error.message });
       }
     } else {
-      const fs = require('fs').promises;
       const filePath = path.join(__dirname, '../uploads', filename);
       try {
-        await fs.unlink(filePath);
+        await localFileSystem.unlink(filePath);
       } catch (error) {
         // File might not exist, ignore error
       }

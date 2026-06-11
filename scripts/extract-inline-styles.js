@@ -3,11 +3,14 @@
  * and save them as external CSS files
  */
 
-const fs = require('fs');
 const path = require('path');
 
+const projectFs = require('./lib/projectFs');
+
+const PROJECT_ROOT = path.resolve(__dirname, '..');
+
 function extractStyles(htmlFilePath) {
-  const content = fs.readFileSync(htmlFilePath, 'utf8');
+  const content = projectFs.readTextFileSync(PROJECT_ROOT, htmlFilePath);
   const fileName = path.basename(htmlFilePath, '.html');
 
   // Extract style blocks
@@ -23,8 +26,8 @@ function extractStyles(htmlFilePath) {
   if (styleContent.trim()) {
     // Save to CSS file
     const cssPath = path.join(path.dirname(htmlFilePath), 'css', `${fileName}.css`);
-    fs.mkdirSync(path.dirname(cssPath), { recursive: true });
-    fs.writeFileSync(cssPath, styleContent.trim());
+    projectFs.makeDirectorySync(PROJECT_ROOT, path.dirname(cssPath), { recursive: true });
+    projectFs.writeTextFileSync(PROJECT_ROOT, cssPath, styleContent.trim());
 
     // Replace inline style with link tag
     modifiedHtml = modifiedHtml.replace(
@@ -34,8 +37,8 @@ function extractStyles(htmlFilePath) {
 
     // Save modified HTML
     const backupPath = htmlFilePath + '.original';
-    if (!fs.existsSync(backupPath)) {
-      fs.copyFileSync(htmlFilePath, backupPath);
+    if (!projectFs.pathExistsSync(PROJECT_ROOT, backupPath)) {
+      projectFs.copyFileSync(PROJECT_ROOT, htmlFilePath, backupPath);
     }
 
     console.log(`✅ Extracted styles from ${fileName}.html`);
@@ -70,7 +73,7 @@ let totalExtracted = 0;
 const results = [];
 
 targetFiles.forEach(file => {
-  if (fs.existsSync(file)) {
+  if (projectFs.pathExistsSync(PROJECT_ROOT, file)) {
     const result = extractStyles(file);
     if (result) {
       results.push(result);
@@ -97,4 +100,4 @@ if (results.length > 0) {
 }
 
 // Save results for apply script
-fs.writeFileSync('style-extraction-results.json', JSON.stringify(results, null, 2));
+projectFs.writeTextFileSync(PROJECT_ROOT, 'style-extraction-results.json', JSON.stringify(results, null, 2));

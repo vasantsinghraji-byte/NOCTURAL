@@ -32,23 +32,15 @@ function toAppConfigEndpoint(endpoint) {
 }
 
 async function fetchWithStandardConfig(endpoint, options = {}) {
-  const token = localStorage.getItem('token');
-
   if (!isAbsoluteUrl(endpoint) && typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function') {
-    return AppConfig.fetch(toAppConfigEndpoint(endpoint), {
-      ...options,
-      headers: {
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        ...options.headers
-      }
-    });
+    return AppConfig.fetch(toAppConfigEndpoint(endpoint), options);
   }
 
   return fetch(endpoint, {
+    credentials: options.credentials || 'include',
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...options.headers
     }
   });
@@ -203,7 +195,7 @@ function createPaginationControls(pagination, onPageChange, options = {}) {
   if (showPageNumbers) {
     const pageNumbers = getPageNumbers(page, pages, maxPageButtons);
 
-    pageNumbers.forEach((pageNum, index) => {
+    pageNumbers.forEach((pageNum) => {
       if (pageNum === '...') {
         html += `<span class="pagination-ellipsis">...</span>`;
       } else {

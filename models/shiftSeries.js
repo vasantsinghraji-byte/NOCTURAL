@@ -182,11 +182,11 @@ shiftSeriesSchema.methods.acceptApplication = async function(applicationId) {
 
     // Update shift statuses
     if (application.appliedFor === 'FULL_SERIES') {
-        this.shifts.forEach(shift => {
+        for (const shift of this.shifts) {
             if (shift.status === 'PENDING') {
                 shift.status = 'FILLED';
             }
-        });
+        }
         this.status = 'FILLED';
     } else if (application.appliedFor === 'PARTIAL' && application.selectedShifts) {
         application.selectedShifts.forEach(index => {

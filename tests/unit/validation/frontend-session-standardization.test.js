@@ -1,9 +1,5 @@
-const fs = require('fs');
 const path = require('path');
-
-const rootDir = path.resolve(__dirname, '..', '..', '..');
-
-const readProjectFile = (relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+const { readProjectFile } = require('./projectFileReader');
 
 const frontendSessionSrc = readProjectFile('client/public/js/frontend-session.js');
 const patientSessionSrc = readProjectFile('client/public/js/patient-session.js');
@@ -202,6 +198,7 @@ describe('Frontend Session Standardization', () => {
     expect(frontendSessionSrc).toContain('function requireAuthToken(options)');
     expect(frontendSessionSrc).toContain('function requireAuthenticatedPage(options)');
     expect(frontendSessionSrc).toContain('function createRoleSession(options)');
+    expect(frontendSessionSrc).toContain('async function fetchJson(endpoint, options)');
     expect(frontendSessionSrc).toContain('createRoleSession: createRoleSession');
 
     expect(patientSessionSrc).toContain('NocturnalSession.createRoleSession({');
@@ -212,7 +209,9 @@ describe('Frontend Session Standardization', () => {
     expect(providerSessionSrc).toContain('NocturnalSession.createRoleSession({');
     expect(providerSessionSrc).toContain("role: 'provider'");
     expect(providerSessionSrc).toContain("legacyTokenKeys: ['providerToken']");
-    expect(providerSessionSrc).toContain('session.redirectAuthenticatedLogin = function(options)');
+    expect(providerSessionSrc).toContain('function createProviderSessionExtension(baseSession)');
+    expect(providerSessionSrc).toContain('redirectAuthenticatedLogin: function(options)');
+    expect(providerSessionSrc).toContain('extendSession: createProviderSessionExtension');
 
     expect(adminSessionSrc).toContain('NocturnalSession.createRoleSession({');
     expect(adminSessionSrc).toContain("role: 'admin'");
@@ -239,10 +238,10 @@ describe('Frontend Session Standardization', () => {
     expect(patientClinicalHistoryScriptSrc).toContain('PatientSession.requireAuthenticatedPage(');
     expect(patientAnalyticsSrc).toContain('<script src="/js/patient-analytics.js"></script>');
     expect(patientAnalyticsScriptSrc).toContain('PatientSession.requireAuthenticatedPage(');
-    expect(patientAnalyticsScriptSrc).toContain('PatientSession.getToken()');
+    expect(patientAnalyticsScriptSrc).toContain('PatientSession.fetchJson(');
     expect(reportDetailsSrc).toContain('<script src="/js/patient-report-details.js"></script>');
     expect(reportDetailsScriptSrc).toContain('PatientSession.requireAuthenticatedPage(');
-    expect(reportDetailsScriptSrc).toContain('PatientSession.getToken()');
+    expect(reportDetailsScriptSrc).toContain('PatientSession.fetchJson(');
 
     expect(providerLoginSrc).toContain('<script src="/js/provider-session.js"></script>');
     expect(providerLoginSrc).toContain('<script src="/js/provider-login.js"></script>');

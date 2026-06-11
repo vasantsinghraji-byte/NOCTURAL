@@ -1,12 +1,10 @@
-const path = require('path');
 const vm = require('vm');
 
 const {
-  fs,
   frontendJsFilePaths,
-  rootDir,
   toProjectRelativePath
 } = require('./frontend-validation-utils');
+const { readProjectFile } = require('./projectFileReader');
 
 const ROUTE_PARAM_FIXTURES = {
   'duties.detail': { dutyId: 'fixture-duty-id' },
@@ -47,6 +45,7 @@ const EXPECTED_FRONTEND_API_DEPENDENCY_MAP = {
   'client/public/js/admin-post-duty.js': ['duties.list'],
   'client/public/js/admin-profile.js': ['auth.me'],
   'client/public/js/admin-settings.js': ['analytics.hospitalDashboard', 'hospitalSettings.root'],
+  'client/public/js/admin-waitlist.js': ['adminFunnel.dailyAnalytics', 'adminFunnel.waitlist', 'adminFunnel.waitlistStatus'],
   'client/public/js/doctor-achievements.js': ['achievements.claim', 'achievements.leaderboard', 'achievements.list', 'achievements.share'],
   'client/public/js/doctor-availability.js': ['calendar.availability', 'calendar.availabilityDetail'],
   'client/public/js/doctor-browse-shifts-enhanced.js': ['applications.list', 'auth.me', 'duties.list'],
@@ -57,8 +56,8 @@ const EXPECTED_FRONTEND_API_DEPENDENCY_MAP = {
   'client/public/js/doctor-onboarding.js': ['auth.me', 'auth.register', 'uploads.document', 'uploads.profilePhoto'],
   'client/public/js/doctor-profile-enhanced.js': ['auth.me', 'uploads.document', 'uploads.profilePhoto'],
   'client/public/js/doctor-my-applications.js': ['applications.list', 'applications.stats'],
-  'client/public/js/frontend-session.js': ['applications.list', 'applications.stats', 'auth.me'],
-  'client/public/js/landing.js': ['auth.login', 'auth.me', 'auth.register'],
+  'client/public/js/frontend-session.js': ['applications.list', 'applications.stats', 'auth.logout', 'auth.me'],
+  'client/public/js/landing.js': ['auth.login', 'auth.me', 'auth.register', 'funnelEvents.create'],
   'client/public/js/patient-booking-details.js': ['bookings.cancel', 'bookings.detail', 'bookings.review'],
   'client/public/js/patient-booking-form.js': ['bookings.list', 'paymentsB2c.createOrder', 'paymentsB2c.failure', 'paymentsB2c.verify'],
   'client/public/js/patient-dashboard.js': ['bookings.patientMine', 'patients.stats'],
@@ -69,11 +68,12 @@ const EXPECTED_FRONTEND_API_DEPENDENCY_MAP = {
   'client/public/js/patient-register.js': ['patients.register'],
   'client/public/js/provider-dashboard.js': ['bookings.complete', 'bookings.confirm', 'bookings.enRoute', 'bookings.providerMine', 'bookings.start'],
   'client/public/js/provider-login.js': ['auth.login'],
-  'client/public/js/shared-register.js': ['auth.register']
+  'client/public/js/shared-register.js': ['auth.register', 'hospitalWaitlist.create']
 };
 
 const RAW_FETCH_ALLOWLIST = [
   'client/public/js/auth.js',
+  'client/public/js/frontend-session.js',
   'client/public/js/notification-center.js',
   'client/public/js/pagination.js',
   'client/public/js/unified-nav.js',
@@ -91,17 +91,17 @@ function extractRouteKeys(source) {
   });
 
   HELPER_ROUTE_PATTERNS.forEach(({ pattern, routeKey }) => {
-    if (pattern.test(source)) {
+    const helperPattern = new RegExp(pattern.source, pattern.flags.replace('g', ''));
+    if (helperPattern.test(source)) {
       routeKeys.add(routeKey);
     }
-    pattern.lastIndex = 0;
   });
 
   return Array.from(routeKeys).sort();
 }
 
 function loadAppConfig() {
-  const configSrc = fs.readFileSync(path.join(rootDir, 'client/public/js/config.js'), 'utf8');
+  const configSrc = readProjectFile('client/public/js/config.js');
   const context = {
     AbortController,
     FormData: function FormData() {},
@@ -156,7 +156,7 @@ describe('Frontend Page API Dependency Map', () => {
 
     frontendJsFilePaths.forEach((absolutePath) => {
       const relativePath = toProjectRelativePath(absolutePath);
-      const routeKeys = extractRouteKeys(fs.readFileSync(absolutePath, 'utf8'));
+      const routeKeys = extractRouteKeys(readProjectFile(toProjectRelativePath(absolutePath)));
 
       if (routeKeys.length > 0) {
         actualMap[relativePath] = routeKeys;
@@ -184,7 +184,7 @@ describe('Frontend Page API Dependency Map', () => {
     const rawFetchUsers = frontendJsFilePaths
       .map((absolutePath) => toProjectRelativePath(absolutePath))
       .filter((relativePath) => {
-        const source = fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+        const source = readProjectFile(relativePath);
         return /AppConfig\.fetch\(/.test(source);
       })
       .sort();

@@ -1,6 +1,5 @@
 // API_URL is provided by config.js
         let allShifts = [];
-        let currentUser = null;
 
         // Check authentication
         function checkAuth() {
@@ -11,29 +10,28 @@
 
         // Load user profile
         async function loadUser() {
-            const token = checkAuth();
+            if (!checkAuth()) return;
             try {
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('auth.me', {
-                    parseJson: true,
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    parseJson: true
                 }), 'Failed to load user', {
                     isSuccess: function (payload) {
                         return !!(payload && payload.success && payload.user);
                     }
                 });
-                currentUser = data.user;
+                return data.user;
             } catch (error) {
                 console.error('Error loading user:', error);
+                return null;
             }
         }
 
         // Load shifts
         async function loadShifts() {
-            const token = checkAuth();
+            if (!checkAuth()) return;
             try {
                 const data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('duties.list', {
-                    parseJson: true,
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    parseJson: true
                 }, {
                     query: { status: 'OPEN' }
                 }), 'Failed to load shifts');
@@ -183,7 +181,7 @@
                         <div class="shift-details">
                             <div class="detail-row">
                                 <i class="fas fa-calendar"></i>
-                                <span>${date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                                <span>${AppFormat.date(date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                             </div>
                             <div class="detail-row">
                                 <i class="fas fa-clock"></i>
@@ -196,8 +194,8 @@
                         </div>
 
                         <div class="compensation">
-                            <div class="comp-rate">₹${shift.hourlyRate.toLocaleString()}/hr</div>
-                            <div class="comp-total">Total: ₹${(shift.totalCompensation || shift.hourlyRate * 12).toLocaleString()}</div>
+                            <div class="comp-rate">${AppFormat.currencyWhole(shift.hourlyRate)}/hr</div>
+                            <div class="comp-total">Total: ${AppFormat.currencyWhole(shift.totalCompensation || shift.hourlyRate * 12)}</div>
                         </div>
 
                         <div class="perks">

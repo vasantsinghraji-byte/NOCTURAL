@@ -10,9 +10,12 @@
  */
 
 const crypto = require('crypto');
-const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+
+const projectFs = require('./lib/projectFs');
+
+const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 // Colors for console output
 const colors = {
@@ -56,7 +59,7 @@ function generatePassword(length = 24) {
 // Read current .env file
 function readEnvFile(envPath) {
   try {
-    const content = fs.readFileSync(envPath, 'utf8');
+    const content = projectFs.readTextFileSync(PROJECT_ROOT, envPath);
     const env = {};
 
     content.split('\n').forEach(line => {
@@ -87,7 +90,7 @@ function writeEnvFile(envPath, env, comments = {}) {
       content += `${key}=${value}\n`;
     }
 
-    fs.writeFileSync(envPath, content, 'utf8');
+    projectFs.writeTextFileSync(PROJECT_ROOT, envPath, content, 'utf8');
     return true;
   } catch (error) {
     log.error(`Failed to write ${envPath}: ${error.message}`);
@@ -100,7 +103,7 @@ function backupEnvFile(envPath) {
   try {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupPath = `${envPath}.backup.${timestamp}`;
-    fs.copyFileSync(envPath, backupPath);
+    projectFs.copyFileSync(PROJECT_ROOT, envPath, backupPath);
     log.success(`Backup created: ${backupPath}`);
     return backupPath;
   } catch (error) {
@@ -111,50 +114,53 @@ function backupEnvFile(envPath) {
 
 // Rotate JWT secret
 function rotateJWTSecret(env) {
-  const oldSecret = env.JWT_SECRET;
+  const updatedEnv = { ...env };
+  const oldSecret = updatedEnv.JWT_SECRET;
   const newSecret = generateJWTSecret();
 
-  env.JWT_SECRET = newSecret;
-  env.JWT_SECRET_OLD = oldSecret; // Keep old secret for grace period
+  updatedEnv.JWT_SECRET = newSecret;
+  updatedEnv.JWT_SECRET_OLD = oldSecret; // Keep old secret for grace period
 
   log.success('JWT secret rotated');
   log.warn('Old secret stored in JWT_SECRET_OLD for 7-day grace period');
   log.warn('Update all active tokens or invalidate user sessions');
 
-  return env;
+  return updatedEnv;
 }
 
 // Rotate encryption key
 function rotateEncryptionKey(env) {
-  const oldKey = env.ENCRYPTION_KEY;
+  const updatedEnv = { ...env };
+  const oldKey = updatedEnv.ENCRYPTION_KEY;
   const newKey = generateEncryptionKey();
 
-  env.ENCRYPTION_KEY = newKey;
-  env.ENCRYPTION_KEY_OLD = oldKey; // Keep old key for data migration
+  updatedEnv.ENCRYPTION_KEY = newKey;
+  updatedEnv.ENCRYPTION_KEY_OLD = oldKey; // Keep old key for data migration
 
   log.success('Encryption key rotated');
   log.warn('Old key stored in ENCRYPTION_KEY_OLD');
   log.error('CRITICAL: Re-encrypt all encrypted data with new key!');
   log.info('Run: node scripts/re-encrypt-data.js');
 
-  return env;
+  return updatedEnv;
 }
 
 // Rotate database password
 function rotateDatabasePassword(env) {
+  const updatedEnv = { ...env };
   const newPassword = generatePassword();
 
   // Parse MongoDB URI
-  const uriMatch = env.MONGODB_URI.match(/mongodb:\/\/([^:]+):([^@]+)@(.+)/);
+  const uriMatch = updatedEnv.MONGODB_URI.match(/mongodb:\/\/([^:]+):([^@]+)@(.+)/);
   if (!uriMatch) {
     log.error('Could not parse MONGODB_URI');
-    return env;
+    return updatedEnv;
   }
 
   const [, username, oldPassword, rest] = uriMatch;
 
-  env.MONGODB_URI = `mongodb://${username}:${newPassword}@${rest}`;
-  env.MONGODB_PASSWORD_OLD = oldPassword; // Keep for rollback
+  updatedEnv.MONGODB_URI = `mongodb://${username}:${newPassword}@${rest}`;
+  updatedEnv.MONGODB_PASSWORD_OLD = oldPassword; // Keep for rollback
 
   log.success('Database password rotated in .env');
   log.error('CRITICAL: Update password in MongoDB!');
@@ -162,7 +168,7 @@ function rotateDatabasePassword(env) {
   log.info(`  use admin`);
   log.info(`  db.updateUser("${username}", { pwd: "${newPassword}" })`);
 
-  return env;
+  return updatedEnv;
 }
 
 // Rotate Google Cloud Storage credentials
@@ -210,10 +216,10 @@ async function rotateSecrets(options) {
   console.log('  NOCTURNAL PLATFORM - SECRET ROTATION');
   console.log('='.repeat(60) + '\n');
 
-  const envPath = path.join(__dirname, '..', '.env');
+  const envPath = path.join(PROJECT_ROOT, '.env');
 
   // Check if .env exists
-  if (!fs.existsSync(envPath)) {
+  if (!projectFs.pathExistsSync(PROJECT_ROOT, envPath)) {
     log.error('.env file not found!');
     process.exit(1);
   }

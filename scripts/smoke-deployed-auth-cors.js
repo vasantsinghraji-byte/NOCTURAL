@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-/* eslint-disable no-console */
-
 const DEFAULT_BASE_URL = 'https://nocturnal-api.onrender.com';
 
 const baseUrl = (process.env.DEPLOYED_BASE_URL ||
@@ -27,6 +25,33 @@ const readBody = async (response, maxLength = 500) => {
   return maxLength ? text.slice(0, maxLength) : text;
 };
 
+const sleep = (ms) => new Promise((resolve) => {
+  setTimeout(resolve, ms);
+});
+
+const retry = async (label, action, options = {}) => {
+  const attempts = Number(process.env.DEPLOYED_SMOKE_RETRIES || options.attempts || 12);
+  const delayMs = Number(process.env.DEPLOYED_SMOKE_RETRY_DELAY_MS || options.delayMs || 15000);
+  let lastError;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await action(attempt);
+    } catch (error) {
+      lastError = error;
+
+      if (attempt === attempts) {
+        break;
+      }
+
+      console.warn(`${label}: attempt ${attempt}/${attempts} failed: ${error.message}`);
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError;
+};
+
 const assertNoCorsFailure = async (response, label) => {
   const body = await readBody(response);
 
@@ -39,6 +64,8 @@ const assertNoCorsFailure = async (response, label) => {
   if (body.includes('Not allowed by CORS')) {
     throw new Error(`${label}: response still contains CORS rejection text`);
   }
+
+  return body;
 };
 
 const request = (path, options = {}) => fetch(`${baseUrl}${path}`, {
@@ -53,25 +80,29 @@ const request = (path, options = {}) => fetch(`${baseUrl}${path}`, {
 async function main() {
   console.log(`Running deployed auth CORS smoke against ${baseUrl} with Origin ${origin}`);
 
-  const homepage = await fetch(`${baseUrl}/index.html`, { redirect: 'manual' });
-  const homepageBody = await readBody(homepage, 0);
-  if (!homepage.ok || !homepageBody.includes('loginForm')) {
-    throw new Error(`homepage: expected served login page, received ${homepage.status}`);
-  }
-
-  const preflight = await request('/api/v1/auth/login', {
-    method: 'OPTIONS',
-    headers: {
-      'Access-Control-Request-Method': 'POST',
-      'Access-Control-Request-Headers': 'content-type'
+  await retry('homepage readiness', async () => {
+    const homepage = await fetch(`${baseUrl}/index.html`, { redirect: 'manual' });
+    const homepageBody = await readBody(homepage, 0);
+    if (!homepage.ok || !homepageBody.includes('loginForm')) {
+      throw new Error(`homepage: expected served login page, received ${homepage.status}`);
     }
   });
 
-  if (preflight.status !== 204) {
-    const body = await readBody(preflight);
-    throw new Error(`preflight: expected 204, received ${preflight.status}: ${body}`);
-  }
-  requiredCorsHeaders(preflight, 'preflight');
+  await retry('auth preflight readiness', async () => {
+    const preflight = await request('/api/v1/auth/login', {
+      method: 'OPTIONS',
+      headers: {
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'content-type'
+      }
+    });
+
+    if (preflight.status !== 204) {
+      const body = await readBody(preflight);
+      throw new Error(`preflight: expected 204, received ${preflight.status}: ${body}`);
+    }
+    requiredCorsHeaders(preflight, 'preflight');
+  });
 
   const login = await request('/api/v1/auth/login', {
     method: 'POST',

@@ -310,7 +310,7 @@ const createRateLimitHandler = (type) => {
 // Determine if Redis is available for distributed rate limiting
 // Create base limiter with monitoring
 const createMonitoredLimiter = (options) => {
-  const { type, window, max, message } = options;
+  const { type, window, message } = options;
 
   const limiterConfig = {
     windowMs: window,
@@ -427,7 +427,7 @@ const cleanupInterval = setInterval(() => {
 
   // Clean up old metric entries
   let totalRemoved = 0;
-  Object.entries(rateLimitMetrics).forEach(([type, metric]) => {
+  Object.values(rateLimitMetrics).forEach((metric) => {
     if (metric && metric.ips) {
       totalRemoved += cleanupOldEntries(metric.ips, CLEANUP_CONFIG.entryMaxAge);
     }
@@ -510,6 +510,8 @@ const cleanup = () => {
 module.exports = {
   rateLimiters,
   getRateLimitMetrics,
+  getMetricFromRedis,
+  isBlockedInRedis,
   isInStrictMode,
   cleanup
 };

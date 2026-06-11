@@ -1,12 +1,13 @@
-const fs = require('fs');
 const path = require('path');
 
-const controllersDir = path.resolve(__dirname, '..', '..', '..', 'controllers');
-const controllerFiles = fs.readdirSync(controllersDir)
+const { listProjectFiles, readProjectFile } = require('./projectFileReader');
+
+const controllersDir = 'controllers';
+const controllerFiles = listProjectFiles(controllersDir)
   .filter(file => file.endsWith('.js'))
   .map(file => ({
     file,
-    source: fs.readFileSync(path.join(controllersDir, file), 'utf8')
+    source: readProjectFile(path.join(controllersDir, file))
   }));
 
 describe('Controller Standardization', () => {

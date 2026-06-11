@@ -7,7 +7,7 @@ if (typeof AppConfig === 'undefined') {
   console.error('frontend-session.js: AppConfig not loaded - ensure config.js is included before this script');
 }
 
-(function initFrontendSession(window) {
+(function initFrontendSession() {
   var appRoutes = typeof AppConfig !== 'undefined' && AppConfig.routes ? AppConfig.routes : null;
   var DEFAULT_ROUTES = {
     doctorDashboard: appRoutes ? appRoutes.page('doctor.dashboard') : '/roles/doctor/doctor-dashboard.html',
@@ -21,6 +21,13 @@ if (typeof AppConfig === 'undefined') {
     admin: [],
     doctor: []
   };
+  function hasSessionProfile() {
+    return !!(
+      localStorage.getItem('user') ||
+      localStorage.getItem('userType') ||
+      localStorage.getItem('userId')
+    );
+  }
 
   function persistSession(user, userType) {
     localStorage.setItem('user', JSON.stringify(user));
@@ -42,12 +49,34 @@ if (typeof AppConfig === 'undefined') {
     localStorage.removeItem('userId');
   }
 
+  function navigateTo(url) {
+    window.location.href = url;
+  }
+
+  function navigateAfterDelay(url, delayMs) {
+    window.setTimeout(function () {
+      navigateTo(url);
+    }, delayMs);
+  }
+
+  function registerSessionApi(api) {
+    window.NocturnalSession = api;
+  }
+
   function logout(options) {
     var config = Object.assign({
       clearAll: false,
       clearKeys: null,
       redirectUrl: appRoutes ? appRoutes.page('home') : '/index.html'
     }, options || {});
+
+    if (typeof AppConfig !== 'undefined' && typeof AppConfig.fetchRoute === 'function') {
+      AppConfig.fetchRoute('auth.logout', {
+        method: 'POST',
+        parseJson: true,
+        skipAuth: true
+      }).catch(function () {});
+    }
 
     if (config.clearAll) {
       localStorage.clear();
@@ -60,7 +89,7 @@ if (typeof AppConfig === 'undefined') {
     }
 
     if (config.redirectUrl) {
-      window.location.href = config.redirectUrl;
+      navigateTo(config.redirectUrl);
     }
   }
 
@@ -99,22 +128,16 @@ if (typeof AppConfig === 'undefined') {
     }, options || {});
 
     if (typeof AppConfig !== 'undefined' && typeof AppConfig.getToken === 'function') {
-      var sharedToken = AppConfig.getToken({
+      AppConfig.getToken({
         tokenKeys: config.tokenKeys
       });
-      if (sharedToken) {
-        return sharedToken;
-      }
     }
 
     for (var i = 0; i < config.tokenKeys.length; i += 1) {
-      var token = localStorage.getItem(config.tokenKeys[i]);
-      if (token) {
-        return token;
-      }
+      localStorage.removeItem(config.tokenKeys[i]);
     }
 
-    return null;
+    return hasSessionProfile() ? 'profile-session' : null;
   }
 
   function requireAuthToken(options) {
@@ -136,7 +159,7 @@ if (typeof AppConfig === 'undefined') {
     if (typeof config.onUnauthorized === 'function') {
       config.onUnauthorized(config);
     } else if (config.redirectUrl) {
-      window.location.href = config.redirectUrl;
+      navigateTo(config.redirectUrl);
     }
 
     return null;
@@ -303,6 +326,11 @@ if (typeof AppConfig === 'undefined') {
       requireAuthenticatedPage: requireRolePage,
       isAuthenticated: isRoleAuthenticated,
       getToken: getRoleToken,
+      fetchJson: function (endpoint, optionsOverride) {
+        return fetchJson(endpoint, Object.assign({
+          onUnauthorized: logoutRole
+        }, optionsOverride || {}));
+      },
       logout: logoutRole,
       populateIdentity: populateIdentity
     };
@@ -319,21 +347,21 @@ if (typeof AppConfig === 'undefined') {
 
     if (user.role === 'doctor' || user.role === 'nurse' || user.role === 'physiotherapist') {
       persistSession(user, 'doctor');
-      window.location.href = user.onboardingCompleted
+      navigateTo(user.onboardingCompleted
         ? routes.doctorDashboard
-        : routes.doctorOnboarding;
+        : routes.doctorOnboarding);
       return true;
     }
 
     if (user.role === 'admin') {
       persistSession(user, 'hospital');
-      window.location.href = routes.adminDashboard;
+      navigateTo(routes.adminDashboard);
       return true;
     }
 
     if (user.role === 'patient') {
       persistSession(user, 'patient');
-      window.location.href = routes.patientDashboard;
+      navigateTo(routes.patientDashboard);
       return true;
     }
 
@@ -341,13 +369,6 @@ if (typeof AppConfig === 'undefined') {
   }
 
   async function getActiveUser() {
-    var token = typeof AppConfig !== 'undefined' && typeof AppConfig.getToken === 'function'
-      ? AppConfig.getToken()
-      : localStorage.getItem('token');
-    if (!token) {
-      return null;
-    }
-
     try {
       var data = await AppConfig.fetchRoute('auth.me', {
         parseJson: true
@@ -366,12 +387,13 @@ if (typeof AppConfig === 'undefined') {
     if (!container) {
       return;
     }
+    var targetContainer = container;
 
     var config = Object.assign({
       className: 'error-message'
     }, options || {});
 
-    container.innerHTML = '<div class="' + config.className + '">' + message + '</div>';
+    targetContainer.innerHTML = '<div class="' + config.className + '">' + message + '</div>';
   }
 
   function renderSuccessMessage(container, message, options) {
@@ -384,7 +406,8 @@ if (typeof AppConfig === 'undefined') {
 
   function clearFormMessage(container) {
     if (container) {
-      container.innerHTML = '';
+      var targetContainer = container;
+      targetContainer.innerHTML = '';
     }
   }
 
@@ -392,26 +415,27 @@ if (typeof AppConfig === 'undefined') {
     if (!button) {
       return;
     }
+    var targetButton = button;
 
     var config = Object.assign({
       clearText: false
     }, options || {});
 
-    if (!button.dataset.originalText) {
-      button.dataset.originalText = button.textContent;
+    if (!targetButton.dataset.originalText) {
+      targetButton.dataset.originalText = targetButton.textContent;
     }
 
-    if (!button.dataset.originalHtml) {
-      button.dataset.originalHtml = button.innerHTML;
+    if (!targetButton.dataset.originalHtml) {
+      targetButton.dataset.originalHtml = targetButton.innerHTML;
     }
 
-    button.classList.add('loading');
-    button.disabled = true;
+    targetButton.classList.add('loading');
+    targetButton.disabled = true;
 
     if (config.loadingHtml) {
-      button.innerHTML = config.loadingHtml;
+      targetButton.innerHTML = config.loadingHtml;
     } else if (config.clearText) {
-      button.textContent = '';
+      targetButton.textContent = '';
     }
   }
 
@@ -419,30 +443,31 @@ if (typeof AppConfig === 'undefined') {
     if (!button) {
       return;
     }
+    var targetButton = button;
 
     var config = Object.assign({
-      textContent: button.dataset.originalText || button.textContent
+      textContent: targetButton.dataset.originalText || targetButton.textContent
     }, options || {});
 
-    button.classList.remove('loading');
-    button.disabled = false;
+    targetButton.classList.remove('loading');
+    targetButton.disabled = false;
 
     if (config.htmlContent) {
-      button.innerHTML = config.htmlContent;
+      targetButton.innerHTML = config.htmlContent;
       return;
     }
 
     if (config.textContent !== undefined && config.textContent !== null) {
-      button.textContent = config.textContent;
+      targetButton.textContent = config.textContent;
       return;
     }
 
-    if (button.dataset.originalHtml) {
-      button.innerHTML = button.dataset.originalHtml;
+    if (targetButton.dataset.originalHtml) {
+      targetButton.innerHTML = targetButton.dataset.originalHtml;
       return;
     }
 
-    button.textContent = button.dataset.originalText || button.textContent;
+    targetButton.textContent = targetButton.dataset.originalText || targetButton.textContent;
   }
 
   function handleValidationFailure(container, message, config) {
@@ -530,6 +555,25 @@ if (typeof AppConfig === 'undefined') {
       return config.selectDraft(data);
     } catch (error) {
       return null;
+    }
+  }
+
+  async function fetchJson(endpoint, options) {
+    var requestOptions = Object.assign({}, options || {});
+    var onUnauthorized = requestOptions.onUnauthorized;
+    delete requestOptions.onUnauthorized;
+
+    try {
+      return await AppConfig.fetch(endpoint, Object.assign({}, requestOptions, {
+        parseJson: true
+      }));
+    } catch (error) {
+      if (error && error.status === 401 && typeof onUnauthorized === 'function') {
+        onUnauthorized(error);
+        return null;
+      }
+
+      throw error;
     }
   }
 
@@ -784,12 +828,13 @@ if (typeof AppConfig === 'undefined') {
     var button = resolveActionButton(event, config.buttonId);
 
     if (button) {
-      setButtonLoading(button, {
+      var loadingButton = button;
+      setButtonLoading(loadingButton, {
         loadingHtml: config.loadingHtml
       });
 
       if (config.loadingText) {
-        button.textContent = config.loadingText;
+        loadingButton.textContent = config.loadingText;
       }
     }
 
@@ -797,13 +842,14 @@ if (typeof AppConfig === 'undefined') {
       await applyForDuty(dutyId, config);
 
       if (button) {
-        button.classList.remove('loading');
-        button.disabled = true;
+        var targetButton = button;
+        targetButton.classList.remove('loading');
+        targetButton.disabled = true;
 
         if (config.successHtml) {
-          button.innerHTML = config.successHtml;
+          targetButton.innerHTML = config.successHtml;
         } else if (config.successText) {
-          button.textContent = config.successText;
+          targetButton.textContent = config.successText;
         }
       }
 
@@ -818,9 +864,7 @@ if (typeof AppConfig === 'undefined') {
       }
 
       if (config.redirectUrl) {
-        window.setTimeout(function() {
-          window.location.href = config.redirectUrl;
-        }, config.redirectDelayMs);
+        navigateAfterDelay(config.redirectUrl, config.redirectDelayMs);
       }
 
       return true;
@@ -856,6 +900,8 @@ if (typeof AppConfig === 'undefined') {
       onInvalid: null
     }, options || {});
 
+    // Client-side confirmation is a UX check; server-side auth remains authoritative.
+    // eslint-disable-next-line security/detect-possible-timing-attacks
     if (password === confirmPassword) {
       return true;
     }
@@ -928,12 +974,7 @@ if (typeof AppConfig === 'undefined') {
     var user = getAuthUser(authData);
 
     if (authData.token && config.tokenKey) {
-      if (typeof AppConfig !== 'undefined' && typeof AppConfig.setToken === 'function' &&
-          (config.tokenKey === 'token' || config.tokenKey === 'patientToken' || config.tokenKey === 'providerToken')) {
-        AppConfig.setToken(authData.token);
-      } else {
-        localStorage.setItem(config.tokenKey, authData.token);
-      }
+      console.warn('Ignoring token in auth response because sessions are stored in httpOnly cookies.');
     }
 
     if (config.useRoleRedirect && user) {
@@ -972,12 +1013,12 @@ if (typeof AppConfig === 'undefined') {
 
     if (config.redirectUrl) {
       setTimeout(function () {
-        window.location.href = config.redirectUrl;
+        navigateTo(config.redirectUrl);
       }, config.redirectDelayMs);
     }
   }
 
-  window.NocturnalSession = {
+  registerSessionApi({
     persistSession: persistSession,
     clearSession: clearSession,
       logout: logout,
@@ -997,6 +1038,7 @@ if (typeof AppConfig === 'undefined') {
     getLoginErrorMessage: getLoginErrorMessage,
     getRegistrationErrorMessage: getRegistrationErrorMessage,
     expectJsonSuccess: expectJsonSuccess,
+    fetchJson: fetchJson,
       loadOptionalDraft: loadOptionalDraft,
       normalizeApplicationStatus: normalizeApplicationStatus,
       getApplicationStatusClass: getApplicationStatusClass,
@@ -1017,5 +1059,5 @@ if (typeof AppConfig === 'undefined') {
     validatePasswordStrength: validatePasswordStrength,
     completeAuthSuccess: completeAuthSuccess,
     routes: Object.assign({}, DEFAULT_ROUTES)
-  };
-})(window);
+  });
+}());

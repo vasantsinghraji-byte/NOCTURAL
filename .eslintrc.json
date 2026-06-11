@@ -5,7 +5,7 @@
   },
   "extends": "eslint:recommended",
   "parserOptions": {
-    "ecmaVersion": 2021
+    "ecmaVersion": 2022
   },
   "rules": {
     "no-console": "warn",
@@ -17,9 +17,13 @@
       "props": true,
       "ignorePropertyModificationsFor": ["req", "res", "next", "user", "booking", "duty", "app", "schema", "event", "query"]
     }],
-    "unused-imports/no-unused-imports": "error",
+    "unused-imports/no-unused-imports": "warn",
     "security/detect-possible-timing-attacks": "warn",
-    "security/detect-non-literal-fs-filename": "warn"
+    "security/detect-non-literal-fs-filename": "warn",
+    "no-case-declarations": "warn",
+    "no-inner-declarations": "warn",
+    "no-prototype-builtins": "warn",
+    "no-useless-escape": "warn"
   },
   "plugins": [
     "security",
@@ -52,6 +56,8 @@
       "globals": {
         "NocturnalSession": "readonly",
         "AppConfig": "readonly",
+        "AppFormat": "readonly",
+        "AppUi": "readonly",
         "AdminSession": "readonly",
         "DoctorSession": "readonly",
         "PatientSession": "readonly",

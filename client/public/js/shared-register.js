@@ -1,7 +1,8 @@
 /**
  * Shared Registration Page JavaScript
  * Extracted from inline script in shared/register.html for CSP compliance.
- * Handles doctor/nurse and hospital registration forms.
+ * Handles provider registration. Hospital onboarding is intentionally paused
+ * while the product focuses on India B2C home healthcare first.
  */
 
 // Guard: config.js and frontend-session.js must load before this script
@@ -33,11 +34,7 @@ document.getElementById('doctorPassword').addEventListener('input', function (e)
   validatePassword(e.target.value, 'doctor');
 });
 
-document.getElementById('hospitalPassword').addEventListener('input', function (e) {
-  validatePassword(e.target.value, 'hospital');
-});
-
-// Doctor/Nurse Registration
+// Doctor/Nurse/Physiotherapist Registration
 document.getElementById('doctorForm').addEventListener('submit', async function (e) {
   e.preventDefault();
 
@@ -52,11 +49,16 @@ document.getElementById('doctorForm').addEventListener('submit', async function 
   var password = document.getElementById('doctorPassword').value;
   var confirmPassword = document.getElementById('doctorConfirmPassword').value;
   var agreeToTerms = document.getElementById('doctorAgreeTerms').checked;
+  var website = document.getElementById('doctorWebsite').value.trim();
+
+  if (website) {
+    return;
+  }
 
   if (!NocturnalSession.validateRequiredValue(
     role,
     errorDiv,
-    'Please select your role (Doctor or Nurse)'
+    'Please select your role (Doctor, Nurse or Physiotherapist)'
   )) {
     return;
   }
@@ -84,12 +86,12 @@ document.getElementById('doctorForm').addEventListener('submit', async function 
       method: 'POST',
       skipAuth: true,
       parseJson: true,
-      body: JSON.stringify({ name: name, email: email, phone: phone, password: password, confirmPassword: confirmPassword, role: role, agreeToTerms: agreeToTerms })
+      body: JSON.stringify({ name: name, email: email, phone: phone, password: password, confirmPassword: confirmPassword, role: role, agreeToTerms: agreeToTerms, website: website })
     });
     NocturnalSession.completeAuthSuccess(
       NocturnalSession.expectJsonSuccess(data, 'Registration failed', {
         isSuccess: function (payload) {
-          return !!(payload && payload.success && payload.token);
+          return !!(payload && payload.success && payload.user);
         }
       }),
       {
@@ -112,7 +114,7 @@ document.getElementById('doctorForm').addEventListener('submit', async function 
   }
 });
 
-// Hospital Registration
+// Hospital pilot waitlist
 document.getElementById('hospitalForm').addEventListener('submit', async function (e) {
   e.preventDefault();
 
@@ -120,71 +122,60 @@ document.getElementById('hospitalForm').addEventListener('submit', async functio
   var errorDiv = document.getElementById('hospitalError');
   NocturnalSession.clearFormMessage(errorDiv);
 
-  var hospitalName = document.getElementById('hospitalName').value.trim();
-  var name = document.getElementById('hospitalContactName').value.trim();
+  var facilityName = document.getElementById('hospitalName').value.trim();
+  var facilityType = document.getElementById('hospitalFacilityType').value;
+  var contactName = document.getElementById('hospitalContactName').value.trim();
   var email = document.getElementById('hospitalEmail').value.trim();
   var phone = document.getElementById('hospitalPhone').value.trim();
-  var location = document.getElementById('hospitalLocation').value.trim();
-  var password = document.getElementById('hospitalPassword').value;
-  var confirmPassword = document.getElementById('hospitalConfirmPassword').value;
-  var agreeToTerms = document.getElementById('hospitalAgreeTerms').checked;
+  var city = document.getElementById('hospitalLocation').value.trim();
+  var state = document.getElementById('hospitalState').value.trim();
+  var expectedNeed = document.getElementById('hospitalExpectedNeed').value.trim();
+  var companyWebsite = document.getElementById('hospitalCompanyWebsite').value.trim();
 
-  if (!validatePassword(password, 'hospital')) {
-    NocturnalSession.validatePasswordStrength(password, errorDiv);
+  if (companyWebsite) {
     return;
   }
 
-  if (!NocturnalSession.validatePasswordMatch(password, confirmPassword, errorDiv, {
-    message: 'Passwords do not match'
-  })) {
+  if (!facilityType) {
+    NocturnalSession.renderFormMessage(errorDiv, 'Please select your facility type');
     return;
   }
 
-  if (!agreeToTerms) {
-    NocturnalSession.renderFormMessage(errorDiv, 'You must agree to the Terms & Conditions');
+  if (!facilityName || !contactName || !email || !phone || !city) {
+    NocturnalSession.renderFormMessage(errorDiv, 'Please fill all required waitlist fields');
     return;
   }
 
   NocturnalSession.setButtonLoading(btn);
 
   try {
-    var data = await AppConfig.fetchRoute('auth.register', {
+    var data = await AppConfig.fetchRoute('hospitalWaitlist.create', {
       method: 'POST',
       skipAuth: true,
       parseJson: true,
       body: JSON.stringify({
-        name: name,
+        facilityName: facilityName,
+        facilityType: facilityType,
+        contactName: contactName,
         email: email,
         phone: phone,
-        password: password,
-        confirmPassword: confirmPassword,
-        role: 'admin',
-        hospital: hospitalName,
-        location: location,
-        agreeToTerms: agreeToTerms
+        city: city,
+        state: state,
+        expectedNeed: expectedNeed,
+        companyWebsite: companyWebsite,
+        sourcePath: window.location.pathname
       })
     });
-    NocturnalSession.completeAuthSuccess(
-      NocturnalSession.expectJsonSuccess(data, 'Registration failed', {
-        isSuccess: function (payload) {
-          return !!(payload && payload.success && payload.token);
-        }
-      }),
-      {
-        successContainer: errorDiv,
-        successMessage: 'Registration successful! Redirecting...',
-        useRoleRedirect: true,
-        redirectDelayMs: 1500
-      }
-    );
-  } catch (error) {
-    console.error('Registration error:', error);
-    NocturnalSession.renderFormMessage(
+
+    NocturnalSession.expectJsonSuccess(data, 'Waitlist signup failed');
+    NocturnalSession.renderSuccessMessage(
       errorDiv,
-      NocturnalSession.getRegistrationErrorMessage(error, {
-        duplicateMessage: 'This email is already registered. <a href="' + AppConfig.routes.page('home') + '">Login instead</a>?'
-      })
+      data.message || 'You are on the hospital waitlist. We will contact you when B2B onboarding opens.'
     );
+    e.target.reset();
+  } catch (error) {
+    console.error('Waitlist error:', error);
+    NocturnalSession.renderFormMessage(errorDiv, error.message || 'Waitlist signup failed');
   } finally {
     NocturnalSession.resetButtonState(btn);
   }

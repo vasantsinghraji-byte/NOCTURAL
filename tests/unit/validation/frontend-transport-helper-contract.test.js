@@ -1,9 +1,4 @@
-const fs = require('fs');
-const path = require('path');
-
-const rootDir = path.resolve(__dirname, '..', '..', '..');
-
-const readProjectFile = (relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+const { readProjectFile } = require('./projectFileReader');
 
 const apiHelperSrc = readProjectFile('client/public/api.js');
 const authHelperSrc = readProjectFile('client/public/js/auth.js');
@@ -47,7 +42,6 @@ describe('Frontend Transport Helper Contract', () => {
     expect(notificationCenterSrc).toContain('buildApiUrl(endpoint)');
     expect(notificationCenterSrc).toContain('async fetchApi(endpoint, options = {})');
     expect(notificationCenterSrc).toContain("return AppConfig.fetch(normalizedEndpoint, options);");
-    expect(notificationCenterSrc).toContain("typeof AppConfig !== 'undefined' && typeof AppConfig.getToken === 'function'");
     expect(notificationCenterSrc).toContain("const response = await this.fetchApi('notifications?limit=10');");
     expect(notificationCenterSrc).toContain("await this.fetchApi(`notifications/${notificationId}/read`, {");
     expect(notificationCenterSrc).toContain("await this.fetchApi('notifications/read-all', {");
@@ -55,16 +49,14 @@ describe('Frontend Transport Helper Contract', () => {
     expect(unifiedNavSrc).toContain('buildApiUrl(endpoint)');
     expect(unifiedNavSrc).toContain('request(endpoint, options = {})');
     expect(unifiedNavSrc).toContain("return AppConfig.fetch(normalizedEndpoint, options);");
-    expect(unifiedNavSrc).toContain("typeof AppConfig !== 'undefined' && typeof AppConfig.getToken === 'function'");
     expect(unifiedNavSrc).toContain("typeof AppConfig !== 'undefined' && typeof AppConfig.clearToken === 'function'");
-    expect(unifiedNavSrc).toContain("const response = await this.request('auth/me', {");
-    expect(unifiedNavSrc).toContain('window.location.origin');
+    expect(unifiedNavSrc).toContain("const response = await this.request('auth/me');");
   });
 
   it('should standardize pagination and generic utility fetch wrappers through AppConfig.fetch()', () => {
     expect(paginationSrc).toContain('async function fetchWithStandardConfig(endpoint, options = {})');
     expect(paginationSrc).toContain("typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function'");
-    expect(paginationSrc).toContain('return AppConfig.fetch(toAppConfigEndpoint(endpoint), {');
+    expect(paginationSrc).toContain('return AppConfig.fetch(toAppConfigEndpoint(endpoint), options);');
 
     expect(utilsSrc).toContain("typeof AppConfig !== 'undefined' && typeof AppConfig.fetch === 'function'");
     expect(utilsSrc).toContain('await AppConfig.fetch(toStandardApiEndpoint(url), mergedOptions)');
@@ -77,10 +69,9 @@ describe('Frontend Transport Helper Contract', () => {
     expect(configSrc).toContain("const LEGACY_AUTH_TOKEN_KEYS = ['patientToken', 'providerToken'];");
     expect(configSrc).toContain('getToken: function(options = {})');
     expect(configSrc).toContain('isAuthenticated: function(options = {})');
-    expect(configSrc).toContain('setToken: function(token)');
+    expect(configSrc).toContain('setToken: function(_token)');
     expect(configSrc).toContain('clearToken: function()');
     expect(configSrc).toContain('getAuthHeaders: function(options = {})');
-    expect(configSrc).toContain("if (token && !options.skipAuth)");
     expect(configSrc).toContain('const requestOptions = { ...options };');
     expect(configSrc).toContain('const shouldParseJson = requestOptions.parseJson === true;');
     expect(configSrc).toContain('const shouldParseText = requestOptions.parseText === true;');

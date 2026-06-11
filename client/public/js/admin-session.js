@@ -2,7 +2,7 @@ if (typeof AppConfig === 'undefined' || typeof NocturnalSession === 'undefined')
     console.error('admin-session.js: dependencies missing - ensure config.js and frontend-session.js load first');
 }
 
-(function initAdminSession(window) {
+(function initAdminSession() {
     var adminSession = NocturnalSession.createRoleSession({
         role: 'admin',
         storageKeys: ['hospital', 'admin'],
@@ -18,4 +18,4 @@ if (typeof AppConfig === 'undefined' || typeof NocturnalSession === 'undefined')
     adminSession.getStoredAdmin = adminSession.getStoredRole;
 
     window.AdminSession = adminSession;
-})(window);
+}());

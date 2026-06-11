@@ -11,7 +11,7 @@ const Patient = require('../models/patient');
 const User = require('../models/user');
 const { invalidateCache } = require('../middleware/queryCache');
 const logger = require('../utils/logger');
-const { HTTP_STATUS, PAGINATION } = require('../constants');
+const { PAGINATION } = require('../constants');
 const {
   ValidationError,
   AuthorizationError,

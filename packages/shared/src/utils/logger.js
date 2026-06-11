@@ -1,6 +1,6 @@
 const winston = require('winston');
 const path = require('path');
-const fs = require('fs');
+const localFileSystem = require('./localFileSystem');
 
 /**
  * Create Winston logger with configurable transports
@@ -16,8 +16,8 @@ const createLogger = (options = {}) => {
   } = options;
 
   // Create logs directory if it doesn't exist
-  if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
+  if (!localFileSystem.existsSync(logsDir)) {
+    localFileSystem.mkdirSync(logsDir, { recursive: true });
   }
 
   // Define log format
@@ -81,6 +81,7 @@ const createLogger = (options = {}) => {
   if (process.env.NODE_ENV !== 'production') {
     logger.add(new winston.transports.Console({
       format: consoleFormat,
+      silent: process.env.NODE_ENV === 'test' && process.env.NOCTURNAL_TEST_LOGS !== '1',
       handleExceptions: true,
       handleRejections: true
     }));
@@ -99,11 +100,15 @@ const createLogger = (options = {}) => {
         json: true,
         format: winston.format.json(),
         replaceTimestamp: true,
-        onConnectionError: (err) => console.error('Loki connection error:', err)
+        onConnectionError: (err) => logger.error('Loki connection error', {
+          error: err.message
+        })
       }));
       logger.info('Loki transport enabled');
     } catch (e) {
-      console.log('Loki transport not available');
+      logger.warn('Loki transport not available', {
+        error: e.message
+      });
     }
   }
 

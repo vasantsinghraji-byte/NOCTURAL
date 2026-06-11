@@ -7,7 +7,7 @@
 #### `tests/unit/security/hardcoded-secrets.test.js`
 **Covers:** SEC-001 to SEC-012 (all 12 hardcoded secrets issues)
 - Static analysis tests: grep source files for known leaked patterns
-- Verify no hardcoded passwords remain (`NocturnalAdmin2025`, `DevPass2025`, `ProdPass2025`, `changeme`, `admin123`, `redis123`, `rzp_test_YOUR_KEY_HERE`)
+- Verify no hardcoded password literals, service default passwords, or payment placeholder credentials remain.
 - Verify MongoDB init scripts use env var references (`process.env.MONGO_*`)
 - Verify CI workflows use `${{ secrets.* }}` not inline values
 - Verify docker-compose files use `${VAR}` syntax, not plaintext

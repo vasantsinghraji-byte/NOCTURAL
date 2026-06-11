@@ -220,8 +220,19 @@ function createElementNode(tagName) {
     addEventListener(type, handler) {
       this.listeners[type] = handler;
     },
+    click() {
+      if (this.listeners.click) {
+        this.listeners.click({ target: this });
+      }
+    },
     appendChild(child) {
       this.children.push(child);
+      if (child && child.dataset && child.dataset.swAction === 'reload') {
+        this.reloadButton = child;
+      }
+      if (child && child.dataset && child.dataset.swAction === 'dismiss') {
+        this.dismissButton = child;
+      }
     },
     remove: jest.fn()
   };
@@ -441,7 +452,7 @@ describe('Frontend DOM Smoke', () => {
 
     notificationList.listeners.click({ target: clickedNotification });
 
-    expect(instance.handleNotificationClick).toHaveBeenCalledWith('notif-42');
+    expect(instance.handleNotificationClick).toHaveBeenCalledWith('notif-42', '');
     expect(markAllReadButton.listeners.click).toBeDefined();
     expect(bell.listeners.click).toBeDefined();
     expect(context.__documentListeners.click).toBeDefined();

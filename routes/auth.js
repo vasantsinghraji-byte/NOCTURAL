@@ -13,10 +13,6 @@ const { protect } = require('../middleware/auth');
 const {
   validateRegister,
   validateLogin,
-  validateForgotPassword,
-  validateResetPassword,
-  validateVerifyEmail,
-  validateVerifyPhone,
   validateChangePassword,
   validateUpdateProfile
 } = require('../validators/authValidator');

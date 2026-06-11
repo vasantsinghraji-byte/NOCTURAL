@@ -73,8 +73,8 @@ function sanitizeData(obj, depth = 0) {
   // Handle Arrays
   if (Array.isArray(obj)) {
     return obj
-      .filter(item => item !== undefined) // Remove undefined items
-      .map(item => sanitizeData(item, depth + 1));
+      .map(item => sanitizeData(item, depth + 1))
+      .filter(item => item !== undefined); // Remove functions and other undefined items
   }
 
   // Handle Objects
@@ -138,6 +138,7 @@ function sanitizeData(obj, depth = 0) {
         Object.keys(sanitizedValue).length === 0 &&
         obj[key] &&
         typeof obj[key] === 'object' &&
+        obj[key] !== null &&
         Object.keys(obj[key]).length > 0 &&
         Object.keys(obj[key]).every(k => k.startsWith('$') || DANGEROUS_KEYS.includes(k))) {
       // This was an object that only contained $ operators or dangerous keys, skip it entirely
