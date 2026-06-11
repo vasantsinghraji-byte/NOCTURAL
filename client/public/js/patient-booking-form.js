@@ -168,7 +168,8 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Idempotency-Key': AppConfig.createIdempotencyKey()
                     },
                     body: JSON.stringify(bookingData)
                 }), 'Booking failed', {
@@ -193,7 +194,8 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Idempotency-Key': AppConfig.createIdempotencyKey()
                     },
                     body: JSON.stringify({ bookingId: booking._id })
                 }), 'Failed to create payment order');
@@ -246,7 +248,8 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Idempotency-Key': AppConfig.createIdempotencyKey()
                     },
                     body: JSON.stringify({
                         razorpay_order_id: paymentResponse.razorpay_order_id,
