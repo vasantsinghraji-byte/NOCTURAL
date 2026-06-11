@@ -6,11 +6,8 @@ FROM node:22-alpine AS builder
 # Set working directory
 WORKDIR /app
 
-# Copy package files (root and workspace)
+# Copy package files
 COPY package*.json ./
-
-# Copy workspace packages (needed for monorepo structure)
-COPY packages/ ./packages/
 
 # Install dependencies (including dev dependencies for build)
 # Use --legacy-peer-deps to handle Express 5 compatibility
@@ -45,7 +42,6 @@ WORKDIR /app
 
 # Copy built application from builder
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/packages ./packages
 COPY --from=builder --chown=nodejs:nodejs /app/client/dist ./client/dist
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 COPY --from=builder --chown=nodejs:nodejs /app/ecosystem.config.js ./

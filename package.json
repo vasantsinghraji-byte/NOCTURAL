@@ -4,23 +4,13 @@
   "description": "Nocturnal Healthcare Platform - Microservices Architecture",
   "main": "server.js",
   "private": true,
-  "workspaces": [
-    "packages/*",
-    "services/*"
-  ],
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "install:all": "npm install && npm run install:shared",
-    "install:shared": "cd packages/shared && npm install",
     "hooks:install": "git config core.hooksPath .githooks",
     "hooks:path": "git config --get core.hooksPath",
-    "test:shared": "npm test --workspace=@nocturnal/shared",
-    "test:patient-booking": "npm test --workspace=@nocturnal/patient-booking-service",
-    "start:patient-booking": "npm start --workspace=@nocturnal/patient-booking-service",
-    "dev:patient-booking": "npm run dev --workspace=@nocturnal/patient-booking-service",
     "start": "node --max-old-space-size=2048 server.js",
     "dev": "nodemon --max-old-space-size=2048 server.js",
     "dev:all": "concurrently \"npm run dev\" \"npm --prefix client run serve\"",
@@ -30,9 +20,18 @@
     "build:frontend": "npm --prefix client ci --include=dev && npm --prefix client run build",
     "build:client": "npm run build:frontend",
     "build:prod": "cross-env NODE_ENV=production npm run build:frontend",
+    "android:add": "npx cap add android",
+    "android:version": "node scripts/prepare-android-version.js",
+    "android:sync": "npm run android:version && npm run build:prod && npx cap sync android",
+    "android:build": "npm run android:sync && node scripts/build-android.js",
+    "android:release-key": "node scripts/create-android-release-key.js",
+    "android:release": "npm run android:sync && node scripts/build-android.js assembleRelease bundleRelease",
+    "android:open": "npx cap open android",
     "optimize": "npm run build:frontend",
     "db:indexes": "node scripts/add-indexes.js",
     "db:migrate": "node scripts/add-indexes.js",
+    "db:backfill-upload-urls": "node scripts/backfill-upload-file-urls.js",
+    "db:backfill-upload-urls:write": "node scripts/backfill-upload-file-urls.js --write",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "scan:csp-html": "node scripts/scan-html-csp.js",
@@ -95,8 +94,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "^10.0.0",
+    "@aparajita/capacitor-secure-storage": "^8.0.0",
     "@aws-sdk/client-s3": "^3.919.0",
     "@aws-sdk/s3-request-presigner": "^3.919.0",
+    "@capacitor-community/background-geolocation": "^1.2.26",
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/camera": "^8.2.0",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/geolocation": "^8.2.0",
+    "@capacitor/local-notifications": "^8.0.2",
+    "@capacitor/push-notifications": "^8.1.1",
     "@google-cloud/storage": "^7.18.0",
     "@google/generative-ai": "^0.21.0",
     "bcryptjs": "^3.0.2",
@@ -109,7 +117,8 @@
     "express-rate-limit": "^8.1.0",
     "express-validator": "^7.3.0",
     "file-type": "^22.0.1",
-    "geoip-lite": "^1.4.10",
+    "firebase-admin": "^14.0.0",
+    "geoip-lite": "^2.0.2",
     "helmet": "^8.1.0",
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
@@ -130,8 +139,9 @@
     "node-vault": "^0.10.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.0",
     "@types/jest": "^29.5.5",
-    "concurrently": "^9.2.1",
+    "concurrently": "^10.0.3",
     "cross-env": "^10.1.0",
     "eslint": "^8.51.0",
     "eslint-plugin-security": "^1.7.1",
@@ -142,6 +152,10 @@
     "supertest": "^7.1.4"
   },
   "overrides": {
-    "protobufjs": "7.5.5"
+    "gaxios": "7.1.5",
+    "protobufjs": "8.6.1",
+    "retry-request": "8.0.3",
+    "teeny-request": "10.1.3",
+    "uuid": "11.1.1"
   }
 }
