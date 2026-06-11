@@ -5,6 +5,7 @@ const monitoring = require('../utils/monitoring');
 const RECONNECT_INTERVAL = 5000; // 5 seconds
 const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
 const MAX_RECONNECT_ATTEMPTS = 10;
+const IDEMPOTENCY_TTL_SECONDS = parseInt(process.env.IDEMPOTENCY_TTL_SECONDS, 10) || 86400;
 
 let isConnected = false;
 let reconnectAttempts = 0;
@@ -19,6 +20,35 @@ let connectionMetrics = {
   lastHealthCheck: null,
   lastReconnectAttempt: null,
   errors: []
+};
+
+const ensureIdempotencyIndexes = async () => {
+  const collection = mongoose.connection.db.collection('idempotencykeys');
+
+  await collection.createIndex({ scope: 1 }, {
+    name: 'scope_unique_idx',
+    unique: true,
+    background: true
+  });
+
+  await collection.createIndex({ createdAt: 1 }, {
+    name: 'idempotency_ttl_idx',
+    expireAfterSeconds: IDEMPOTENCY_TTL_SECONDS,
+    background: true
+  });
+
+  const indexes = await collection.indexes();
+  const scopeIndex = indexes.find((index) => index.name === 'scope_unique_idx');
+  const ttlIndex = indexes.find((index) => index.name === 'idempotency_ttl_idx');
+
+  if (!scopeIndex?.unique || ttlIndex?.expireAfterSeconds !== IDEMPOTENCY_TTL_SECONDS) {
+    throw new Error('Idempotency index verification failed');
+  }
+
+  logger.info('Idempotency indexes verified', {
+    uniqueScope: true,
+    retentionSeconds: IDEMPOTENCY_TTL_SECONDS
+  });
 };
 
 // Helper function to update connection metrics
@@ -221,6 +251,7 @@ const connectDB = async () => {
     };
 
     await mongoose.connect(process.env.MONGODB_URI, options);
+    await ensureIdempotencyIndexes();
 
     isConnected = true;
     reconnectAttempts = 0; // Reset reconnect attempts on successful connection
@@ -234,6 +265,11 @@ const connectDB = async () => {
       environment: process.env.NODE_ENV
     });
   } catch (error) {
+    isConnected = false;
+    if (mongoose.connection.readyState) {
+      await mongoose.connection.close().catch(() => {});
+    }
+
     logger.error('MongoDB connection error', {
       error: error.message,
       stack: error.stack
@@ -281,6 +317,7 @@ module.exports = {
   isConnected: () => isConnected,
   getConnectionStatus,
   checkDatabaseHealth,
+  ensureIdempotencyIndexes,
   // Export connection events for external monitoring
   events: {
     HEALTH_CHECK_INTERVAL,
