@@ -8,6 +8,7 @@
 const Notification = require('../models/notification');
 const logger = require('../utils/logger');
 const { HTTP_STATUS } = require('../constants');
+const pushNotificationService = require('./pushNotificationService');
 
 class NotificationService {
   /**
@@ -168,6 +169,34 @@ class NotificationService {
     }
 
     const notification = await Notification.createNotification(normalizedNotificationData);
+
+    if (notificationData.channels?.push) {
+      try {
+        const delivery = await pushNotificationService.sendToOwner({
+          owner: notificationData.user,
+          userType: notificationData.recipientModel === 'Patient' ? 'patient' : 'provider',
+          title: notificationData.title,
+          body: notificationData.message,
+          data: {
+            notificationId: notification._id,
+            type: notificationData.type,
+            actionUrl: notificationData.actionUrl
+          }
+        });
+        notification.deliveryStatus.push.sent = delivery.sentCount > 0;
+        notification.deliveryStatus.push.sentAt = delivery.sentCount > 0 ? new Date() : undefined;
+        notification.deliveryStatus.push.error = delivery.error || undefined;
+        await notification.save();
+      } catch (error) {
+        notification.deliveryStatus.push.sent = false;
+        notification.deliveryStatus.push.error = error.message;
+        await notification.save();
+        logger.error('Push notification delivery failed', {
+          notificationId: notification._id,
+          error: error.message
+        });
+      }
+    }
 
     logger.info('Notification created', {
       notificationId: notification._id,
