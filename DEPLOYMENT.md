@@ -101,10 +101,12 @@ The active release lineage is:
   `1B:A6:5B:DF:4E:9F:02:1F:4B:6D:3C:D7:8A:22:60:61:3E:6F:F8:FF:97:C3:7E:C6:7B:68:19:FB:7F:3C:33:C6`
 - Local working copy: dedicated `D:\NOCTURNAL\android-release-secrets`
   directory, excluded from Git.
-- Encrypted backup custody: Google Drive sync folder
-  `NOCTURNAL Secure Backup`.
-- Recovery-key custody: separate OneDrive sync folder
-  `Documents\NOCTURNAL Recovery Key`.
+- Encrypted backup staging location: local Google Drive sync folder
+  `NOCTURNAL Secure Backup`; confirm the file is visible in the intended
+  Google Drive web account before release.
+- Recovery-key staging location: separate local OneDrive sync folder
+  `Documents\NOCTURNAL Recovery Key`; confirm the file is visible in the
+  intended OneDrive web account before release.
 
 The encrypted backup has been restore-tested against the active keystore. The
 older TWA key signs a different application ID and must never sign
