@@ -35,7 +35,8 @@ Background locations emit `nocturnal:location` events. Push events emit
    Credentials to enable server delivery to tokens registered at
    `POST /api/v1/mobile-devices`.
 3. Create the upload signing key once with `npm run android:release-key`.
-4. Back up `D:\NOCTURNAL\android-release-secrets` securely.
+4. Follow the split-custody and certificate-verification procedure in
+   `DEPLOYMENT.md`; never commit signing credentials or recovery material.
 5. Build signed release artifacts with `npm run android:release`.
 6. Follow `docs/play-store-background-location.md` for Play review.
 

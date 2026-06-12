@@ -73,6 +73,55 @@ NODE_ENV=production
 
 **No new env vars needed for Phase 0.** The shared package and Docker Compose are for local development only.
 
+## Mobile Push And Signing-Key Operations
+
+### FCM Production Configuration
+
+Push delivery is disabled by default and fails safely without interrupting the
+notification workflow. To enable it in production:
+
+1. Add `android/app/google-services.json` to the Android release-build
+   environment. This client configuration file is ignored by Git.
+2. Store the Firebase service-account JSON as a Render secret file, not as a
+   repository file or plain-text environment variable.
+3. Set `GOOGLE_APPLICATION_CREDENTIALS` to the Render secret-file path.
+4. Set `FIREBASE_PUSH_ENABLED=true` only after the credentials are available.
+5. Register a test device through `POST /api/v1/mobile-devices` and verify an
+   end-to-end push before declaring push delivery operational.
+
+If FCM is disabled or unavailable, the API records the failed push attempt and
+continues serving the primary notification flow.
+
+### Signing-Key Custody
+
+The active release lineage is:
+
+- Application ID: `com.nocturnal.healthcare`
+- Certificate SHA-256:
+  `1B:A6:5B:DF:4E:9F:02:1F:4B:6D:3C:D7:8A:22:60:61:3E:6F:F8:FF:97:C3:7E:C6:7B:68:19:FB:7F:3C:33:C6`
+- Local working copy: dedicated `D:\NOCTURNAL\android-release-secrets`
+  directory, excluded from Git.
+- Encrypted backup custody: Google Drive sync folder
+  `NOCTURNAL Secure Backup`.
+- Recovery-key custody: separate OneDrive sync folder
+  `Documents\NOCTURNAL Recovery Key`.
+
+The encrypted backup has been restore-tested against the active keystore. The
+older TWA key signs a different application ID and must never sign
+`com.nocturnal.healthcare`.
+
+Before every public release:
+
+1. Verify the release APK certificate with `apksigner verify --print-certs`.
+2. Confirm the certificate SHA-256 matches the value above.
+3. Confirm both cloud providers report the custody files as fully synced.
+4. Confirm the recovery key has an additional independent password-manager or
+   offline copy stored separately from the encrypted backup.
+5. Use Google Play App Signing for Play-distributed releases.
+
+Never commit keystores, signing passwords, `keystore.properties`, Firebase
+service-account JSON, encrypted signing-key backups, or recovery-key contents.
+
 ## Phase 1 Deployment (Future)
 
 When we deploy the Patient Booking microservice:
