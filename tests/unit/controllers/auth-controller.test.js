@@ -89,6 +89,41 @@ describe('Auth Controller', () => {
     );
   });
 
+  it('should expose the access token through the native token envelope for Capacitor', async () => {
+    const req = {
+      headers: {
+        origin: 'https://localhost',
+        'x-nocturnal-mobile': 'capacitor'
+      },
+      body: {
+        email: 'doctor@example.com',
+        password: 'Password123!'
+      }
+    };
+    const res = {};
+    const next = jest.fn();
+    const result = {
+      token: 'jwt-token',
+      user: { id: 'user123', role: 'doctor' }
+    };
+
+    authService.login.mockResolvedValue(result);
+
+    await authController.login(req, res, next);
+
+    expect(responseHelper.sendSuccess).toHaveBeenCalledWith(
+      res,
+      {
+        token: 'jwt-token',
+        user: result.user,
+        tokens: {
+          accessToken: 'jwt-token'
+        }
+      },
+      SUCCESS_MESSAGE.LOGIN_SUCCESS
+    );
+  });
+
   it('should pass req.user.id to getMe and return the user payload', async () => {
     const req = {
       user: { id: 'user123' }

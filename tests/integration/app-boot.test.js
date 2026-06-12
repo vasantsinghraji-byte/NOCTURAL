@@ -34,7 +34,25 @@ describe('App Integration: GET /api/v1/health and core API mount', () => {
     expect([200, 503]).toContain(res.status);
     expect(res.body).toHaveProperty('status');
     expect(res.body).toHaveProperty('version', 'v1');
+    expect(res.body).toHaveProperty('deploymentCommit', 'unknown');
     expect(res.body).toHaveProperty('timestamp');
+  });
+
+  test('GET /api/v1/health exposes the Render deployment commit when available', async () => {
+    const originalCommit = process.env.RENDER_GIT_COMMIT;
+    process.env.RENDER_GIT_COMMIT = 'a5c44c5d0477cf7a41b8fc46aafcd8ceb14b5cdc';
+
+    try {
+      const versioned = await request(app).get('/api/v1/health');
+
+      expect(versioned.body).toHaveProperty('deploymentCommit', process.env.RENDER_GIT_COMMIT);
+    } finally {
+      if (originalCommit === undefined) {
+        delete process.env.RENDER_GIT_COMMIT;
+      } else {
+        process.env.RENDER_GIT_COMMIT = originalCommit;
+      }
+    }
   });
 
   test('GET /api returns API info', async () => {
