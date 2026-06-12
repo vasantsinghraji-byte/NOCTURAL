@@ -8,6 +8,7 @@
 const patientService = require('../services/patientService');
 const { SUCCESS_MESSAGE } = require('../constants');
 const responseHelper = require('../utils/responseHelper');
+const { addMobileTokens } = require('../utils/mobileAuth');
 
 /**
  * @desc    Register a new patient
@@ -18,7 +19,7 @@ exports.register = async (req, res, next) => {
   try {
     const result = await patientService.register(req.body);
 
-    responseHelper.sendCreated(res, result, 'Patient registered successfully');
+    responseHelper.sendCreated(res, addMobileTokens(req, result, result), 'Patient registered successfully');
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
   }
@@ -33,7 +34,7 @@ exports.login = async (req, res, next) => {
   try {
     const result = await patientService.login(req.body);
 
-    responseHelper.sendSuccess(res, result, 'Login successful');
+    responseHelper.sendSuccess(res, addMobileTokens(req, result, result), 'Login successful');
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
   }

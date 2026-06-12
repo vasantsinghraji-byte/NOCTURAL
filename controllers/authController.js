@@ -2,16 +2,17 @@ const authService = require('../services/authService');
 const { SUCCESS_MESSAGE } = require('../constants');
 const logger = require('../utils/logger');
 const responseHelper = require('../utils/responseHelper');
+const { addMobileTokens } = require('../utils/mobileAuth');
 
 // Register new user
 exports.register = async (req, res, next) => {
   try {
     const result = await authService.register(req.body);
 
-    responseHelper.sendCreated(res, {
+    responseHelper.sendCreated(res, addMobileTokens(req, {
       token: result.token,
       user: result.user
-    }, SUCCESS_MESSAGE.USER_REGISTERED);
+    }, result), SUCCESS_MESSAGE.USER_REGISTERED);
   } catch (error) {
     if (!error.statusCode) {
       logger.error('Registration Error', {
@@ -29,10 +30,10 @@ exports.login = async (req, res, next) => {
   try {
     const result = await authService.login(req.body);
 
-    responseHelper.sendSuccess(res, {
+    responseHelper.sendSuccess(res, addMobileTokens(req, {
       token: result.token,
       user: result.user
-    }, SUCCESS_MESSAGE.LOGIN_SUCCESS);
+    }, result), SUCCESS_MESSAGE.LOGIN_SUCCESS);
   } catch (error) {
     if (!error.statusCode) {
       logger.error('Login Error', {

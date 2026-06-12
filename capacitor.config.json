@@ -1,0 +1,17 @@
+{
+  "appId": "com.nocturnal.healthcare",
+  "appName": "Nocturnal",
+  "webDir": "client/dist",
+  "android": {
+    "useLegacyBridge": true
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
+  }
+}
