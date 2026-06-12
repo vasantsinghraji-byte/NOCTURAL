@@ -75,8 +75,18 @@ id_ed25519
 *.keystore
 aws-credentials.json
 firebase-credentials.json
+android/app/google-services.json
+android/keystore.properties
+android/local.properties
 gcp-credentials.json
 azure-credentials.json
+
+# Android / Capacitor generated files
+**/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/
 
 # MongoDB credentials (CRITICAL - NEVER COMMIT!)
 mongodb-credentials.json

@@ -38,4 +38,24 @@ describe('app CORS preflight handling', () => {
     expect(response.headers['access-control-allow-origin']).toBe('https://nocturnal-api.onrender.com');
     expect(response.headers['access-control-allow-credentials']).toBe('true');
   });
+
+  it('allows the packaged Capacitor Android origin and mobile auth header', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.ALLOWED_ORIGINS = '';
+
+    const app = express();
+    const corsOptions = corsConfig();
+    app.use(cors(corsOptions));
+    app.options(/.*/, cors(corsOptions));
+
+    const response = await request(app)
+      .options('/api/v1/auth/login')
+      .set('Origin', 'https://localhost')
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'content-type,x-nocturnal-mobile')
+      .expect(204);
+
+    expect(response.headers['access-control-allow-origin']).toBe('https://localhost');
+    expect(response.headers['access-control-allow-headers']).toContain('X-Nocturnal-Mobile');
+  });
 });

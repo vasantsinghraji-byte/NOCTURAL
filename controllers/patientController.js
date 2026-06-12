@@ -10,6 +10,7 @@ const { SUCCESS_MESSAGE } = require('../constants');
 const responseHelper = require('../utils/responseHelper');
 const { setAuthCookies } = require('../utils/authCookies');
 const refreshSessionService = require('../services/refreshSessionService');
+const { addMobileTokens } = require('../utils/mobileAuth');
 
 const getPatientId = (result) => result.patient && (result.patient.id || result.patient._id);
 
@@ -29,7 +30,11 @@ exports.register = async (req, res, next) => {
     });
     setAuthCookies(res, result);
 
-    responseHelper.sendCreated(res, { patient: result.patient }, 'Patient registered successfully');
+    responseHelper.sendCreated(
+      res,
+      addMobileTokens(req, { patient: result.patient }, result),
+      'Patient registered successfully'
+    );
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
   }
@@ -51,7 +56,11 @@ exports.login = async (req, res, next) => {
     });
     setAuthCookies(res, result);
 
-    responseHelper.sendSuccess(res, { patient: result.patient }, 'Login successful');
+    responseHelper.sendSuccess(
+      res,
+      addMobileTokens(req, { patient: result.patient }, result),
+      'Login successful'
+    );
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
   }

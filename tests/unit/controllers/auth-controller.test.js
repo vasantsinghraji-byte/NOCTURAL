@@ -149,6 +149,40 @@ describe('Auth Controller', () => {
     );
   });
 
+  it('returns tokens only to an explicitly identified Capacitor client', async () => {
+    const req = {
+      headers: {
+        'x-nocturnal-mobile': 'capacitor',
+        origin: 'https://localhost'
+      },
+      body: {
+        email: 'doctor@example.com',
+        password: 'Password123!'
+      }
+    };
+    const res = { cookie: jest.fn() };
+    const result = {
+      token: 'jwt-token',
+      refreshToken: 'refresh-token',
+      user: { id: 'user123', role: 'doctor' }
+    };
+    authService.login.mockResolvedValue(result);
+
+    await authController.login(req, res, jest.fn());
+
+    expect(responseHelper.sendSuccess).toHaveBeenCalledWith(
+      res,
+      {
+        user: result.user,
+        tokens: {
+          accessToken: 'jwt-token',
+          refreshToken: 'refresh-token'
+        }
+      },
+      SUCCESS_MESSAGE.LOGIN_SUCCESS
+    );
+  });
+
   it('should rotate refresh sessions and set replacement cookies on refresh', async () => {
     const refreshToken = generateRefreshToken('user123');
     const req = {
@@ -187,6 +221,36 @@ describe('Auth Controller', () => {
       expect.objectContaining({ httpOnly: true, sameSite: 'strict' })
     );
     expect(responseHelper.sendSuccess).toHaveBeenCalledWith(res, { user }, 'Session refreshed');
+  });
+
+  it('accepts a refresh token in the body only for a Capacitor client', async () => {
+    const refreshToken = generateRefreshToken('user123');
+    const req = {
+      headers: {
+        'x-nocturnal-mobile': 'capacitor',
+        origin: 'https://localhost'
+      },
+      body: { refreshToken }
+    };
+    const res = { cookie: jest.fn() };
+    refreshSessionService.rotate.mockResolvedValue({ userType: 'user' });
+    authService.getUserProfile.mockResolvedValue({ id: 'user123' });
+
+    await authController.refresh(req, res, jest.fn());
+
+    expect(refreshSessionService.rotate).toHaveBeenCalledWith(expect.objectContaining({
+      currentToken: refreshToken
+    }));
+    expect(responseHelper.sendSuccess).toHaveBeenCalledWith(
+      res,
+      expect.objectContaining({
+        tokens: expect.objectContaining({
+          accessToken: expect.any(String),
+          refreshToken: expect.any(String)
+        })
+      }),
+      'Session refreshed'
+    );
   });
 
   it('should revoke refresh session on logout', async () => {

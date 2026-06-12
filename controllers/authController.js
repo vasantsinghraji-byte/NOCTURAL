@@ -15,13 +15,19 @@ const {
   setAuthCookies,
   clearAuthCookies
 } = require('../utils/authCookies');
+const { addMobileTokens, isMobileRequest } = require('../utils/mobileAuth');
 
 const getRefreshTokenFromRequest = (req) => {
   if (req.cookies && req.cookies[REFRESH_TOKEN_COOKIE]) {
     return req.cookies[REFRESH_TOKEN_COOKIE];
   }
 
-  return parseCookieHeader(req.headers.cookie)[REFRESH_TOKEN_COOKIE];
+  const cookieToken = parseCookieHeader(req.headers.cookie)[REFRESH_TOKEN_COOKIE];
+  if (cookieToken) {
+    return cookieToken;
+  }
+
+  return isMobileRequest(req) && req.body ? req.body.refreshToken : null;
 };
 
 const getResultUserId = (result) => {
@@ -43,9 +49,9 @@ exports.register = async (req, res, next) => {
     });
     setAuthCookies(res, result);
 
-    responseHelper.sendCreated(res, {
+    responseHelper.sendCreated(res, addMobileTokens(req, {
       user: result.user
-    }, SUCCESS_MESSAGE.USER_REGISTERED);
+    }, result), SUCCESS_MESSAGE.USER_REGISTERED);
   } catch (error) {
     if (!error.statusCode) {
       logger.error('Registration Error', {
@@ -70,9 +76,9 @@ exports.login = async (req, res, next) => {
     });
     setAuthCookies(res, result);
 
-    responseHelper.sendSuccess(res, {
+    responseHelper.sendSuccess(res, addMobileTokens(req, {
       user: result.user
-    }, SUCCESS_MESSAGE.LOGIN_SUCCESS);
+    }, result), SUCCESS_MESSAGE.LOGIN_SUCCESS);
   } catch (error) {
     if (!error.statusCode) {
       logger.error('Login Error', {
@@ -135,7 +141,10 @@ exports.refresh = async (req, res, next) => {
       refreshToken: replacementRefreshToken
     });
 
-    responseHelper.sendSuccess(res, payload, 'Session refreshed');
+    responseHelper.sendSuccess(res, addMobileTokens(req, payload, {
+      token,
+      refreshToken: replacementRefreshToken
+    }), 'Session refreshed');
   } catch (error) {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       clearAuthCookies(res);

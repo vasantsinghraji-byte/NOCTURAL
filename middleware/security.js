@@ -175,6 +175,8 @@ const corsConfig = () => {
     process.env.RENDER_FRONTEND_URL,
     process.env.FRONTEND_URL,
     process.env.CLIENT_URL,
+    'https://localhost',
+    'capacitor://localhost',
     'https://nocturnal-api.onrender.com',
     'https://nocturnal-frontend.onrender.com',
     'https://nocturnal-frontend-208z.onrender.com'
@@ -218,6 +220,7 @@ const corsConfig = () => {
     allowedHeaders: [
       'Content-Type',
       'Authorization',
+      'X-Nocturnal-Mobile',
       'X-Requested-With',
       'X-API-Key',
       'Accept',

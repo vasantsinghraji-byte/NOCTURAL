@@ -29,6 +29,7 @@ const patientRoutes = require('../patient');
 const bookingRoutes = require('../booking');
 const funnelEventRoutes = require('../funnelEvents');
 const hospitalWaitlistRoutes = require('../hospitalWaitlist');
+const mobileDeviceRoutes = require('../mobileDevices');
 
 // Health Dashboard routes (Patient Analytics & Health History)
 const patientDashboardRoutes = require('../patientDashboard');
@@ -81,6 +82,7 @@ router.use('/patients', patientRoutes);
 router.use('/bookings', bookingRoutes);
 router.use('/funnel-events', funnelEventRoutes);
 router.use('/hospital-waitlist', hospitalWaitlistRoutes);
+router.use('/mobile-devices', mobileDeviceRoutes);
 
 const hasRazorpayCredentials = !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
 const isB2CPaymentEnabled = hasRazorpayCredentials && process.env.RAZORPAY_ENABLED !== 'false';
@@ -123,6 +125,7 @@ router.get('/health', async (req, res) => {
   const health = {
     status: dbStatus === 'connected' ? 'healthy' : 'degraded',
     version: 'v1',
+    deploymentCommit: process.env.RENDER_GIT_COMMIT || 'unknown',
     timestamp: new Date().toISOString(),
     uptime: {
       seconds: Math.floor(uptime),

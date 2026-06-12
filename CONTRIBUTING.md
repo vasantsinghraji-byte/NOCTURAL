@@ -43,6 +43,43 @@ Rules:
 5. Document risk, rollback steps, and test evidence in the PR template.
 6. Merge only after review and passing checks.
 
+## Sync And Back-Merge Pull Requests
+
+Pull requests that synchronize protected branches, such as `main` into `develop`, must use GitHub's **Create a merge commit** option. Never squash or rebase-merge a sync/back-merge PR.
+
+Squashing copies the resulting files without preserving branch ancestry. This can make later `develop` into `main` pull requests show unrelated historical changes and can cause newer production files to appear as deletions.
+
+After synchronizing `main` into `develop`, verify:
+
+```bash
+git fetch origin --prune
+git merge-base --is-ancestor origin/main origin/develop
+git diff --name-status origin/main..origin/develop
+```
+
+The ancestry command must succeed, and the diff must contain only intentional `develop` changes before merging `develop` into `main`.
+
+## Render Deploy Queue Recovery
+
+Render creates a separate auto-deploy for each new commit and can leave older deployments queued while newer commits reach `main`. Triggering a manual deployment does not cancel those queued deployments, so an older commit can later replace the manually deployed version.
+
+Before manually deploying the production API:
+
+1. List deployments and identify any queued or running deployment for an older commit.
+2. Cancel stale deployments before deploying the current `main` commit.
+3. Wait for the manual deployment to become live.
+4. List deployments again and confirm no older deployment remains queued or running.
+5. Probe `/api/v1/health` and confirm the expected runtime marker, such as `X-Request-Id`.
+
+```bash
+render deploys list <service-id> --output json
+render deploys cancel <service-id> <stale-deploy-id> --confirm
+render deploys create <service-id> --commit <main-commit-sha> --wait --confirm
+curl -i https://nocturnal-api.onrender.com/api/v1/health
+```
+
+If a deployment reports `update_failed` without reaching checkout, build, or application startup logs, treat it as a Render platform/service-update failure rather than an application failure. Preserve the last healthy deployment, retry the exact current `main` commit after the queue is drained, and verify the live response.
+
 ## Local Verification Checklist
 
 Run the smallest relevant set before every PR:
