@@ -287,7 +287,10 @@
         }
     };
 
-    windowObject.NocturnalNative = Object.freeze({
+    Object.defineProperty(windowObject, 'NocturnalNative', {
+        configurable: true,
+        writable: true,
+        value: Object.freeze({
         isNative,
         authenticate,
         capturePhoto,
@@ -306,6 +309,7 @@
         clearDiagnosticLogs,
         getAccessToken: () => getStoredValue(ACCESS_TOKEN_KEY),
         getRefreshToken: () => getStoredValue(REFRESH_TOKEN_KEY)
+        })
     });
 
     windowObject.addEventListener('DOMContentLoaded', () => {

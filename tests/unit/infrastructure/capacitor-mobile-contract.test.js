@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '../../..');
+// Test-only paths are constrained to fixtures within the repository root.
+// eslint-disable-next-line security/detect-non-literal-fs-filename
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
 describe('Capacitor mobile application contract', () => {
