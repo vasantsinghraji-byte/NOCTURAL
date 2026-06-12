@@ -36,6 +36,7 @@ function mockV1RouteDependencies() {
   jest.doMock('../../../routes/doctorAccess', () => createMockRouter('doctor-access'));
   jest.doMock('../../../routes/patientAnalytics', () => createMockRouter('patient-analytics'));
   jest.doMock('../../../routes/security', () => createMockRouter('security'));
+  jest.doMock('../../../routes/mobileDevices', () => createMockRouter('mobile-devices'));
   jest.doMock('../../../utils/logger', () => ({
     error: jest.fn(),
     warn: jest.fn(),

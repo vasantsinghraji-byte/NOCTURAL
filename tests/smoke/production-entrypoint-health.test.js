@@ -83,6 +83,7 @@ describe('Production Smoke: GET /api/v1/health via server.js entrypoint', () => 
     Object.assign(process.env, global.testUtils.productionFixtureEnv({
       NODE_ENV: 'production',
       PORT: String(port),
+      RENDER_GIT_COMMIT: 'production-smoke-commit',
       ALLOWED_ORIGINS: `https://127.0.0.1:${port}`
     }));
 
@@ -104,6 +105,7 @@ describe('Production Smoke: GET /api/v1/health via server.js entrypoint', () => 
       expect(response.headers['x-api-version']).toBe('v1');
       expect(payload).toEqual(expect.objectContaining({
         version: 'v1',
+        deploymentCommit: 'production-smoke-commit',
         environment: 'production',
         status: expect.stringMatching(/healthy|degraded/),
         database: expect.objectContaining({

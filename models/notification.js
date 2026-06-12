@@ -7,6 +7,11 @@ const notificationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  recipientModel: {
+    type: String,
+    enum: ['User', 'Patient'],
+    default: 'User'
+  },
 
   // Notification type
   type: {
@@ -150,11 +155,6 @@ notificationSchema.statics.createNotification = async function(data) {
       // TODO: Send SMS
       notification.deliveryStatus.sms.sent = true;
       notification.deliveryStatus.sms.sentAt = new Date();
-    }
-    if (data.channels.push) {
-      // TODO: Send push notification
-      notification.deliveryStatus.push.sent = true;
-      notification.deliveryStatus.push.sentAt = new Date();
     }
     await notification.save();
   }
