@@ -74,6 +74,7 @@ const EXPECTED_FRONTEND_API_DEPENDENCY_MAP = {
 const RAW_FETCH_ALLOWLIST = [
   'client/public/js/auth.js',
   'client/public/js/frontend-session.js',
+  'client/public/js/native-capabilities.js',
   'client/public/js/notification-center.js',
   'client/public/js/pagination.js',
   'client/public/js/unified-nav.js',

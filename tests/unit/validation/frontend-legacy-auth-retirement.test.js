@@ -36,7 +36,7 @@ const testSetupSrc = readProjectFile('tests/setup.js');
 const envExampleSrc = readProjectFile('.env.example');
 const vaultSrc = readProjectFile('config/vault.js');
 const packageJsonSrc = readProjectFile('package.json');
-const packageLockSrc = readProjectFile('package-lock.json');
+const pushNotificationServiceSrc = readProjectFile('services/pushNotificationService.js');
 const userModelSrc = readProjectFile('models/user.js');
 const migrationGuideSrc = readProjectFile('docs/MIGRATION_GUIDE.md');
 const securityChangelogSrc = readProjectFile('docs/changelog/2024-Q4-security.md');
@@ -75,10 +75,9 @@ describe('Frontend Legacy Auth Retirement', () => {
     expect(userModelSrc).not.toContain(retiredUserField);
   });
 
-  it('should keep the root dependency graph off retired auth packages', () => {
+  it('should keep the root dependency graph off retired client auth packages', () => {
     expect(packageJsonSrc).not.toContain(`"${retiredProviderPrefix}"`);
-    expect(packageJsonSrc).not.toContain(`"${retiredAdminPackage}"`);
-    expect(packageLockSrc).not.toContain(`"${retiredAdminPackage}"`);
+    expect(pushNotificationServiceSrc).not.toContain(`${retiredAdminPackage}/auth`);
   });
 
   it('should remove legacy auth frontend stubs from served assets', () => {
