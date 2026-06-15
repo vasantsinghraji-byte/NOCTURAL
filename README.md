@@ -742,10 +742,13 @@ redis-cli INFO stats
 
 ## Test Accounts
 
-For testing purposes, you can use these pre-configured accounts:
+The local seed script (`node seed.js`) creates demo accounts for **local development only**.
+Their credentials are intentionally not published here. See `seed.js` for the
+values used in a throwaway local database.
 
-- **Doctor**: doctor@test.com / password123
-- **Admin**: demo@hospital.com / demo123
+> ⚠️ **Never run the seed script, or these demo accounts, against a deployed/production
+> database.** If a demo account ever exists on a live instance, rotate its password
+> immediately and remove it.
 
 ## Contributing
 

@@ -39,6 +39,17 @@ jobs:
             exit 0
           fi
 
+          # Fail fast with an actionable message instead of the cryptic mongodump
+          # "scheme must be mongodb or mongodb+srv" error when the secret is set
+          # to a malformed value (wrong/placeholder string, stray whitespace, etc.).
+          case "$MONGODB_URI" in
+            mongodb://*|mongodb+srv://*) ;;
+            *)
+              echo "::error::MONGODB_URI is set but malformed - it must start with 'mongodb://' or 'mongodb+srv://'. Verify the secret value for the '${{ github.event.inputs.environment || 'production' }}' environment (check for placeholder text or leading/trailing whitespace)."
+              exit 1
+              ;;
+          esac
+
           if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
             echo "::error::AWS_SECRET_ACCESS_KEY must be configured when AWS_ACCESS_KEY_ID is set."
             exit 1
