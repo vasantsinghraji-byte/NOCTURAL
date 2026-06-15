@@ -23,6 +23,8 @@ jobs:
     name: Database Backup
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'production' }}
+    outputs:
+      skipped: ${{ steps.preflight.outputs.skip_backup }}
 
     steps:
       - name: Validate backup prerequisites
@@ -160,13 +162,23 @@ jobs:
           retention-days: 7
 
   notify:
-    name: Notify on Failure
+    name: Notify on Failure or Skipped Backup
     runs-on: ubuntu-latest
     needs: backup
-    if: needs.backup.result == 'failure'
+    # Fire on outright failure AND on a silent skip. A skipped backup leaves the
+    # backup job "green" while producing nothing, which for patient data is the
+    # dangerous case - surface it as a failed run that needs attention.
+    if: always() && (needs.backup.result == 'failure' || needs.backup.outputs.skipped == 'true')
     steps:
-      - name: Log backup failure
+      - name: Report backup status
+        env:
+          ENV_NAME: ${{ github.event.inputs.environment || 'production' }}
         run: |
-          echo "::error::Database backup failed for ${{ github.event.inputs.environment || 'production' }}"
-          echo "Check the backup job logs for details."
+          if [ "${{ needs.backup.outputs.skipped }}" == "true" ]; then
+            echo "::error::Database backup was SKIPPED for '${ENV_NAME}' - MONGODB_URI is not configured, so NO backup was produced."
+            echo "Scheduled backup produced nothing: MONGODB_URI is unset for the '${ENV_NAME}' environment. Configure it under Settings -> Environments -> ${ENV_NAME}." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "::error::Database backup FAILED for '${ENV_NAME}'. Check the backup job logs."
           echo "Manual backup can be run with: node scripts/backup-database.js"
+          exit 1
