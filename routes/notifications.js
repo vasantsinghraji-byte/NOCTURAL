@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const notificationService = require('../services/notificationService');
 const logger = require('../utils/logger');
 
@@ -119,8 +119,8 @@ router.delete('/clear/read', protect, async (req, res) => {
   }
 });
 
-// Create notification (for testing or admin use)
-router.post('/', protect, async (req, res) => {
+// Create notification (admin only - prevents impersonation/targeting of arbitrary users)
+router.post('/', protect, authorize('admin'), async (req, res) => {
   try {
     const { userId, type, title, message, actionUrl, actionLabel, priority, channels } = req.body;
 
