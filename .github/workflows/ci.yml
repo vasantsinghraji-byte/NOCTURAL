@@ -249,7 +249,9 @@ jobs:
           push: false
           tags: nocturnal-ci:${{ github.sha }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # ignore-error: a GHA cache-export hiccup (504 / not_found) must not fail
+          # the build - the image is already built by this point.
+          cache-to: type=gha,mode=max,ignore-error=true
 
   # API Documentation
   docs:
