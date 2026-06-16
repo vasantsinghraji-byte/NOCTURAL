@@ -295,6 +295,15 @@ const collectStringValues = (value, values = []) => {
 };
 
 const detectSuspiciousRequests = (req, res, next) => {
+  // Static assets and HTML pages are served by express.static and never process
+  // query/body input, so scanning them for SQL/command/XSS injection only produces
+  // false positives (e.g. 403s on the deployed CSP smoke test). Only scan requests
+  // that actually reach input-processing handlers: the API namespace, or any
+  // non-GET request.
+  if (req.method === 'GET' && !req.path.startsWith('/api')) {
+    return next();
+  }
+
   const suspicious = [];
 
   // Inspect raw string values only. MongoDB operator keys are handled by
@@ -321,7 +330,12 @@ const detectSuspiciousRequests = (req, res, next) => {
 
   // Check for shell command injection phrases without blocking normal currency
   // strings like "$50" or MongoDB update keys like "$set".
-  const cmdPattern = /(?:^|\s)(?:cat|curl|wget|bash|sh|cmd|powershell|nc|rm|mv|cp|chmod|chown)\s+|[`;&|]\s*\w+/i;
+  // Match a command name at a word boundary, or a shell chaining operator
+  // immediately followed by a command. The previous `[`;&|]\s*\w+` branch flagged
+  // any value containing ; & | ` before a word (e.g. "rock & roll", "a;b"),
+  // causing false-positive 403s; requiring a command keeps real chaining like
+  // "; rm -rf" / "| cat /etc" detected without the noise.
+  const cmdPattern = /(?:^|\s)(?:cat|curl|wget|bash|sh|cmd|powershell|nc|rm|mv|cp|chmod|chown)\s+|[`;&|]\s*(?:cat|curl|wget|bash|sh|cmd|powershell|nc|rm|mv|cp|chmod|chown)\b/i;
   if (userStrings.some(value => cmdPattern.test(value))) {
     suspicious.push('COMMAND_INJECTION_ATTEMPT');
   }
