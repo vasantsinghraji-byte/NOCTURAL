@@ -14,6 +14,11 @@ const DutySchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // Structured tenant reference (backfilled from `hospital` by scripts/migrate-hospitals-to-objectid.js)
+  hospitalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Hospital'
+  },
 
   // Department & Specialty
   department: {
