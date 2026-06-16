@@ -159,7 +159,11 @@ jobs:
         with:
           name: ${{ env.BACKUP_NAME }}
           path: ${{ env.BACKUP_FILE }}
-          retention-days: 7
+          # 90-day retention while S3 off-site backups are not yet configured.
+          # Raise this only up to the repo's max artifact retention (Settings ->
+          # Actions -> General). Once AWS secrets are set, uploads go to S3
+          # instead and this fallback stops being used.
+          retention-days: 90
 
   notify:
     name: Notify on Failure or Skipped Backup
