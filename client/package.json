@@ -22,7 +22,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@babel/core": "^7.23.0",
+    "@babel/core": "^7.29.6",
     "@babel/preset-env": "^7.23.0",
     "babel-loader": "^10.1.1",
     "clean-css": "^5.3.3",
@@ -43,5 +43,10 @@
     "webpack": "^5.106.2",
     "webpack-bundle-analyzer": "^4.9.1",
     "webpack-cli": "^7.0.2"
+  },
+  "overrides": {
+    "@babel/core": "$@babel/core",
+    "js-yaml": "4.2.0",
+    "ws": "7.5.11"
   }
 }
