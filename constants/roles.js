@@ -9,7 +9,8 @@ const ROLES = {
   DOCTOR: 'doctor',
   NURSE: 'nurse',
   PHYSIOTHERAPIST: 'physiotherapist',
-  ADMIN: 'admin',
+  ADMIN: 'admin', // hospital-scoped admin (tenant = their `hospital`)
+  PLATFORM_ADMIN: 'platform_admin', // cross-tenant operator for platform-level actions
   PATIENT: 'patient'
 };
 
@@ -49,6 +50,10 @@ const ROLE_PERMISSIONS = {
     'process_payments',
     'view_hospital_analytics',
     'manage_hospital_settings',
+    'view_notifications'
+  ],
+  [ROLES.PLATFORM_ADMIN]: [
+    // Cross-tenant, platform-level capabilities (not bound to a single hospital)
     'verify_documents',
     'view_notifications'
   ]
