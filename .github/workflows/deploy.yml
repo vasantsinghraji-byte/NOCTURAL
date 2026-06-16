@@ -141,7 +141,7 @@ jobs:
           provenance: false
 
       - name: Scan image for vulnerabilities
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ steps.image.outputs.image_name_lc }}:${{ steps.image.outputs.primary_tag }}
           format: table
@@ -150,7 +150,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v4.1.0
+        uses: sigstore/cosign-installer@v4.1.2
 
       - name: Sign Docker image
         shell: bash
