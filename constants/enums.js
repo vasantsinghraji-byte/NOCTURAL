@@ -10,7 +10,9 @@
 // ── Roles ──────────────────────────────────────────────────────────────
 
 /** Roles stored in the User model (staff accounts) */
-const STAFF_ROLES = ['doctor', 'nurse', 'physiotherapist', 'admin'];
+// 'admin' is a hospital-scoped admin (tenant = their `hospital`); 'platform_admin'
+// is a cross-tenant operator for platform-level actions (e.g. credential verification).
+const STAFF_ROLES = ['doctor', 'nurse', 'physiotherapist', 'admin', 'platform_admin'];
 
 /** Roles allowed during self-registration (no admin) */
 const REGISTRATION_ROLES = ['doctor', 'nurse', 'physiotherapist', 'patient'];

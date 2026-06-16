@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
+const { ROLES } = require('../constants/roles');
 const Certification = require('../models/certification');
 const { paginate, paginationMiddleware, sendPaginatedResponse } = require('../utils/pagination');
 
@@ -146,9 +147,12 @@ router.delete('/:id', protect, async (req, res) => {
 });
 
 // @route   POST /api/certifications/:id/verify
-// @desc    Verify certification (Admin only)
+// @desc    Verify certification (Platform admin only)
 // @access  Private
-router.post('/:id/verify', protect, authorize('admin'), async (req, res) => {
+// Certifications belong to providers (not a hospital), so verification is a
+// cross-tenant, platform-level trust action - restricted to platform_admin to
+// prevent one hospital admin from verifying arbitrary providers' credentials.
+router.post('/:id/verify', protect, authorize(ROLES.PLATFORM_ADMIN), async (req, res) => {
     try {
         const { verificationStatus } = req.body;
 

@@ -20,7 +20,18 @@ async function seed() {
   });
   
   console.log('Created hospital admin');
-  
+
+  // Create platform admin (cross-tenant operator, e.g. credential verification)
+  await User.create({
+    name: 'Platform Admin',
+    email: 'platform@nocturnal.com',
+    password: 'demo123',
+    role: 'platform_admin',
+    location: 'Mumbai, India'
+  });
+
+  console.log('Created platform admin');
+
   // Create 5 sample duties
   for (let i = 1; i <= 5; i++) {
     await Duty.create({
