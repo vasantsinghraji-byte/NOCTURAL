@@ -20,6 +20,11 @@ const earningSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    // Structured tenant reference (backfilled from `hospital` by scripts/migrate-hospitals-to-objectid.js)
+    hospitalId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Hospital'
+    },
     shiftDate: {
         type: Date,
         required: true
@@ -100,6 +105,7 @@ earningSchema.index({ duty: 1 }); // Earnings by duty
 earningSchema.index({ paymentStatus: 1, expectedPaymentDate: 1 }); // Overdue payment identification
 earningSchema.index({ user: 1, createdAt: -1 }); // Recent earnings
 earningSchema.index({ hospital: 1, shiftDate: -1 }); // Hospital's payment tracking
+earningSchema.index({ hospitalId: 1, shiftDate: -1 }); // Immutable tenant-scoped payment tracking
 
 // Pre-save hook to calculate net amount
 earningSchema.pre('save', function(next) {
