@@ -299,10 +299,18 @@ class NotificationService {
       return value;
     }
 
-    return value
-      .replace(/<[^>]*>/g, '') // remove HTML tags
-      .replace(/\0/g, '')      // remove null bytes
-      .trim();
+    let sanitized = value.replace(/\0/g, ''); // remove null bytes
+
+    // Strip HTML tags, repeating until the string stops changing. A single pass
+    // can leave fragments that re-form a tag (e.g. "<scr<script>ipt>" -> "<script>"),
+    // so loop to a fixed point (CodeQL js/incomplete-multi-character-sanitization).
+    let previous;
+    do {
+      previous = sanitized;
+      sanitized = sanitized.replace(/<[^>]*>/g, '');
+    } while (sanitized !== previous);
+
+    return sanitized.trim();
   }
 
   /**
