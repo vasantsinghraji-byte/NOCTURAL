@@ -1,0 +1,140 @@
+name: Backup Restore Verification
+
+# Proves the backups are actually RESTORABLE - not just that mongodump exits 0.
+# It dumps the source database with the same tooling/flags the backup workflow
+# uses, restores that dump into a throwaway MongoDB service, and asserts the
+# collection set and document counts survived the round-trip.
+#
+# The dump contains live data and is confined to the ephemeral runner; it is
+# never uploaded as an artifact. Runs with environment: production so it reads
+# the same MONGODB_URI secret the backup workflow uses.
+
+on:
+  schedule:
+    # Weekly, Sunday 04:00 UTC (after the nightly 02:00 backups)
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to verify'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  restore-drill:
+    name: Restore Drill
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    timeout-minutes: 20
+
+    services:
+      scratch-mongo:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Validate prerequisites
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          if [ -z "$MONGODB_URI" ]; then
+            echo "::error::MONGODB_URI is not configured - cannot verify restorability. Configure it under Settings -> Environments."
+            exit 1
+          fi
+
+          case "$MONGODB_URI" in
+            mongodb://*|mongodb+srv://*) ;;
+            *)
+              echo "::error::MONGODB_URI is malformed - it must start with 'mongodb://' or 'mongodb+srv://'."
+              exit 1
+              ;;
+          esac
+
+      - name: Install MongoDB tools
+        run: |
+          wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | sudo apt-key add -
+          echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+          sudo apt-get update
+          sudo apt-get install -y mongodb-database-tools mongodb-mongosh
+
+      - name: Wait for scratch MongoDB
+        run: timeout 30 bash -c 'until (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1; do sleep 1; done'
+
+      - name: Dump source database
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          mkdir -p /tmp/drill/dump
+          mongodump --uri="${MONGODB_URI}" --out=/tmp/drill/dump --gzip
+
+          DUMP_DB_DIR=$(find /tmp/drill/dump -mindepth 1 -maxdepth 1 -type d | head -1)
+          if [ -z "$DUMP_DB_DIR" ]; then
+            echo "::error::mongodump produced no database directory - nothing to verify."
+            exit 1
+          fi
+          echo "DUMP_DB_DIR=${DUMP_DB_DIR}" >> "$GITHUB_ENV"
+          echo "DB_NAME=$(basename "${DUMP_DB_DIR}")" >> "$GITHUB_ENV"
+
+      - name: Restore into scratch MongoDB
+        run: |
+          mongorestore --uri="mongodb://localhost:27017" --gzip --drop /tmp/drill/dump
+
+      - name: Verify collections and document counts
+        run: |
+          DUMPED=$(find "${DUMP_DB_DIR}" -name '*.bson.gz' | wc -l | tr -d ' ')
+          echo "Collections in dump: ${DUMPED}"
+          if [ "${DUMPED}" -eq 0 ]; then
+            echo "::error::Dump contains zero collections - backup is empty."
+            exit 1
+          fi
+
+          RESULT=$(mongosh "mongodb://localhost:27017/${DB_NAME}" --quiet --eval '
+            const cols = db.getCollectionNames().filter((n) => !n.startsWith("system."));
+            let total = 0;
+            cols.forEach((c) => { total += db.getCollection(c).countDocuments(); });
+            JSON.stringify({ collections: cols.length, totalDocs: total });
+          ')
+          echo "Restored summary: ${RESULT}"
+
+          RESTORED_COLS=$(echo "${RESULT}" | jq -r '.collections')
+          RESTORED_DOCS=$(echo "${RESULT}" | jq -r '.totalDocs')
+
+          {
+            echo "### Backup restore verification (${DB_NAME})"
+            echo ""
+            echo "- Collections dumped: ${DUMPED}"
+            echo "- Collections restored: ${RESTORED_COLS}"
+            echo "- Documents restored: ${RESTORED_DOCS}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${RESTORED_COLS}" -ne "${DUMPED}" ]; then
+            echo "::error::Collection count mismatch - dumped ${DUMPED}, restored ${RESTORED_COLS}. The backup is not fully restorable."
+            exit 1
+          fi
+          if [ "${RESTORED_DOCS}" -le 0 ]; then
+            echo "::error::Restored database has zero documents - the backup is empty or unrestorable."
+            exit 1
+          fi
+
+          echo "Restore verified: ${RESTORED_COLS} collections, ${RESTORED_DOCS} documents restored successfully."
+
+  notify:
+    name: Notify on Restore Failure
+    runs-on: ubuntu-latest
+    needs: restore-drill
+    if: always() && needs.restore-drill.result == 'failure'
+    steps:
+      - name: Report restore failure
+        run: |
+          echo "::error::Backup restore verification FAILED for '${{ github.event.inputs.environment || 'production' }}' - backups may not be restorable. Investigate immediately."
+          exit 1

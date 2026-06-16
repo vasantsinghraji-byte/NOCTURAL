@@ -1,0 +1,15 @@
+# Local pre-commit hooks. Catches secrets BEFORE they reach git history,
+# complementing the CI Gitleaks job and GitHub secret scanning.
+#
+# Enable once per clone:
+#   pip install pre-commit   # or: pipx install pre-commit
+#   pre-commit install
+#
+# Run manually against the whole repo:
+#   pre-commit run --all-files
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    # Pinned to match the version used by the CI secret-scan job (.github/workflows/ci.yml)
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
