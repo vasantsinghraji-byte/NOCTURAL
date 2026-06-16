@@ -13,6 +13,11 @@ const shiftSeriesSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    // Structured tenant reference (backfilled from `hospital` by scripts/migrate-hospitals-to-objectid.js)
+    hospitalId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Hospital'
+    },
     postedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -119,6 +124,7 @@ shiftSeriesSchema.index({ postedBy: 1, createdAt: -1 });
 shiftSeriesSchema.index({ status: 1 });
 shiftSeriesSchema.index({ 'shifts.date': 1 });
 shiftSeriesSchema.index({ hospital: 1 });
+shiftSeriesSchema.index({ hospitalId: 1, createdAt: -1 });
 
 // Pre-save hook to calculate discounted rate and total compensation
 shiftSeriesSchema.pre('save', function(next) {
