@@ -230,6 +230,7 @@ shiftSeriesSchema.statics.createDutiesFromSeries = async function(seriesId) {
         const duty = new Duty({
             title: `${series.title} - Day ${i + 1}`,
             hospital: series.hospital,
+            hospitalId: series.hospitalId,
             specialty: series.specialty,
             description: series.description + `\n\nPart of a ${series.totalShifts}-shift series with ${series.seriesDiscount}% discount.`,
             date: shift.date,
