@@ -5,6 +5,9 @@ describe('GCS upload magic-byte validation', () => {
   const rootDir = path.resolve(__dirname, '..', '..', '..');
   const storageSrc = fs.readFileSync(path.join(rootDir, 'config', 'storage.js'), 'utf8');
   const uploadSrc = fs.readFileSync(path.join(rootDir, 'middleware', 'upload.js'), 'utf8');
+  const uploadsRouteSrc = fs.readFileSync(path.join(rootDir, 'routes', 'uploads.js'), 'utf8');
+  const patientAnalyticsRouteSrc = fs.readFileSync(path.join(rootDir, 'routes', 'patientAnalytics.js'), 'utf8');
+  const investigationServiceSrc = fs.readFileSync(path.join(rootDir, 'services', 'investigationReportService.js'), 'utf8');
   const validatorSrc = fs.readFileSync(path.join(rootDir, 'utils', 'uploadMagicByteValidator.js'), 'utf8');
 
   it('generic GCS storage should validate stream magic bytes before writing to GCS', () => {
@@ -35,5 +38,22 @@ describe('GCS upload magic-byte validation', () => {
     expect(storageSrc).toMatch(/blob\.delete\(\)/);
     expect(uploadSrc).toMatch(/blobStream\.destroy\(error\)/);
     expect(uploadSrc).toMatch(/blob\.delete\(\)/);
+  });
+
+  it('local upload routes should compose magic-byte validation middleware', () => {
+    expect(uploadSrc).toMatch(/uploadProfilePhoto:\s*\[upload\.single\('profilePhoto'\),\s*validateFileType\]/);
+    expect(uploadSrc).toMatch(/uploadDocuments:\s*\[[\s\S]*?validateFileType/);
+    expect(patientAnalyticsRouteSrc).toMatch(/createReportUpload\(\)\.array\('files', 10\),\s*validateFileType/);
+  });
+
+  it('persisted upload URLs should use exact stored-key authorization', () => {
+    expect(storageSrc).toMatch(/toStoredFile/);
+    expect(storageSrc).toMatch(/\/api\/v1\/uploads\/file\?key=/);
+    expect(uploadsRouteSrc).toMatch(/return keys\.includes\(requestedKey\)/);
+    expect(uploadsRouteSrc).toMatch(/storageConfig\.deleteFile/);
+    expect(investigationServiceSrc).toMatch(/storageConfig\.toStoredFile/);
+    expect(investigationServiceSrc).toMatch(/storageConfig\.getSignedUrl/);
+    expect(investigationServiceSrc).toMatch(/storageConfig\.deleteFile/);
+    expect(patientAnalyticsRouteSrc).toMatch(/reports\/:reportId\/files\/:fileIndex\/download/);
   });
 });

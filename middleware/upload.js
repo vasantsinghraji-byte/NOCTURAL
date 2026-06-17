@@ -119,6 +119,7 @@ const upload = multer({
  * Note: This only works for local storage - GCS files are validated differently
  */
 const validateFileType = async (req, res, next) => {
+  let filesToValidate = [];
   try {
     if (!req.file && !req.files) {
       return next();
@@ -128,8 +129,6 @@ const validateFileType = async (req, res, next) => {
     if (storageConfig.USE_GCS) {
       return next();
     }
-
-    const filesToValidate = [];
 
     if (req.file) {
       filesToValidate.push(req.file);
@@ -153,8 +152,9 @@ const validateFileType = async (req, res, next) => {
       const fileTypeResult = await detectFileTypeFromBuffer(buffer);
 
       if (!fileTypeResult) {
-        // Delete uploaded file asynchronously
-        await fs.promises.unlink(file.path).catch(err => logger.warn('Failed to delete invalid file', { path: file.path, error: err.message }));
+        await Promise.all(filesToValidate.map(uploadedFile =>
+          fs.promises.unlink(uploadedFile.path).catch(err => logger.warn('Failed to delete invalid upload batch file', { path: uploadedFile.path, error: err.message }))
+        ));
         logger.logSecurity('file_validation_failed', {
           filename: file.filename,
           reason: 'Could not determine file type from magic numbers',
@@ -169,8 +169,9 @@ const validateFileType = async (req, res, next) => {
       // Check if detected MIME type matches what was declared
       const allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
       if (!allowedMimes.includes(fileTypeResult.mime)) {
-        // Delete uploaded file asynchronously
-        await fs.promises.unlink(file.path).catch(err => logger.warn('Failed to delete invalid file', { path: file.path, error: err.message }));
+        await Promise.all(filesToValidate.map(uploadedFile =>
+          fs.promises.unlink(uploadedFile.path).catch(err => logger.warn('Failed to delete invalid upload batch file', { path: uploadedFile.path, error: err.message }))
+        ));
         logger.logSecurity('file_type_mismatch', {
           filename: file.filename,
           declaredMime: file.mimetype,
@@ -183,11 +184,31 @@ const validateFileType = async (req, res, next) => {
         });
       }
 
+      if (fileTypeResult.mime !== file.mimetype &&
+          !(file.mimetype === 'image/jpg' && fileTypeResult.mime === 'image/jpeg')) {
+        await Promise.all(filesToValidate.map(uploadedFile =>
+          fs.promises.unlink(uploadedFile.path).catch(err => logger.warn('Failed to delete mismatched upload batch file', { path: uploadedFile.path, error: err.message }))
+        ));
+        logger.logSecurity('file_type_mismatch', {
+          filename: file.filename,
+          declaredMime: file.mimetype,
+          actualMime: fileTypeResult.mime,
+          userId: req.user ? req.user._id : 'anonymous'
+        });
+        return res.status(400).json({
+          success: false,
+          message: 'File content does not match declared MIME type'
+        });
+      }
+
       logger.logFileUpload(file.filename, req.user ? req.user._id : 'anonymous', true);
     }
 
     next();
   } catch (error) {
+    await Promise.all(filesToValidate.map(uploadedFile =>
+      fs.promises.unlink(uploadedFile.path).catch(err => logger.warn('Failed to clean upload after validation error', { path: uploadedFile.path, error: err.message }))
+    ));
     logger.error('File Validation Error', {
       error: error.message,
       userId: req.user ? req.user._id : 'anonymous'
@@ -337,18 +358,21 @@ const createReportUpload = () => {
 // Export upload middleware configurations
 module.exports = {
   // Single file uploads (with validation)
-  uploadProfilePhoto: upload.single('profilePhoto'),
-  uploadMCICertificate: upload.single('mciCertificate'),
-  uploadMBBSDegree: upload.single('mbbsDegree'),
-  uploadPhotoId: upload.single('photoId'),
-  uploadCertificate: upload.single('certificate'),
+  uploadProfilePhoto: [upload.single('profilePhoto'), validateFileType],
+  uploadMCICertificate: [upload.single('mciCertificate'), validateFileType],
+  uploadMBBSDegree: [upload.single('mbbsDegree'), validateFileType],
+  uploadPhotoId: [upload.single('photoId'), validateFileType],
+  uploadCertificate: [upload.single('certificate'), validateFileType],
 
   // Multiple document uploads
-  uploadDocuments: upload.fields([
-    { name: 'mciCertificate', maxCount: 1 },
-    { name: 'mbbsDegree', maxCount: 1 },
-    { name: 'photoId', maxCount: 1 }
-  ]),
+  uploadDocuments: [
+    upload.fields([
+      { name: 'mciCertificate', maxCount: 1 },
+      { name: 'mbbsDegree', maxCount: 1 },
+      { name: 'photoId', maxCount: 1 }
+    ]),
+    validateFileType
+  ],
 
   // Investigation report upload factory
   createReportUpload,
