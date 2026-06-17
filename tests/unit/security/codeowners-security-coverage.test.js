@@ -7,7 +7,8 @@ const {
   validateRequiredStatusChecksExist
 } = require('../../../scripts/validate-codeowners-security-coverage');
 const {
-  classifyStatus
+  classifyStatus,
+  getDriftedBranches
 } = require('../../../scripts/manage-security-governance-protection');
 
 describe('CODEOWNERS security-governance validator', () => {
@@ -30,6 +31,29 @@ describe('CODEOWNERS security-governance validator', () => {
       contexts: ['CodeQL Alert Gate'],
       requireCodeOwnerReviews: false
     })).toBe('custom-or-drifted');
+  });
+
+  it('identifies branches that would fail --fail-on-drift status audits', () => {
+    expect(getDriftedBranches([
+      {
+        branch: 'main',
+        contexts: ['Required Post-Deploy Render Smoke', 'CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
+        requireCodeOwnerReviews: true
+      },
+      {
+        branch: 'develop',
+        contexts: ['Required Post-Deploy Render Smoke'],
+        requireCodeOwnerReviews: false
+      }
+    ])).toEqual(['develop']);
+
+    expect(getDriftedBranches([
+      {
+        branch: 'main',
+        contexts: ['Required Post-Deploy Render Smoke', 'CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
+        requireCodeOwnerReviews: true
+      }
+    ])).toEqual([]);
   });
 
   it('rejects entries without owners', () => {

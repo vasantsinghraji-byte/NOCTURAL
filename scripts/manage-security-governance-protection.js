@@ -113,6 +113,12 @@ function classifyStatus(status) {
   return 'custom-or-drifted';
 }
 
+function getDriftedBranches(statuses) {
+  return statuses
+    .filter(branchStatus => classifyStatus(branchStatus) !== 'fully-enforced')
+    .map(branchStatus => branchStatus.branch);
+}
+
 function assertBaseConfigExists() {
   const required = [
     ['.github/CODEOWNERS', '.github/CODEOWNERS'],
@@ -190,9 +196,7 @@ function status(repository, branches) {
   writeStepSummary(statuses);
 
   if (hasFlag('fail-on-drift')) {
-    const driftedBranches = statuses
-      .filter(branchStatus => classifyStatus(branchStatus) !== 'fully-enforced')
-      .map(branchStatus => branchStatus.branch);
+    const driftedBranches = getDriftedBranches(statuses);
 
     if (driftedBranches.length > 0) {
       console.error(`Security governance protection drift detected on: ${driftedBranches.join(', ')}`);
@@ -231,5 +235,6 @@ if (require.main === module) {
 module.exports = {
   BOOTSTRAP_CONTEXTS,
   ENFORCED_CONTEXTS,
-  classifyStatus
+  classifyStatus,
+  getDriftedBranches
 };

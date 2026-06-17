@@ -378,7 +378,7 @@ if (typeof AppConfig === 'undefined') {
           return !!(payload && payload.success && payload.user);
         }
       }).user;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -553,7 +553,7 @@ if (typeof AppConfig === 'undefined') {
         parseJson: true
       }));
       return config.selectDraft(data);
-    } catch (error) {
+    } catch {
       return null;
     }
   }

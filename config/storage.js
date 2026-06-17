@@ -244,7 +244,7 @@ module.exports = {
       const filePath = path.join(__dirname, '../uploads', filename);
       try {
         await localFileSystem.unlink(filePath);
-      } catch (error) {
+      } catch {
         // File might not exist, ignore error
       }
     }

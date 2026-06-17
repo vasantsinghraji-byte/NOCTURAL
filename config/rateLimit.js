@@ -133,7 +133,7 @@ const persistMetricToRedis = async (type, mapName, key, count) => {
   try {
     await redisClient.hSet(`${REDIS_METRICS_PREFIX}${type}:${mapName}`, key, count.toString());
     await redisClient.expire(`${REDIS_METRICS_PREFIX}${type}:${mapName}`, 3600); // 1h TTL
-  } catch (err) {
+  } catch {
     // Non-critical — fall back to in-memory
   }
 };
@@ -146,7 +146,7 @@ const persistBlockedToRedis = async (key, until, reason) => {
     if (ttl > 0) {
       await redisClient.set(`${REDIS_BLOCKED_PREFIX}${key}`, JSON.stringify({ until, reason }), { EX: ttl });
     }
-  } catch (err) {
+  } catch {
     // Non-critical — fall back to in-memory
   }
 };
@@ -159,7 +159,7 @@ const isBlockedInRedis = async (key) => {
     if (!data) return false;
     const parsed = JSON.parse(data);
     return parsed.until > Date.now();
-  } catch (err) {
+  } catch {
     return false;
   }
 };
@@ -170,7 +170,7 @@ const getMetricFromRedis = async (type, mapName, key) => {
   try {
     const val = await redisClient.hGet(`${REDIS_METRICS_PREFIX}${type}:${mapName}`, key);
     return val ? parseInt(val, 10) : 0;
-  } catch (err) {
+  } catch {
     return 0;
   }
 };

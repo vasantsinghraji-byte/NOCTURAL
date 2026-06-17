@@ -107,7 +107,7 @@ const updateConnectionMetrics = async () => {
           logger.info('DB Connection Pool Status', connectionMetrics);
         }
       }
-    } catch (err) {
+    } catch {
       // Silently ignore if we don't have admin privileges
       // This is expected in production environments without admin access
     }
