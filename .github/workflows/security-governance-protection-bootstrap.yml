@@ -1,0 +1,51 @@
+name: Security Governance Protection Bootstrap
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/CODEOWNERS"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/codeql.yml"
+      - ".github/workflows/security-governance-protection-bootstrap.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  enable-security-governance-protection:
+    name: Enable Security Governance Branch Protection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout base branch config
+        uses: actions/checkout@v6
+
+      - name: Confirm required governance files and jobs exist
+        run: |
+          set -euo pipefail
+
+          test -f .github/CODEOWNERS
+          grep -q "CODEOWNERS Security Governance Gate" .github/workflows/ci.yml
+          grep -q "CodeQL Alert Gate" .github/workflows/codeql.yml
+
+      - name: Preflight branch-protection admin token
+        env:
+          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/manage-security-governance-protection.js --mode=preflight --branches=main,develop
+
+      - name: Enable governance protections on main and develop
+        env:
+          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/manage-security-governance-protection.js --mode=enforce --branches=main,develop
+
+      - name: Report branch-protection status
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/manage-security-governance-protection.js --mode=status --branches=main,develop
