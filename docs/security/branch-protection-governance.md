@@ -25,11 +25,13 @@ The private key must look like a PEM block:
 
 A value that starts with `SHA256:` is only the key fingerprint. It is not enough for workflow authentication.
 
-`BRANCH_PROTECTION_ADMIN_TOKEN` is retained only as a temporary fallback until GitHub App authentication is verified end to end. The workflows continue to the fallback token if GitHub App token creation fails.
+The workflows are GitHub App only. If `BRANCH_PROTECTION_APP_ID`, `BRANCH_PROTECTION_APP_PRIVATE_KEY`, or the app installation is missing, the governance workflows must fail instead of falling back to a personal or bot PAT.
 
 ## Rotation
 
 Rotate the GitHub App private key at least every 90 days and immediately after any suspected exposure.
+
+The `Security Governance Key Rotation Reminder` workflow runs quarterly and opens or updates a GitHub issue with the rotation checklist.
 
 Rotation procedure:
 1. Generate a new private key from the GitHub App settings page.

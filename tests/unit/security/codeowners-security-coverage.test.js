@@ -99,11 +99,25 @@ describe('CODEOWNERS security-governance validator', () => {
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       const workflowSource = fs.readFileSync(path.join(ROOT, workflowFile), 'utf8');
       expect(workflowSource).toContain('actions/create-github-app-token@v2');
-      expect(workflowSource).toContain('continue-on-error: true');
       expect(workflowSource).toContain('secrets.BRANCH_PROTECTION_APP_ID');
       expect(workflowSource).toContain('secrets.BRANCH_PROTECTION_APP_PRIVATE_KEY');
-      expect(workflowSource).toContain('steps.branch-protection-app-token.outputs.token || secrets.BRANCH_PROTECTION_ADMIN_TOKEN');
+      expect(workflowSource).toContain('steps.branch-protection-app-token.outputs.token');
+      expect(workflowSource).not.toContain('BRANCH_PROTECTION_ADMIN_TOKEN');
+      expect(workflowSource).not.toContain('continue-on-error: true');
     }
+  });
+
+  it('opens or updates a quarterly GitHub App private-key rotation reminder', () => {
+    const workflowPath = path.join(ROOT, '.github/workflows/security-governance-key-rotation-reminder.yml');
+    const workflowSource = fs.readFileSync(workflowPath, 'utf8');
+    const workflow = yaml.load(workflowSource);
+
+    expect(workflow.name).toBe('Security Governance Key Rotation Reminder');
+    expect(workflowSource).toContain('30 5 1 1,4,7,10 *');
+    expect(workflowSource).toContain('Rotate security governance GitHub App private key');
+    expect(workflowSource).toContain('BRANCH_PROTECTION_APP_PRIVATE_KEY');
+    expect(workflowSource).toContain('gh issue create');
+    expect(workflowSource).toContain('gh issue comment');
   });
 
   it('rejects entries without owners', () => {

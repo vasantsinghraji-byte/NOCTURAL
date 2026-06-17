@@ -5,6 +5,7 @@
 .github/workflows/codeql.yml @vasantsinghraji-byte
 .github/workflows/render-smoke.yml @vasantsinghraji-byte
 .github/workflows/security-governance-drift-audit.yml @vasantsinghraji-byte
+.github/workflows/security-governance-key-rotation-reminder.yml @vasantsinghraji-byte
 .github/workflows/security-governance-protection-bootstrap.yml @vasantsinghraji-byte
 .github/workflows/security-governance-protection-rollback.yml @vasantsinghraji-byte
 docs/security/branch-protection-governance.md @vasantsinghraji-byte

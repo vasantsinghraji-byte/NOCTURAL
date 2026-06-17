@@ -12,6 +12,7 @@ const REQUIRED_SECURITY_GOVERNANCE_PATHS = [
   '.github/workflows/codeql.yml',
   '.github/workflows/render-smoke.yml',
   '.github/workflows/security-governance-drift-audit.yml',
+  '.github/workflows/security-governance-key-rotation-reminder.yml',
   '.github/workflows/security-governance-protection-bootstrap.yml',
   '.github/workflows/security-governance-protection-rollback.yml',
   'docs/security/branch-protection-governance.md',
