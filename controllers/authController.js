@@ -9,6 +9,7 @@ const {
   parseCookieHeader,
   verifyRefreshToken
 } = require('../middleware/auth');
+const { IDENTITY_TYPES } = require('../utils/authTokens');
 const refreshSessionService = require('../services/refreshSessionService');
 const {
   REFRESH_TOKEN_COOKIE,
@@ -16,6 +17,8 @@ const {
   clearAuthCookies
 } = require('../utils/authCookies');
 const { addMobileTokens, isMobileRequest } = require('../utils/mobileAuth');
+const securityAuditService = require('../services/securityAuditService');
+const { getRequestSecurityMetadata } = require('../utils/requestSecurityMetadata');
 
 const getRefreshTokenFromRequest = (req) => {
   if (req.cookies && req.cookies[REFRESH_TOKEN_COOKIE]) {
@@ -96,23 +99,20 @@ exports.refresh = async (req, res, next) => {
     const refreshToken = getRefreshTokenFromRequest(req);
 
     if (!refreshToken) {
-      return res.status(401).json({
-        success: false,
-        message: 'Not authorized - No refresh token provided'
-      });
+      return responseHelper.sendUnauthorized(res, 'Not authorized - No refresh token provided');
     }
 
     const decoded = verifyRefreshToken(refreshToken);
 
     if (decoded.type !== 'refresh') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid refresh token'
-      });
+      return responseHelper.sendUnauthorized(res, 'Invalid refresh token');
     }
 
-    const token = generateAccessToken(decoded.id);
-    const replacementRefreshToken = generateRefreshToken(decoded.id);
+    const identityType = decoded.identityType === IDENTITY_TYPES.PATIENT
+      ? IDENTITY_TYPES.PATIENT
+      : IDENTITY_TYPES.USER;
+    const token = generateAccessToken(decoded.id, identityType, decoded.sessionVersion);
+    const replacementRefreshToken = generateRefreshToken(decoded.id, identityType, decoded.sessionVersion);
     const currentSession = await refreshSessionService.rotate({
       currentToken: refreshToken,
       replacementToken: replacementRefreshToken,
@@ -121,10 +121,12 @@ exports.refresh = async (req, res, next) => {
 
     if (!currentSession) {
       clearAuthCookies(res);
-      return res.status(401).json({
-        success: false,
-        message: 'Refresh token has been revoked or expired'
-      });
+      return responseHelper.sendUnauthorized(res, 'Refresh token has been revoked or expired');
+    }
+    const expectedUserType = identityType === IDENTITY_TYPES.PATIENT ? 'patient' : 'user';
+    if (currentSession.userType !== expectedUserType) {
+      clearAuthCookies(res);
+      return responseHelper.sendUnauthorized(res, 'Refresh token identity does not match session');
     }
 
     let payload;
@@ -148,10 +150,7 @@ exports.refresh = async (req, res, next) => {
   } catch (error) {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       clearAuthCookies(res);
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid or expired refresh token'
-      });
+      return responseHelper.sendUnauthorized(res, 'Invalid or expired refresh token');
     }
 
     responseHelper.handleServiceError(error, res, next);
@@ -196,9 +195,84 @@ exports.changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    await authService.updatePassword(req.user.id, currentPassword, newPassword);
-
+    const result = await authService.updatePassword(
+      req.user.id,
+      currentPassword,
+      newPassword,
+      {
+        webauthnConfirmationId: req.body.webauthnConfirmationId,
+        notificationMetadata: getRequestSecurityMetadata(req)
+      }
+    );
+    clearAuthCookies(res);
+    await securityAuditService.record({
+      event: 'password_changed',
+      actorId: req.user.id,
+      actorType: 'user',
+      outcome: 'success',
+      req,
+      metadata: {
+        revokedSessions: result.revokedSessions,
+        sessionVersion: result.identity.sessionVersion
+      }
+    });
     responseHelper.sendSuccess(res, {}, 'Password updated successfully');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+exports.listSessions = async (req, res, next) => {
+  try {
+    const sessions = await refreshSessionService.listForUser({
+      userId: req.user.id,
+      userType: 'user'
+    });
+    responseHelper.sendSuccess(res, { sessions });
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+exports.revokeSession = async (req, res, next) => {
+  try {
+    const session = await refreshSessionService.revokeById({
+      sessionId: req.params.sessionId,
+      userId: req.user.id,
+      userType: 'user'
+    });
+    if (!session) return responseHelper.sendNotFound(res, 'Session not found');
+    await securityAuditService.record({
+      event: 'session_revoked',
+      actorId: req.user.id,
+      actorType: 'user',
+      targetType: 'refresh_session',
+      targetId: req.params.sessionId,
+      outcome: 'success',
+      req
+    });
+    responseHelper.sendSuccess(res, {}, 'Session revoked');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+exports.revokeAllSessions = async (req, res, next) => {
+  try {
+    await refreshSessionService.revokeAllForUser({
+      userId: req.user.id,
+      userType: 'user',
+      reason: 'USER_LOGOUT_EVERYWHERE'
+    });
+    clearAuthCookies(res);
+    await securityAuditService.record({
+      event: 'all_sessions_revoked',
+      actorId: req.user.id,
+      actorType: 'user',
+      outcome: 'success',
+      req
+    });
+    responseHelper.sendSuccess(res, {}, 'All sessions revoked');
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
   }

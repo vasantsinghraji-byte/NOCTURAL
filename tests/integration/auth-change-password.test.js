@@ -24,6 +24,7 @@ describe('Auth Integration: PUT /api/v1/auth/change-password', () => {
     const changePasswordResponse = await request(getApp())
       .put('/api/v1/auth/change-password')
       .set('Authorization', `Bearer ${oldToken}`)
+      .set('Idempotency-Key', 'change-password-success')
       .send({
         currentPassword: 'OldPassword@123',
         newPassword: 'NewPassword@123',
@@ -53,7 +54,7 @@ describe('Auth Integration: PUT /api/v1/auth/change-password', () => {
 
     expect(newPasswordLoginResponse.status).toBe(200);
     expect(newPasswordLoginResponse.body.success).toBe(true);
-    expect(newPasswordLoginResponse.body.token).toBeTruthy();
+    expect(newPasswordLoginResponse.headers['set-cookie']).toBeTruthy();
 
     const oldTokenProfileResponse = await request(getApp())
       .get('/api/v1/auth/me')
@@ -76,6 +77,7 @@ describe('Auth Integration: PUT /api/v1/auth/change-password', () => {
     const changePasswordResponse = await request(getApp())
       .put('/api/v1/auth/change-password')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'change-password-invalid-current')
       .send({
         currentPassword: 'WrongPassword@123',
         newPassword: 'NewPassword@123',

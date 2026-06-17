@@ -5,6 +5,20 @@ jest.mock('../../models/user', () => ({
   findOne: jest.fn()
 }));
 
+jest.mock('../../models/refreshSession', () => ({
+  create: jest.fn().mockResolvedValue({}),
+  findOneAndUpdate: jest.fn().mockResolvedValue(null),
+  updateOne: jest.fn().mockResolvedValue({}),
+  updateMany: jest.fn().mockResolvedValue({})
+}));
+
+jest.mock('../../models/idempotencyKey', () => ({
+  create: jest.fn().mockResolvedValue({}),
+  findOne: jest.fn().mockResolvedValue(null),
+  updateOne: jest.fn().mockResolvedValue({}),
+  deleteOne: jest.fn().mockResolvedValue({})
+}));
+
 jest.mock('../../utils/logger', () => ({
   error: jest.fn(),
   warn: jest.fn(),

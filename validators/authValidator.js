@@ -204,16 +204,20 @@ const validateChangePassword = [
       return true;
     }),
 
-  body('confirmPassword')
-    .notEmpty().withMessage('Please confirm your new password')
-    .custom((value, { req }) => {
+    body('confirmPassword')
+      .notEmpty().withMessage('Please confirm your new password')
+      .custom((value, { req }) => {
       if (value !== req.body.newPassword) {
         throw new Error('Passwords do not match');
-      }
-      return true;
-    }),
+        }
+        return true;
+      }),
 
-  handleValidationErrors
+    body('webauthnConfirmationId')
+      .optional()
+      .isMongoId().withMessage('Invalid WebAuthn confirmation ID'),
+
+    handleValidationErrors
 ];
 
 /**

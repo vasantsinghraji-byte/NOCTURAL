@@ -7,6 +7,7 @@ const IDENTITY_TYPES = Object.freeze({
 
 const JWT_ALGORITHM = 'HS256';
 const JWT_ISSUER = 'nocturnal-api';
+const TOKEN_VERSION = 1;
 const LEGACY_JWT_AUDIENCE = 'nocturnal';
 
 const JWT_AUDIENCE_BY_IDENTITY = Object.freeze({
@@ -47,6 +48,12 @@ const getVerifyOptions = (identityType) => ({
 });
 
 const assertIdentity = (decoded, expectedIdentityType) => {
+  if (!decoded.identityType || decoded.tokenVersion !== TOKEN_VERSION) {
+    const error = new Error('Token identity or version is invalid');
+    error.name = 'JsonWebTokenError';
+    throw error;
+  }
+
   if (expectedIdentityType && decoded.identityType !== expectedIdentityType) {
     const error = new Error('Token identity type does not match this auth boundary');
     error.name = 'JsonWebTokenError';
@@ -56,10 +63,12 @@ const assertIdentity = (decoded, expectedIdentityType) => {
   return decoded;
 };
 
-const signToken = (payload, secret, expiresIn, identityType) => jwt.sign(
+const signToken = (payload, secret, expiresIn, identityType, sessionVersion = 0) => jwt.sign(
   {
     ...payload,
-    identityType
+    identityType,
+    tokenVersion: TOKEN_VERSION,
+    sessionVersion: Number(sessionVersion) || 0
   },
   secret,
   {
@@ -69,18 +78,20 @@ const signToken = (payload, secret, expiresIn, identityType) => jwt.sign(
   }
 );
 
-const generateAccessToken = (id, identityType = IDENTITY_TYPES.USER) => signToken(
+const generateAccessToken = (id, identityType = IDENTITY_TYPES.USER, sessionVersion = 0) => signToken(
   { id },
   process.env.JWT_SECRET,
   process.env.JWT_ACCESS_EXPIRE || '15m',
-  identityType
+  identityType,
+  sessionVersion
 );
 
-const generateRefreshToken = (id, identityType = IDENTITY_TYPES.USER) => signToken(
+const generateRefreshToken = (id, identityType = IDENTITY_TYPES.USER, sessionVersion = 0) => signToken(
   { id, type: 'refresh' },
   process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
   process.env.JWT_REFRESH_EXPIRE || '7d',
-  identityType
+  identityType,
+  sessionVersion
 );
 
 const verifyAccessToken = (token, expectedIdentityType) => {
@@ -101,6 +112,7 @@ module.exports = {
   IDENTITY_TYPES,
   JWT_ALGORITHM,
   JWT_ISSUER,
+  TOKEN_VERSION,
   LEGACY_JWT_AUDIENCE,
   JWT_AUDIENCE_BY_IDENTITY,
   JWT_ACCESS_SIGN_OPTIONS,
