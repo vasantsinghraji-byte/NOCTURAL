@@ -84,6 +84,8 @@
     "smoke:deployed-csp": "node scripts/smoke-deployed-csp.js",
     "security:scan": "node scripts/security-scan.js --target http://localhost:5000",
     "security:scan:full": "node scripts/security-scan.js --target http://localhost:5000 --mode full",
+    "security:codeql:export": "node scripts/export-codeql-alerts.js",
+    "security:codeql:dismiss-false-positives": "node scripts/dismiss-codeql-false-positives.js --dry-run",
     "security:rotate": "node scripts/rotate-secrets.js",
     "security:vault:init": "node scripts/init-vault.js",
     "db:backup": "node scripts/backup-database.js backup",
@@ -160,6 +162,7 @@
   },
   "overrides": {
     "gaxios": "7.1.5",
+    "js-yaml": "4.2.0",
     "protobufjs": "8.6.1",
     "retry-request": "8.0.3",
     "teeny-request": "10.1.3",

@@ -12,6 +12,8 @@ const { connectDB, disconnectDB } = require('./config/database');
 const { cleanup: cleanupRateLimits } = require('./config/rateLimit');
 const { validateEnvironment } = require('./config/validateEnv');
 const securityNotificationOutboxService = require('./services/securityNotificationOutboxService');
+const auditExportCleanupScheduler = require('./services/auditExportCleanupScheduler');
+const auditLifecycleReportCleanupScheduler = require('./services/auditLifecycleReportCleanupScheduler');
 
 let server = null;
 let processHandlersRegistered = false;
@@ -37,6 +39,8 @@ async function stopServer() {
   monitoring.cleanup();
   metricsRouter.cleanup();
   securityNotificationOutboxService.stop();
+  auditExportCleanupScheduler.stop();
+  auditLifecycleReportCleanupScheduler.stop();
 
   if (!server) {
     await disconnectDB();
@@ -157,6 +161,8 @@ function startServer(options = {}) {
 
   paymentService.startRefundOutboxWorker();
   securityNotificationOutboxService.start();
+  auditExportCleanupScheduler.start();
+  auditLifecycleReportCleanupScheduler.start();
 
   server.on('close', () => {
     server = null;
