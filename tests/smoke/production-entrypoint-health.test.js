@@ -90,10 +90,11 @@ describe('Production Smoke: GET /api/v1/health via server.js entrypoint', () => 
     jest.resetModules();
 
     const { startServer, stopServer } = require(path.join(rootDir, 'server.js'));
-    const server = startServer({
+    const server = await startServer({
       port,
       registerProcessHandlers: false,
-      connectDatabase: false
+      connectDatabase: false,
+      connectCache: false
     });
 
     try {

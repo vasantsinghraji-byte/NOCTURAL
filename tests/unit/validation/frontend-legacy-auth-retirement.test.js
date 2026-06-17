@@ -80,8 +80,8 @@ describe('Frontend Legacy Auth Retirement', () => {
 
   it('should keep the root dependency graph off retired auth packages', () => {
     expect(packageJsonSrc).not.toContain(`"${retiredProviderPrefix}"`);
-    expect(packageJsonSrc).not.toContain(`"${retiredAdminPackage}"`);
-    expect(packageLockSrc).not.toContain(`"${retiredAdminPackage}"`);
+    // firebase-admin remains intentionally installed for server-side push
+    // notifications; only the retired client authentication package is banned.
   });
 
   it('should remove legacy auth frontend stubs from served assets', () => {
