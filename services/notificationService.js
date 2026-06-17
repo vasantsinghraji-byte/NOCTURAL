@@ -10,6 +10,9 @@ const logger = require('../utils/logger');
 const { HTTP_STATUS } = require('../constants');
 const pushNotificationService = require('./pushNotificationService');
 
+const INTERNAL_ACTION_BASE = 'https://internal.invalid';
+const ALLOWED_ACTION_PATH_PREFIXES = ['/roles/', '/patient/', '/doctor/', '/admin/'];
+
 class NotificationService {
   /**
    * Get notifications for a user with pagination
@@ -169,6 +172,13 @@ class NotificationService {
       };
     }
 
+    // Defense-in-depth: neutralize markup in free-text fields and reject external
+    // action URLs so a notification cannot carry XSS or open-redirect payloads into
+    // any renderer, regardless of how the client displays it.
+    notificationData.title = this.sanitizeText(notificationData.title);
+    notificationData.message = this.sanitizeText(notificationData.message);
+    notificationData.actionUrl = this.sanitizeActionUrl(notificationData.actionUrl);
+
     const notification = await Notification.createNotification(notificationData);
 
     if (notificationData.channels?.push) {
@@ -277,6 +287,55 @@ class NotificationService {
     };
 
     return this.createNotification(notificationData);
+  }
+
+  /**
+   * Strip HTML tags and null bytes from free-text fields.
+   * Tags are removed (not entity-encoded) so the value stays safe in both the
+   * hardened textContent renderer and any future non-hardened renderer.
+   * @private
+   */
+  sanitizeText(value) {
+    if (typeof value !== 'string') {
+      return value;
+    }
+
+    return value
+      .replace(/<[^>]*>/g, '') // remove HTML tags
+      .replace(/\0/g, '')      // remove null bytes
+      .trim();
+  }
+
+  /**
+   * Allow only canonical internal paths used by application workflows.
+   * @private
+   */
+  sanitizeActionUrl(actionUrl) {
+    if (typeof actionUrl !== 'string' || actionUrl === '') {
+      return undefined;
+    }
+
+    try {
+      const parsed = new URL(actionUrl, INTERNAL_ACTION_BASE);
+      const decodedPath = decodeURIComponent(parsed.pathname);
+      const allowedPath = ALLOWED_ACTION_PATH_PREFIXES.some(
+        prefix => parsed.pathname.startsWith(prefix)
+      );
+
+      if (
+        parsed.origin !== INTERNAL_ACTION_BASE ||
+        decodedPath.startsWith('//') ||
+        decodedPath.includes('\\') ||
+        !allowedPath
+      ) {
+        throw new Error('Action URL is not an allowlisted internal path');
+      }
+
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch (_error) {
+      logger.warn('Rejected non-internal notification actionUrl', { actionUrl });
+      return undefined;
+    }
   }
 
   /**
