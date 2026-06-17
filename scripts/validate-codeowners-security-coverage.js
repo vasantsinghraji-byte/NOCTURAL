@@ -19,7 +19,9 @@ const REQUIRED_SECURITY_GOVERNANCE_PATHS = [
   'scripts/export-codeql-alerts.js',
   'scripts/manage-security-governance-protection.js',
   'scripts/post-codeql-pr-comment.js',
+  'scripts/render-security-governance-drift-issue.js',
   'scripts/validate-codeowners-security-coverage.js',
+  'tests/fixtures/security/governance-drift-audit-issue.json',
   'tests/unit/security/codeowners-security-coverage.test.js'
 ];
 

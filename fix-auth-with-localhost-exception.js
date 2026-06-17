@@ -38,7 +38,7 @@ async function fixAuthentication() {
         try {
             await adminDb.command({ ping: 1 });
             console.log('[OK] Localhost exception is active\n');
-        } catch (err) {
+        } catch {
             console.log('[INFO] Need to authenticate\n');
 
             // Try to authenticate with admin user
@@ -66,7 +66,7 @@ async function fixAuthentication() {
             console.log(`[OK] Found ${users.users.length} users in admin database`);
             users.users.forEach(u => console.log(`  - ${u.user}`));
             console.log('');
-        } catch (err) {
+        } catch {
             console.log('[INFO] Could not list users (this is OK)\n');
         }
 
@@ -78,7 +78,7 @@ async function fixAuthentication() {
         try {
             await adminDb.command({ dropUser: 'admin' });
             console.log('  [OK] Dropped existing admin user');
-        } catch (err) {
+        } catch {
             console.log('  [INFO] Admin user does not exist or cannot drop');
         }
 
@@ -108,7 +108,7 @@ async function fixAuthentication() {
         try {
             await devDb.command({ dropUser: 'nocturnaldev' });
             console.log('  [OK] Dropped existing dev user');
-        } catch (err) {
+        } catch {
             console.log('  [INFO] Dev user does not exist or cannot drop');
         }
 
@@ -136,7 +136,7 @@ async function fixAuthentication() {
         try {
             await prodDb.command({ dropUser: 'nocturnalprod' });
             console.log('  [OK] Dropped existing prod user');
-        } catch (err) {
+        } catch {
             console.log('  [INFO] Prod user does not exist or cannot drop');
         }
 
