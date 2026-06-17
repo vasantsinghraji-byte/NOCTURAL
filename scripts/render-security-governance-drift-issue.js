@@ -18,7 +18,7 @@ function buildDriftIssueBody(options = {}) {
     '- Code-owner reviews: true',
     '',
     'Remediation:',
-    '1. Confirm BRANCH_PROTECTION_ADMIN_TOKEN is valid and owned by the dedicated governance bot/admin account.',
+    '1. Confirm BRANCH_PROTECTION_APP_ID and BRANCH_PROTECTION_APP_PRIVATE_KEY are set for the installed governance GitHub App.',
     '2. Run the Security Governance Protection Bootstrap workflow on main.',
     '3. Re-run this audit workflow.'
   ].join('\n');
