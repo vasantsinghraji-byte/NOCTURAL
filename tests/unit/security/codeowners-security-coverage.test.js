@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+const yaml = require('js-yaml');
 const {
   getUniqueApiOwners,
   parseCodeowners,
@@ -10,6 +13,11 @@ const {
   classifyStatus,
   getDriftedBranches
 } = require('../../../scripts/manage-security-governance-protection');
+const {
+  buildDriftIssueBody
+} = require('../../../scripts/render-security-governance-drift-issue');
+
+const ROOT = path.resolve(__dirname, '../../..');
 
 describe('CODEOWNERS security-governance validator', () => {
   it('classifies bootstrap-safe, fully-enforced, and drifted branch protection', () => {
@@ -54,6 +62,29 @@ describe('CODEOWNERS security-governance validator', () => {
         requireCodeOwnerReviews: true
       }
     ])).toEqual([]);
+  });
+
+  it('renders the drift-audit issue body from the negative workflow fixture', () => {
+    const fixture = JSON.parse(fs.readFileSync(
+      path.join(ROOT, 'tests/fixtures/security/governance-drift-audit-issue.json'),
+      'utf8'
+    ));
+    const body = buildDriftIssueBody(fixture);
+
+    for (const fragment of fixture.expectedFragments) {
+      expect(body).toContain(fragment);
+    }
+  });
+
+  it('uses the shared drift issue renderer in the scheduled workflow', () => {
+    const workflowPath = path.join(ROOT, '.github/workflows/security-governance-drift-audit.yml');
+    const workflowSource = fs.readFileSync(workflowPath, 'utf8');
+    const workflow = yaml.load(workflowSource);
+
+    expect(workflow.name).toBe('Security Governance Drift Audit');
+    expect(workflowSource).toContain('node scripts/render-security-governance-drift-issue.js');
+    expect(workflowSource).toContain('gh issue create');
+    expect(workflowSource).toContain('gh issue comment');
   });
 
   it('rejects entries without owners', () => {

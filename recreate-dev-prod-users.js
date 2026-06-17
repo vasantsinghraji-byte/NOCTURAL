@@ -37,7 +37,7 @@ async function recreateUsers() {
         try {
             await devDb.command({ dropUser: 'nocturnaldev' });
             console.log('[OK] Dropped existing dev user');
-        } catch (err) {
+        } catch {
             console.log('[INFO] Dev user did not exist');
         }
 
@@ -62,7 +62,7 @@ async function recreateUsers() {
         try {
             await prodDb.command({ dropUser: 'nocturnalprod' });
             console.log('[OK] Dropped existing prod user');
-        } catch (err) {
+        } catch {
             console.log('[INFO] Prod user did not exist');
         }
 

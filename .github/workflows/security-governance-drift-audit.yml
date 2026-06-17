@@ -51,25 +51,7 @@ jobs:
           set -euo pipefail
           title="Security governance branch protection drift detected"
           existing_issue="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open --search "${title} in:title" --json number --jq '.[0].number // empty')"
-          body="$(cat <<EOF
-          Security governance branch protection drift was detected by the monthly audit.
-
-          Workflow run: ${RUN_URL}
-
-          \`\`\`
-          ${AUDIT_OUTPUT}
-          \`\`\`
-
-          Expected mode for both main and develop:
-          - Required checks: Required Post-Deploy Render Smoke, CODEOWNERS Security Governance Gate, CodeQL Alert Gate
-          - Code-owner reviews: true
-
-          Remediation:
-          1. Confirm BRANCH_PROTECTION_ADMIN_TOKEN is valid and owned by the dedicated governance bot/admin account.
-          2. Run the Security Governance Protection Bootstrap workflow on main.
-          3. Re-run this audit workflow.
-          EOF
-          )"
+          body="$(node scripts/render-security-governance-drift-issue.js)"
 
           if [ -n "${existing_issue}" ]; then
             gh issue comment "${existing_issue}" --repo "${GITHUB_REPOSITORY}" --body "${body}"

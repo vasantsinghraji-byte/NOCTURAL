@@ -1,0 +1,13 @@
+{
+  "runUrl": "https://github.com/owner/repo/actions/runs/123456",
+  "auditOutput": "main: fully-enforced (Required Post-Deploy Render Smoke, CODEOWNERS Security Governance Gate, CodeQL Alert Gate; codeOwnerReviews=true)\ndevelop: bootstrap-safe (Required Post-Deploy Render Smoke; codeOwnerReviews=false)\nSecurity governance protection drift detected on: develop",
+  "expectedFragments": [
+    "Security governance branch protection drift was detected by the monthly audit.",
+    "Workflow run: https://github.com/owner/repo/actions/runs/123456",
+    "Security governance protection drift detected on: develop",
+    "Expected mode for both main and develop:",
+    "Required checks: Required Post-Deploy Render Smoke, CODEOWNERS Security Governance Gate, CodeQL Alert Gate",
+    "Code-owner reviews: true",
+    "Run the Security Governance Protection Bootstrap workflow on main."
+  ]
+}

@@ -12,5 +12,7 @@ scripts/check-codeql-alert-threshold.js @vasantsinghraji-byte
 scripts/export-codeql-alerts.js @vasantsinghraji-byte
 scripts/manage-security-governance-protection.js @vasantsinghraji-byte
 scripts/post-codeql-pr-comment.js @vasantsinghraji-byte
+scripts/render-security-governance-drift-issue.js @vasantsinghraji-byte
 scripts/validate-codeowners-security-coverage.js @vasantsinghraji-byte
+tests/fixtures/security/governance-drift-audit-issue.json @vasantsinghraji-byte
 tests/unit/security/codeowners-security-coverage.test.js @vasantsinghraji-byte
