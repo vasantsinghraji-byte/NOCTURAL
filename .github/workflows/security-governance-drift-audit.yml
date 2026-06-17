@@ -15,15 +15,26 @@ jobs:
     name: Audit Security Governance Branch Protection
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      BRANCH_PROTECTION_APP_ID_PRESENT: ${{ secrets.BRANCH_PROTECTION_APP_ID != '' }}
+      BRANCH_PROTECTION_APP_PRIVATE_KEY_PRESENT: ${{ secrets.BRANCH_PROTECTION_APP_PRIVATE_KEY != '' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Create branch-protection GitHub App token
+        id: branch-protection-app-token
+        if: ${{ env.BRANCH_PROTECTION_APP_ID_PRESENT == 'true' && env.BRANCH_PROTECTION_APP_PRIVATE_KEY_PRESENT == 'true' }}
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.BRANCH_PROTECTION_APP_ID }}
+          private-key: ${{ secrets.BRANCH_PROTECTION_APP_PRIVATE_KEY }}
+
       - name: Audit branch-protection status
         id: audit
         env:
-          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
+          GH_TOKEN: ${{ steps.branch-protection-app-token.outputs.token || secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |

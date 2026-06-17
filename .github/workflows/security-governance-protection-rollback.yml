@@ -11,26 +11,37 @@ jobs:
     name: Roll Back Security Governance Branch Protection
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      BRANCH_PROTECTION_APP_ID_PRESENT: ${{ secrets.BRANCH_PROTECTION_APP_ID != '' }}
+      BRANCH_PROTECTION_APP_PRIVATE_KEY_PRESENT: ${{ secrets.BRANCH_PROTECTION_APP_PRIVATE_KEY != '' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Create branch-protection GitHub App token
+        id: branch-protection-app-token
+        if: ${{ env.BRANCH_PROTECTION_APP_ID_PRESENT == 'true' && env.BRANCH_PROTECTION_APP_PRIVATE_KEY_PRESENT == 'true' }}
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.BRANCH_PROTECTION_APP_ID }}
+          private-key: ${{ secrets.BRANCH_PROTECTION_APP_PRIVATE_KEY }}
+
       - name: Preflight branch-protection admin token
         env:
-          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
+          GH_TOKEN: ${{ steps.branch-protection-app-token.outputs.token || secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/manage-security-governance-protection.js --mode=preflight --branches=main,develop
 
       - name: Restore bootstrap-safe branch protection
         env:
-          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
+          GH_TOKEN: ${{ steps.branch-protection-app-token.outputs.token || secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/manage-security-governance-protection.js --mode=rollback --branches=main,develop
 
       - name: Report branch-protection status
         if: always()
         env:
-          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
+          GH_TOKEN: ${{ steps.branch-protection-app-token.outputs.token || secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/manage-security-governance-protection.js --mode=status --branches=main,develop
