@@ -13,6 +13,8 @@ Required repository secrets:
 - `BRANCH_PROTECTION_APP_ID`: the GitHub App ID.
 - `BRANCH_PROTECTION_APP_PRIVATE_KEY`: the full downloaded PEM private key.
 
+The GitHub App must also be installed on `vasantsinghraji-byte/NOCTURAL`. If the app is not installed, GitHub returns `404` when the workflow asks for a repository installation token.
+
 The private key must look like a PEM block:
 
 ```text
@@ -23,7 +25,7 @@ The private key must look like a PEM block:
 
 A value that starts with `SHA256:` is only the key fingerprint. It is not enough for workflow authentication.
 
-`BRANCH_PROTECTION_ADMIN_TOKEN` is retained only as a temporary fallback until GitHub App authentication is verified end to end.
+`BRANCH_PROTECTION_ADMIN_TOKEN` is retained only as a temporary fallback until GitHub App authentication is verified end to end. The workflows continue to the fallback token if GitHub App token creation fails.
 
 ## Rotation
 

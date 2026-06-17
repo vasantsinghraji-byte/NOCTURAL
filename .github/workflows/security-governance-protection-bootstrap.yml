@@ -29,6 +29,7 @@ jobs:
       - name: Create branch-protection GitHub App token
         id: branch-protection-app-token
         if: ${{ env.BRANCH_PROTECTION_APP_ID_PRESENT == 'true' && env.BRANCH_PROTECTION_APP_PRIVATE_KEY_PRESENT == 'true' }}
+        continue-on-error: true
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.BRANCH_PROTECTION_APP_ID }}
