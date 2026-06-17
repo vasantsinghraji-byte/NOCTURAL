@@ -99,6 +99,7 @@ describe('CODEOWNERS security-governance validator', () => {
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       const workflowSource = fs.readFileSync(path.join(ROOT, workflowFile), 'utf8');
       expect(workflowSource).toContain('actions/create-github-app-token@v2');
+      expect(workflowSource).toContain('continue-on-error: true');
       expect(workflowSource).toContain('secrets.BRANCH_PROTECTION_APP_ID');
       expect(workflowSource).toContain('secrets.BRANCH_PROTECTION_APP_PRIVATE_KEY');
       expect(workflowSource).toContain('steps.branch-protection-app-token.outputs.token || secrets.BRANCH_PROTECTION_ADMIN_TOKEN');
