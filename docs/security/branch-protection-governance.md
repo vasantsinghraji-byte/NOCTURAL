@@ -1,30 +1,46 @@
 # Branch Protection Governance
 
-## Secret Ownership
+## GitHub App Ownership
 
-`BRANCH_PROTECTION_ADMIN_TOKEN` must be a dedicated bot/admin token, not a developer's personal day-to-day token.
+Branch-protection automation should authenticate as the dedicated GitHub App, not a developer's personal day-to-day token.
 
-Recommended owner:
-- Account: a repository governance bot or durable admin service account.
-- Access: limited to this repository where possible.
-- Required capability: edit branch protection and read repository metadata.
-- Storage: GitHub repository secret named `BRANCH_PROTECTION_ADMIN_TOKEN`.
+Required GitHub App repository permissions:
+- `Administration`: read and write
+- `Contents`: read-only
+- `Metadata`: automatic
+
+Required repository secrets:
+- `BRANCH_PROTECTION_APP_ID`: the GitHub App ID.
+- `BRANCH_PROTECTION_APP_PRIVATE_KEY`: the full downloaded PEM private key.
+
+The private key must look like a PEM block:
+
+```text
+-----BEGIN RSA PRIVATE KEY-----
+...
+-----END RSA PRIVATE KEY-----
+```
+
+A value that starts with `SHA256:` is only the key fingerprint. It is not enough for workflow authentication.
+
+`BRANCH_PROTECTION_ADMIN_TOKEN` is retained only as a temporary fallback until GitHub App authentication is verified end to end.
 
 ## Rotation
 
-Rotate the token at least every 90 days and immediately after any maintainer offboarding or suspected exposure.
+Rotate the GitHub App private key at least every 90 days and immediately after any suspected exposure.
 
 Rotation procedure:
-1. Create a replacement token from the bot/admin account.
-2. Update the repository secret:
+1. Generate a new private key from the GitHub App settings page.
+2. Update the repository secret with the full PEM contents:
    ```powershell
-   gh secret set BRANCH_PROTECTION_ADMIN_TOKEN --repo vasantsinghraji-byte/NOCTURAL
+   gh secret set BRANCH_PROTECTION_APP_PRIVATE_KEY --repo vasantsinghraji-byte/NOCTURAL
    ```
 3. Run `Security Governance Protection Rollback` from `main`.
 4. Confirm `main` and `develop` become bootstrap-safe.
 5. Run `Security Governance Protection Bootstrap` from `main`.
 6. Confirm `main` and `develop` return to fully enforced.
-7. Revoke the previous token.
+7. Run `Security Governance Drift Audit` from `main`.
+8. Delete the previous private key from the GitHub App settings page.
 
 ## Expected Fully Enforced State
 
