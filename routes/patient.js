@@ -11,6 +11,7 @@ const { body, param } = require('express-validator');
 const { validate } = require('../middleware/validation');
 const { protectPatient } = require('../middleware/patientAuth');
 const { rejectHoneypotSubmissions } = require('../middleware/spamTrap');
+const idempotency = require('../middleware/idempotency');
 const {
   register,
   login,
@@ -22,7 +23,11 @@ const {
   addMedicalHistory,
   updateMedicalHabits,
   getBookingStats,
-  verifyPassword
+  verifyPassword,
+  changePassword,
+  listSessions,
+  revokeSession,
+  revokeAllSessions
 } = require('../controllers/patientController');
 
 // Validation rules
@@ -66,6 +71,25 @@ const loginValidation = [
   body('password')
     .notEmpty()
     .withMessage('Password is required')
+];
+
+const changePasswordValidation = [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newPassword')
+    .isLength({ min: 8, max: 128 })
+    .withMessage('New password must be between 8 and 128 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('New password must contain uppercase, lowercase, and number'),
+  body('confirmPassword').custom((value, { req }) => {
+    if (value !== req.body.newPassword) {
+      throw new Error('Passwords do not match');
+    }
+    return true;
+  }),
+  body('webauthnConfirmationId')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid WebAuthn confirmation ID')
 ];
 
 const addressValidation = [
@@ -128,6 +152,10 @@ router.route('/me')
 
 router.get('/me/stats', getBookingStats);
 router.post('/me/verify-password', verifyPassword);
+router.put('/me/change-password', changePasswordValidation, validate, idempotency({ route: 'patients/change-password', required: true }), changePassword);
+router.get('/me/sessions', listSessions);
+router.delete('/me/sessions/:sessionId', revokeSession);
+router.delete('/me/sessions', revokeAllSessions);
 
 // Address routes
 router.route('/me/addresses')

@@ -24,7 +24,25 @@ const ROUTE_PARAM_FIXTURES = {
   'bookings.enRoute': { bookingId: 'fixture-booking-id' },
   'bookings.start': { bookingId: 'fixture-booking-id' },
   'bookings.complete': { bookingId: 'fixture-booking-id' },
-  'doctorAccess.revoke': { tokenId: 'fixture-token-id' }
+  'doctorAccess.revoke': { tokenId: 'fixture-token-id' },
+  'adminSecurityAudit.webauthnExportRetentionSummary': {},
+  'adminSecurityAudit.webauthnExportBulkDeleteStaleQuarantine': {},
+  'adminSecurityAudit.webauthnExportJob': { jobId: '64f0000000000000000000aa' },
+  'adminSecurityAudit.webauthnExportAuditReport': { jobId: '64f0000000000000000000aa' },
+  'adminSecurityAudit.webauthnExportAuditReportJob': { jobId: '64f0000000000000000000aa', reportJobId: '64f0000000000000000000bb' },
+  'adminSecurityAudit.webauthnExportAuditReportDownload': { jobId: '64f0000000000000000000aa', reportJobId: '64f0000000000000000000bb' },
+  'adminSecurityAudit.webauthnExportAuditEvents': { jobId: '64f0000000000000000000aa' },
+  'adminSecurityAudit.webauthnExportAuditEventsCsv': { jobId: '64f0000000000000000000aa' },
+  'adminSecurityAudit.webauthnExportCancel': { jobId: '64f0000000000000000000aa' },
+  'adminSecurityAudit.webauthnExportQuarantineApprovalHistoryCsv': { jobId: '64f0000000000000000000aa' },
+  'adminSecurityAudit.webauthnExportQuarantineApprovalHistoryReport': { jobId: '64f0000000000000000000aa' },
+  'adminSecurityAudit.webauthnExportQuarantineApprovalHistoryReportJob': { jobId: '64f0000000000000000000aa', reportJobId: '64f0000000000000000000bb' },
+  'adminSecurityAudit.webauthnExportQuarantineApprovalHistoryReportDownload': { jobId: '64f0000000000000000000aa', reportJobId: '64f0000000000000000000bb' },
+  'adminSecurityAudit.webauthnExportQuarantineDelete': { jobId: '64f0000000000000000000aa' },
+  'adminSecurityAudit.webauthnExportQuarantineRelease': { jobId: '64f0000000000000000000aa' },
+  'adminSecurityAudit.webauthnExportQuarantineReleaseApprove': { jobId: '64f0000000000000000000aa' },
+  'adminSecurityAudit.webauthnExportRetry': { jobId: '64f0000000000000000000aa' },
+  'adminSecurityAudit.webauthnExportDownload': { jobId: '64f0000000000000000000aa' }
 };
 
 const HELPER_ROUTE_PATTERNS = [
@@ -37,6 +55,7 @@ const HELPER_ROUTE_PATTERNS = [
 
 const ROUTE_KEY_PATTERNS = [
   /AppConfig\.fetchRoute\('([^']+)'/g,
+  /AppConfig\.endpoint\('([^']+)'/g,
   /NocturnalSession\.loadOptionalDraft\('([^']+)'/g
 ];
 
@@ -46,8 +65,8 @@ const EXPECTED_FRONTEND_API_DEPENDENCY_MAP = {
   'client/public/js/admin-dashboard.js': ['applications.received', 'auth.me', 'bookings.assign', 'bookings.list', 'bookings.providers', 'duties.myDuties'],
   'client/public/js/admin-post-duty.js': ['duties.list'],
   'client/public/js/admin-profile.js': ['auth.me'],
-  'client/public/js/admin-settings.js': ['analytics.hospitalDashboard', 'hospitalSettings.root'],
-  'client/public/js/admin-waitlist.js': ['adminFunnel.dailyAnalytics', 'adminFunnel.waitlist', 'adminFunnel.waitlistStatus'],
+  'client/public/js/admin-settings.js': ['adminSecurityAudit.webauthn', 'analytics.hospitalDashboard', 'hospitalSettings.root'],
+  'client/public/js/admin-waitlist.js': ['adminFunnel.dailyAnalytics', 'adminFunnel.waitlist', 'adminFunnel.waitlistExport', 'adminFunnel.waitlistStatus'],
   'client/public/js/doctor-achievements.js': ['achievements.claim', 'achievements.leaderboard', 'achievements.list', 'achievements.share'],
   'client/public/js/doctor-availability.js': ['calendar.availability', 'calendar.availabilityDetail'],
   'client/public/js/doctor-browse-shifts-enhanced.js': ['applications.list', 'auth.me', 'duties.list'],
@@ -60,6 +79,8 @@ const EXPECTED_FRONTEND_API_DEPENDENCY_MAP = {
   'client/public/js/doctor-my-applications.js': ['applications.list', 'applications.stats'],
   'client/public/js/frontend-session.js': ['applications.list', 'applications.stats', 'auth.logout', 'auth.me'],
   'client/public/js/landing.js': ['auth.login', 'auth.me', 'auth.register', 'funnelEvents.create'],
+  'client/public/js/native-capabilities.js': ['mobileDevices.root'],
+  'client/public/js/operator-audit.js': ['adminSecurityAudit.webauthn', 'adminSecurityAudit.webauthnExportAuditEvents', 'adminSecurityAudit.webauthnExportAuditEventsCsv', 'adminSecurityAudit.webauthnExportAuditReport', 'adminSecurityAudit.webauthnExportAuditReportDownload', 'adminSecurityAudit.webauthnExportAuditReportJob', 'adminSecurityAudit.webauthnExportBulkDeleteStaleQuarantine', 'adminSecurityAudit.webauthnExportCancel', 'adminSecurityAudit.webauthnExportCleanup', 'adminSecurityAudit.webauthnExportDownload', 'adminSecurityAudit.webauthnExportJob', 'adminSecurityAudit.webauthnExportQuarantineApprovalHistoryCsv', 'adminSecurityAudit.webauthnExportQuarantineApprovalHistoryReport', 'adminSecurityAudit.webauthnExportQuarantineApprovalHistoryReportDownload', 'adminSecurityAudit.webauthnExportQuarantineApprovalHistoryReportJob', 'adminSecurityAudit.webauthnExportQuarantineDelete', 'adminSecurityAudit.webauthnExportQuarantineRelease', 'adminSecurityAudit.webauthnExportQuarantineReleaseApprove', 'adminSecurityAudit.webauthnExportQuota', 'adminSecurityAudit.webauthnExportRetentionSummary', 'adminSecurityAudit.webauthnExportRetry', 'adminSecurityAudit.webauthnExports'],
   'client/public/js/patient-booking-details.js': ['bookings.cancel', 'bookings.detail', 'bookings.review'],
   'client/public/js/patient-booking-form.js': ['bookings.list', 'paymentsB2c.createOrder', 'paymentsB2c.failure', 'paymentsB2c.verify'],
   'client/public/js/patient-dashboard.js': ['bookings.patientMine', 'patients.stats'],
@@ -70,6 +91,8 @@ const EXPECTED_FRONTEND_API_DEPENDENCY_MAP = {
   'client/public/js/patient-register.js': ['patients.register'],
   'client/public/js/provider-dashboard.js': ['bookings.complete', 'bookings.confirm', 'bookings.enRoute', 'bookings.providerMine', 'bookings.start'],
   'client/public/js/provider-login.js': ['auth.login'],
+  'client/public/js/rate-limit-dashboard.js': ['adminMetrics.rateLimits'],
+  'client/public/js/session-management.js': ['webauthn.credential', 'webauthn.credentials', 'webauthn.lostDeviceRecover', 'webauthn.passwordOptions', 'webauthn.passwordVerify', 'webauthn.recoveryCodeStatus', 'webauthn.recoveryCodes', 'webauthn.registrationOptions', 'webauthn.registrationVerify'],
   'client/public/js/shared-register.js': ['auth.register', 'hospitalWaitlist.create']
 };
 
@@ -92,7 +115,8 @@ function extractRouteKeys(source) {
     }
   });
 
-  HELPER_ROUTE_PATTERNS.forEach(({ pattern, routeKey }) => {
+  HELPER_ROUTE_PATTERNS.forEach((helper) => {
+    const { pattern, routeKey } = helper;
     if (pattern.test(source)) {
       routeKeys.add(routeKey);
     }

@@ -12,9 +12,12 @@ const passwordSecurityService = require('./passwordSecurityService');
 const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
 const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
 const { AuthenticationError } = require('../utils/errors');
+const compromisedPasswordService = require('./compromisedPasswordService');
 
 const generateAccessToken = authTokens.generateAccessToken || authTokens.generateToken;
 const generateRefreshToken = authTokens.generateRefreshToken || authTokens.generateToken;
+const normalizeEmail = email => String(email || '').trim().toLowerCase();
+const normalizePhone = phone => String(phone || '').trim();
 
 class PatientService {
   /**
@@ -23,7 +26,10 @@ class PatientService {
    * @returns {Promise<Object>} Created patient and token
    */
   async register(patientData) {
-    const { name, email, password, phone } = patientData;
+    const { name, password } = patientData;
+    const email = normalizeEmail(patientData.email);
+    const phone = normalizePhone(patientData.phone);
+    await compromisedPasswordService.assertPasswordNotCompromised(password);
 
     // Check if patient exists by email
     const existingPatientByEmail = await Patient.findOne({ email });
@@ -63,8 +69,8 @@ class PatientService {
     }
 
     // Generate short-lived access token and refresh token for cookie-backed sessions.
-    const token = generateAccessToken(patient._id);
-    const refreshToken = generateRefreshToken(patient._id);
+    const token = generateAccessToken(patient._id, authTokens.IDENTITY_TYPES.PATIENT, patient.sessionVersion);
+    const refreshToken = generateRefreshToken(patient._id, authTokens.IDENTITY_TYPES.PATIENT, patient.sessionVersion);
 
     logger.logAuth('patient_register', email, true);
     logger.info('New Patient Registered', {
@@ -94,7 +100,8 @@ class PatientService {
    * @returns {Promise<Object>} Patient and token
    */
   async login(credentials) {
-    const { email, password } = credentials;
+    const email = normalizeEmail(credentials.email);
+    const { password } = credentials;
 
     if (!email || !password) {
       throw {
@@ -104,7 +111,7 @@ class PatientService {
     }
 
     // Find patient and include password
-    const patient = await Patient.findOne({ email }).select('+password');
+    const patient = await Patient.findOne({ email }).select('+password +sessionVersion');
 
     if (!patient) {
       logger.logAuth('patient_login', email, false, ERROR_MESSAGE.USER_NOT_FOUND);
@@ -137,8 +144,8 @@ class PatientService {
     }
 
     // Generate short-lived access token and refresh token for cookie-backed sessions.
-    const token = generateAccessToken(patient._id);
-    const refreshToken = generateRefreshToken(patient._id);
+    const token = generateAccessToken(patient._id, authTokens.IDENTITY_TYPES.PATIENT, patient.sessionVersion);
+    const refreshToken = generateRefreshToken(patient._id, authTokens.IDENTITY_TYPES.PATIENT, patient.sessionVersion);
 
     // Update last active
     patient.lastActive = new Date();

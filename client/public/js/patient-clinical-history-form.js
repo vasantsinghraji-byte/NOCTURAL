@@ -144,7 +144,7 @@ function addSecondaryComplaint() {
         + '<div class="form-group"><label>Complaint</label><input type="text" placeholder="Describe the complaint"></div>'
         + '<div class="form-group"><label>Duration</label><input type="text" placeholder="e.g., 3 days"></div>'
         + '</div></div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, AppUi.sanitizeHtml(html));
 }
 
 function addTreatmentTried() {
@@ -162,7 +162,7 @@ function addTreatmentTried() {
         + '<option value="ADVERSE">Adverse reaction</option>'
         + '</select></div>'
         + '</div></div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, AppUi.sanitizeHtml(html));
 }
 
 function addChronicCondition() {
@@ -179,7 +179,7 @@ function addChronicCondition() {
         + '<option value="CHRONIC">Chronic</option>'
         + '</select></div>'
         + '</div></div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, AppUi.sanitizeHtml(html));
 }
 
 function addSurgery() {
@@ -194,7 +194,7 @@ function addSurgery() {
         + '</div>'
         + '<div class="form-group"><label>Complications</label><input type="text" placeholder="Any complications or issues"></div>'
         + '</div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, AppUi.sanitizeHtml(html));
 }
 
 function addMedication() {
@@ -217,7 +217,7 @@ function addMedication() {
         + '</select></div>'
         + '<div class="form-group"><label>Indication</label><input type="text" placeholder="What is it for?"></div>'
         + '</div></div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, AppUi.sanitizeHtml(html));
 }
 
 function addAllergy() {
@@ -243,7 +243,7 @@ function addAllergy() {
         + '</div>'
         + '<div class="form-group"><label>Details</label><input type="text" placeholder="Additional details about the reaction"></div>'
         + '</div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, AppUi.sanitizeHtml(html));
 }
 
 function addDifferentialDiagnosis() {
@@ -256,7 +256,7 @@ function addDifferentialDiagnosis() {
         + '<div class="form-group"><label>Reasoning</label>'
         + '<textarea rows="2" placeholder="Why consider this? How to differentiate from primary?"></textarea></div>'
         + '</div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, AppUi.sanitizeHtml(html));
 }
 
 function addPrescribedMedication() {
@@ -273,7 +273,7 @@ function addPrescribedMedication() {
         + '<div class="form-group"><label>Duration</label><input type="text" placeholder="e.g., 7 days"></div>'
         + '<div class="form-group"><label>Indication</label><input type="text" placeholder="What is it for?"></div>'
         + '</div></div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, AppUi.sanitizeHtml(html));
 }
 
 function removeItem(id) {
@@ -289,20 +289,41 @@ function generateReviewSummary() {
     var sex = document.getElementById('sex').value || 'N/A';
     var chiefComplaint = document.getElementById('chiefComplaint').value || 'Not provided';
 
-    var html = '<div class="review-block">'
-        + '<h4 class="review-block-heading">Patient Information</h4>'
-        + '<p><strong>Name:</strong> ' + patientName + '</p>'
-        + '<p><strong>Age/Sex:</strong> ' + age + ' years / ' + sex + '</p>'
-        + '<p><strong>Chief Complaint:</strong> ' + chiefComplaint + '</p>'
-        + '</div>'
-        + '<div class="alert alert-info">'
-        + '<strong>Form Completion:</strong> All ' + totalSections + ' sections have been accessed. Please review each section carefully before submitting.'
-        + '</div>'
-        + '<p class="review-help-text">'
-        + 'To review specific sections, use the navigation on the left sidebar.'
-        + '</p>';
+    summary.textContent = '';
 
-    summary.innerHTML = html;
+    var block = document.createElement('div');
+    block.className = 'review-block';
+    var heading = document.createElement('h4');
+    heading.className = 'review-block-heading';
+    heading.textContent = 'Patient Information';
+    block.appendChild(heading);
+
+    [
+        ['Name:', patientName],
+        ['Age/Sex:', age + ' years / ' + sex],
+        ['Chief Complaint:', chiefComplaint]
+    ].forEach(function (item) {
+        var row = document.createElement('p');
+        var label = document.createElement('strong');
+        label.textContent = item[0];
+        row.appendChild(label);
+        row.appendChild(document.createTextNode(' ' + item[1]));
+        block.appendChild(row);
+    });
+    summary.appendChild(block);
+
+    var alert = document.createElement('div');
+    alert.className = 'alert alert-info';
+    var alertLabel = document.createElement('strong');
+    alertLabel.textContent = 'Form Completion:';
+    alert.appendChild(alertLabel);
+    alert.appendChild(document.createTextNode(' All ' + totalSections + ' sections have been accessed. Please review each section carefully before submitting.'));
+    summary.appendChild(alert);
+
+    var help = document.createElement('p');
+    help.className = 'review-help-text';
+    help.textContent = 'To review specific sections, use the navigation on the left sidebar.';
+    summary.appendChild(help);
 }
 
 // Data collection and submission
