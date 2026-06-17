@@ -5,7 +5,7 @@ const unusedImports = require('eslint-plugin-unused-imports');
 
 const commonRules = {
   'no-console': 'warn',
-  'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+  'no-unused-vars': ['warn', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
   'no-eval': 'error',
   'no-implied-eval': 'error',
   'no-buffer-constructor': 'error',

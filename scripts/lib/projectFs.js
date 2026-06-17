@@ -57,13 +57,11 @@ function writeTextFileSync(rootDir, filePath, content, options) {
 function copyFileSync(rootDir, sourcePath, targetPath) {
   const resolvedSource = assertInsideRoot(rootDir, sourcePath);
   const resolvedTarget = assertInsideRoot(rootDir, targetPath);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   return require('fs').copyFileSync(resolvedSource, resolvedTarget);
 }
 
 function removeSync(rootDir, filePath, options) {
   const resolvedPath = assertInsideRoot(rootDir, filePath);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   return require('fs').rmSync(resolvedPath, options);
 }
 
