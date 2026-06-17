@@ -15,6 +15,46 @@ const {  HTTP_STATUS,
 } = require('../constants');
 const logger = require('../utils/logger');
 const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
+const { getTenantFields } = require('../utils/tenantScope');
+const { normalizeObjectId, nullProtoObject, setSafeField } = require('../utils/safeMongo');
+
+const ALLOWED_DUTY_FILTERS = new Set(['status', 'specialty', 'department', 'hospital', 'postedBy', 'urgency', 'date']);
+const ALLOWED_DUTY_UPDATE_FIELDS = new Set([
+  'title',
+  'description',
+  'department',
+  'specialty',
+  'date',
+  'startTime',
+  'endTime',
+  'hourlyRate',
+  'totalCompensation',
+  'location',
+  'requirements',
+  'urgency',
+  'status'
+]);
+
+const safeDutyFilters = (filters = {}) => {
+  const query = nullProtoObject();
+  Object.entries(filters || {}).forEach(([field, value]) => {
+    if (!ALLOWED_DUTY_FILTERS.has(field)) return;
+    if (['hospital', 'postedBy'].includes(field)) {
+      setSafeField(query, field, normalizeObjectId(value, field));
+      return;
+    }
+    setSafeField(query, field, value);
+  });
+  return query;
+};
+
+const pickDutyUpdates = (updates = {}) => {
+  const picked = nullProtoObject();
+  Object.entries(updates || {}).forEach(([field, value]) => {
+    if (ALLOWED_DUTY_UPDATE_FIELDS.has(field)) setSafeField(picked, field, value);
+  });
+  return picked;
+};
 
 class DutyService {
   /**
@@ -32,14 +72,15 @@ class DutyService {
     const page = Math.max(PAGINATION.DEFAULT_PAGE, Math.floor(Number(options.page) || PAGINATION.DEFAULT_PAGE));
     const limit = Math.min(PAGINATION.MAX_LIMIT, Math.max(PAGINATION.MIN_LIMIT, Math.floor(Number(options.limit) || PAGINATION.DEFAULT_LIMIT)));
 
-    const duties = await Duty.find(filters)
+    const query = safeDutyFilters(filters);
+    const duties = await Duty.find(query)
       .populate(populate, 'name hospital')
       .sort(sort)
       .limit(limit)
       .skip((page - 1) * limit)
       .lean();
 
-    const total = await Duty.countDocuments(filters);
+    const total = await Duty.countDocuments(query);
 
     return {
       duties,
@@ -58,7 +99,8 @@ class DutyService {
    * @returns {Promise<Object>} Duty details
    */
   async getDutyById(dutyId) {
-    const duty = await Duty.findById(dutyId)
+    const safeDutyId = normalizeObjectId(dutyId, 'duty id');
+    const duty = await Duty.findById(safeDutyId)
       .populate('postedBy', 'name hospital email phone');
 
     if (!duty) {
@@ -78,14 +120,15 @@ class DutyService {
    * @returns {Promise<Object>} Created duty
    */
   async createDuty(dutyData, user) {
+    const createData = pickDutyUpdates(dutyData);
     // Add user data
-    dutyData.postedBy = user._id;
+    createData.postedBy = user._id;
 
     if (user.role === 'admin') {
-      dutyData.hospital = user.hospital;
+      Object.assign(createData, getTenantFields(user));
     }
 
-    const duty = await Duty.create(dutyData);
+    const duty = await Duty.create(createData);
 
     // Invalidate duty list cache
     await invalidateCache('*:/api/duties*');
@@ -107,7 +150,8 @@ class DutyService {
    * @returns {Promise<Object>} Updated duty
    */
   async updateDuty(dutyId, updateData, user) {
-    let duty = await Duty.findById(dutyId);
+    const safeDutyId = normalizeObjectId(dutyId, 'duty id');
+    let duty = await Duty.findById(safeDutyId);
 
     if (!duty) {
       throw {
@@ -124,7 +168,7 @@ class DutyService {
       };
     }
 
-    duty = await Duty.findByIdAndUpdate(dutyId, updateData, {
+    duty = await Duty.findByIdAndUpdate(safeDutyId, pickDutyUpdates(updateData), {
       ...VALIDATED_QUERY_UPDATE_OPTIONS
     });
 
@@ -147,7 +191,8 @@ class DutyService {
    * @returns {Promise<void>}
    */
   async deleteDuty(dutyId, user) {
-    const duty = await Duty.findById(dutyId);
+    const safeDutyId = normalizeObjectId(dutyId, 'duty id');
+    const duty = await Duty.findById(safeDutyId);
 
     if (!duty) {
       throw {
@@ -202,7 +247,8 @@ class DutyService {
    * @returns {Promise<Number>} Match score (0-100)
    */
   async calculateMatchScore(dutyId, doctor) {
-    const duty = await Duty.findById(dutyId);
+    const safeDutyId = normalizeObjectId(dutyId, 'duty id');
+    const duty = await Duty.findById(safeDutyId);
 
     if (!duty) {
       throw {
@@ -246,7 +292,8 @@ class DutyService {
    * @returns {Promise<void>}
    */
   async incrementViewCount(dutyId) {
-    await Duty.findByIdAndUpdate(dutyId, { $inc: { viewCount: 1 } });
+    const safeDutyId = normalizeObjectId(dutyId, 'duty id');
+    await Duty.findByIdAndUpdate(safeDutyId, { $inc: { viewCount: 1 } });
   }
 }
 

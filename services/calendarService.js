@@ -11,6 +11,30 @@ const Availability = require('../models/availability');
 const Duty = require('../models/duty');
 const logger = require('../utils/logger');
 const { HTTP_STATUS } = require('../constants');
+const { normalizeObjectId, nullProtoObject, setSafeField } = require('../utils/safeMongo');
+
+const ALLOWED_EVENT_FIELDS = new Set([
+  'title',
+  'description',
+  'eventType',
+  'startDate',
+  'endDate',
+  'startTime',
+  'endTime',
+  'duty',
+  'location',
+  'status'
+]);
+const ALLOWED_AVAILABILITY_FIELDS = new Set(['dayOfWeek', 'startTime', 'endTime', 'isAvailable', 'notes']);
+const ALLOWED_EVENT_TYPES = new Set(['DUTY', 'AVAILABILITY', 'PERSONAL', 'APPOINTMENT', 'REMINDER']);
+
+const pickFields = (input = {}, allowedFields) => {
+  const picked = nullProtoObject();
+  Object.entries(input || {}).forEach(([field, value]) => {
+    if (allowedFields.has(field)) setSafeField(picked, field, value);
+  });
+  return picked;
+};
 
 async function validateAvailabilitySlots(slots) {
   if (typeof Availability.validate === 'function') {
@@ -31,17 +55,19 @@ class CalendarService {
    * @returns {Promise<Array>} Calendar events
    */
   async getEvents(userId, options = {}) {
+    const safeUserId = normalizeObjectId(userId, 'user id');
     const { startDate, endDate, eventType } = options;
 
-    const query = { user: userId };
+    const query = { user: safeUserId };
 
     if (startDate && endDate) {
       query.startDate = { $gte: new Date(startDate) };
       query.endDate = { $lte: new Date(endDate) };
     }
 
-    if (eventType) {
-      query.eventType = eventType;
+    const safeEventType = typeof eventType === 'string' ? eventType.trim().toUpperCase() : '';
+    if (safeEventType && ALLOWED_EVENT_TYPES.has(safeEventType)) {
+      query.eventType = safeEventType;
     }
 
     const events = await CalendarEvent.find(query)
@@ -58,9 +84,11 @@ class CalendarService {
    * @returns {Promise<Object>} Created event
    */
   async createEvent(userId, eventData) {
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const safeEventData = pickFields(eventData, ALLOWED_EVENT_FIELDS);
     const event = new CalendarEvent({
-      ...eventData,
-      user: userId
+      ...safeEventData,
+      user: safeUserId
     });
 
     // Detect conflicts and check weekly hours in parallel
@@ -88,9 +116,11 @@ class CalendarService {
    * @returns {Promise<Object>} Updated event
    */
   async updateEvent(eventId, userId, updates) {
+    const safeEventId = normalizeObjectId(eventId, 'event id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
     const event = await CalendarEvent.findOne({
-      _id: eventId,
-      user: userId
+      _id: safeEventId,
+      user: safeUserId
     });
 
     if (!event) {
@@ -100,7 +130,7 @@ class CalendarService {
       };
     }
 
-    Object.assign(event, updates);
+    Object.assign(event, pickFields(updates, ALLOWED_EVENT_FIELDS));
 
     // Re-check conflicts and weekly hours after update in parallel
     await Promise.all([
@@ -122,9 +152,11 @@ class CalendarService {
    * @returns {Promise<Object>} Deleted event
    */
   async deleteEvent(eventId, userId) {
+    const safeEventId = normalizeObjectId(eventId, 'event id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
     const event = await CalendarEvent.findOneAndDelete({
-      _id: eventId,
-      user: userId
+      _id: safeEventId,
+      user: safeUserId
     });
 
     if (!event) {
@@ -146,7 +178,9 @@ class CalendarService {
    * @returns {Promise<Object>} Conflict check result
    */
   async checkDutyConflicts(userId, dutyId) {
-    const duty = await Duty.findById(dutyId);
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const safeDutyId = normalizeObjectId(dutyId, 'duty id');
+    const duty = await Duty.findById(safeDutyId);
 
     if (!duty) {
       throw {
@@ -157,7 +191,7 @@ class CalendarService {
 
     // Create temporary event to check conflicts
     const tempEvent = new CalendarEvent({
-      user: userId,
+      user: safeUserId,
       title: duty.title,
       eventType: 'SHIFT_PENDING',
       startDate: duty.date,
@@ -185,7 +219,8 @@ class CalendarService {
    * @returns {Promise<Array>} Availability slots
    */
   async getAvailability(userId, date = null) {
-    const query = { user: userId };
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const query = { user: safeUserId };
 
     if (date) {
       const dayOfWeek = new Date(date).toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
@@ -204,6 +239,7 @@ class CalendarService {
    * @returns {Promise<Array>} Created availability slots
    */
   async setAvailability(userId, availabilitySlots) {
+    const safeUserId = normalizeObjectId(userId, 'user id');
     for (const slot of availabilitySlots) {
       if (slot.startTime && slot.endTime && slot.startTime >= slot.endTime) {
         throw {
@@ -214,8 +250,8 @@ class CalendarService {
     }
 
     const slots = availabilitySlots.map(slot => ({
-      ...slot,
-      user: userId
+      ...pickFields(slot, ALLOWED_AVAILABILITY_FIELDS),
+      user: safeUserId
     }));
 
     await validateAvailabilitySlots(slots);
@@ -233,7 +269,7 @@ class CalendarService {
 
         await Availability.deleteMany(
           {
-            user: userId,
+            user: safeUserId,
             _id: { $nin: newIds }
           },
           { session }
@@ -247,7 +283,7 @@ class CalendarService {
       if (createdIds.length > 0) {
         try {
           await Availability.deleteMany({
-            user: userId,
+            user: safeUserId,
             _id: { $in: createdIds }
           });
         } catch (cleanupError) {
@@ -277,11 +313,14 @@ class CalendarService {
    * @returns {Promise<Object>} Updated slot
    */
   async updateAvailabilitySlot(slotId, userId, updates) {
-    if (updates.startTime || updates.endTime) {
-      const existing = await Availability.findOne({ _id: slotId, user: userId });
+    const safeSlotId = normalizeObjectId(slotId, 'availability slot id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const safeUpdates = pickFields(updates, ALLOWED_AVAILABILITY_FIELDS);
+    if (safeUpdates.startTime || safeUpdates.endTime) {
+      const existing = await Availability.findOne({ _id: safeSlotId, user: safeUserId });
       if (existing) {
-        const startTime = updates.startTime || existing.startTime;
-        const endTime = updates.endTime || existing.endTime;
+        const startTime = safeUpdates.startTime || existing.startTime;
+        const endTime = safeUpdates.endTime || existing.endTime;
         if (startTime >= endTime) {
           throw {
             statusCode: HTTP_STATUS.BAD_REQUEST || 400,
@@ -292,8 +331,8 @@ class CalendarService {
     }
 
     const slot = await Availability.findOneAndUpdate(
-      { _id: slotId, user: userId },
-      updates,
+      { _id: safeSlotId, user: safeUserId },
+      safeUpdates,
       { new: true }
     );
 
@@ -316,9 +355,11 @@ class CalendarService {
    * @returns {Promise<Object>} Deleted slot
    */
   async deleteAvailabilitySlot(slotId, userId) {
+    const safeSlotId = normalizeObjectId(slotId, 'availability slot id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
     const slot = await Availability.findOneAndDelete({
-      _id: slotId,
-      user: userId
+      _id: safeSlotId,
+      user: safeUserId
     });
 
     if (!slot) {
@@ -340,8 +381,9 @@ class CalendarService {
    * @returns {Promise<Array>} Upcoming shifts
    */
   async getUpcomingShifts(userId, limit = 10) {
+    const safeUserId = normalizeObjectId(userId, 'user id');
     const events = await CalendarEvent.find({
-      user: userId,
+      user: safeUserId,
       eventType: { $in: ['SHIFT_CONFIRMED', 'SHIFT_PENDING'] },
       startDate: { $gte: new Date() }
     })
@@ -360,8 +402,9 @@ class CalendarService {
    * @returns {Promise<Object>} Calendar summary
    */
   async getCalendarSummary(userId, startDate, endDate) {
+    const safeUserId = normalizeObjectId(userId, 'user id');
     const events = await CalendarEvent.find({
-      user: userId,
+      user: safeUserId,
       startDate: { $gte: new Date(startDate) },
       endDate: { $lte: new Date(endDate) }
     });

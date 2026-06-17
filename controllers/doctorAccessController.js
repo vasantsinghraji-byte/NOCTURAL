@@ -9,6 +9,7 @@ const doctorAccessService = require('../services/doctorAccessService');
 const emergencySummaryService = require('../services/emergencySummaryService');
 const HealthDataAccessLog = require('../models/healthDataAccessLog');
 const responseHelper = require('../utils/responseHelper');
+const { normalizeObjectId, normalizeOptionalObjectId } = require('../utils/safeMongo');
 
 // ==================== Doctor Endpoints ====================
 
@@ -30,13 +31,13 @@ exports.getMyAccessTokens = async (req, res, next) => {
 
 /**
  * @desc    View patient data (with valid access token)
- * @route   GET /api/v1/doctor-access/patients/:patientId
+ * @route   POST /api/v1/doctor-access/patients/read
  * @access  Private (Doctor/Nurse/Physiotherapist - with valid token)
  */
 exports.getPatientData = async (req, res, next) => {
   try {
     const doctorId = req.user.id;
-    const { patientId } = req.params;
+    const patientId = normalizeObjectId(req.params.patientId, 'patient id');
 
     const data = await doctorAccessService.getPatientDataForDoctor(
       doctorId,
@@ -53,13 +54,13 @@ exports.getPatientData = async (req, res, next) => {
 
 /**
  * @desc    Get patient's health records (with valid access token)
- * @route   GET /api/v1/doctor-access/patients/:patientId/records
+ * @route   POST /api/v1/doctor-access/patients/records
  * @access  Private (Doctor/Nurse/Physiotherapist - with valid token)
  */
 exports.getPatientRecords = async (req, res, next) => {
   try {
     const doctorId = req.user.id;
-    const { patientId } = req.params;
+    const patientId = normalizeObjectId(req.params.patientId, 'patient id');
 
     const data = await doctorAccessService.getPatientDataForDoctor(
       doctorId,
@@ -76,13 +77,13 @@ exports.getPatientRecords = async (req, res, next) => {
 
 /**
  * @desc    Get patient's health metrics (with valid access token)
- * @route   GET /api/v1/doctor-access/patients/:patientId/metrics
+ * @route   POST /api/v1/doctor-access/patients/metrics
  * @access  Private (Doctor/Nurse/Physiotherapist - with valid token)
  */
 exports.getPatientMetrics = async (req, res, next) => {
   try {
     const doctorId = req.user.id;
-    const { patientId } = req.params;
+    const patientId = normalizeObjectId(req.params.patientId, 'patient id');
 
     const data = await doctorAccessService.getPatientDataForDoctor(
       doctorId,
@@ -257,16 +258,19 @@ exports.revokeAccessByAdmin = async (req, res, next) => {
 
 /**
  * @desc    View all access logs
- * @route   GET /api/v1/doctor-access/audit-logs
+ * @route   POST /api/v1/doctor-access/audit-logs/search
  * @access  Private (Admin)
  */
 exports.getAuditLogs = async (req, res, next) => {
   try {
-    const { page, limit, patientId, accessorId, startDate, endDate, action, resourceType } = req.query;
+    const filters = req.method === 'POST' ? (req.body || {}) : (req.query || {});
+    const { page, limit, startDate, endDate, action, resourceType } = filters;
+    const patientId = normalizeOptionalObjectId(filters.patientId, 'patient id');
+    const accessorId = normalizeOptionalObjectId(filters.accessorId, 'accessor id');
 
     const options = {
       page: parseInt(page) || 1,
-      limit: parseInt(limit) || 50,
+      limit: Math.min(parseInt(limit) || 50, 200),
       startDate,
       endDate,
       accessorId,

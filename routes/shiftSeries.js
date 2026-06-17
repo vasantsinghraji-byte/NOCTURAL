@@ -3,6 +3,22 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const ShiftSeries = require('../models/shiftSeries');
 const { paginate, paginationMiddleware, sendPaginatedResponse } = require('../utils/pagination');
+const { getTenantFields, getTenantQuery } = require('../utils/tenantScope');
+const pickAllowedFields = require('../utils/pickAllowedFields');
+
+const SHIFT_SERIES_CREATE_FIELDS = [
+    'title',
+    'description',
+    'specialty',
+    'location',
+    'seriesType',
+    'seriesDiscount',
+    'baseHourlyRate',
+    'requirements',
+    'acceptPartialSeries',
+    'deadline'
+];
+const SHIFT_WRITE_FIELDS = ['date', 'startTime', 'endTime', 'hourlyRate'];
 
 // Apply pagination middleware
 router.use(paginationMiddleware);
@@ -74,8 +90,24 @@ router.get('/:id', protect, async (req, res) => {
 // @access  Private
 router.post('/', protect, authorize('admin'), async (req, res) => {
     try {
+        // Bind the series to the admin's own hospital so it cannot be created under
+        // another hospital's name. Fail closed if no hospital is assigned.
+        const tenantQuery = getTenantQuery(req.user);
+        if (!tenantQuery) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized - no hospital assigned to this admin'
+            });
+        }
+
+        const shifts = Array.isArray(req.body.shifts)
+            ? req.body.shifts.map(shift => pickAllowedFields(shift, SHIFT_WRITE_FIELDS))
+            : req.body.shifts;
         const seriesData = {
-            ...req.body,
+            ...pickAllowedFields(req.body, SHIFT_SERIES_CREATE_FIELDS),
+            shifts,
+            totalShifts: Array.isArray(shifts) ? shifts.length : undefined,
+            ...getTenantFields(req.user),
             postedBy: req.user._id
         };
 
@@ -147,7 +179,20 @@ router.put('/:id/applications/:appId', protect, authorize('admin'), async (req, 
     try {
         const { status } = req.body;
 
-        const series = await ShiftSeries.findById(req.params.id);
+        // Scope to the owning hospital so one hospital cannot alter another's series.
+        // Fail closed if the admin has no hospital assigned.
+        const tenantQuery = getTenantQuery(req.user);
+        if (!tenantQuery) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized - no hospital assigned to this admin'
+            });
+        }
+
+        const series = await ShiftSeries.findOne({
+            _id: req.params.id,
+            ...tenantQuery
+        });
         if (!series) {
             return res.status(404).json({
                 success: false,
@@ -183,6 +228,27 @@ router.put('/:id/applications/:appId', protect, authorize('admin'), async (req, 
 // @access  Private
 router.post('/:id/create-duties', protect, authorize('admin'), async (req, res) => {
     try {
+        // Scope to the owning hospital so one hospital cannot alter another's series.
+        // Fail closed if the admin has no hospital assigned.
+        const tenantQuery = getTenantQuery(req.user);
+        if (!tenantQuery) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized - no hospital assigned to this admin'
+            });
+        }
+
+        const series = await ShiftSeries.findOne({
+            _id: req.params.id,
+            ...tenantQuery
+        });
+        if (!series) {
+            return res.status(404).json({
+                success: false,
+                message: 'Shift series not found'
+            });
+        }
+
         const duties = await ShiftSeries.createDutiesFromSeries(req.params.id);
 
         res.json({
