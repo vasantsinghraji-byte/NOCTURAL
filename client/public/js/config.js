@@ -440,7 +440,7 @@ const parseJsonBody = async (response) => {
 
     try {
         return JSON.parse(responseText);
-    } catch (error) {
+    } catch {
         throw new Error('Invalid JSON response');
     }
 };

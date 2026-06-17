@@ -188,6 +188,17 @@ function status(repository, branches) {
     console.log(`${branchStatus.branch}: ${classifyStatus(branchStatus)} (${branchStatus.contexts.join(', ')}; codeOwnerReviews=${branchStatus.requireCodeOwnerReviews})`);
   }
   writeStepSummary(statuses);
+
+  if (hasFlag('fail-on-drift')) {
+    const driftedBranches = statuses
+      .filter(branchStatus => classifyStatus(branchStatus) !== 'fully-enforced')
+      .map(branchStatus => branchStatus.branch);
+
+    if (driftedBranches.length > 0) {
+      console.error(`Security governance protection drift detected on: ${driftedBranches.join(', ')}`);
+      process.exitCode = 1;
+    }
+  }
 }
 
 function main() {

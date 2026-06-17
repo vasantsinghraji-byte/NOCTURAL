@@ -34,7 +34,7 @@
     "db:backfill-upload-urls": "node scripts/backfill-upload-file-urls.js",
     "db:backfill-upload-urls:write": "node scripts/backfill-upload-file-urls.js --write",
     "lint": "eslint .",
-    "lint:warning-budget": "node scripts/check-eslint-warning-budget.js 50",
+    "lint:warning-budget": "node scripts/check-eslint-warning-budget.js 40",
     "lint:fix": "eslint . --fix",
     "validate:codeowners-security": "node scripts/validate-codeowners-security-coverage.js",
     "scan:csp-html": "node scripts/scan-html-csp.js",
