@@ -14,6 +14,7 @@ const { validateEnvironment } = require('./config/validateEnv');
 const securityNotificationOutboxService = require('./services/securityNotificationOutboxService');
 const auditExportCleanupScheduler = require('./services/auditExportCleanupScheduler');
 const auditLifecycleReportCleanupScheduler = require('./services/auditLifecycleReportCleanupScheduler');
+const reconciliationScheduler = require('./services/reconciliationScheduler');
 
 let server = null;
 let processHandlersRegistered = false;
@@ -41,6 +42,7 @@ async function stopServer() {
   securityNotificationOutboxService.stop();
   auditExportCleanupScheduler.stop();
   auditLifecycleReportCleanupScheduler.stop();
+  reconciliationScheduler.stop();
 
   if (!server) {
     await disconnectDB();
@@ -163,6 +165,7 @@ function startServer(options = {}) {
   securityNotificationOutboxService.start();
   auditExportCleanupScheduler.start();
   auditLifecycleReportCleanupScheduler.start();
+  reconciliationScheduler.start();
 
   server.on('close', () => {
     server = null;

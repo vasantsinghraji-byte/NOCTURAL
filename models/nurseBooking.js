@@ -226,6 +226,10 @@ const NurseBookingSchema = new mongoose.Schema({
     }
   },
 
+  completionAccounting: {
+    appliedAt: Date
+  },
+
   // Cancellation
   cancellation: {
     cancelledBy: {
@@ -317,6 +321,7 @@ NurseBookingSchema.index({ 'serviceLocation.address.pincode': 1, serviceType: 1 
 NurseBookingSchema.index({ scheduledDate: 1, scheduledTime: 1 });
 NurseBookingSchema.index({ 'payment.status': 1 });
 NurseBookingSchema.index({ createdAt: -1 });
+NurseBookingSchema.index({ status: 1, 'completionAccounting.appliedAt': 1 });
 
 // Pre-save hook to set timestamps
 NurseBookingSchema.pre('save', function(next) {
