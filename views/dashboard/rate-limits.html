@@ -34,6 +34,7 @@
             color: #6c757d;
         }
     </style>
+    <script src="/js/config.js"></script>
 </head>
 <body>
     <div class="container-fluid py-4">
@@ -45,7 +46,7 @@
                     <span class="refresh-timer ms-2">
                         Next refresh in <span id="refreshTimer">30</span>s
                     </span>
-                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="fetchData()">
+                    <button class="btn btn-sm btn-outline-primary ms-2" id="refreshRateLimitDashboard" type="button">
                         Refresh Now
                     </button>
                 </p>
@@ -95,9 +96,126 @@
             </div>
         </div>
 
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Recovery-Code Rate Limits by Identity Type</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Limiter</th>
+                                        <th>Identity Type</th>
+                                        <th>Hits</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recoveryCodeIdentityTypeTable">
+                                    <tr><td colspan="3">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Audit Export Duration</h6>
+                        <div class="metric-value" id="auditExportAverageDuration">-</div>
+                        <div class="metric-label">Average milliseconds</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Audit Export Bytes</h6>
+                        <div class="metric-value" id="auditExportBytes">-</div>
+                        <div class="metric-label">Total bytes written</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Retry Blocks</h6>
+                        <div class="metric-value" id="auditExportRetryBlocks">-</div>
+                        <div class="metric-label">Limit/backoff blocked</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Signed Downloads</h6>
+                        <div class="metric-value" id="auditExportSignedDownloads">-</div>
+                        <div class="metric-label">Issued signed URLs</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Audit Export Lifecycle Counts</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Created</th>
+                                        <th>Completed</th>
+                                        <th>Failed</th>
+                                        <th>Cancelled</th>
+                                        <th>Dead Lettered</th>
+                                        <th>Manual Retries</th>
+                                        <th>Auto Retries</th>
+                                        <th>Cleanup Deleted</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="auditExportLifecycleTable">
+                                    <tr><td colspan="8">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Audit Export Approval Notifications</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Delivery Attempts</th>
+                                        <th>Sent</th>
+                                        <th>Failures</th>
+                                        <th>Failure Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="auditExportApprovalNotificationTable">
+                                    <tr><td colspan="4">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Charts Row -->
         <div class="row mb-4">
-            <div class="col-md-6">
+            <div class="col-md-3">
                 <div class="card">
                     <div class="card-body">
                         <h6 class="card-title">Request Distribution</h6>
@@ -105,11 +223,27 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-3">
                 <div class="card">
                     <div class="card-body">
                         <h6 class="card-title">Block Rate Trend</h6>
                         <canvas id="blockRateChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Audit Export Failure Ratio</h6>
+                        <canvas id="auditExportFailureRatioChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Approval Notification Failure Rate</h6>
+                        <canvas id="approvalNotificationFailureRateChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -163,151 +297,6 @@
         </div>
     </div>
 
-    <script>
-        let requestChart, blockRateChart;
-        let refreshInterval = 30;
-        let timer;
-
-        // Initialize charts
-        function initCharts() {
-            // Request Distribution Chart
-            const requestCtx = document.getElementById('requestChart').getContext('2d');
-            requestChart = new Chart(requestCtx, {
-                type: 'pie',
-                data: {
-                    labels: ['Successful', 'Blocked', 'Rate Limited'],
-                    datasets: [{
-                        data: [0, 0, 0],
-                        backgroundColor: ['#28a745', '#dc3545', '#ffc107']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
-
-            // Block Rate Trend Chart
-            const blockRateCtx = document.getElementById('blockRateChart').getContext('2d');
-            blockRateChart = new Chart(blockRateCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Block Rate',
-                        data: [],
-                        borderColor: '#dc3545',
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 1
-                        }
-                    }
-                }
-            });
-        }
-
-        // Update timer display
-        function updateTimer() {
-            document.getElementById('refreshTimer').textContent = refreshInterval;
-            refreshInterval--;
-            if (refreshInterval < 0) {
-                refreshInterval = 30;
-                fetchData();
-            }
-        }
-
-        // Fetch and update dashboard data
-        async function fetchData() {
-            try {
-                const response = await fetch('/api/admin/metrics/rate-limits');
-                const data = await response.json();
-
-                // Update overview metrics
-                document.getElementById('authBlockRate').textContent = 
-                    `${(data.metrics.auth.blockRate * 100).toFixed(1)}%`;
-                document.getElementById('apiTotal').textContent = 
-                    data.metrics.api.total.toLocaleString();
-                document.getElementById('blockedCount').textContent = 
-                    data.blocked.length;
-
-                // Update system status
-                const statusIndicator = document.getElementById('systemStatus');
-                const statusText = document.getElementById('systemStatusText');
-                if (data.metrics.auth.blockRate > 0.2) {
-                    statusIndicator.className = 'status-indicator status-danger';
-                    statusText.textContent = 'High Block Rate';
-                } else if (data.blocked.length > 5) {
-                    statusIndicator.className = 'status-indicator status-warning';
-                    statusText.textContent = 'Multiple Blocks';
-                } else {
-                    statusIndicator.className = 'status-indicator status-normal';
-                    statusText.textContent = 'Normal';
-                }
-
-                // Update request distribution chart
-                requestChart.data.datasets[0].data = [
-                    data.metrics.api.total - data.metrics.api.blocked,
-                    data.metrics.api.blocked,
-                    data.metrics.auth.blocked
-                ];
-                requestChart.update();
-
-                // Update block rate trend
-                if (data.metrics.blockRateHistory) {
-                    blockRateChart.data.labels = data.metrics.blockRateHistory.map(h => h.time);
-                    blockRateChart.data.datasets[0].data = data.metrics.blockRateHistory.map(h => h.rate);
-                    blockRateChart.update();
-                }
-
-                // Update endpoints table
-                const endpointTable = document.getElementById('endpointTable');
-                endpointTable.innerHTML = data.metrics.api.endpoints
-                    .sort((a, b) => b.hits - a.hits)
-                    .slice(0, 10)
-                    .map(endpoint => `
-                        <tr>
-                            <td>${endpoint.path}</td>
-                            <td>${endpoint.hits}</td>
-                            <td>${(endpoint.blockRate * 100).toFixed(1)}%</td>
-                            <td>
-                                <span class="status-indicator ${
-                                    endpoint.blockRate > 0.2 ? 'status-danger' :
-                                    endpoint.blockRate > 0.1 ? 'status-warning' :
-                                    'status-normal'
-                                }"></span>
-                            </td>
-                        </tr>
-                    `).join('');
-
-                // Update blocked entities table
-                const blockedTable = document.getElementById('blockedTable');
-                blockedTable.innerHTML = data.blocked
-                    .map(entity => `
-                        <tr>
-                            <td>${entity.id}</td>
-                            <td>${new Date(entity.until).toLocaleString()}</td>
-                            <td>${entity.reason}</td>
-                        </tr>
-                    `).join('') || '<tr><td colspan="3">No blocked entities</td></tr>';
-
-            } catch (error) {
-                console.error('Error fetching metrics:', error);
-            }
-        }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            initCharts();
-            fetchData();
-            setInterval(updateTimer, 1000);
-        });
-    </script>
+    <script src="/js/rate-limit-dashboard.js"></script>
 </body>
 </html>

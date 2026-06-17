@@ -306,7 +306,7 @@ function renderPaginationControls(container, pagination, onPageChange, options =
   }
 
   const html = createPaginationControls(pagination, onPageChange, options);
-  element.innerHTML = html;
+  setPaginationHtml(element, html);
   bindPaginationControlEvents(element, onPageChange);
 }
 
@@ -470,9 +470,9 @@ class PaginationManager {
 
     if (container) {
       if (this.state.data.length === 0) {
-        container.innerHTML = '<div class="no-results">No results found</div>';
+        AppUi.setSafeHtml(container, '<div class="no-results">No results found</div>');
       } else {
-        container.innerHTML = this.state.data.map(this.renderItem).join('');
+        setPaginationHtml(container, this.state.data.map(this.renderItem).join(''));
       }
     }
 
@@ -492,10 +492,10 @@ class PaginationManager {
         : this.limitContainer;
 
       if (limitElement) {
-        limitElement.innerHTML = createLimitSelector(
+        AppUi.setSafeHtml(limitElement, createLimitSelector(
           this.state.limit,
           this.changeLimit.bind(this)
-        );
+        ));
         bindLimitSelectorEvents(limitElement, this.changeLimit.bind(this));
       }
     }
@@ -510,12 +510,12 @@ class PaginationManager {
       : this.container;
 
     if (container) {
-      container.innerHTML = `
+      AppUi.setSafeHtml(container, `
         <div class="loading-state">
           <div class="spinner"></div>
           <p>Loading...</p>
         </div>
-      `;
+      `);
     }
   }
 
@@ -528,12 +528,12 @@ class PaginationManager {
       : this.container;
 
     if (container) {
-      container.innerHTML = `
+      AppUi.setSafeHtml(container, `
         <div class="error-state">
           <p>Error: ${message}</p>
           <button type="button" class="pagination-retry-btn">Retry</button>
         </div>
-      `;
+      `);
 
       const retryButton = container.querySelector('.pagination-retry-btn');
       if (retryButton) {
@@ -647,10 +647,10 @@ class InfiniteScrollManager {
     // Don't replace existing content, append new items
     const existingItems = container.querySelectorAll('.scroll-item');
     if (existingItems.length === 0 && this.state.data.length > 0) {
-      container.innerHTML = this.state.data.map(this.renderItem).join('');
+      setPaginationHtml(container, this.state.data.map(this.renderItem).join(''));
     } else {
       const newItems = this.state.data.slice(existingItems.length);
-      container.insertAdjacentHTML('beforeend', newItems.map(this.renderItem).join(''));
+      AppUi.appendSafeHtml(container, AppUi.sanitizeHtml(newItems.map(this.renderItem).join('')));
     }
   }
 
@@ -661,7 +661,7 @@ class InfiniteScrollManager {
     const existing = document.getElementById('infinite-scroll-loader');
     if (existing) return;
 
-    document.body.insertAdjacentHTML('beforeend', `
+    AppUi.appendSafeHtml(document.body, `
       <div id="infinite-scroll-loader" class="infinite-scroll-loader">
         <div class="spinner"></div>
         <p>Loading more...</p>
@@ -700,4 +700,12 @@ if (typeof window !== 'undefined') {
     PaginationManager,
     InfiniteScrollManager
   };
+}
+function setPaginationHtml(element, html) {
+  if (typeof AppUi !== 'undefined' && AppUi.setSafeHtml) {
+    AppUi.setSafeHtml(element, html);
+    return;
+  }
+  const target = element;
+  AppUi.setSafeHtml(target, html);
 }

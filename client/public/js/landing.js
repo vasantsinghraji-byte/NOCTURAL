@@ -63,7 +63,8 @@ document.addEventListener('click', function (event) {
         break;
       case 'navigate':
         trackFunnelEvent(actionTarget.getAttribute('data-event'), actionTarget.getAttribute('data-href'));
-        window.location.href = actionTarget.getAttribute('data-href');
+        var safeHref = AppUi.sanitizeUrl(actionTarget.getAttribute('data-href'));
+        if (safeHref) window.location.href = safeHref;
         break;
       case 'open-register':
         openRegisterModal();
@@ -134,7 +135,7 @@ function openLoginModal() {
 function closeLoginModal() {
   AppUi.setDisplay(document.getElementById('loginModal'), 'none');
   document.body.classList.remove('modal-open');
-  document.getElementById('loginError').innerHTML = '';
+  AppUi.setSafeHtml(document.getElementById('loginError'), '');
 }
 
 function openRegisterModal() {
@@ -145,7 +146,7 @@ function openRegisterModal() {
 function closeRegisterModal() {
   AppUi.setDisplay(document.getElementById('registerModal'), 'none');
   document.body.classList.remove('modal-open');
-  document.getElementById('registerError').innerHTML = '';
+  AppUi.setSafeHtml(document.getElementById('registerError'), '');
 }
 
 // ============================================================================
@@ -170,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function () {
       e.preventDefault();
       var btn = e.target.querySelector('button[type="submit"]');
       var errorDiv = document.getElementById('loginError');
-      errorDiv.innerHTML = '';
+      AppUi.setSafeHtml(errorDiv, '');
       NocturnalSession.setButtonLoading(btn);
 
       var email = document.getElementById('loginEmail').value;
