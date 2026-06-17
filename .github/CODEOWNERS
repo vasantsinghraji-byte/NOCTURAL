@@ -4,8 +4,10 @@
 .github/workflows/ci.yml @vasantsinghraji-byte
 .github/workflows/codeql.yml @vasantsinghraji-byte
 .github/workflows/render-smoke.yml @vasantsinghraji-byte
+.github/workflows/security-governance-drift-audit.yml @vasantsinghraji-byte
 .github/workflows/security-governance-protection-bootstrap.yml @vasantsinghraji-byte
 .github/workflows/security-governance-protection-rollback.yml @vasantsinghraji-byte
+docs/security/branch-protection-governance.md @vasantsinghraji-byte
 scripts/check-codeql-alert-threshold.js @vasantsinghraji-byte
 scripts/export-codeql-alerts.js @vasantsinghraji-byte
 scripts/manage-security-governance-protection.js @vasantsinghraji-byte
