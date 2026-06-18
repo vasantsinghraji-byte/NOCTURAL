@@ -87,6 +87,19 @@ npm test -- --runTestsByPath tests/unit/security/audit-export-operator-notificat
 npm test -- --runTestsByPath tests/integration/security/audit-export-quarantine-flow.test.js
 ```
 
+To force the Mongo-backed quota and quarantine assertions locally, start a test MongoDB instance and set `MONGODB_URI`, then run:
+
+```bash
+npm run test:audit-export:db
+```
+
+This command enables:
+
+```text
+RUN_AUDIT_EXPORT_QUOTA_REAL_DB=true
+RUN_AUDIT_EXPORT_QUARANTINE_FLOW_REAL_DB=true
+```
+
 In CI, the quarantine-flow integration test runs against the replica-set MongoDB test environment with:
 
 ```text
