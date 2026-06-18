@@ -5,13 +5,37 @@ const os = require('os');
 const path = require('path');
 const { finished } = require('stream/promises');
 const SecurityAuditEvent = require('../models/securityAuditEvent');
-const SecurityAuditExportJob = require('../models/securityAuditExportJob');
-const SecurityAuditLifecycleReportJob = require('../models/securityAuditLifecycleReportJob');
 const logger = require('../utils/logger');
 const mongoose = require('mongoose');
 const operationalMetrics = require('../utils/operationalMetrics');
-const auditExportStorageService = require('./auditExportStorageService');
-const auditExportOperatorNotificationService = require('./auditExportOperatorNotificationService');
+
+const unavailableExportDependency = (name) => new Proxy({}, {
+  get(_target, property) {
+    if (property === 'then') return undefined;
+    return () => {
+      throw new Error(`${name} is provided by the audit export module`);
+    };
+  }
+});
+
+const optionalExportRequire = (modulePath, name) => {
+  try {
+    return require(modulePath);
+  } catch (error) {
+    if (error.code === 'MODULE_NOT_FOUND' && error.message.includes(modulePath)) {
+      return unavailableExportDependency(name);
+    }
+    throw error;
+  }
+};
+
+const SecurityAuditExportJob = optionalExportRequire('../models/securityAuditExportJob', 'SecurityAuditExportJob');
+const SecurityAuditLifecycleReportJob = optionalExportRequire('../models/securityAuditLifecycleReportJob', 'SecurityAuditLifecycleReportJob');
+const auditExportStorageService = optionalExportRequire('./auditExportStorageService', 'auditExportStorageService');
+const auditExportOperatorNotificationService = optionalExportRequire(
+  './auditExportOperatorNotificationService',
+  'auditExportOperatorNotificationService'
+);
 
 const EXPORT_COLUMNS = ['createdAt', 'event', 'actorType', 'actorId', 'targetType', 'targetId', 'outcome', 'ipAddress', 'userAgent', 'metadata'];
 const AUDIT_EXPORT_EVENTS = {
