@@ -3,10 +3,18 @@ name: "CodeQL"
 # Static analysis (code scanning) for JavaScript/TypeScript. Results appear under
 # the repository's Security → Code scanning alerts.
 on:
+  workflow_dispatch:
   push:
     branches: ["main", "develop", "fix/render-health-upload-audit"]
   pull_request:
-    branches: ["main", "develop"]
+    branches:
+      - main
+      - develop
+      - "chore/**"
+      - "feature/**"
+      - "fix/**"
+      - "refactor/**"
+      - "docs/**"
   schedule:
     # Weekly, Monday 03:00 UTC
     - cron: "0 3 * * 1"
