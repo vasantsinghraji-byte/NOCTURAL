@@ -12,7 +12,7 @@ const { getApp } = setupAuthIntegrationHarness();
 describe('Auth Integration: PUT /api/v1/auth/change-password', () => {
   it('should accept the dedicated change-password endpoint and invalidate old credentials', async () => {
     const doctor = createPersistedUser({
-      _id: 'doctor-user-change-password',
+      _id: '507f1f77bcf86cd799439011',
       role: 'doctor',
       email: 'doctor.password.change@test.com',
       password: 'OldPassword@123'
@@ -67,7 +67,7 @@ describe('Auth Integration: PUT /api/v1/auth/change-password', () => {
 
   it('should reject the dedicated change-password endpoint when currentPassword is incorrect', async () => {
     const doctor = createPersistedUser({
-      _id: 'doctor-user-change-password-invalid-current',
+      _id: '507f1f77bcf86cd799439012',
       role: 'doctor',
       email: 'doctor.password.invalid-current@test.com',
       password: 'OldPassword@123'
@@ -111,7 +111,7 @@ describe('Auth Integration: PUT /api/v1/auth/change-password', () => {
 
   it('should reject the dedicated change-password endpoint when confirmPassword does not match newPassword', async () => {
     const doctor = createPersistedUser({
-      _id: 'doctor-user-change-password-confirm-mismatch',
+      _id: '507f1f77bcf86cd799439013',
       role: 'doctor',
       email: 'doctor.password.confirm-mismatch@test.com',
       password: 'OldPassword@123'
@@ -190,7 +190,7 @@ describe('Auth Integration: PUT /api/v1/auth/change-password', () => {
 
   it('should reject the dedicated change-password endpoint with an expired bearer token', async () => {
     const doctor = createPersistedUser({
-      _id: 'doctor-user-change-password-expired-token',
+      _id: '507f1f77bcf86cd799439014',
       role: 'doctor'
     });
     const expiredToken = jwt.sign(

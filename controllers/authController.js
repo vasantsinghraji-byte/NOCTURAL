@@ -194,8 +194,10 @@ exports.updateMe = async (req, res, next) => {
 exports.changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
+    const isPatient = req.userType === IDENTITY_TYPES.PATIENT || !req.user.role;
+    const passwordService = isPatient ? patientService : authService;
 
-    const result = await authService.updatePassword(
+    const result = await passwordService.updatePassword(
       req.user.id,
       currentPassword,
       newPassword,
@@ -208,7 +210,7 @@ exports.changePassword = async (req, res, next) => {
     await securityAuditService.record({
       event: 'password_changed',
       actorId: req.user.id,
-      actorType: 'user',
+      actorType: isPatient ? 'patient' : 'user',
       outcome: 'success',
       req,
       metadata: {

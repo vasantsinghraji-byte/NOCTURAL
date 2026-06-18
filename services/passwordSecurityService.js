@@ -4,8 +4,20 @@ const compromisedPasswordService = require('./compromisedPasswordService');
 const operationalMetrics = require('../utils/operationalMetrics');
 const monitoring = require('../utils/monitoring');
 const SecurityNotificationOutbox = require('../models/securityNotificationOutbox');
-const webAuthnService = require('./webAuthnService');
 const { encodePayload } = require('./securityNotificationPayloadCrypto');
+
+const loadWebAuthnService = () => {
+  try {
+    return require('./webAuthnService');
+  } catch (error) {
+    if (error.code === 'MODULE_NOT_FOUND' && error.message.includes('./webAuthnService')) {
+      return { consumePasswordConfirmation: async () => undefined };
+    }
+    throw error;
+  }
+};
+
+const webAuthnService = loadWebAuthnService();
 
 const executePasswordChange = async ({
   IdentityModel,

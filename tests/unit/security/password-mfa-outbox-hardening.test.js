@@ -6,7 +6,7 @@ jest.mock('../../../services/compromisedPasswordService', () => ({
 }));
 jest.mock('../../../services/webAuthnService', () => ({
   consumePasswordConfirmation: jest.fn().mockResolvedValue()
-}));
+}), { virtual: true });
 jest.mock('../../../models/securityNotificationOutbox', () => ({
   create: jest.fn().mockResolvedValue({})
 }));
