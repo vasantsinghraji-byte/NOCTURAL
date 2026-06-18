@@ -12,6 +12,7 @@ const healthTrackerService = require('../services/healthTrackerService');
 const InvestigationReport = require('../models/investigationReport');
 const responseHelper = require('../utils/responseHelper');
 const { TRACKER_TYPES } = require('../constants/healthConstants');
+const storageConfig = require('../config/storage');
 
 // =====================
 // Investigation Reports
@@ -77,6 +78,33 @@ exports.getReportDetails = async (req, res, next) => {
     const report = await investigationReportService.getReportDetails(reportId, patientId);
 
     responseHelper.sendSuccess(res, { report }, 'Report details loaded');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+exports.downloadReportFile = async (req, res, next) => {
+  try {
+    const report = await InvestigationReport.findOne({
+      _id: req.params.reportId,
+      patient: req.user.id,
+      isActive: true
+    });
+    const file = report?.files?.[Number(req.params.fileIndex)];
+    if (!file) {
+      return responseHelper.sendError(res, 'Report file not found', 404);
+    }
+
+    const key = file.publicId || file.fileName;
+    if (storageConfig.USE_GCS) {
+      const signedUrl = await storageConfig.getSignedUrl(key);
+      if (!signedUrl) {
+        return responseHelper.sendError(res, 'Report file not found', 404);
+      }
+      return res.redirect(302, signedUrl);
+    }
+
+    return res.sendFile(storageConfig.resolveLocalFile(key));
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
   }

@@ -14,7 +14,7 @@ const router = express.Router();
 const { protectPatient } = require('../middleware/patientAuth');
 const { auditHealthAccess } = require('../middleware/healthDataAccess');
 const patientAnalyticsController = require('../controllers/patientAnalyticsController');
-const { createReportUpload } = require('../middleware/upload');
+const { createReportUpload, validateFileType } = require('../middleware/upload');
 const { ALLOWED_RESOURCES, AUDIT_ACTIONS } = require('../constants/healthConstants');
 
 // All routes require patient authentication
@@ -57,6 +57,7 @@ router.get(
 router.post(
   '/reports',
   createReportUpload().array('files', 10),
+  validateFileType,
   patientAnalyticsController.uploadReport
 );
 
@@ -78,6 +79,11 @@ router.get(
 router.get(
   '/reports/:reportId',
   patientAnalyticsController.getReportDetails
+);
+
+router.get(
+  '/reports/:reportId/files/:fileIndex/download',
+  patientAnalyticsController.downloadReportFile
 );
 
 /**
