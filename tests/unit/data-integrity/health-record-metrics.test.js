@@ -33,6 +33,13 @@ jest.mock('../../../utils/errors', () => ({
     constructor(m) { super(m); this.name = 'AuthorizationError'; }
   }
 }));
+jest.mock('../../../utils/safeMongo', () => {
+  const actual = jest.requireActual('../../../utils/safeMongo');
+  return {
+    ...actual,
+    normalizeObjectId: value => value
+  };
+});
 
 const HealthMetric = require('../../../models/healthMetric');
 const HealthRecord = require('../../../models/healthRecord');
@@ -104,7 +111,7 @@ describe('Phase 2 — Health Record & Metrics', () => {
       expect(patientQuery.session).toHaveBeenCalledWith(session);
       expect(HealthMetric.insertMany).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({ patient: expect.any(Object), metricType: 'HEART_RATE' })
+          expect.objectContaining({ patient: patientId, metricType: 'HEART_RATE' })
         ]),
         { session }
       );
