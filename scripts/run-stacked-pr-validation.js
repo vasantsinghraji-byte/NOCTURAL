@@ -13,6 +13,7 @@ const STACK_BRANCHES = new Set([
   'fix/patient-data-hardening',
   'fix/provider-ops-hardening',
   'fix/frontend-security-dashboards',
+  'fix/frontend-raw-html-hardening',
   'docs/archive-microservice-notes'
 ]);
 
@@ -66,6 +67,10 @@ const TESTS = {
     command('npm test -- --runInBand --runTestsByPath tests/unit/security/notification-center-xss.test.js tests/unit/validation/frontend-dom-smoke.test.js tests/unit/validation/frontend-page-api-dependency-map.test.js tests/unit/security/web-authn-outbox-alert-contract.test.js'),
     command('npm --prefix client ci --ignore-scripts'),
     command('npm --prefix client run build')
+  ],
+  'fix/frontend-raw-html-hardening': [
+    command('npm test -- --runInBand --runTestsByPath tests/unit/eslint-rules/no-raw-html-sinks.test.js tests/unit/validation/frontend-dom-smoke.test.js'),
+    command('npm test -- --runInBand --runTestsByPath tests/unit/security/static-analysis.test.js -t "Frontend DOM injection policy"')
   ],
   'docs/archive-microservice-notes': [
     command('npm run governance:check')
@@ -141,6 +146,12 @@ const LINTS = {
     command('node --check client/public/js/sw-register.js'),
     command('node --check client/public/js/notification-center.js')
   ],
+  'fix/frontend-raw-html-hardening': [
+    command('node --check tools/eslint-rules/no-raw-html-sinks.js'),
+    command('node --check client/public/js/pagination.js'),
+    command('node --check client/public/js/patient-analytics.js'),
+    command('node ./node_modules/eslint/bin/eslint.js client/public/js')
+  ],
   'docs/archive-microservice-notes': [
     command('npm run governance:check')
   ],
@@ -185,6 +196,9 @@ const SECURITY = {
   ],
   'fix/frontend-security-dashboards': [
     command('npm test -- --runInBand --runTestsByPath tests/unit/security/notification-center-xss.test.js tests/unit/security/web-authn-outbox-alert-contract.test.js')
+  ],
+  'fix/frontend-raw-html-hardening': [
+    command('npm test -- --runInBand --runTestsByPath tests/unit/security/static-analysis.test.js -t "Frontend DOM injection policy"')
   ],
   'docs/archive-microservice-notes': [
     command('npm run governance:check')
