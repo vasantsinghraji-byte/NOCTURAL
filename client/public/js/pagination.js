@@ -470,7 +470,7 @@ class PaginationManager {
 
     if (container) {
       if (this.state.data.length === 0) {
-        AppUi.setSafeHtml(container, '<div class="no-results">No results found</div>');
+        setPaginationHtml(container, '<div class="no-results">No results found</div>');
       } else {
         setPaginationHtml(container, this.state.data.map(this.renderItem).join(''));
       }
@@ -492,7 +492,7 @@ class PaginationManager {
         : this.limitContainer;
 
       if (limitElement) {
-        AppUi.setSafeHtml(limitElement, createLimitSelector(
+        setPaginationHtml(limitElement, createLimitSelector(
           this.state.limit,
           this.changeLimit.bind(this)
         ));
@@ -510,7 +510,7 @@ class PaginationManager {
       : this.container;
 
     if (container) {
-      AppUi.setSafeHtml(container, `
+      setPaginationHtml(container, `
         <div class="loading-state">
           <div class="spinner"></div>
           <p>Loading...</p>
@@ -528,7 +528,7 @@ class PaginationManager {
       : this.container;
 
     if (container) {
-      AppUi.setSafeHtml(container, `
+      setPaginationHtml(container, `
         <div class="error-state">
           <p>Error: ${message}</p>
           <button type="button" class="pagination-retry-btn">Retry</button>
@@ -706,6 +706,5 @@ function setPaginationHtml(element, html) {
     AppUi.setSafeHtml(element, html);
     return;
   }
-  const target = element;
-  AppUi.setSafeHtml(target, html);
+  element.innerHTML = html;
 }
