@@ -19,9 +19,9 @@ describe('CODEOWNERS security-governance validator', () => {
 
     expect(classifyStatus({
       contexts: [
-        'CodeQL Alert Gate',
         'Required Post-Deploy Render Smoke',
-        'CODEOWNERS Security Governance Gate'
+        'CODEOWNERS Security Governance Gate',
+        'Analyze (javascript-typescript)'
       ],
       requireCodeOwnerReviews: true
     })).toBe('fully-enforced');

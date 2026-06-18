@@ -164,8 +164,8 @@ function checkCiWorkflow() {
   requireContent(workflow, /cache-dependency-path:[\s\S]*package-lock\.json[\s\S]*client\/package-lock\.json/, 'CI cache keys include root and client lockfiles');
   requireContent(workflow, /\brun:\s*npm ci\b/, 'CI installs dependencies with npm ci');
   requireContent(workflow, /actions\/cache@[\w.-]+[\s\S]*ms-playwright/, 'CI caches Playwright browser downloads');
-  requireContent(workflow, /npm run lint:baseline|npm run lint/, 'CI runs ESLint or the lint warning baseline');
-  requireContent(workflow, /npm run test:ci|npm test/, 'CI runs automated tests');
+  requireContent(workflow, /npm run lint:baseline|npm run lint|run-stacked-pr-validation\.js lint/, 'CI runs ESLint or the lint warning baseline');
+  requireContent(workflow, /npm run test:ci|npm test|run-stacked-pr-validation\.js test/, 'CI runs automated tests');
 }
 
 function checkDocsAndTemplates() {
