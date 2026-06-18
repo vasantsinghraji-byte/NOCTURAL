@@ -8,12 +8,12 @@ A comprehensive healthcare platform connecting doctors and nurses with hospitals
 
 ### Quick Links
 
-- **[🚀 Getting Started](docs/GETTING_STARTED.md)** - Installation, configuration, and first run
-- **[🔐 Security Guide](docs/guides/security.md)** - Enterprise-grade security features
-- **[⚡ Performance Optimization](docs/guides/performance-optimization.md)** - Speed and efficiency
-- **[🚢 Deployment Guide](docs/deployment/README.md)** - PM2, Docker, Kubernetes, AWS
-- **[📖 API Documentation](docs/api/endpoints.md)** - Complete API reference
-- **[💻 Interactive API Docs](http://localhost:5000/api-docs)** - Swagger UI (when server running)
+- **[Getting Started](docs/GETTING_STARTED.md)** - Installation, configuration, and first run
+- **[Security Guide](docs/guides/security.md)** - Enterprise-grade security features
+- **[Performance Optimization](docs/guides/performance-optimization.md)** - Speed and efficiency
+- **[Deployment Guide](docs/deployment/README.md)** - PM2, Docker, Kubernetes, AWS
+- **[API Documentation](docs/api/endpoints.md)** - Complete API reference
+- **[Interactive API Docs](http://localhost:5000/api-docs)** - Swagger UI (when server running)
 
 ---
 
