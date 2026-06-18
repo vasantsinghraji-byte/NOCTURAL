@@ -115,7 +115,9 @@ const LINTS = {
   ],
   'feature/admin-security-audit-export': [
     command('node --check services/securityAuditService.js'),
-    command('node --check routes/admin/securityAudit.js')
+    command('node --check routes/admin/securityAudit.js'),
+    command('node --check config/rateLimit.js'),
+    command('node --check constants/enums.js')
   ],
   'fix/uploads-stored-file-authorization': [
     command('node --check controllers/patientAnalyticsController.js'),
