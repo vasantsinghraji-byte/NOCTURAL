@@ -706,5 +706,5 @@ function setPaginationHtml(element, html) {
     AppUi.setSafeHtml(element, html);
     return;
   }
-  element.innerHTML = html;
+  AppUi.setSafeHtml(element, html);
 }

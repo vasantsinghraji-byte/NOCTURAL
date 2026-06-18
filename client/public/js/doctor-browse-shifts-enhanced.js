@@ -145,7 +145,7 @@
             grid.classList.remove('is-hidden');
             noResults.classList.add('is-hidden');
 
-            grid.innerHTML = shifts.map(shift => {
+            AppUi.setSafeHtml(grid, shifts.map(shift => {
                 const date = new Date(shift.date);
                 const matchScore = Math.floor(Math.random() * 30) + 70; // Mock match score
                 const spotsLeft = (shift.positionsNeeded || 1) - (shift.positionsFilled || 0);
@@ -216,7 +216,7 @@
                         </div>
                     </div>
                 `;
-            }).join('');
+            }).join(''));
         }
 
         // View shift details
