@@ -28,8 +28,6 @@ const healthMetricService = require('./healthMetricService');
 const healthRecordService = require('./healthRecordService');
 const doctorAccessService = require('./doctorAccessService');
 const BookingCompletionOutbox = require('../models/bookingCompletionOutbox');
-const securityAuditService = require('./securityAuditService');
-const operationalMetrics = require('../utils/operationalMetrics');
 const { normalizeObjectId, nullProtoObject, setSafeField } = require('../utils/safeMongo');
 
 const ALLOWED_BOOKING_FILTERS = new Set(['patient', 'serviceProvider', 'status', 'serviceType', 'payment.status']);
@@ -677,26 +675,8 @@ class BookingService {
     }
 
     if (!completedBooking) {
-      operationalMetrics.increment('booking_completion_concurrent_claim_failures_total');
-      await securityAuditService.record({
-        event: 'booking_completion_claim_failed',
-        actorId: providerId,
-        actorType: 'user',
-        targetType: 'booking',
-        targetId: booking._id,
-        outcome: 'warning'
-      });
       throw new ValidationError('Service has already been completed or is no longer in progress');
     }
-    operationalMetrics.increment('booking_completion_claims_total');
-    await securityAuditService.record({
-      event: 'booking_completion_claimed',
-      actorId: providerId,
-      actorType: 'user',
-      targetType: 'booking',
-      targetId: booking._id,
-      outcome: 'success'
-    });
 
     if (vitals.length > 0) {
       logger.info('Health metrics captured from booking', {

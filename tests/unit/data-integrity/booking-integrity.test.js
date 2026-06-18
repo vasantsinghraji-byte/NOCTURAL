@@ -42,6 +42,13 @@ jest.mock('../../../services/healthRecordService', () => ({
 jest.mock('../../../services/doctorAccessService', () => ({
   grantAccess: jest.fn()
 }));
+jest.mock('../../../utils/safeMongo', () => {
+  const actual = jest.requireActual('../../../utils/safeMongo');
+  return {
+    ...actual,
+    normalizeObjectId: value => value
+  };
+});
 
 const NurseBooking = require('../../../models/nurseBooking');
 const ServiceCatalog = require('../../../models/serviceCatalog');
