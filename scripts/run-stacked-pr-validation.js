@@ -64,6 +64,7 @@ const TESTS = {
   ],
   'fix/frontend-security-dashboards': [
     command('npm test -- --runInBand --runTestsByPath tests/unit/security/notification-center-xss.test.js tests/unit/validation/frontend-dom-smoke.test.js tests/unit/validation/frontend-page-api-dependency-map.test.js tests/unit/security/web-authn-outbox-alert-contract.test.js'),
+    command('npm --prefix client ci --ignore-scripts'),
     command('npm --prefix client run build')
   ],
   'docs/archive-microservice-notes': [
