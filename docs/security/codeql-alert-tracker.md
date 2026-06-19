@@ -34,6 +34,9 @@ npm run security:codeql:export -- --ref=refs/pull/123/merge --skip-tracker
 - `false-positive`: alert was reviewed and should be dismissed in GitHub with a documented reason.
 
 Keep `owner` and `notes` updated before dismissing or deferring an alert.
+The dismissal script rejects false-positive rows unless they use the
+`reviewed-false-positive` disposition and include a numeric alert number,
+rule, path, owner, and non-empty review notes.
 
 ## Dismissing False Positives
 

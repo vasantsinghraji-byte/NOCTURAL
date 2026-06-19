@@ -56,8 +56,25 @@ function getFalsePositiveRows(trackerPath) {
     throw new Error(`Tracker CSV not found: ${trackerPath}`);
   }
 
-  return parseCsv(fs.readFileSync(trackerPath, 'utf8'))
+  const rows = parseCsv(fs.readFileSync(trackerPath, 'utf8'))
     .filter(row => row.status === 'false-positive');
+
+  for (const row of rows) {
+    const alertLabel = row.alertNumber || '<missing>';
+    if (!/^\d+$/.test(row.alertNumber || '')) {
+      throw new Error(`False-positive tracker row ${alertLabel} must include a numeric alertNumber.`);
+    }
+    if (row.disposition !== 'reviewed-false-positive') {
+      throw new Error(`False-positive alert ${alertLabel} must use disposition reviewed-false-positive.`);
+    }
+    for (const field of ['ruleId', 'path', 'owner', 'notes']) {
+      if (!String(row[field] || '').trim()) {
+        throw new Error(`False-positive alert ${alertLabel} must include ${field}.`);
+      }
+    }
+  }
+
+  return rows;
 }
 
 function main() {

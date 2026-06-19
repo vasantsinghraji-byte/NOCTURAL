@@ -215,6 +215,8 @@ describe('CodeQL alert export helpers', () => {
         status: 'false-positive',
         disposition: 'reviewed-false-positive',
         ruleId: 'js/example',
+        path: 'scripts/example.js',
+        owner: '@security-owner',
         notes: 'safe test fixture'
       },
       {
@@ -224,7 +226,7 @@ describe('CodeQL alert export helpers', () => {
         ruleId: 'js/sql-injection',
         notes: ''
       }
-    ], ['alertNumber', 'status', 'disposition', 'ruleId', 'notes']));
+    ], ['alertNumber', 'status', 'disposition', 'ruleId', 'path', 'owner', 'notes']));
 
     expect(getFalsePositiveRows(trackerPath)).toEqual([
       {
@@ -232,8 +234,33 @@ describe('CodeQL alert export helpers', () => {
         status: 'false-positive',
         disposition: 'reviewed-false-positive',
         ruleId: 'js/example',
+        path: 'scripts/example.js',
+        owner: '@security-owner',
         notes: 'safe test fixture'
       }
     ]);
+  });
+
+  it.each([
+    ['disposition', 'false-positive', 'needs-review', '@owner', 'reviewed reason'],
+    ['owner', 'false-positive', 'reviewed-false-positive', '', 'reviewed reason'],
+    ['notes', 'false-positive', 'reviewed-false-positive', '@owner', '']
+  ])('rejects a false-positive tracker row without reviewed %s', (_field, status, disposition, owner, notes) => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codeql-tracker-invalid-'));
+    const trackerPath = path.join(tempDir, 'tracker.csv');
+
+    // Test writes only to a freshly-created temporary directory.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    fs.writeFileSync(trackerPath, toCsv([{
+      alertNumber: 123,
+      status,
+      disposition,
+      ruleId: 'js/example',
+      path: 'scripts/example.js',
+      owner,
+      notes
+    }], ['alertNumber', 'status', 'disposition', 'ruleId', 'path', 'owner', 'notes']));
+
+    expect(() => getFalsePositiveRows(trackerPath)).toThrow(/False-positive alert 123/);
   });
 });
