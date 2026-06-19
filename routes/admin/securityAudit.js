@@ -49,6 +49,8 @@ const auditReportReadLimiter = rateLimiters.custom({
   message: 'Too many audit report requests. Please try again later.',
   keyGenerator: operatorRateLimitKey
 });
+
+router.use(rateLimiters.api);
 const auditFilters = req => ({
   events: req.query.event ? [req.query.event] : WEB_AUTHN_AUDIT_EVENTS,
   actorId: req.query.actorId,
