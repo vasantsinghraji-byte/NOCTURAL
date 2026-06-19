@@ -33,6 +33,7 @@ const TOP_PAGES = [
   { path: '/roles/admin/admin-dashboard.html',          title: null },
   { path: '/roles/admin/admin-applications.html',       title: null },
   { path: '/roles/admin/admin-profile.html',            title: null },
+  { path: '/roles/admin/operator-audit.html',           title: 'Operator Security Audit' },
   { path: '/roles/patient/patient-login.html',           title: null },
   { path: '/roles/patient/patient-register.html',        title: null },
   { path: '/roles/patient/patient-dashboard.html',       title: null },

@@ -129,6 +129,15 @@ async function minifyCSS(sourceFile, destFile) {
 
     await fs.writeFile(versionedPath, result.styles);
 
+    // Also emit the canonical (un-versioned) file. Component stylesheets are
+    // injected at runtime by JS via fixed paths (e.g. config.js calls
+    // AppUi.ensureStylesheet('/css/components/display-helpers.css')); JS asset
+    // references are not rewritten to versioned names the way HTML is, so the
+    // canonical path must exist in dist or those stylesheets 404.
+    if (versionedPath !== destFile) {
+      await fs.writeFile(destFile, result.styles);
+    }
+
     // Update manifest
     const relativePath = path.relative(CONFIG.buildDir, destFile);
     const relativeVersioned = path.relative(CONFIG.buildDir, versionedPath);

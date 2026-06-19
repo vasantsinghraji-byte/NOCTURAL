@@ -86,10 +86,11 @@ describe('Production Smoke: auth CORS contract', () => {
     jest.resetModules();
 
     const { startServer, stopServer } = require(path.join(rootDir, 'server.js'));
-    startServer({
+    await startServer({
       port,
       registerProcessHandlers: false,
-      connectDatabase: false
+      connectDatabase: false,
+      connectCache: false
     });
 
     try {
