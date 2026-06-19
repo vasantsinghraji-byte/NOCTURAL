@@ -6,6 +6,7 @@
  */
 
 const Notification = require('../models/notification');
+const sanitizeHtml = require('sanitize-html');
 const logger = require('../utils/logger');
 const { HTTP_STATUS } = require('../constants');
 const pushNotificationService = require('./pushNotificationService');
@@ -300,10 +301,10 @@ class NotificationService {
       return value;
     }
 
-    return value
-      .replace(/<[^>]*>/g, '') // remove HTML tags
-      .replace(/\0/g, '')      // remove null bytes
-      .trim();
+    return sanitizeHtml(value.replace(/\0/g, ''), {
+      allowedTags: [],
+      allowedAttributes: {}
+    }).trim();
   }
 
   /**

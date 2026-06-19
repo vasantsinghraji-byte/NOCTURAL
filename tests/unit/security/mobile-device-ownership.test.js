@@ -51,4 +51,15 @@ describe('mobile device ownership', () => {
       { new: true }
     );
   });
+
+  it('rejects object-shaped values before building Mongo queries', async () => {
+    expect(() => mobileDeviceService.register({
+      owner: { $ne: null },
+      userType: 'patient',
+      token: { $gt: '' },
+      platform: 'android'
+    })).toThrow('token must be a primitive value');
+
+    expect(MobileDevice.findOneAndUpdate).not.toHaveBeenCalled();
+  });
 });
