@@ -182,11 +182,11 @@
             const container = document.getElementById('recentApplications');
             
             if (!applications || applications.length === 0) {
-                AppUi.setSafeHtml(container, '<div class="no-data">No applications yet. Start browsing available duties!</div>');
+                container.innerHTML = '<div class="no-data">No applications yet. Start browsing available duties!</div>';
                 return;
             }
 
-            AppUi.setSafeHtml(container, applications.map(app => `
+            container.innerHTML = applications.map(app => `
                 <div class="application-item">
                     <div class="application-info">
                         <h3>${app.duty?.hospitalName || 'Hospital'} - ${app.duty?.specialty || 'General'}</h3>
@@ -194,7 +194,7 @@
                     </div>
                     <span class="status-badge ${NocturnalSession.getApplicationStatusClass(app.status)}">${NocturnalSession.normalizeApplicationStatus(app.status)}</span>
                 </div>
-            `).join(''));
+            `).join('');
         }
 
         // Initialize dashboard

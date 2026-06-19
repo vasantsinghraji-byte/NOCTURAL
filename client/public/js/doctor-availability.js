@@ -48,13 +48,13 @@
             const list = document.getElementById('availabilityList');
 
             if (settings.length === 0) {
-                AppUi.setSafeHtml(list, `
+                list.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-calendar-check"></i>
                         <h3>No availability settings yet</h3>
                         <p>Create your first availability block to manage your schedule</p>
                     </div>
-                `);
+                `;
                 return;
             }
 
@@ -101,7 +101,7 @@
                 `;
             });
 
-            AppUi.setSafeHtml(list, html);
+            list.innerHTML = html;
         }
 
         async function handleRecurringSubmit(e) {

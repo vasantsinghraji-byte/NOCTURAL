@@ -28,7 +28,7 @@
                 AppUi.setDisplay(document.getElementById('mainContent'), 'block');
             } catch (error) {
                 console.error('Error loading earnings:', error);
-                AppUi.setSafeHtml(document.getElementById('loading'), '<p class="error-text">Error loading earnings data. Please try again.</p>');
+                document.getElementById('loading').innerHTML = '<p class="error-text">Error loading earnings data. Please try again.</p>';
             }
         }
 
@@ -46,13 +46,13 @@
             const changeEl = document.getElementById('earningsChange');
             if (change > 0) {
                 changeEl.className = 'stat-change positive';
-                AppUi.setSafeHtml(changeEl, `<i class="fas fa-arrow-up"></i> ${change}% vs last month`);
+                changeEl.innerHTML = `<i class="fas fa-arrow-up"></i> ${change}% vs last month`;
             } else if (change < 0) {
                 changeEl.className = 'stat-change negative';
-                AppUi.setSafeHtml(changeEl, `<i class="fas fa-arrow-down"></i> ${Math.abs(change)}% vs last month`);
+                changeEl.innerHTML = `<i class="fas fa-arrow-down"></i> ${Math.abs(change)}% vs last month`;
             } else {
                 changeEl.className = 'stat-change';
-                AppUi.setSafeHtml(changeEl, 'No change vs last month');
+                changeEl.innerHTML = 'No change vs last month';
             }
 
             // Breakdown
@@ -104,7 +104,7 @@
                 html = '<p class="empty-payment-text">No pending payments</p>';
             }
 
-            AppUi.setSafeHtml(timelineEl, html);
+            timelineEl.innerHTML = html;
         }
 
         function createEarningsChart(data) {
@@ -188,13 +188,13 @@
                 `;
             });
 
-            AppUi.setSafeHtml(list, html);
+            list.innerHTML = html;
             document.getElementById('potentialEarnings').textContent = AppFormat.currencyWhole(data.potential.totalEarnings);
 
             if (data.potential.exceedsLimit) {
-                AppUi.setSafeHtml(document.getElementById('warningMessage'), `
+                document.getElementById('warningMessage').innerHTML = `
                     <i class="fas fa-exclamation-triangle"></i> ${data.potential.warning}
-                `);
+                `;
             }
 
             AppUi.setDisplay(card, 'block');

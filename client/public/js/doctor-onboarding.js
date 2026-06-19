@@ -59,12 +59,12 @@
         // Populate skills
         const skillsSelection = document.getElementById('skillsSelection');
         skills.forEach(skill => {
-            AppUi.appendSafeHtml(skillsSelection, AppUi.sanitizeHtml(`
+            skillsSelection.innerHTML += `
                 <div class="skill-item">
                     <input type="checkbox" id="skill-${skill.replace(/\s+/g, '-')}" value="${skill}">
                     <label for="skill-${skill.replace(/\s+/g, '-')}">${skill}</label>
                 </div>
-            `));
+            `;
         });
 
         // Populate shift preferences
@@ -359,9 +359,6 @@
                 let requestOptions = {
                     method: 'POST',
                     parseJson: true,
-                    headers: {
-                        'Idempotency-Key': AppConfig.createIdempotencyKey()
-                    },
                     body: formData
                 };
                 let result = null;

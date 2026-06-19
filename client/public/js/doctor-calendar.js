@@ -123,7 +123,7 @@
                 `;
             });
 
-            AppUi.setSafeHtml(warningsList, html);
+            warningsList.innerHTML = html;
             AppUi.setDisplay(warningsCard, 'block');
         }
 
@@ -194,7 +194,7 @@
                 html += `<button class="btn btn-primary btn-block" data-action="view-duty-details" data-duty-id="${props.duty}">View Duty Details</button>`;
             }
 
-            AppUi.setSafeHtml(content, html);
+            content.innerHTML = html;
             AppUi.setDisplay(modal, 'block');
         }
 
