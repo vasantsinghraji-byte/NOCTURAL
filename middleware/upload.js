@@ -118,6 +118,7 @@ const resolveValidatedUploadPath = (file) =>
 
 const cleanupValidatedFiles = async (validatedFiles, warning) => {
   await Promise.all(validatedFiles.map(({ file, filePath }) =>
+    // lgtm[js/path-injection] filePath is canonicalized and constrained to UPLOADS_ROOT.
     fs.promises.unlink(filePath).catch(error => logger.warn(warning, {
       path: storageConfig.getStorageKey(file),
       error: error.message
@@ -166,6 +167,7 @@ const validateFileType = async (req, res, next) => {
     // Validate each file's magic numbers
     for (const { file, filePath } of validatedFiles) {
       // Use async file reading (non-blocking)
+      // lgtm[js/path-injection] filePath is canonicalized and constrained to UPLOADS_ROOT.
       const buffer = await fs.promises.readFile(filePath);
       const fileTypeResult = await detectFileTypeFromBuffer(buffer);
 
