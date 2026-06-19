@@ -81,12 +81,12 @@
                 circle.classList.remove('active', 'completed');
                 if (i < step) {
                     circle.classList.add('completed');
-                    AppUi.setSafeHtml(circle, '&#10003;');
+                    circle.innerHTML = '&#10003;';
                 } else if (i === step) {
                     circle.classList.add('active');
-                    AppUi.setSafeHtml(circle, i);
+                    circle.innerHTML = i;
                 } else {
-                    AppUi.setSafeHtml(circle, i);
+                    circle.innerHTML = i;
                 }
             }
 
@@ -141,7 +141,7 @@
                 </div>
             `;
 
-            AppUi.appendSafeHtml(list, AppUi.sanitizeHtml(html));
+            list.insertAdjacentHTML('beforeend', html);
             formData.conditions.push({ id, name: data.name || '', severity: data.severity || 'MILD' });
         }
 
@@ -188,7 +188,7 @@
                 </div>
             `;
 
-            AppUi.appendSafeHtml(list, AppUi.sanitizeHtml(html));
+            list.insertAdjacentHTML('beforeend', html);
             formData.allergies.push({ id, allergen: data.allergen || '', reactionType: data.reactionType || '', severity: data.severity || 'MILD' });
         }
 
@@ -234,7 +234,7 @@
                 </div>
             `;
 
-            AppUi.appendSafeHtml(list, AppUi.sanitizeHtml(html));
+            list.insertAdjacentHTML('beforeend', html);
             formData.currentMedications.push({ id, name: data.name || '', dosage: data.dosage || '', frequency: data.frequency || '' });
         }
 
@@ -293,7 +293,7 @@
                 </div>
             `;
 
-            AppUi.setSafeHtml(review, html);
+            review.innerHTML = html;
         }
 
         // Save draft

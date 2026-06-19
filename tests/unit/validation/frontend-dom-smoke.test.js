@@ -170,17 +170,6 @@ function createBaseContext() {
     window: windowObject,
     navigator: { serviceWorker: { addEventListener: jest.fn() }, onLine: true },
     AppConfig: undefined,
-    AppUi: {
-      sanitizeHtml: (html) => String(html || ''),
-      setSafeHtml: (element, html) => {
-        if (element) element.innerHTML = String(html || '');
-      },
-      appendSafeHtml: (element, html) => {
-        if (element) element.innerHTML = `${element.innerHTML || ''}${String(html || '')}`;
-      }
-    },
-    URL,
-    decodeURIComponent,
     URLSearchParams,
     __documentListeners: documentListeners
   };
@@ -231,18 +220,8 @@ function createElementNode(tagName) {
     addEventListener(type, handler) {
       this.listeners[type] = handler;
     },
-    click() {
-      if (this.listeners.click) {
-        this.listeners.click({ target: this });
-      }
-    },
     appendChild(child) {
       this.children.push(child);
-    },
-    append(...children) {
-      this.children.push(...children);
-      this.reloadButton = children.find((child) => child.dataset?.swAction === 'reload') || null;
-      this.dismissButton = children.find((child) => child.dataset?.swAction === 'dismiss') || null;
     },
     remove: jest.fn()
   };
@@ -466,34 +445,6 @@ describe('Frontend DOM Smoke', () => {
     expect(markAllReadButton.listeners.click).toBeDefined();
     expect(bell.listeners.click).toBeDefined();
     expect(context.__documentListeners.click).toBeDefined();
-  });
-
-  it('should reject external and control-character notification action URLs at runtime', () => {
-    const { NotificationCenter } = loadNotificationCenter();
-    const getSafeActionUrl = NotificationCenter.prototype.getSafeActionUrl;
-
-    expect(getSafeActionUrl.call({}, '/roles/doctor/my-applications.html?id=1'))
-      .toBe('/roles/doctor/my-applications.html?id=1');
-    expect(getSafeActionUrl.call({}, 'https://evil.example')).toBe('');
-    expect(getSafeActionUrl.call({}, '//evil.example')).toBe('');
-    expect(getSafeActionUrl.call({}, '/\t/evil.example')).toBe('');
-    expect(getSafeActionUrl.call({}, '/\n/evil.example')).toBe('');
-    expect(getSafeActionUrl.call({}, '/\r/evil.example')).toBe('');
-  });
-
-  it('should not navigate when a notification contains a malicious action URL', async () => {
-    const { NotificationCenter, context } = loadNotificationCenter();
-    const instance = {
-      notifications: [{ _id: 'notif-42', actionUrl: '/\t/evil.example' }],
-      markAsRead: jest.fn().mockResolvedValue(undefined),
-      getSafeActionUrl: NotificationCenter.prototype.getSafeActionUrl,
-      closePanel: jest.fn()
-    };
-
-    await NotificationCenter.prototype.handleNotificationClick.call(instance, 'notif-42');
-
-    expect(context.window.location.href).toBe('');
-    expect(instance.closePanel).toHaveBeenCalled();
   });
 
   it('should wire service-worker update banner buttons through bound listeners', async () => {

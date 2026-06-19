@@ -63,29 +63,9 @@
                 <div class="loading">Loading bookings...</div>
             </div>
         </div>
-
-        <section>
-            <h2 class="section-title">Active Sessions</h2>
-            <button type="button" id="enrollPasskey">Enroll passkey</button>
-            <button type="button" id="revokeAllSessions">Log out everywhere</button>
-            <h3>Passkeys</h3>
-            <div id="passkeyList">Loading passkeys...</div>
-            <h3>Recovery Codes</h3>
-            <p id="recoveryCodeStatus">Loading recovery-code status...</p>
-            <p id="recoveryCodeWarning">Recovery codes are shown only once. Store them offline before leaving this page.</p>
-            <button type="button" id="generateRecoveryCodes">Generate new recovery codes</button>
-            <button type="button" id="downloadRecoveryCodes" disabled>Download recovery codes</button>
-            <button type="button" id="printRecoveryCodes" disabled>Print recovery codes</button>
-            <pre id="recoveryCodesOutput"></pre>
-            <label for="lostDeviceRecoveryCode">Lost-device recovery code</label>
-            <input type="text" id="lostDeviceRecoveryCode" autocomplete="one-time-code">
-            <button type="button" id="recoverLostDevice">Recover lost device</button>
-            <div id="activeSessionsList" data-session-type="patient">Loading active sessions...</div>
-        </section>
     </div>
 
     <script src="/js/patient-dashboard.js"></script>
-    <script src="/js/session-management.js"></script>
     <script src="/js/auto-inject-nav.js"></script>
 </body>
 </html>

@@ -29,7 +29,8 @@
                 displayBooking(currentBooking);
             } catch (error) {
                 console.error('Error loading booking:', error);
-                AppUi.setSafeHtml(document.getElementById('loadingDiv'), '<div class="message error">Failed to load booking. Please try again.</div>');
+                document.getElementById('loadingDiv').innerHTML =
+                    '<div class="message error">Failed to load booking. Please try again.</div>';
             }
         }
 
@@ -49,7 +50,8 @@
             // Service details
             document.getElementById('serviceType').textContent = formatServiceType(booking.serviceType);
             document.getElementById('bookingId').textContent = booking._id;
-            AppUi.setSafeHtml(document.getElementById('statusBadge'), `<span class="status-badge ${booking.status.toLowerCase()}">${booking.status}</span>`);
+            document.getElementById('statusBadge').innerHTML =
+                `<span class="status-badge ${booking.status.toLowerCase()}">${booking.status}</span>`;
             document.getElementById('scheduledDate').textContent =
                 AppFormat.date(booking.scheduledDate, 'en-IN', {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -84,7 +86,8 @@
             document.getElementById('platformFee').textContent = AppFormat.currency(pricing.platformFee, 2);
             document.getElementById('gst').textContent = AppFormat.currency(pricing.gst, 2);
             document.getElementById('totalPrice').textContent = AppFormat.currency(pricing.payableAmount, 2);
-            AppUi.setSafeHtml(document.getElementById('paymentStatus'), `<span class="status-badge ${paymentStatus.toLowerCase()}">${paymentStatus}</span>`);
+            document.getElementById('paymentStatus').innerHTML =
+                `<span class="status-badge ${paymentStatus.toLowerCase()}">${paymentStatus}</span>`;
 
             // Provider details (if assigned)
             if (provider) {
@@ -166,7 +169,7 @@
                     report.recommendations + '</span></div>';
             }
 
-            AppUi.setSafeHtml(document.getElementById('serviceReport'), html);
+            document.getElementById('serviceReport').innerHTML = html;
         }
 
         // Rating stars interaction
@@ -254,9 +257,9 @@
 
         function showMessage(text, type) {
             const messageDiv = document.getElementById('messageDiv');
-            AppUi.setSafeHtml(messageDiv, `<div class="message ${type}">${text}</div>`);
+            messageDiv.innerHTML = `<div class="message ${type}">${text}</div>`;
             setTimeout(() => {
-                AppUi.setSafeHtml(messageDiv, '');
+                messageDiv.innerHTML = '';
             }, 5000);
         }
 

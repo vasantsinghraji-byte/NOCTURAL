@@ -49,9 +49,9 @@
                 ? DEFAULT_TIMEZONES
                 : [browserTimeZone].concat(DEFAULT_TIMEZONES);
 
-            AppUi.setSafeHtml(timezoneSelect, timezones
+            timezoneSelect.innerHTML = timezones
                 .map((timeZone) => `<option value="${timeZone}">${timeZone}</option>`)
-                .join(''));
+                .join('');
             timezoneSelect.value = browserTimeZone;
         }
 
@@ -122,7 +122,7 @@
 
             const errorDiv = document.getElementById('errorDiv');
             const btn = document.getElementById('submitBtn');
-            AppUi.setSafeHtml(errorDiv, '');
+            errorDiv.innerHTML = '';
 
             const prescriptionUrl = document.getElementById('prescriptionUrl').value.trim();
             const scheduledDate = document.getElementById('date').value;
@@ -181,7 +181,7 @@
                 initiatePayment(data.booking);
             } catch (error) {
                 console.error('Booking error:', error);
-                errorDiv.textContent = error.message || 'Booking failed';
+                errorDiv.innerHTML = `<div class="error-message">${error.message}</div>`;
                 btn.disabled = false;
                 btn.textContent = 'Proceed to Payment';
             }
@@ -234,7 +234,8 @@
                 rzp.open();
             } catch (error) {
                 console.error('Payment initiation error:', error);
-                AppUi.setSafeHtml(document.getElementById('errorDiv'), `<div class="error-message">${error.message}</div>`);
+                document.getElementById('errorDiv').innerHTML =
+                    `<div class="error-message">${error.message}</div>`;
                 document.getElementById('submitBtn').disabled = false;
                 document.getElementById('submitBtn').textContent = 'Proceed to Payment';
             }
@@ -257,14 +258,16 @@
                         bookingId: bookingId
                     })
                 }), 'Payment verification failed');
-                AppUi.setSafeHtml(document.getElementById('errorDiv'), '<div class="success-message">Payment successful! Redirecting to your booking...</div>');
+                document.getElementById('errorDiv').innerHTML =
+                    '<div class="success-message">Payment successful! Redirecting to your booking...</div>';
 
                 setTimeout(() => {
                     window.location.href = AppConfig.routes.page('patient.bookingDetails', { id: bookingId });
                 }, 2000);
             } catch (error) {
                 console.error('Payment verification error:', error);
-                AppUi.setSafeHtml(document.getElementById('errorDiv'), '<div class="error-message">Payment verification failed. Please contact support.</div>');
+                document.getElementById('errorDiv').innerHTML =
+                    '<div class="error-message">Payment verification failed. Please contact support.</div>';
             }
         }
 
@@ -275,8 +278,7 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Idempotency-Key': AppConfig.createIdempotencyKey()
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         bookingId: bookingId,
@@ -287,7 +289,8 @@
                 console.error('Error reporting payment failure:', error);
             }
 
-            AppUi.setSafeHtml(document.getElementById('errorDiv'), '<div class="error-message">Payment failed. Please try again.</div>');
+            document.getElementById('errorDiv').innerHTML =
+                '<div class="error-message">Payment failed. Please try again.</div>';
             document.getElementById('submitBtn').disabled = false;
             document.getElementById('submitBtn').textContent = 'Proceed to Payment';
         }
