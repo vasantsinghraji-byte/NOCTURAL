@@ -59,6 +59,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate stacked PR frontend ownership
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-pr-stack-scope.js
+        env:
+          STACK_SCOPE_BRANCH: ${{ github.head_ref }}
+          STACK_SCOPE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          STACK_SCOPE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6

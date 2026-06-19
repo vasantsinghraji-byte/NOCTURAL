@@ -12,6 +12,7 @@ docs/security/codeql-alert-tracker.md @vasantsinghraji-byte
 docs/security/codeql-alert-tracker.csv @vasantsinghraji-byte
 docs/security/codeql-alert-dashboard.html @vasantsinghraji-byte
 scripts/check-codeql-alert-threshold.js @vasantsinghraji-byte
+scripts/check-pr-stack-scope.js @vasantsinghraji-byte
 scripts/dismiss-codeql-false-positives.js @vasantsinghraji-byte
 scripts/export-codeql-alerts.js @vasantsinghraji-byte
 scripts/manage-security-governance-protection.js @vasantsinghraji-byte
@@ -22,5 +23,6 @@ tests/fixtures/security/sensitive-get-route-scanner.json @vasantsinghraji-byte
 tests/helpers/sensitiveGetRouteScanner.js @vasantsinghraji-byte
 tests/unit/security/codeowners-security-coverage.test.js @vasantsinghraji-byte
 tests/unit/security/codeql-alert-export.test.js @vasantsinghraji-byte
+tests/unit/security/pr-stack-scope.test.js @vasantsinghraji-byte
 tests/unit/security/static-analysis.test.js @vasantsinghraji-byte
 tools/eslint-rules/ @vasantsinghraji-byte

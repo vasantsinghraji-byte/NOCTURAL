@@ -24,7 +24,7 @@ const TESTS = {
   'chore/repo-governance-lint-ci': [
     command('npm run governance:check'),
     command('npm run validate:codeowners-security'),
-    command('npm test -- --runInBand --runTestsByPath tests/unit/security/codeowners-security-coverage.test.js tests/unit/eslint-rules/no-raw-html-sinks.test.js')
+    command('npm test -- --runInBand --runTestsByPath tests/unit/security/codeowners-security-coverage.test.js tests/unit/security/pr-stack-scope.test.js tests/unit/eslint-rules/no-raw-html-sinks.test.js')
   ],
   'chore/frontend-static-build': [
     command('npm --prefix client ci --ignore-scripts'),
@@ -79,6 +79,7 @@ const LINTS = {
     command('npm run governance:check'),
     command('npm run validate:codeowners-security'),
     command('node --check scripts/check-lint-warning-baseline.js'),
+    command('node --check scripts/check-pr-stack-scope.js'),
     command('node --check scripts/run-stacked-pr-validation.js')
   ],
   'chore/frontend-static-build': [
