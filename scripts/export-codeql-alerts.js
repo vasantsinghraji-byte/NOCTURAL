@@ -331,10 +331,14 @@ function writeTrackerSnapshotFiles(snapshotDir, snapshotName, trackerRows) {
 
 function appendTrendEntry(trendPath, entry) {
   let existing = [];
-  if (fs.existsSync(trendPath)) {
+  try {
     existing = JSON.parse(fs.readFileSync(trendPath, 'utf8'));
     if (!Array.isArray(existing)) {
       existing = [];
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
     }
   }
 

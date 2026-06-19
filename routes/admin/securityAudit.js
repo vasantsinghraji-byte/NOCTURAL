@@ -43,6 +43,12 @@ const quarantineBulkDeleteLimiter = rateLimiters.custom({
   message: 'Too many bulk quarantine delete requests. Please try again later.',
   keyGenerator: operatorRateLimitKey
 });
+const auditReportReadLimiter = rateLimiters.custom({
+  window: Number(process.env.AUDIT_EXPORT_REPORT_READ_RATE_LIMIT_WINDOW_MS) || 5 * 60 * 1000,
+  max: Number(process.env.AUDIT_EXPORT_REPORT_READ_RATE_LIMIT_MAX) || 60,
+  message: 'Too many audit report requests. Please try again later.',
+  keyGenerator: operatorRateLimitKey
+});
 const auditFilters = req => ({
   events: req.query.event ? [req.query.event] : WEB_AUTHN_AUDIT_EVENTS,
   actorId: req.query.actorId,
@@ -355,6 +361,7 @@ router.get(
   '/exports/:jobId/quarantine/approval-history/report/:reportJobId',
   protect,
   authorize(ROLES.PLATFORM_ADMIN),
+  auditReportReadLimiter,
   [
     param('jobId').isMongoId(),
     param('reportJobId').isMongoId(),
@@ -379,6 +386,7 @@ router.get(
   '/exports/:jobId/quarantine/approval-history/report/:reportJobId/download',
   protect,
   authorize(ROLES.PLATFORM_ADMIN),
+  auditReportReadLimiter,
   [
     param('jobId').isMongoId(),
     param('reportJobId').isMongoId(),
