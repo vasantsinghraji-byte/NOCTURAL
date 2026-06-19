@@ -1,10 +1,18 @@
 name: CI - Continuous Integration
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main, develop ]
+    branches:
+      - main
+      - develop
+      - "chore/**"
+      - "feature/**"
+      - "fix/**"
+      - "refactor/**"
+      - "docs/**"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -40,14 +48,42 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
+      - name: Run repository governance check
+        run: node scripts/run-stacked-pr-validation.js lint
 
-      - name: Run CSP HTML scanner
-        run: npm run scan:csp-html
+  codeowners-security-governance:
+    name: CODEOWNERS Security Governance Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
 
-      - name: Run strict inline style scanner
-        run: npm run scan:inline-styles:strict
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate stacked PR frontend ownership
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-pr-stack-scope.js
+        env:
+          STACK_SCOPE_BRANCH: ${{ github.head_ref }}
+          STACK_SCOPE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          STACK_SCOPE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Validate CODEOWNERS security-governance coverage
+        run: npm run validate:codeowners-security
 
   # Unit & Integration Tests
   test:
@@ -109,7 +145,7 @@ jobs:
           timeout 30 bash -c 'until (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1; do sleep 1; done'
 
       - name: Run fast CI test suite
-        run: npm run test:ci
+        run: node scripts/run-stacked-pr-validation.js test
         env:
           NODE_ENV: test
           PORT: 5001
@@ -180,17 +216,15 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      - name: Check for vulnerabilities
-        run: npm audit --omit=dev --audit-level=high || true
-
-      - name: Run auth security gate
-        run: npm run test:security-gate
+      - name: Audit root dependencies
+        run: node scripts/run-stacked-pr-validation.js security
 
   # Build + Deployment Gate Validation
   build:
     name: Deployment Gate
     runs-on: ubuntu-latest
     needs: [lint, test]
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     timeout-minutes: 25
 
     steps:
@@ -227,6 +261,7 @@ jobs:
     name: Public Funnel E2E
     runs-on: ubuntu-latest
     needs: [lint, test]
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     timeout-minutes: 15
 
     steps:
@@ -265,6 +300,7 @@ jobs:
     name: Container Smoke Build
     runs-on: ubuntu-latest
     needs: [lint, test]
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     timeout-minutes: 20
 
     steps:

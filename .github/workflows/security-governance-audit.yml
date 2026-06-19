@@ -1,0 +1,104 @@
+name: Security Governance Audit
+
+on:
+  schedule:
+    # Weekly, Monday 04:30 UTC
+    - cron: "30 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  codeowners-drift:
+    name: Weekly CODEOWNERS Governance Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.x"
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Validate security governance drift
+        run: npm run validate:codeowners-security -- --validate-owners --validate-required-checks --branches=main,develop
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Create governance drift issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          title="Security governance drift detected"
+          label="security-governance"
+          existing_issue="$(gh issue list \
+            --repo "${REPOSITORY}" \
+            --state open \
+            --label "${label}" \
+            --search "${title} in:title" \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          body="$(cat <<EOF
+          The scheduled security governance audit failed.
+
+          Investigate the workflow run:
+          ${RUN_URL}
+
+          The audit checks:
+          - CODEOWNERS syntax
+          - required security-governance CODEOWNERS coverage
+          - CODEOWNERS user/team existence through the GitHub API
+          - protected-branch required checks against workflow job names
+
+          Close this issue only after the workflow passes again.
+          EOF
+          )"
+
+          gh label create "${label}" \
+            --repo "${REPOSITORY}" \
+            --description "Security governance audit failures" \
+            --color "B60205" \
+            --force
+
+          if [ -n "${existing_issue}" ]; then
+            gh issue comment "${existing_issue}" \
+              --repo "${REPOSITORY}" \
+              --body "${body}"
+          else
+            gh issue create \
+              --repo "${REPOSITORY}" \
+              --title "${title}" \
+              --label "${label}" \
+              --body "${body}"
+          fi
+
+      - name: Report audit summary
+        if: always()
+        run: |
+          {
+            echo "## Security Governance Audit"
+            echo ""
+            echo "- CODEOWNERS syntax and security-governance coverage checked."
+            echo "- CODEOWNERS user/team existence checked through the GitHub API."
+            echo "- Required protected-branch status checks checked against workflow job names."
+            echo "- Branches checked: main, develop."
+          } >> "$GITHUB_STEP_SUMMARY"
