@@ -313,6 +313,10 @@ module.exports = {
       }
     } else {
       const filePath = resolveLocalFile(key);
+      const relativePath = path.relative(UPLOADS_ROOT, filePath);
+      if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+        throw new Error('Refusing to delete a file outside the configured storage root');
+      }
       try {
         await fs.promises.unlink(filePath);
       } catch (error) {

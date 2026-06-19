@@ -113,6 +113,18 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
+const resolveValidatedUploadPath = (file) =>
+  storageConfig.resolveLocalFile(storageConfig.getStorageKey(file));
+
+const cleanupValidatedFiles = async (validatedFiles, warning) => {
+  await Promise.all(validatedFiles.map(({ file, filePath }) =>
+    fs.promises.unlink(filePath).catch(error => logger.warn(warning, {
+      path: storageConfig.getStorageKey(file),
+      error: error.message
+    }))
+  ));
+};
+
 /**
  * Validate uploaded file using magic numbers (file signature)
  * This prevents MIME type spoofing attacks
@@ -120,6 +132,7 @@ const upload = multer({
  */
 const validateFileType = async (req, res, next) => {
   let filesToValidate = [];
+  let validatedFiles = [];
   try {
     if (!req.file && !req.files) {
       return next();
@@ -145,16 +158,19 @@ const validateFileType = async (req, res, next) => {
       }
     }
 
+    validatedFiles = filesToValidate.map(file => ({
+      file,
+      filePath: resolveValidatedUploadPath(file)
+    }));
+
     // Validate each file's magic numbers
-    for (const file of filesToValidate) {
+    for (const { file, filePath } of validatedFiles) {
       // Use async file reading (non-blocking)
-      const buffer = await fs.promises.readFile(file.path);
+      const buffer = await fs.promises.readFile(filePath);
       const fileTypeResult = await detectFileTypeFromBuffer(buffer);
 
       if (!fileTypeResult) {
-        await Promise.all(filesToValidate.map(uploadedFile =>
-          fs.promises.unlink(uploadedFile.path).catch(err => logger.warn('Failed to delete invalid upload batch file', { path: uploadedFile.path, error: err.message }))
-        ));
+        await cleanupValidatedFiles(validatedFiles, 'Failed to delete invalid upload batch file');
         logger.logSecurity('file_validation_failed', {
           filename: file.filename,
           reason: 'Could not determine file type from magic numbers',
@@ -169,9 +185,7 @@ const validateFileType = async (req, res, next) => {
       // Check if detected MIME type matches what was declared
       const allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
       if (!allowedMimes.includes(fileTypeResult.mime)) {
-        await Promise.all(filesToValidate.map(uploadedFile =>
-          fs.promises.unlink(uploadedFile.path).catch(err => logger.warn('Failed to delete invalid upload batch file', { path: uploadedFile.path, error: err.message }))
-        ));
+        await cleanupValidatedFiles(validatedFiles, 'Failed to delete invalid upload batch file');
         logger.logSecurity('file_type_mismatch', {
           filename: file.filename,
           declaredMime: file.mimetype,
@@ -186,9 +200,7 @@ const validateFileType = async (req, res, next) => {
 
       if (fileTypeResult.mime !== file.mimetype &&
           !(file.mimetype === 'image/jpg' && fileTypeResult.mime === 'image/jpeg')) {
-        await Promise.all(filesToValidate.map(uploadedFile =>
-          fs.promises.unlink(uploadedFile.path).catch(err => logger.warn('Failed to delete mismatched upload batch file', { path: uploadedFile.path, error: err.message }))
-        ));
+        await cleanupValidatedFiles(validatedFiles, 'Failed to delete mismatched upload batch file');
         logger.logSecurity('file_type_mismatch', {
           filename: file.filename,
           declaredMime: file.mimetype,
@@ -206,9 +218,7 @@ const validateFileType = async (req, res, next) => {
 
     next();
   } catch (error) {
-    await Promise.all(filesToValidate.map(uploadedFile =>
-      fs.promises.unlink(uploadedFile.path).catch(err => logger.warn('Failed to clean upload after validation error', { path: uploadedFile.path, error: err.message }))
-    ));
+    await cleanupValidatedFiles(validatedFiles, 'Failed to clean upload after validation error');
     logger.error('File Validation Error', {
       error: error.message,
       userId: req.user ? req.user._id : 'anonymous'
