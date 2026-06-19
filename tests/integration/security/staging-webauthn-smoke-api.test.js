@@ -64,7 +64,9 @@ describe('Staging WebAuthn smoke account API', () => {
     expect(createResponse.body.email).toMatch(/^webauthn-smoke-/);
     expect(createResponse.body.token).toBeTruthy();
 
-    const createdUser = await User.findById(createResponse.body.accountId).lean();
+    const createdUser = await User.findById(createResponse.body.accountId)
+      .select('+smokeTestExpiresAt')
+      .lean();
     expect(createdUser).toBeTruthy();
     expect(createdUser.email).toBe(createResponse.body.email);
     expect(createdUser.smokeTestExpiresAt).toBeTruthy();

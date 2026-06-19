@@ -11,6 +11,7 @@ const WebAuthnChallenge = require('../models/webAuthnChallenge');
 const WebAuthnRecoveryCode = require('../models/webAuthnRecoveryCode');
 const operationalMetrics = require('../utils/operationalMetrics');
 const { hash } = require('../utils/encryption');
+const { normalizeObjectId } = require('../utils/safeMongo');
 const { AuthenticationError, ValidationError, NotFoundError, ConflictError } = require('../utils/errors');
 
 const getConfig = () => ({
@@ -162,9 +163,11 @@ const registrationOptions = async ({ identityId, identityType }) => {
 };
 
 const verifyRegistration = async ({ identityId, identityType, challengeId, response, name }) => {
+  const normalizedIdentityId = normalizeObjectId(identityId, 'identity id');
+  const normalizedChallengeId = normalizeObjectId(challengeId, 'challenge id');
   const challenge = await WebAuthnChallenge.findOne({
-    _id: challengeId,
-    identityId,
+    _id: normalizedChallengeId,
+    identityId: normalizedIdentityId,
     identityType,
     purpose: 'REGISTRATION',
     consumedAt: null,
@@ -184,7 +187,7 @@ const verifyRegistration = async ({ identityId, identityType, challengeId, respo
   }
   const credential = verification.registrationInfo.credential;
   const result = await getModel(identityType).updateOne(
-    { _id: identityId, 'webAuthnCredentials.credentialId': { $ne: credential.id } },
+    { _id: normalizedIdentityId, 'webAuthnCredentials.credentialId': { $ne: credential.id } },
     {
       $push: {
         webAuthnCredentials: {
@@ -220,9 +223,11 @@ const authenticationOptions = async ({ identityId, identityType, purpose = 'PASS
 };
 
 const verifyAuthentication = async ({ identityId, identityType, challengeId, response }) => {
+  const normalizedIdentityId = normalizeObjectId(identityId, 'identity id');
+  const normalizedChallengeId = normalizeObjectId(challengeId, 'challenge id');
   const challenge = await WebAuthnChallenge.findOne({
-    _id: challengeId,
-    identityId,
+    _id: normalizedChallengeId,
+    identityId: normalizedIdentityId,
     identityType,
     purpose: 'PASSWORD_CHANGE',
     consumedAt: null,
@@ -230,7 +235,7 @@ const verifyAuthentication = async ({ identityId, identityType, challengeId, res
     expiresAt: { $gt: new Date() }
   });
   if (!challenge) throw new ValidationError('WebAuthn authentication challenge is invalid or expired');
-  const identity = await getModel(identityType).findById(identityId).select('+webAuthnCredentials');
+  const identity = await getModel(identityType).findById(normalizedIdentityId).select('+webAuthnCredentials');
   const stored = getCredentials(identity).find(item => item.credentialId === response.id);
   if (!stored) throw new AuthenticationError('WebAuthn credential is not registered for this account');
   const config = getConfig();
