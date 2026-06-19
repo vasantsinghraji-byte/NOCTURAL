@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+
 jest.mock('../../../middleware/auth', () => ({
   protect: jest.fn()
 }));
@@ -54,6 +57,21 @@ describe('upload storage contract', () => {
     storageConfig.resolveLocalFile.mockImplementation(
       key => `D:\\NOCTURNAL\\NOCTURAL\\uploads\\${key}`
     );
+  });
+
+  it('sends idempotency keys for doctor upload routes that require them', () => {
+    const onboarding = fs.readFileSync(
+      path.join(__dirname, '../../../client/public/js/doctor-onboarding.js'),
+      'utf8'
+    );
+    const profile = fs.readFileSync(
+      path.join(__dirname, '../../../client/public/js/doctor-profile-enhanced.js'),
+      'utf8'
+    );
+    const idempotencyHeader = /'Idempotency-Key': AppConfig\.createIdempotencyKey\(\)/g;
+
+    expect(onboarding.match(idempotencyHeader)).toHaveLength(1);
+    expect(profile.match(idempotencyHeader)).toHaveLength(2);
   });
 
   it('persists the unified key/url contract and deletes the replaced object', async () => {
