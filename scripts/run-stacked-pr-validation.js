@@ -54,7 +54,7 @@ const TESTS = {
     command('npm test -- --runInBand --runTestsByPath tests/unit/security/upload-gcs-magic-byte.test.js tests/unit/security/upload-route-public-errors.test.js tests/unit/security/upload-storage-contract.test.js')
   ],
   'fix/bookings-idempotent-payments': [
-    command('npm test -- --runInBand --runTestsByPath tests/unit/data-integrity/booking-integrity.test.js tests/unit/infrastructure/idempotency-index-contract.test.js tests/unit/middleware/idempotency.test.js')
+    command('npm test -- --runInBand --runTestsByPath tests/unit/data-integrity/booking-integrity.test.js tests/unit/infrastructure/idempotency-index-contract.test.js tests/unit/middleware/idempotency.test.js tests/unit/security/payment-security.test.js')
   ],
   'fix/patient-data-hardening': [
     command('npm test -- --runInBand --runTestsByPath tests/unit/data-integrity/health-record-metrics.test.js tests/unit/security/upload-gcs-magic-byte.test.js')
@@ -174,7 +174,7 @@ const SECURITY = {
     command('npm test -- --runInBand --runTestsByPath tests/unit/security/upload-gcs-magic-byte.test.js tests/unit/security/upload-route-public-errors.test.js tests/unit/security/upload-storage-contract.test.js')
   ],
   'fix/bookings-idempotent-payments': [
-    command('npm test -- --runInBand --runTestsByPath tests/unit/infrastructure/idempotency-index-contract.test.js tests/unit/middleware/idempotency.test.js')
+    command('npm test -- --runInBand --runTestsByPath tests/unit/infrastructure/idempotency-index-contract.test.js tests/unit/middleware/idempotency.test.js tests/unit/security/payment-security.test.js')
   ],
   'fix/patient-data-hardening': [
     command('npm test -- --runInBand --runTestsByPath tests/unit/data-integrity/health-record-metrics.test.js')
