@@ -17,6 +17,7 @@ const STACK_BRANCHES = new Set([
 ]);
 
 const DEPENDENCY_AUDIT_BRANCH = 'fix/dependency-audit-highs';
+const STACK_CI_GOVERNANCE_BRANCH = 'chore/stack-ready-ci-gates';
 
 const command = (run, env = {}) => ({ run, env });
 
@@ -24,7 +25,7 @@ const TESTS = {
   'chore/repo-governance-lint-ci': [
     command('npm run governance:check'),
     command('npm run validate:codeowners-security'),
-    command('npm test -- --runInBand --runTestsByPath tests/unit/security/codeowners-security-coverage.test.js tests/unit/security/pr-stack-scope.test.js tests/unit/eslint-rules/no-raw-html-sinks.test.js')
+    command('npm test -- --runInBand --runTestsByPath tests/unit/security/codeowners-security-coverage.test.js tests/unit/security/pr-stack-scope.test.js tests/unit/security/stack-ready-ci-gates.test.js tests/unit/eslint-rules/no-raw-html-sinks.test.js')
   ],
   'chore/frontend-static-build': [
     command('npm --prefix client ci --ignore-scripts'),
@@ -214,9 +215,14 @@ const mode = process.argv[2];
 
 const tables = { lint: LINTS, test: TESTS, security: SECURITY };
 
-const isStackBranch = STACK_BRANCHES.has(branch) || branch === DEPENDENCY_AUDIT_BRANCH;
-const selected = isStackBranch && tables[mode] && tables[mode][branch]
-  ? tables[mode][branch]
+const validationBranch = branch === STACK_CI_GOVERNANCE_BRANCH
+  ? 'chore/repo-governance-lint-ci'
+  : branch;
+const isStackBranch = STACK_BRANCHES.has(branch) ||
+  branch === DEPENDENCY_AUDIT_BRANCH ||
+  branch === STACK_CI_GOVERNANCE_BRANCH;
+const selected = isStackBranch && tables[mode] && tables[mode][validationBranch]
+  ? tables[mode][validationBranch]
   : FULL[mode];
 
 if (!mode || !selected) {
