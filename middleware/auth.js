@@ -75,20 +75,23 @@ const getAccessTokenFromRequest = (req) => {
   return null;
 };
 
+const requireAccessTokenFromRequest = (req) => {
+  const token = getAccessTokenFromRequest(req);
+  if (!token) {
+    const error = new Error('No access token provided');
+    error.name = 'MissingAccessTokenError';
+    throw error;
+  }
+  return token;
+};
+
 const verifyAccessToken = authTokens.verifyAccessToken;
 const verifyRefreshToken = authTokens.verifyRefreshToken;
 
 // Protect routes - SECURED with proper JWT verification
 exports.protect = async (req, res, next) => {
   try {
-    const token = getAccessTokenFromRequest(req);
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Not authorized - No token provided'
-      });
-    }
+    const token = requireAccessTokenFromRequest(req);
 
     // Verify JWT token with signature validation - CRITICAL FIX
     const decoded = verifyAccessToken(token, IDENTITY_TYPES.USER);
@@ -134,6 +137,12 @@ exports.protect = async (req, res, next) => {
     req.user = normalizeAuthenticatedUser(user);
     next();
   } catch (error) {
+    if (error.name === 'MissingAccessTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized - No token provided'
+      });
+    }
     // Handle specific JWT errors
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({

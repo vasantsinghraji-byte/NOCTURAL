@@ -33,6 +33,16 @@ const getRefreshTokenFromRequest = (req) => {
   return isMobileRequest(req) && req.body ? req.body.refreshToken : null;
 };
 
+const requireRefreshTokenFromRequest = (req) => {
+  const token = getRefreshTokenFromRequest(req);
+  if (!token) {
+    const error = new Error('No refresh token provided');
+    error.name = 'MissingRefreshTokenError';
+    throw error;
+  }
+  return token;
+};
+
 const getResultUserId = (result) => {
   const profile = result.user || result.patient;
   return profile && (profile.id || profile._id);
@@ -96,17 +106,9 @@ exports.login = async (req, res, next) => {
 // Refresh short-lived access cookie from httpOnly refresh cookie
 exports.refresh = async (req, res, next) => {
   try {
-    const refreshToken = getRefreshTokenFromRequest(req);
-
-    if (!refreshToken) {
-      return responseHelper.sendUnauthorized(res, 'Not authorized - No refresh token provided');
-    }
+    const refreshToken = requireRefreshTokenFromRequest(req);
 
     const decoded = verifyRefreshToken(refreshToken);
-
-    if (decoded.type !== 'refresh') {
-      return responseHelper.sendUnauthorized(res, 'Invalid refresh token');
-    }
 
     const identityType = decoded.identityType === IDENTITY_TYPES.PATIENT
       ? IDENTITY_TYPES.PATIENT
@@ -148,6 +150,9 @@ exports.refresh = async (req, res, next) => {
       refreshToken: replacementRefreshToken
     }), 'Session refreshed');
   } catch (error) {
+    if (error.name === 'MissingRefreshTokenError') {
+      return responseHelper.sendUnauthorized(res, 'Not authorized - No refresh token provided');
+    }
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       clearAuthCookies(res);
       return responseHelper.sendUnauthorized(res, 'Invalid or expired refresh token');

@@ -41,6 +41,7 @@ const checkRemoteRange = async (password) => {
   }
 
   // HIBP's k-anonymity protocol requires SHA-1; this digest is never stored or used for authentication.
+  // lgtm[js/insufficient-password-hash] Protocol-required lookup digest, not a password credential hash.
   // eslint-disable-next-line no-restricted-syntax
   const hash = crypto.createHash('sha1').update(password).digest('hex').toUpperCase();
   const prefix = hash.slice(0, 5);

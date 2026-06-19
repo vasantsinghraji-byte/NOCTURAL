@@ -105,7 +105,13 @@ const verifyRefreshToken = (token, expectedIdentityType) => {
     process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
     getVerifyOptions(expectedIdentityType)
   );
-  return assertIdentity(decoded, expectedIdentityType);
+  const verified = assertIdentity(decoded, expectedIdentityType);
+  if (verified.type !== 'refresh') {
+    const error = new Error('Token is not a refresh token');
+    error.name = 'JsonWebTokenError';
+    throw error;
+  }
+  return verified;
 };
 
 module.exports = {
