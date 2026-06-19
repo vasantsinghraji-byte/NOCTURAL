@@ -4,13 +4,13 @@
   "description": "Nocturnal Healthcare Platform - Frontend",
   "main": "index.js",
   "scripts": {
-    "dev": "webpack serve --config webpack.config.simple.js --mode development",
+    "dev": "npm run build:dev && node scripts/serve-static.js dist",
     "build": "npm run build:prod",
     "build:dev": "cross-env NODE_ENV=development webpack --config webpack.config.simple.js --mode development",
     "build:optimize": "npm run build:prod",
     "build:prod": "cross-env NODE_ENV=production node build.config.js",
-    "serve": "live-server public --port=3000",
-    "serve:dist": "live-server dist --port=3000",
+    "serve": "node scripts/serve-static.js public",
+    "serve:dist": "node scripts/serve-static.js dist",
     "clean": "rimraf dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -32,7 +32,6 @@
     "css-minimizer-webpack-plugin": "^5.0.1",
     "html-minifier-terser": "^7.2.0",
     "html-webpack-plugin": "^5.5.3",
-    "live-server": "^1.2.0",
     "mini-css-extract-plugin": "^2.7.6",
     "postcss": "^8.4.31",
     "postcss-loader": "^7.3.3",
@@ -43,7 +42,6 @@
     "terser-webpack-plugin": "^5.3.9",
     "webpack": "^5.89.0",
     "webpack-bundle-analyzer": "^4.9.1",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^5.2.2"
+    "webpack-cli": "^5.1.4"
   }
 }
