@@ -92,11 +92,17 @@ function getBranchProtectionRuleId(repository, branch) {
     '-F',
     `name=${name}`
   ]);
-  const rule = response.repository.branchProtectionRules.nodes.find(candidate => candidate.pattern === branch);
+  const rule = findBranchProtectionRule(response, branch);
   if (!rule) {
     throw new Error(`No exact branch protection rule found for ${branch}.`);
   }
   return rule.id;
+}
+
+function findBranchProtectionRule(response, branch) {
+  const repository = response.data?.repository || response.repository;
+  const rules = repository?.branchProtectionRules?.nodes || [];
+  return rules.find(candidate => candidate.pattern === branch);
 }
 
 function patchConversationResolution(repository, branch, enabled) {
@@ -280,5 +286,6 @@ if (require.main === module) {
 module.exports = {
   BOOTSTRAP_CONTEXTS,
   ENFORCED_CONTEXTS,
-  classifyStatus
+  classifyStatus,
+  findBranchProtectionRule
 };
