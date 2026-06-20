@@ -75,3 +75,137 @@ spec:
       annotations:
         summary: "High CPU usage"
         description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of CPU"
+
+    - alert: PasswordChangeRevokedZeroSessions
+      expr: increase(nocturnal_password_change_zero_session_revocations_total[15m]) > 0
+      for: 1m
+      labels:
+        severity: warning
+        component: security
+      annotations:
+        summary: "Password change revoked zero refresh sessions"
+        description: "{{ $value }} password changes revoked zero active sessions"
+        runbook: "https://runbooks.nocturnal.com/password-session-revocation"
+
+    - alert: SecurityNotificationDeliveryFailures
+      expr: increase(nocturnal_security_notification_outbox_failures_total[15m]) > 3
+      for: 5m
+      labels:
+        severity: warning
+        component: security
+      annotations:
+        summary: "Security notification delivery failures"
+        description: "{{ $value }} outbox deliveries failed in the last 15 minutes"
+        runbook: "https://runbooks.nocturnal.com/security-notification-outbox"
+
+    - alert: SecurityNotificationOutboxDeadLetters
+      expr: nocturnal_security_notification_outbox_dead_letters > 0
+      for: 1m
+      labels:
+        severity: critical
+        component: security
+      annotations:
+        summary: "Security notification outbox contains dead letters"
+        description: "{{ $value }} notifications require manual intervention"
+        runbook: "https://runbooks.nocturnal.com/security-notification-outbox"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: nocturnal
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: platform-oncall
+      group_by: ['alertname', 'component', 'severity']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+      - matchers:
+        - component="security"
+        - severity="critical"
+        receiver: security-critical
+        repeat_interval: 30m
+        continue: true
+      - matchers:
+        - component="security"
+        receiver: security-oncall
+        repeat_interval: 1h
+      - matchers:
+        - severity="critical"
+        receiver: platform-critical
+        repeat_interval: 30m
+    inhibit_rules:
+    - source_matchers:
+      - severity="critical"
+      target_matchers:
+      - severity="warning"
+      equal: ['alertname', 'component']
+    templates:
+    - '/etc/alertmanager/templates/*.tmpl'
+    receivers:
+    - name: platform-oncall
+      webhook_configs:
+      - url: $(ALERTMANAGER_PLATFORM_WEBHOOK_URL)
+        send_resolved: true
+      slack_configs:
+      - api_url: $(ALERTMANAGER_PLATFORM_SLACK_WEBHOOK_URL)
+        title: '{{ template "nocturnal.title" . }}'
+        text: '{{ template "nocturnal.text" . }}'
+        send_resolved: true
+    - name: platform-critical
+      webhook_configs:
+      - url: $(ALERTMANAGER_PLATFORM_CRITICAL_WEBHOOK_URL)
+        send_resolved: true
+      slack_configs:
+      - api_url: $(ALERTMANAGER_PLATFORM_CRITICAL_SLACK_WEBHOOK_URL)
+        title: '{{ template "nocturnal.title" . }}'
+        text: '{{ template "nocturnal.text" . }}'
+        send_resolved: true
+    - name: security-oncall
+      webhook_configs:
+      - url: $(ALERTMANAGER_SECURITY_WEBHOOK_URL)
+        send_resolved: true
+      slack_configs:
+      - api_url: $(ALERTMANAGER_SECURITY_SLACK_WEBHOOK_URL)
+        title: '{{ template "nocturnal.title" . }}'
+        text: '{{ template "nocturnal.security.text" . }}'
+        send_resolved: true
+    - name: security-critical
+      webhook_configs:
+      - url: $(ALERTMANAGER_SECURITY_CRITICAL_WEBHOOK_URL)
+        send_resolved: true
+      slack_configs:
+      - api_url: $(ALERTMANAGER_SECURITY_CRITICAL_SLACK_WEBHOOK_URL)
+        title: '{{ template "nocturnal.title" . }}'
+        text: '{{ template "nocturnal.security.text" . }}'
+        send_resolved: true
+  nocturnal.tmpl: |
+    {{ define "nocturnal.title" -}}
+    [{{ .Status | toUpper }}] {{ .CommonLabels.severity | toUpper }} {{ .CommonLabels.alertname }}
+    {{- end }}
+    {{ define "nocturnal.text" -}}
+    Environment: {{ with .CommonLabels.environment }}{{ . }}{{ else }}unknown{{ end }}
+    Component: {{ with .CommonLabels.component }}{{ . }}{{ else }}unknown{{ end }}
+    Severity: {{ with .CommonLabels.severity }}{{ . }}{{ else }}unknown{{ end }}
+    {{ range .Alerts -}}
+    Alert: {{ .Labels.alertname }}
+    Summary: {{ .Annotations.summary }}
+    Description: {{ .Annotations.description }}
+    Runbook: {{ with .Annotations.runbook }}{{ . }}{{ else }}not configured{{ end }}
+    Started: {{ .StartsAt }}
+    {{ if .EndsAt }}Ended: {{ .EndsAt }}{{ end }}
+    {{ end -}}
+    {{- end }}
+    {{ define "nocturnal.security.text" -}}
+    Security incident notification
+    {{ template "nocturnal.text" . }}
+    Escalation:
+    - Security on-call owns investigation and user-impact assessment.
+    - Platform on-call supports infrastructure, queue, and provider failures.
+    - Incident commander is required if user security notifications are delayed more than 30 minutes.
+    {{- end }}

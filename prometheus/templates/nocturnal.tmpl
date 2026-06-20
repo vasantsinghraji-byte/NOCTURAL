@@ -1,0 +1,32 @@
+{{ define "nocturnal.title" -}}
+[{{ .Status | toUpper }}] {{ .CommonLabels.severity | toUpper }} {{ .CommonLabels.alertname }}
+{{- end }}
+
+{{ define "nocturnal.text" -}}
+Environment: {{ with .CommonLabels.environment }}{{ . }}{{ else }}unknown{{ end }}
+Component: {{ with .CommonLabels.component }}{{ . }}{{ else }}unknown{{ end }}
+Severity: {{ with .CommonLabels.severity }}{{ . }}{{ else }}unknown{{ end }}
+
+{{ range .Alerts -}}
+Alert: {{ .Labels.alertname }}
+Summary: {{ .Annotations.summary }}
+Description: {{ .Annotations.description }}
+Runbook: {{ with .Annotations.runbook }}{{ . }}{{ else }}not configured{{ end }}
+Started: {{ .StartsAt }}
+{{ if .EndsAt }}Ended: {{ .EndsAt }}{{ end }}
+Labels:
+{{ range .Labels.SortedPairs }}- {{ .Name }}={{ .Value }}
+{{ end }}
+{{ end -}}
+{{- end }}
+
+{{ define "nocturnal.security.text" -}}
+Security incident notification
+
+{{ template "nocturnal.text" . }}
+
+Escalation:
+- Security on-call owns investigation and user-impact assessment.
+- Platform on-call supports infrastructure, queue, and provider failures.
+- Incident commander is required if user security notifications are delayed more than 30 minutes.
+{{- end }}

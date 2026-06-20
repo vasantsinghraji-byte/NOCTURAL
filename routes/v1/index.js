@@ -25,6 +25,7 @@ const notificationsRoutes = require('../notifications');
 const paymentsRoutes = require('../payments');
 const metricsRouter = require('../admin/metrics');
 const adminFunnelRoutes = require('../admin/funnel');
+const adminSecurityAuditRoutes = require('../admin/securityAudit');
 const patientRoutes = require('../patient');
 const bookingRoutes = require('../booking');
 const funnelEventRoutes = require('../funnelEvents');
@@ -70,6 +71,7 @@ router.use('/analytics', analyticsRoutes);
 // Admin routes
 router.use('/admin/metrics', metricsRouter.router);
 router.use('/admin/funnel', adminFunnelRoutes);
+router.use('/admin/security-audit', adminSecurityAuditRoutes);
 router.use('/shift-series', shiftSeriesRoutes);
 router.use('/hospital-settings', hospitalSettingsRoutes);
 router.use('/uploads', uploadsRoutes);

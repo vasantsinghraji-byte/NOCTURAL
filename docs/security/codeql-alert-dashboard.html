@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CodeQL Alert Trend</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; color: #172033; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #d8dee9; padding: 0.5rem; text-align: left; }
+    th { background: #f4f6fa; }
+    .cards { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .card { border: 1px solid #d8dee9; border-radius: 8px; padding: 1rem; min-width: 12rem; }
+    .muted { color: #5b667a; }
+    .bar { background: #335cff; height: 0.8rem; display: inline-block; }
+  </style>
+</head>
+<body>
+  <h1>CodeQL Alert Trend</h1>
+  <p class="muted">Loads <code>codeql-alert-trend.json</code> from the same directory.</p>
+  <div id="summary" class="cards"></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Generated</th>
+        <th>Ref</th>
+        <th>Total Open</th>
+        <th>Grouped</th>
+        <th>By Source</th>
+        <th>Top Rules</th>
+      </tr>
+    </thead>
+    <tbody id="trendRows"></tbody>
+  </table>
+  <script>
+    const summary = document.getElementById('summary');
+    const trendRows = document.getElementById('trendRows');
+
+    function createTextElement(tag, text, className) {
+      const element = document.createElement(tag);
+      element.textContent = text;
+      if (className) element.className = className;
+      return element;
+    }
+
+    function formatCounts(counts) {
+      return Object.entries(counts || {})
+        .sort((left, right) => right[1] - left[1])
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(', ');
+    }
+
+    function topRules(counts) {
+      return Object.entries(counts || {})
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 5)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(', ');
+    }
+
+    function render(data) {
+      const latest = data[data.length - 1] || {};
+      summary.append(
+        createTextElement('div', `Latest ref: ${latest.ref || 'n/a'}`, 'card'),
+        createTextElement('div', `Open alerts: ${latest.totalOpenAlerts || 0}`, 'card'),
+        createTextElement('div', `Groups: ${latest.groupedAlertCount || 0}`, 'card')
+      );
+
+      for (const entry of data) {
+        const row = document.createElement('tr');
+        const max = Math.max(...data.map(item => item.totalOpenAlerts || 0), 1);
+        const totalCell = document.createElement('td');
+        const bar = document.createElement('span');
+        bar.className = 'bar';
+        bar.style.width = `${Math.max(3, ((entry.totalOpenAlerts || 0) / max) * 100)}px`;
+        totalCell.append(`${entry.totalOpenAlerts || 0} `, bar);
+
+        row.append(
+          createTextElement('td', entry.generatedAt || ''),
+          createTextElement('td', entry.ref || ''),
+          totalCell,
+          createTextElement('td', String(entry.groupedAlertCount || 0)),
+          createTextElement('td', formatCounts(entry.bySource)),
+          createTextElement('td', topRules(entry.byRule))
+        );
+        trendRows.append(row);
+      }
+    }
+
+    fetch('codeql-alert-trend.json')
+      .then(response => response.json())
+      .then(render)
+      .catch(error => {
+        summary.append(createTextElement('p', `Failed to load trend JSON: ${error.message}`));
+      });
+  </script>
+</body>
+</html>
