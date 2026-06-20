@@ -8,12 +8,12 @@ A comprehensive healthcare platform connecting doctors and nurses with hospitals
 
 ### Quick Links
 
-- **[🚀 Getting Started](docs/GETTING_STARTED.md)** - Installation, configuration, and first run
-- **[🔐 Security Guide](docs/guides/security.md)** - Enterprise-grade security features
-- **[⚡ Performance Optimization](docs/guides/performance-optimization.md)** - Speed and efficiency
-- **[🚢 Deployment Guide](docs/deployment/README.md)** - PM2, Docker, Kubernetes, AWS
-- **[📖 API Documentation](docs/api/endpoints.md)** - Complete API reference
-- **[💻 Interactive API Docs](http://localhost:5000/api-docs)** - Swagger UI (when server running)
+- **[Getting Started](docs/GETTING_STARTED.md)** - Installation, configuration, and first run
+- **[Security Guide](docs/guides/security.md)** - Enterprise-grade security features
+- **[Performance Optimization](docs/guides/performance-optimization.md)** - Speed and efficiency
+- **[Deployment Guide](docs/deployment/README.md)** - PM2, Docker, Kubernetes, AWS
+- **[API Documentation](docs/api/endpoints.md)** - Complete API reference
+- **[Interactive API Docs](http://localhost:5000/api-docs)** - Swagger UI (when server running)
 
 ---
 
@@ -78,6 +78,25 @@ A comprehensive healthcare platform connecting doctors and nurses with hospitals
 
 ## Quick Start
 
+### Replica-Set Integrity Verification
+
+Docker Desktop must be running. This uses a disposable MongoDB replica set on
+port `27018` plus Redis on port `6380` and does not modify normal development data.
+
+```bash
+npm run verify:replica-test
+npm run db:replica-test:down
+```
+
+Production index migrations use backup, preflight, and post-migration verification:
+
+```bash
+CONFIRM_PRODUCTION_MIGRATION=yes npm run db:indexes
+ALLOW_DATABASE_RESTORE=true npm run db:indexes:rollback -- <backup-path>
+```
+
+`mongodump` and `mongorestore` from MongoDB Database Tools are required.
+
 ### Prerequisites
 
 - **Node.js** v18+ (v22 recommended)
@@ -137,7 +156,7 @@ npm run build            # Build frontend
 npm run pm2:start:prod   # Start with PM2 cluster
 
 # Database
-npm run db:indexes       # Create performance indexes
+npm run db:indexes       # Backup, preflight, create, and verify indexes
 npm run db:migrate       # Run migrations
 
 # Security
@@ -744,10 +763,13 @@ redis-cli INFO stats
 
 ## Test Accounts
 
-For testing purposes, you can use these pre-configured accounts:
+The local seed script (`node seed.js`) creates demo accounts for **local development only**.
+Their credentials are intentionally not published here. See `seed.js` for the
+values used in a throwaway local database.
 
-- **Doctor**: doctor@test.com / password123
-- **Admin**: demo@hospital.com / demo123
+> ⚠️ **Never run the seed script, or these demo accounts, against a deployed/production
+> database.** If a demo account ever exists on a live instance, rotate its password
+> immediately and remove it.
 
 ## Contributing
 
@@ -776,6 +798,22 @@ npm run test:coverage
 # Run linter
 npm run lint
 ```
+
+### Password Security
+
+- Password changes require the current password and atomically increment the account session version while revoking refresh sessions on replica-set MongoDB.
+- Set `COMPROMISED_PASSWORD_CHECK_ENABLED=true` to reject passwords found through the HIBP k-anonymity API.
+- The compromised-password check fails closed by default. Set `COMPROMISED_PASSWORD_CHECK_FAIL_OPEN=true` only when availability is preferred over breach-check enforcement.
+- HIBP prefix responses are cached in Redis with an in-memory fallback and protected by a configurable circuit breaker.
+- Configure `EMAIL_WEBHOOK_URL` to deliver password-change security alerts. In-app and push alerts use the existing notification providers.
+- Password-change alerts are committed through `SecurityNotificationOutbox` and retried asynchronously.
+- Configure `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, and `WEBAUTHN_RP_NAME` before enabling passkeys. Accounts with an enrolled passkey must provide a one-time WebAuthn confirmation before changing passwords.
+- Passkeys can be listed and revoked from `/api/v1/webauthn/credentials`. Recovery-code batches are generated at `/api/v1/webauthn/recovery-codes`; codes are one-time, hashed, and support `/api/v1/webauthn/lost-device/recover`.
+- Run `npm run test:e2e:webauthn:staging` with `STAGING_WEBAUTHN_BASE_URL=https://...` to smoke test WebAuthn registration against a real staging HTTPS origin. The GitHub workflow `.github/workflows/staging-webauthn-smoke.yml` expects this value in the `staging` environment secrets.
+- Prefer `STAGING_TEST_API_SECRET`: staging must set the same value and either `NODE_ENV=staging` or `ENABLE_STAGING_TEST_APIS=true`; the test then creates a temporary `webauthn-smoke-*` account and revokes it after the run. Fallback auth is still supported with `STAGING_WEBAUTHN_ACCESS_TOKEN` or `STAGING_WEBAUTHN_COOKIE`.
+- New security notification outbox payloads are encrypted with `ENCRYPTION_KEY`. Completed and dead-letter rows receive a retention TTL via `purgeAfter`.
+- Alertmanager routing lives in `prometheus/alertmanager.yml`, reusable incident templates live in `prometheus/templates/nocturnal.tmpl`, and operational runbooks live under `docs/runbooks/`. Configure the matching `ALERTMANAGER_*_WEBHOOK_URL` and `ALERTMANAGER_*_SLACK_WEBHOOK_URL` values before deploying alert routing.
+- Set `TRUSTED_LOCATION_PROXY_IPS` to the explicit immediate-proxy IP allowlist before proxy-provided location headers are accepted.
 
 ## License
 
