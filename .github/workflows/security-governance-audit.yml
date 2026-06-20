@@ -38,6 +38,12 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
 
+      - name: Validate protected review settings
+        run: node scripts/manage-security-governance-protection.js --mode=status --branches=main,develop --fail-on-drift
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
       - name: Create governance drift issue
         if: failure()
         env:
@@ -68,6 +74,7 @@ jobs:
           - required security-governance CODEOWNERS coverage
           - CODEOWNERS user/team existence through the GitHub API
           - protected-branch required checks against workflow job names
+          - stale-review dismissal, last-push approval, and conversation-resolution enforcement
 
           Close this issue only after the workflow passes again.
           EOF
@@ -100,5 +107,6 @@ jobs:
             echo "- CODEOWNERS syntax and security-governance coverage checked."
             echo "- CODEOWNERS user/team existence checked through the GitHub API."
             echo "- Required protected-branch status checks checked against workflow job names."
+            echo "- Required review and conversation-resolution settings checked for drift."
             echo "- Branches checked: main, develop."
           } >> "$GITHUB_STEP_SUMMARY"
