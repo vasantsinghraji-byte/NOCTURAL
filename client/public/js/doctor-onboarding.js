@@ -359,6 +359,9 @@
                 let requestOptions = {
                     method: 'POST',
                     parseJson: true,
+                    headers: {
+                        'Idempotency-Key': AppConfig.createIdempotencyKey()
+                    },
                     body: formData
                 };
                 let result = null;
