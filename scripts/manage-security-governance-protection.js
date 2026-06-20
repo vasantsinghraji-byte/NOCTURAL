@@ -61,19 +61,54 @@ function patchRequiredChecks(repository, branch, contexts) {
   ]);
 }
 
-function patchReviewProtection(repository, branch, requireCodeOwnerReviews) {
+function patchReviewProtection(repository, branch, settings) {
   ghApi([
     '--method',
     'PATCH',
     `repos/${repository}/branches/${branch}/protection/required_pull_request_reviews`,
     '-F',
-    'dismiss_stale_reviews=false',
+    `dismiss_stale_reviews=${settings.dismissStaleReviews ? 'true' : 'false'}`,
     '-F',
-    `require_code_owner_reviews=${requireCodeOwnerReviews ? 'true' : 'false'}`,
+    `require_code_owner_reviews=${settings.requireCodeOwnerReviews ? 'true' : 'false'}`,
     '-F',
     'required_approving_review_count=1',
     '-F',
-    'require_last_push_approval=false'
+    `require_last_push_approval=${settings.requireLastPushApproval ? 'true' : 'false'}`
+  ]);
+}
+
+function getBranchProtectionRuleId(repository, branch) {
+  const [owner, name, ...extra] = repository.split('/');
+  if (!owner || !name || extra.length > 0) {
+    throw new Error(`Invalid GITHUB_REPOSITORY value: ${repository}`);
+  }
+
+  const response = ghApiJson([
+    'graphql',
+    '-f',
+    'query=query($owner:String!,$name:String!){repository(owner:$owner,name:$name){branchProtectionRules(first:100){nodes{id pattern}}}}',
+    '-F',
+    `owner=${owner}`,
+    '-F',
+    `name=${name}`
+  ]);
+  const rule = response.repository.branchProtectionRules.nodes.find(candidate => candidate.pattern === branch);
+  if (!rule) {
+    throw new Error(`No exact branch protection rule found for ${branch}.`);
+  }
+  return rule.id;
+}
+
+function patchConversationResolution(repository, branch, enabled) {
+  const ruleId = getBranchProtectionRuleId(repository, branch);
+  ghApi([
+    'graphql',
+    '-f',
+    'query=mutation($ruleId:ID!,$enabled:Boolean!){updateBranchProtectionRule(input:{branchProtectionRuleId:$ruleId,requiresConversationResolution:$enabled}){branchProtectionRule{id}}}',
+    '-F',
+    `ruleId=${ruleId}`,
+    '-F',
+    `enabled=${enabled ? 'true' : 'false'}`
   ]);
 }
 
@@ -82,12 +117,16 @@ function getProtectionStatus(repository, branch) {
     `repos/${repository}/branches/${branch}/protection`
   ]);
 
+  const reviews = protection.required_pull_request_reviews || {};
   return {
     branch,
     contexts: protection.required_status_checks ? protection.required_status_checks.contexts || [] : [],
-    requireCodeOwnerReviews: Boolean(
-      protection.required_pull_request_reviews
-      && protection.required_pull_request_reviews.require_code_owner_reviews
+    requireCodeOwnerReviews: Boolean(reviews.require_code_owner_reviews),
+    dismissStaleReviews: Boolean(reviews.dismiss_stale_reviews),
+    requireLastPushApproval: Boolean(reviews.require_last_push_approval),
+    requireConversationResolution: Boolean(
+      protection.required_conversation_resolution
+      && protection.required_conversation_resolution.enabled
     )
   };
 }
@@ -99,6 +138,9 @@ function classifyStatus(status) {
 
   if (
     status.requireCodeOwnerReviews
+    && status.dismissStaleReviews
+    && status.requireLastPushApproval
+    && status.requireConversationResolution
     && JSON.stringify(contexts) === JSON.stringify(enforcedContexts)
   ) {
     return 'fully-enforced';
@@ -106,6 +148,9 @@ function classifyStatus(status) {
 
   if (
     !status.requireCodeOwnerReviews
+    && !status.dismissStaleReviews
+    && !status.requireLastPushApproval
+    && !status.requireConversationResolution
     && JSON.stringify(contexts) === JSON.stringify(bootstrapContexts)
   ) {
     return 'bootstrap-safe';
@@ -140,10 +185,10 @@ function writeStepSummary(statuses) {
   const lines = [
     '## Security Governance Protection Status',
     '',
-    '| Branch | Mode | Required checks | Code owner reviews |',
-    '|---|---|---|---|',
+    '| Branch | Mode | Required checks | Code owner reviews | Dismiss stale reviews | Last-push approval | Resolved conversations |',
+    '|---|---|---|---|---|---|---|',
     ...statuses.map(status => (
-      `| ${status.branch} | ${classifyStatus(status)} | ${status.contexts.join('<br>')} | ${status.requireCodeOwnerReviews} |`
+      `| ${status.branch} | ${classifyStatus(status)} | ${status.contexts.join('<br>')} | ${status.requireCodeOwnerReviews} | ${status.dismissStaleReviews} | ${status.requireLastPushApproval} | ${status.requireConversationResolution} |`
     )),
     ''
   ];
@@ -156,7 +201,8 @@ function preflight(repository, branches) {
 
   for (const status of statuses) {
     patchRequiredChecks(repository, status.branch, status.contexts);
-    patchReviewProtection(repository, status.branch, status.requireCodeOwnerReviews);
+    patchReviewProtection(repository, status.branch, status);
+    patchConversationResolution(repository, status.branch, status.requireConversationResolution);
     console.log(`Preflight edit check passed for ${status.branch}.`);
   }
 
@@ -170,7 +216,12 @@ function enforce(repository, branches) {
 
   for (const branch of branches) {
     patchRequiredChecks(repository, branch, ENFORCED_CONTEXTS);
-    patchReviewProtection(repository, branch, true);
+    patchReviewProtection(repository, branch, {
+      requireCodeOwnerReviews: true,
+      dismissStaleReviews: true,
+      requireLastPushApproval: true
+    });
+    patchConversationResolution(repository, branch, true);
     console.log(`Enabled fully-enforced governance protection for ${branch}.`);
   }
 }
@@ -178,7 +229,12 @@ function enforce(repository, branches) {
 function rollback(repository, branches) {
   for (const branch of branches) {
     patchRequiredChecks(repository, branch, BOOTSTRAP_CONTEXTS);
-    patchReviewProtection(repository, branch, false);
+    patchReviewProtection(repository, branch, {
+      requireCodeOwnerReviews: false,
+      dismissStaleReviews: false,
+      requireLastPushApproval: false
+    });
+    patchConversationResolution(repository, branch, false);
     console.log(`Restored bootstrap-safe governance protection for ${branch}.`);
   }
 }
@@ -186,9 +242,12 @@ function rollback(repository, branches) {
 function status(repository, branches) {
   const statuses = branches.map(branch => getProtectionStatus(repository, branch));
   for (const branchStatus of statuses) {
-    console.log(`${branchStatus.branch}: ${classifyStatus(branchStatus)} (${branchStatus.contexts.join(', ')}; codeOwnerReviews=${branchStatus.requireCodeOwnerReviews})`);
+    console.log(`${branchStatus.branch}: ${classifyStatus(branchStatus)} (${branchStatus.contexts.join(', ')}; codeOwnerReviews=${branchStatus.requireCodeOwnerReviews}; dismissStaleReviews=${branchStatus.dismissStaleReviews}; lastPushApproval=${branchStatus.requireLastPushApproval}; conversationResolution=${branchStatus.requireConversationResolution})`);
   }
   writeStepSummary(statuses);
+  if (hasFlag('fail-on-drift') && statuses.some(branchStatus => classifyStatus(branchStatus) !== 'fully-enforced')) {
+    throw new Error('Security governance branch protection drift detected.');
+  }
 }
 
 function main() {

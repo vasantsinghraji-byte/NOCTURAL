@@ -14,7 +14,10 @@ describe('CODEOWNERS security-governance validator', () => {
   it('classifies bootstrap-safe, fully-enforced, and drifted branch protection', () => {
     expect(classifyStatus({
       contexts: ['Required Post-Deploy Render Smoke'],
-      requireCodeOwnerReviews: false
+      requireCodeOwnerReviews: false,
+      dismissStaleReviews: false,
+      requireLastPushApproval: false,
+      requireConversationResolution: false
     })).toBe('bootstrap-safe');
 
     expect(classifyStatus({
@@ -24,12 +27,31 @@ describe('CODEOWNERS security-governance validator', () => {
         'Analyze (javascript-typescript)',
         'CodeQL Alert Gate'
       ],
-      requireCodeOwnerReviews: true
+      requireCodeOwnerReviews: true,
+      dismissStaleReviews: true,
+      requireLastPushApproval: true,
+      requireConversationResolution: true
     })).toBe('fully-enforced');
 
     expect(classifyStatus({
       contexts: ['CodeQL Alert Gate'],
-      requireCodeOwnerReviews: false
+      requireCodeOwnerReviews: false,
+      dismissStaleReviews: false,
+      requireLastPushApproval: false,
+      requireConversationResolution: false
+    })).toBe('custom-or-drifted');
+
+    expect(classifyStatus({
+      contexts: [
+        'Required Post-Deploy Render Smoke',
+        'CODEOWNERS Security Governance Gate',
+        'Analyze (javascript-typescript)',
+        'CodeQL Alert Gate'
+      ],
+      requireCodeOwnerReviews: true,
+      dismissStaleReviews: false,
+      requireLastPushApproval: true,
+      requireConversationResolution: true
     })).toBe('custom-or-drifted');
   });
 
