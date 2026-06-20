@@ -5,6 +5,12 @@
  * - AUTH-006: Doctor role enforcement in assignIntakeReviewer() and reviewIntake()
  */
 
+const RECORD_ID = '000000000000000000000001';
+const PATIENT_ID = '000000000000000000000002';
+const DOCTOR_ID = '000000000000000000000003';
+const NURSE_ID = '000000000000000000000004';
+const ADMIN_ID = '000000000000000000000005';
+
 jest.mock('../../../models/healthRecord');
 jest.mock('../../../models/patient');
 jest.mock('../../../models/user');
@@ -43,44 +49,44 @@ describe('Authorization Unit: health record access rules', () => {
   describe('AUTH-006: Doctor role enforcement in assignIntakeReviewer()', () => {
     it('should reject non-doctor user (e.g. nurse) as intake reviewer', async () => {
       HealthRecord.findById.mockResolvedValue({
-        _id: 'record1',
+        _id: RECORD_ID,
         status: 'PENDING_REVIEW',
-        patient: 'patient1'
+        patient: PATIENT_ID
       });
 
       User.findById.mockResolvedValue({
-        _id: 'nurse1',
+        _id: NURSE_ID,
         name: 'Nurse A',
         role: 'nurse'
       });
 
       await expect(
-        healthRecordService.assignIntakeReviewer('record1', 'nurse1', 'admin1')
+        healthRecordService.assignIntakeReviewer(RECORD_ID, NURSE_ID, ADMIN_ID)
       ).rejects.toThrow(/Only doctors/);
     });
 
     it('should allow doctor role as intake reviewer', async () => {
       const mockRecord = {
-        _id: 'record1',
+        _id: RECORD_ID,
         status: 'PENDING_REVIEW',
-        patient: 'patient1',
+        patient: PATIENT_ID,
         review: {},
         save: jest.fn().mockResolvedValue(true)
       };
       HealthRecord.findById.mockResolvedValue(mockRecord);
 
       User.findById.mockResolvedValue({
-        _id: 'doctor1',
+        _id: DOCTOR_ID,
         name: 'Dr. Test',
         role: 'doctor'
       });
 
       Patient.findById.mockResolvedValue({
-        _id: 'patient1',
+        _id: PATIENT_ID,
         save: jest.fn().mockResolvedValue(true)
       });
 
-      const result = await healthRecordService.assignIntakeReviewer('record1', 'doctor1', 'admin1');
+      const result = await healthRecordService.assignIntakeReviewer(RECORD_ID, DOCTOR_ID, ADMIN_ID);
 
       expect(result).toBeDefined();
       expect(mockRecord.save).toHaveBeenCalled();

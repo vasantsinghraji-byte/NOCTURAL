@@ -1,5 +1,9 @@
 const mongoose = require('mongoose');
 
+const BOOKING_ID = '000000000000000000000001';
+const SECOND_BOOKING_ID = '000000000000000000000002';
+const PATIENT_ID = '000000000000000000000003';
+
 jest.mock('../../models/nurseBooking');
 jest.mock('../../models/serviceCatalog');
 jest.mock('../../models/patient');
@@ -48,8 +52,8 @@ describe('Integration: booking rating persistence', () => {
     });
 
     const booking = {
-      _id: 'booking1',
-      patient: { toString: () => 'patient1' },
+      _id: BOOKING_ID,
+      patient: { toString: () => PATIENT_ID },
       serviceProvider: provider._id,
       status: 'COMPLETED',
       rating: {},
@@ -66,7 +70,7 @@ describe('Integration: booking rating persistence', () => {
       return provider;
     });
 
-    await bookingService.addReview('booking1', 'patient1', {
+    await bookingService.addReview(BOOKING_ID, PATIENT_ID, {
       stars: 4,
       comment: 'Great service'
     });
@@ -98,8 +102,8 @@ describe('Integration: booking rating persistence', () => {
     });
 
     const booking = {
-      _id: 'booking2',
-      patient: { toString: () => 'patient1' },
+      _id: SECOND_BOOKING_ID,
+      patient: { toString: () => PATIENT_ID },
       serviceProvider: provider._id,
       status: 'COMPLETED',
       rating: {
@@ -118,7 +122,7 @@ describe('Integration: booking rating persistence', () => {
       return provider;
     });
 
-    await bookingService.deleteReview('booking2', 'patient1');
+    await bookingService.deleteReview(SECOND_BOOKING_ID, PATIENT_ID);
 
     expect(updateSpy).toHaveBeenCalledWith(
       provider._id,

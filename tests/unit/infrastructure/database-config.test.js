@@ -5,7 +5,7 @@
  * - DB-001: MONGODB_URI has development default
  * - DB-002: Production pool size increased (maxPoolSize: 50, configurable)
  * - DB-003: writeConcern w:'majority' with journal and timeout
- * - DB-004: readPreference 'secondaryPreferred' for replica load balancing
+ * - DB-004: readPreference defaults to read-after-write consistency
  * - DB-005: update-user.js uses MONGODB_URI (not MONGO_URI)
  */
 
@@ -60,9 +60,9 @@ describe('Phase 6 — Database Configuration', () => {
     });
   });
 
-  describe('DB-004: readPreference for replica load balancing', () => {
-    it('should default to secondaryPreferred', () => {
-      expect(dbSrc).toMatch(/readPreference.*secondaryPreferred/);
+  describe('DB-004: readPreference consistency', () => {
+    it('should default to primaryPreferred and allow an environment override', () => {
+      expect(dbSrc).toMatch(/readPreference:\s*process\.env\.MONGODB_READ_PREFERENCE\s*\|\|\s*['"]primaryPreferred['"]/);
     });
 
     it('should be configurable via MONGODB_READ_PREFERENCE env var', () => {

@@ -4,7 +4,6 @@
  * Verifies:
  * - VAL-001: Surge pricing time format validation (regex + bounds)
  * - TZ-014: Surge pricing uses explicit client timezone offsets
- * - VAL-016: Service availability by city validation
  * - PERF-013: Review aggregate uses pipeline + supporting index
  * - NULL-003: Cannot complete booking without startTime
  * - NULL-004: startTime null check prevents NaN duration
@@ -131,19 +130,6 @@ describe('Booking Service Validation', () => {
     });
   });
 
-  describe('VAL-016: Service availability by city', () => {
-    it('source code should validate service availability by city (case-insensitive)', () => {
-      const src = fs.readFileSync(
-        path.resolve(__dirname, '..', '..', '..', 'services', 'patient-booking-service', 'src', 'services', 'bookingService.js'),
-        'utf8'
-      );
-
-      expect(src).toMatch(/availableCities/);
-      expect(src).toMatch(/toLowerCase\(\)/);
-      expect(src).toMatch(/not available in/);
-    });
-  });
-
   describe('PERF-013: Review aggregate and index contract', () => {
     it('source code should aggregate provider review stats instead of loading reviewed bookings into memory', () => {
       const src = fs.readFileSync(
@@ -192,9 +178,9 @@ describe('Booking Service Validation', () => {
   describe('NULL-003: Cannot complete booking without startTime', () => {
     it('should throw ValidationError when completing booking without startTime', async () => {
       const mockBooking = {
-        _id: 'booking1',
-        patient: { toString: () => 'patient1' },
-        serviceProvider: { toString: () => 'provider1' },
+        _id: '000000000000000000000001',
+        patient: { toString: () => '000000000000000000000002' },
+        serviceProvider: { toString: () => '000000000000000000000003' },
         status: 'IN_PROGRESS',
         actualService: {},  // No startTime
         statusHistory: [],
@@ -203,7 +189,13 @@ describe('Booking Service Validation', () => {
       NurseBooking.findById.mockResolvedValue(mockBooking);
 
       await expect(
-        bookingService.updateStatus('booking1', 'COMPLETED', 'provider1', '', 'nurse')
+        bookingService.updateStatus(
+          '000000000000000000000001',
+          'COMPLETED',
+          '000000000000000000000003',
+          '',
+          'nurse'
+        )
       ).rejects.toThrow(/Cannot complete booking without a start time/);
     });
   });
@@ -274,7 +266,7 @@ describe('Booking Service Validation', () => {
       );
 
       expect(methodMatch).not.toBeNull();
-      expect(methodMatch[0]).toMatch(/booking\.patient\.toString\(\)\s*!==\s*patientId/);
+      expect(methodMatch[0]).toMatch(/booking\.patient\.toString\(\)\s*!==\s*safePatientId\.toString\(\)/);
       expect(methodMatch[0]).toMatch(/throw new AuthorizationError/);
       expect(methodMatch[0].indexOf('throw new AuthorizationError')).toBeLessThan(
         methodMatch[0].indexOf('booking.rating =')

@@ -58,7 +58,7 @@ describe('Service Health Validation', () => {
       const calendarService = require('../../../services/calendarService');
 
       await expect(
-        calendarService.setAvailability('user1', [
+        calendarService.setAvailability('000000000000000000000001', [
           { startTime: '18:00', endTime: '10:00' }
         ])
       ).rejects.toMatchObject({

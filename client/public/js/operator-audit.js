@@ -73,7 +73,7 @@
         }
         var age = Number(job.quarantineAgeHours || 0);
         var maxAge = Number(job.quarantineMaxAgeHours || 0);
-        var label = 'Age ' + age.toFixed(1) + 'h';
+        var label = 'Age ' + AppFormat.decimal(age, 1) + 'h';
         if (job.quarantineOverSla) label += ' | SLA breached';
         if (maxAge) label += ' | max ' + maxAge + 'h';
         badge.textContent = label;

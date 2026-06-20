@@ -7,6 +7,10 @@
  * - RACE-008: patient address query updates validate nested payloads atomically
  */
 
+const mongoose = require('mongoose');
+const REPORT_ID = '000000000000000000000001';
+const DOCTOR_ID = '000000000000000000000002';
+
 jest.mock('../../../models/emergencySummary');
 jest.mock('../../../models/investigationReport');
 jest.mock('../../../models/patient');
@@ -89,25 +93,25 @@ describe('Phase 2 — Emergency, Investigation & Patient', () => {
 
   describe('RACE-007: pickReportFromQueue atomic guard', () => {
     it('should use findOneAndUpdate with unassigned guard', async () => {
-      User.findById.mockResolvedValue({ _id: 'doctor1', role: 'doctor' });
+      User.findById.mockResolvedValue({ _id: DOCTOR_ID, role: 'doctor' });
 
       const mockReport = {
-        _id: 'report1',
+        _id: REPORT_ID,
         doctorReview: {
           assignmentType: 'AUTO_QUEUE',
-          assignedTo: 'doctor1'
+          assignedTo: DOCTOR_ID
         }
       };
       InvestigationReport.findOneAndUpdate.mockResolvedValue(mockReport);
 
-      await pickReportFromQueue('report1', 'doctor1');
+      await pickReportFromQueue(REPORT_ID, DOCTOR_ID);
 
       expect(InvestigationReport.findOneAndUpdate).toHaveBeenCalledTimes(1);
       const [filter, update, options] = InvestigationReport.findOneAndUpdate.mock.calls[0];
 
       // Guard: auto-queue, not yet assigned, pending review
       expect(filter).toEqual(expect.objectContaining({
-        _id: 'report1',
+        _id: new mongoose.Types.ObjectId(REPORT_ID),
         'doctorReview.assignmentType': 'AUTO_QUEUE',
         'doctorReview.assignedTo': { $exists: false },
         status: 'PENDING_DOCTOR_REVIEW'
@@ -115,18 +119,18 @@ describe('Phase 2 — Emergency, Investigation & Patient', () => {
 
       // Should assign the doctor
       expect(update.$set).toEqual(expect.objectContaining({
-        'doctorReview.assignedTo': 'doctor1'
+        'doctorReview.assignedTo': new mongoose.Types.ObjectId(DOCTOR_ID)
       }));
 
       expect(options).toEqual(expect.objectContaining({ new: true }));
     });
 
     it('should throw when report already picked (findOneAndUpdate returns null)', async () => {
-      User.findById.mockResolvedValue({ _id: 'doctor1', role: 'doctor' });
+      User.findById.mockResolvedValue({ _id: DOCTOR_ID, role: 'doctor' });
       InvestigationReport.findOneAndUpdate.mockResolvedValue(null);
 
       await expect(
-        pickReportFromQueue('report1', 'doctor1')
+        pickReportFromQueue(REPORT_ID, DOCTOR_ID)
       ).rejects.toThrow(/not available or already picked/);
     });
   });

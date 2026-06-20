@@ -6,7 +6,7 @@ jest.mock('../../../services/compromisedPasswordService', () => ({
 }));
 jest.mock('../../../services/webAuthnService', () => ({
   consumePasswordConfirmation: jest.fn().mockResolvedValue()
-}), { virtual: true });
+}));
 jest.mock('../../../models/securityNotificationOutbox', () => ({
   create: jest.fn().mockResolvedValue({})
 }));
@@ -18,8 +18,11 @@ const webAuthnService = require('../../../services/webAuthnService');
 const passwordSecurityService = require('../../../services/passwordSecurityService');
 const { getRequestSecurityMetadata } = require('../../../utils/requestSecurityMetadata');
 
+const USER_ID = '000000000000000000000001';
+const CONFIRMATION_ID = '000000000000000000000002';
+
 const makeIdentity = credentials => ({
-  _id: 'user-1',
+  _id: USER_ID,
   email: 'user@example.test',
   name: 'User',
   password: 'old',
@@ -43,18 +46,18 @@ describe('password MFA, outbox, and proxy hardening', () => {
 
     await passwordSecurityService.changePassword({
       IdentityModel,
-      identityId: 'user-1',
+      identityId: USER_ID,
       userType: 'user',
       currentPassword: 'old',
       newPassword: 'NewPassword@123',
-      webauthnConfirmationId: 'confirmation-1'
+      webauthnConfirmationId: CONFIRMATION_ID
     });
 
     expect(webAuthnService.consumePasswordConfirmation).toHaveBeenCalledWith(
       expect.objectContaining({
-        identityId: 'user-1',
+        identityId: USER_ID,
         identityType: 'user',
-        confirmationId: 'confirmation-1'
+        confirmationId: CONFIRMATION_ID
       })
     );
   });

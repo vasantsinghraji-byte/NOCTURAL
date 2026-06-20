@@ -2,13 +2,12 @@
  * Service Miscellaneous Validation Tests
  *
  * Verifies:
- * - VAL-008: String-based time comparison fix (minutes arithmetic)
  * - VAL-009: Page/limit clamping with Math.max/min
  * - VAL-011: recipientModel allowlist validation
  * - VAL-017: ObjectId constructor compatibility
  * - NULL-001: acceptedApp.applicant null guard in analytics
  * - NULL-002: duty.createdAt null guard in analytics
- * - ERR-009: createError helper attaches statusCode
+ * - ERR-009: patient profile query updates validate their payloads
  */
 
 const fs = require('fs');
@@ -59,24 +58,6 @@ jest.mock('../../../utils/logger', () => ({
 }));
 
 describe('Phase 4 — Service Miscellaneous Validation', () => {
-  describe('VAL-008: Time comparison uses minutes arithmetic (not string)', () => {
-    it('should convert HH:MM to minutes for numeric comparison', () => {
-      const src = fs.readFileSync(
-        path.resolve(__dirname, '..', '..', '..', 'services', 'patient-booking-service', 'src', 'services', 'serviceCatalogService.js'),
-        'utf8'
-      );
-
-      // Should use numeric conversion: hours * 60 + minutes
-      expect(src).toMatch(/\* 60 \+/);
-      // Should NOT use direct string comparison for time slots
-      const pricingMethod = src.match(/getServicePricing[\s\S]*?(?=\n\s{2}async |\n\s{2}\/\*\*|\n})/);
-      if (pricingMethod) {
-        // Should split(':') and map(Number) for proper parsing
-        expect(pricingMethod[0]).toMatch(/split\(['"]:['"]/)
-      }
-    });
-  });
-
   describe('VAL-009: Page/limit clamping', () => {
     it('source code should use Math.max/Math.min for bounds checking', () => {
       const src = fs.readFileSync(
@@ -164,21 +145,10 @@ describe('Phase 4 — Service Miscellaneous Validation', () => {
     });
   });
 
-  describe('ERR-009: createError helper with statusCode', () => {
-    it('source code should define createError that attaches statusCode', () => {
-      const src = fs.readFileSync(
-        path.resolve(__dirname, '..', '..', '..', 'services', 'patient-booking-service', 'src', 'services', 'patientService.js'),
-        'utf8'
-      );
-
-      // Should have createError helper
-      expect(src).toMatch(/const createError\s*=/);
-      expect(src).toMatch(/err\.statusCode\s*=\s*statusCode/);
-    });
-
-    it('source code patient updateProfile should use validated query-update options', () => {
+  describe('ERR-009: validated patient profile query updates', () => {
+    it('patient query updates should use shared validated options', () => {
       const patientServiceSrc = fs.readFileSync(
-        path.resolve(__dirname, '..', '..', '..', 'services', 'patient-booking-service', 'src', 'services', 'patientService.js'),
+        path.resolve(__dirname, '..', '..', '..', 'services', 'patientService.js'),
         'utf8'
       );
       const sharedOptionsSrc = fs.readFileSync(

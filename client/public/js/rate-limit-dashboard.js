@@ -183,7 +183,7 @@
                 var row = document.createElement('tr');
                 appendCell(row, endpoint.path);
                 appendCell(row, endpoint.hits);
-                appendCell(row, (endpoint.blockRate * 100).toFixed(1) + '%');
+                appendCell(row, AppFormat.percent(endpoint.blockRate * 100, 1));
                 appendStatusCell(row, endpoint.blockRate);
                 return row;
             });
@@ -260,7 +260,7 @@
             attempts,
             metrics.approvalNotificationsSent || 0,
             failures,
-            attempts ? ((failures / attempts) * 100).toFixed(1) + '%' : '0.0%'
+            attempts ? AppFormat.percent((failures / attempts) * 100, 1) : '0.0%'
         ].forEach(function (value) {
             appendCell(notificationRow, value);
         });
@@ -271,7 +271,7 @@
         try {
             var data = await AppConfig.fetchRoute('adminMetrics.rateLimits', { parseJson: true });
 
-            setText('authBlockRate', (data.metrics.auth.blockRate * 100).toFixed(1) + '%');
+            setText('authBlockRate', AppFormat.percent(data.metrics.auth.blockRate * 100, 1));
             setText('apiTotal', data.metrics.api.total.toLocaleString());
             setText('blockedCount', data.blocked.length);
             updateSystemStatus(data);

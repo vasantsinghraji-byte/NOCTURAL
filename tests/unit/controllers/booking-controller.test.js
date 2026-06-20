@@ -38,9 +38,6 @@ const createRes = () => {
 };
 
 const createReviewReq = (overrides = {}) => ({
-  params: { id: 'booking123' },
-  body: { stars: 5, comment: 'Excellent service' },
-  user: { id: 'patient123' },
   ...overrides,
   params: {
     id: 'booking123',

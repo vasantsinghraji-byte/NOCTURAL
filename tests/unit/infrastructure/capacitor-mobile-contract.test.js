@@ -24,7 +24,7 @@ describe('Capacitor mobile application contract', () => {
       'BackgroundGeolocation',
       'PushNotifications'
     ].forEach((pluginName) => expect(bridge).toContain(pluginName));
-    expect(bridge).toContain("AppConfig.fetch('mobile-devices'");
+    expect(bridge).toContain("AppConfig.fetchRoute('mobileDevices.root'");
   });
 
   it('hardens the generated Android app and ignores Firebase credentials', () => {
