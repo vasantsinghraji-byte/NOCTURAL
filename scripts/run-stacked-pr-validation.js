@@ -18,10 +18,7 @@ const STACK_BRANCHES = new Set([
 ]);
 
 const DEPENDENCY_AUDIT_BRANCH = 'fix/dependency-audit-highs';
-const GOVERNANCE_VALIDATION_BRANCHES = new Set([
-  'chore/stack-ready-ci-gates',
-  'chore/require-codeql-alert-gate'
-]);
+const STACK_CI_GOVERNANCE_BRANCH = 'chore/stack-ready-ci-gates';
 
 const command = (run, env = {}) => ({ run, env });
 
@@ -241,12 +238,12 @@ const mode = process.argv[2];
 
 const tables = { lint: LINTS, test: TESTS, security: SECURITY };
 
-const validationBranch = GOVERNANCE_VALIDATION_BRANCHES.has(branch)
+const validationBranch = branch === STACK_CI_GOVERNANCE_BRANCH
   ? 'chore/repo-governance-lint-ci'
   : branch;
 const isStackBranch = STACK_BRANCHES.has(branch) ||
   branch === DEPENDENCY_AUDIT_BRANCH ||
-  GOVERNANCE_VALIDATION_BRANCHES.has(branch);
+  branch === STACK_CI_GOVERNANCE_BRANCH;
 const selected = isStackBranch && tables[mode] && tables[mode][validationBranch]
   ? tables[mode][validationBranch]
   : FULL[mode];

@@ -30,8 +30,7 @@ describe('ready stacked PR CI gates', () => {
   });
 
   it('keeps this governance branch on targeted validation', () => {
-    expect(validator).toContain("'chore/stack-ready-ci-gates'");
-    expect(validator).toContain("'chore/require-codeql-alert-gate'");
+    expect(validator).toContain("const STACK_CI_GOVERNANCE_BRANCH = 'chore/stack-ready-ci-gates';");
     expect(validator).toContain("? 'chore/repo-governance-lint-ci'");
   });
 });
