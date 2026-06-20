@@ -8,6 +8,9 @@ const Duty = require('../models/duty');
 const HospitalSettings = require('../models/hospitalSettings');
 const User = require('../models/user');
 const { roundToDecimals } = require('../utils/number');
+const { rateLimiters } = require('../config/rateLimit');
+
+router.use(rateLimiters.api);
 
 // @route   GET /api/analytics/doctor
 // @desc    Get doctor analytics dashboard

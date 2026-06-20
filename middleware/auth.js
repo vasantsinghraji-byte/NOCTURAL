@@ -1,27 +1,9 @@
-const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const { isValidRole } = require('../constants/roles');
 const logger = require('../utils/logger');
-
-const JWT_ALGORITHM = 'HS256';
-const JWT_ISSUER = 'nocturnal-api';
-const JWT_AUDIENCE = 'nocturnal';
-
-const JWT_ACCESS_SIGN_OPTIONS = Object.freeze({
-  algorithm: JWT_ALGORITHM,
-  issuer: JWT_ISSUER,
-  audience: JWT_AUDIENCE
-});
-
-const JWT_REFRESH_SIGN_OPTIONS = JWT_ACCESS_SIGN_OPTIONS;
-
-const JWT_ACCESS_VERIFY_OPTIONS = Object.freeze({
-  algorithms: [JWT_ALGORITHM],
-  issuer: JWT_ISSUER,
-  audience: JWT_AUDIENCE
-});
-
-const JWT_REFRESH_VERIFY_OPTIONS = JWT_ACCESS_VERIFY_OPTIONS;
+const authTokens = require('../utils/authTokens');
+const { normalizeObjectId } = require('../utils/safeMongo');
+const { IDENTITY_TYPES } = authTokens;
 
 const normalizeAuthenticatedUser = (user) => {
   if (!user) return user;
@@ -33,26 +15,47 @@ const normalizeAuthenticatedUser = (user) => {
   return user;
 };
 
+const getCookieValue = (cookieHeader, targetName) => {
+  if (!cookieHeader || typeof cookieHeader !== 'string') {
+    return null;
+  }
+
+  for (const cookiePair of cookieHeader.split(';')) {
+    const separatorIndex = cookiePair.indexOf('=');
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const name = cookiePair.slice(0, separatorIndex).trim();
+    if (name === targetName) {
+      return decodeURIComponent(cookiePair.slice(separatorIndex + 1).trim());
+    }
+  }
+
+  return null;
+};
+
 const parseCookieHeader = (cookieHeader) => {
   if (!cookieHeader || typeof cookieHeader !== 'string') {
     return {};
   }
 
-  return cookieHeader.split(';').reduce((cookies, cookiePair) => {
+  const cookies = new Map();
+  for (const cookiePair of cookieHeader.split(';')) {
     const separatorIndex = cookiePair.indexOf('=');
     if (separatorIndex === -1) {
-      return cookies;
+      continue;
     }
 
     const name = cookiePair.slice(0, separatorIndex).trim();
-    const value = cookiePair.slice(separatorIndex + 1).trim();
-
-    if (name) {
-      cookies[name] = decodeURIComponent(value);
+    if (!name) {
+      continue;
     }
 
-    return cookies;
-  }, {});
+    cookies.set(name, decodeURIComponent(cookiePair.slice(separatorIndex + 1).trim()));
+  }
+
+  return Object.fromEntries(cookies);
 };
 
 const getAccessTokenFromRequest = (req) => {
@@ -60,7 +63,7 @@ const getAccessTokenFromRequest = (req) => {
     return req.cookies.accessToken;
   }
 
-  const cookieToken = parseCookieHeader(req.headers.cookie).accessToken;
+  const cookieToken = getCookieValue(req.headers.cookie, 'accessToken');
   if (cookieToken) {
     return cookieToken;
   }
@@ -72,31 +75,30 @@ const getAccessTokenFromRequest = (req) => {
   return null;
 };
 
-const verifyAccessToken = (token) => jwt.verify(token, process.env.JWT_SECRET, JWT_ACCESS_VERIFY_OPTIONS);
+const requireAccessTokenFromRequest = (req) => {
+  const token = getAccessTokenFromRequest(req);
+  if (!token) {
+    const error = new Error('No access token provided');
+    error.name = 'MissingAccessTokenError';
+    throw error;
+  }
+  return token;
+};
 
-const verifyRefreshToken = (token) => jwt.verify(
-  token,
-  process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
-  JWT_REFRESH_VERIFY_OPTIONS
-);
+const verifyAccessToken = authTokens.verifyAccessToken;
+const verifyRefreshToken = authTokens.verifyRefreshToken;
 
 // Protect routes - SECURED with proper JWT verification
 exports.protect = async (req, res, next) => {
   try {
-    const token = getAccessTokenFromRequest(req);
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Not authorized - No token provided'
-      });
-    }
+    const token = requireAccessTokenFromRequest(req);
 
     // Verify JWT token with signature validation - CRITICAL FIX
-    const decoded = verifyAccessToken(token);
+    const decoded = verifyAccessToken(token, IDENTITY_TYPES.USER);
 
     // Get user from database
-    const user = await User.findById(decoded.id).select('-password');
+    const decodedUserId = normalizeObjectId(decoded.id, 'token subject');
+    const user = await User.findById(decodedUserId).select('-password +sessionVersion');
 
     if (!user) {
       return res.status(401).json({
@@ -124,10 +126,23 @@ exports.protect = async (req, res, next) => {
       }
     }
 
+    if ((Number(user.sessionVersion) || 0) !== (Number(decoded.sessionVersion) || 0)) {
+      return res.status(401).json({
+        success: false,
+        message: 'Session has been invalidated - please login again'
+      });
+    }
+
     // Attach user to request
     req.user = normalizeAuthenticatedUser(user);
     next();
   } catch (error) {
+    if (error.name === 'MissingAccessTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized - No token provided'
+      });
+    }
     // Handle specific JWT errors
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
@@ -205,29 +220,20 @@ exports.authorize = (...roles) => {
 };
 
 // Generate JWT Token with strong expiration
-exports.generateAccessToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    ...JWT_ACCESS_SIGN_OPTIONS,
-    expiresIn: process.env.JWT_ACCESS_EXPIRE || '15m'
-  });
-};
-
-exports.generateRefreshToken = (id) => {
-  return jwt.sign({ id, type: 'refresh' }, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
-    ...JWT_REFRESH_SIGN_OPTIONS,
-    expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d'
-  });
-};
+exports.generateAccessToken = authTokens.generateAccessToken;
+exports.generateRefreshToken = authTokens.generateRefreshToken;
 
 exports.generateToken = exports.generateAccessToken;
 exports.parseCookieHeader = parseCookieHeader;
 exports.getAccessTokenFromRequest = getAccessTokenFromRequest;
 exports.verifyAccessToken = verifyAccessToken;
 exports.verifyRefreshToken = verifyRefreshToken;
-exports.JWT_ALGORITHM = JWT_ALGORITHM;
-exports.JWT_ISSUER = JWT_ISSUER;
-exports.JWT_AUDIENCE = JWT_AUDIENCE;
-exports.JWT_ACCESS_SIGN_OPTIONS = JWT_ACCESS_SIGN_OPTIONS;
-exports.JWT_REFRESH_SIGN_OPTIONS = JWT_REFRESH_SIGN_OPTIONS;
-exports.JWT_ACCESS_VERIFY_OPTIONS = JWT_ACCESS_VERIFY_OPTIONS;
-exports.JWT_REFRESH_VERIFY_OPTIONS = JWT_REFRESH_VERIFY_OPTIONS;
+exports.IDENTITY_TYPES = IDENTITY_TYPES;
+exports.TOKEN_VERSION = authTokens.TOKEN_VERSION;
+exports.JWT_ALGORITHM = authTokens.JWT_ALGORITHM;
+exports.JWT_ISSUER = authTokens.JWT_ISSUER;
+exports.JWT_AUDIENCE = authTokens.JWT_AUDIENCE_BY_IDENTITY[IDENTITY_TYPES.USER];
+exports.JWT_ACCESS_SIGN_OPTIONS = authTokens.JWT_ACCESS_SIGN_OPTIONS;
+exports.JWT_REFRESH_SIGN_OPTIONS = authTokens.JWT_REFRESH_SIGN_OPTIONS;
+exports.JWT_ACCESS_VERIFY_OPTIONS = authTokens.JWT_ACCESS_VERIFY_OPTIONS;
+exports.JWT_REFRESH_VERIFY_OPTIONS = authTokens.JWT_REFRESH_VERIFY_OPTIONS;

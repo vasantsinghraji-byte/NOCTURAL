@@ -33,7 +33,11 @@ const { mockRequest, mockResponse, mockNext } = require('../../helpers');
 const JWT_SECRET = process.env.JWT_SECRET;
 
 describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
-  const signAccessToken = (payload, options = {}) => jwt.sign(payload, JWT_SECRET, {
+  const signAccessToken = (payload, options = {}) => jwt.sign({
+    identityType: 'user',
+    tokenVersion: 1,
+    ...payload
+  }, JWT_SECRET, {
     ...JWT_ACCESS_SIGN_OPTIONS,
     ...options
   });
@@ -250,6 +254,25 @@ describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
       expect(req.user).toBeDefined();
     });
 
+    it('should reject a token with an obsolete account session version', async () => {
+      const token = signAccessToken({ id: mockUser._id, sessionVersion: 3 }, { expiresIn: '1h' });
+      const req = mockRequest({ headers: { authorization: `Bearer ${token}` } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      User.findById = jest.fn().mockReturnValue({
+        select: jest.fn().mockResolvedValue({ ...mockUser, sessionVersion: 4 })
+      });
+
+      await protect(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('Session has been invalidated') })
+      );
+      expect(next).not.toHaveBeenCalled();
+    });
+
     it('should not leak error details in JWT error responses (SEC-014)', async () => {
       const req = mockRequest({
         headers: { authorization: 'Bearer completely.invalid.token' }
@@ -375,7 +398,9 @@ describe('Security Unit: auth middleware JWT and RBAC enforcement', () => {
       expect(decoded.id).toBe('507f1f77bcf86cd799439011');
       expect(decoded.exp).toBeDefined();
       expect(decoded.iss).toBe('nocturnal-api');
-      expect(decoded.aud).toBe('nocturnal');
+      expect(decoded.aud).toBe('nocturnal:user');
+      expect(decoded.identityType).toBe('user');
+      expect(decoded.tokenVersion).toBe(1);
     });
 
     it('should set access token expiry to 15m by default', () => {

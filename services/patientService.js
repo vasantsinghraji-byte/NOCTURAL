@@ -8,8 +8,10 @@
 const Patient = require('../models/patient');
 const authTokens = require('../middleware/auth');
 const logger = require('../utils/logger');
+const passwordSecurityService = require('./passwordSecurityService');
 const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
 const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
+const { AuthenticationError } = require('../utils/errors');
 
 const generateAccessToken = authTokens.generateAccessToken || authTokens.generateToken;
 const generateRefreshToken = authTokens.generateRefreshToken || authTokens.generateToken;
@@ -461,6 +463,30 @@ class PatientService {
     }
 
     return await patient.comparePassword(password);
+  }
+
+  async updatePassword(patientId, currentPassword, newPassword, securityOptions = {}) {
+    const result = await passwordSecurityService.changePassword({
+      IdentityModel: Patient,
+      identityId: patientId,
+      userType: 'patient',
+      currentPassword,
+      newPassword,
+      ...securityOptions,
+      notFoundError: {
+        statusCode: HTTP_STATUS.NOT_FOUND,
+        message: 'Patient not found'
+      },
+      invalidPasswordError: new AuthenticationError('Current password is incorrect')
+    });
+
+    logger.info('Patient Password Updated', {
+      patientId: result.identity._id,
+      email: result.identity.email,
+      revokedSessions: result.revokedSessions
+    });
+
+    return result;
   }
 
   /**

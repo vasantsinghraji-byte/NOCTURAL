@@ -100,9 +100,14 @@ const LINTS = {
   ],
   'fix/auth-session-revocation': [
     command('node --check controllers/authController.js'),
+    command('node --check middleware/auth.js'),
+    command('node --check middleware/patientAuth.js'),
+    command('node --check routes/analytics.js'),
     command('node --check services/authService.js'),
     command('node --check services/patientService.js'),
-    command('node --check services/passwordSecurityService.js')
+    command('node --check services/passwordSecurityService.js'),
+    command('node --check services/compromisedPasswordService.js'),
+    command('node --check utils/authTokens.js')
   ],
   'feature/auth-webauthn-recovery': [
     command('node --check services/webAuthnService.js'),

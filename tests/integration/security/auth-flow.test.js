@@ -38,7 +38,9 @@ describe('Security Integration: JWT lifecycle and auth middleware chain', () => 
       const decoded = jwt.verify(token, process.env.JWT_SECRET, JWT_ACCESS_VERIFY_OPTIONS);
       expect(decoded.id).toBe(userId);
       expect(decoded.iss).toBe('nocturnal-api');
-      expect(decoded.aud).toBe('nocturnal');
+      expect(decoded.aud).toBe('nocturnal:user');
+      expect(decoded.identityType).toBe('user');
+      expect(decoded.tokenVersion).toBe(1);
 
       // Verify expiry is set
       expect(decoded.exp).toBeDefined();
@@ -190,7 +192,8 @@ describe('Security Integration: JWT lifecycle and auth middleware chain', () => 
       const encrypted = encrypt('test data');
       // Tamper with the ciphertext portion
       const parts = encrypted.split(':');
-      parts[1] = 'ff' + parts[1].substring(2); // Corrupt ciphertext
+      const ciphertextIndex = parts.length - 1;
+      parts[ciphertextIndex] = `${parts[ciphertextIndex][0] === 'a' ? 'b' : 'a'}${parts[ciphertextIndex].slice(1)}`;
       const tampered = parts.join(':');
 
       const result = decrypt(tampered);
