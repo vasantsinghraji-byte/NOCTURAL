@@ -340,7 +340,8 @@ EmergencySummarySchema.statics.findByToken = async function(token) {
 EmergencySummarySchema.statics.isValidQRTokenFormat = isValidQRTokenFormat;
 
 // Static: Update from health record
-EmergencySummarySchema.statics.updateFromHealthRecord = async function(patientId, healthRecord, patientData) {
+EmergencySummarySchema.statics.updateFromHealthRecord = async function(patientId, healthRecord, patientData, options = {}) {
+  const { session } = options;
   const snapshot = healthRecord.healthSnapshot || {};
 
   // Extract critical conditions (severe/life-threatening)
@@ -408,7 +409,7 @@ EmergencySummarySchema.statics.updateFromHealthRecord = async function(patientId
       lastUpdated: new Date(),
       sourceHealthRecord: healthRecord._id
     },
-    { upsert: true, new: true }
+    session ? { upsert: true, new: true, session } : { upsert: true, new: true }
   );
 };
 

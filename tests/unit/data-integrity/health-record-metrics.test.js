@@ -33,6 +33,13 @@ jest.mock('../../../utils/errors', () => ({
     constructor(m) { super(m); this.name = 'AuthorizationError'; }
   }
 }));
+jest.mock('../../../utils/safeMongo', () => {
+  const actual = jest.requireActual('../../../utils/safeMongo');
+  return {
+    ...actual,
+    normalizeObjectId: value => value
+  };
+});
 
 const HealthMetric = require('../../../models/healthMetric');
 const HealthRecord = require('../../../models/healthRecord');
@@ -79,6 +86,35 @@ describe('Phase 2 — Health Record & Metrics', () => {
       expect(docs).toHaveLength(2);
       expect(docs[0]).toEqual(expect.objectContaining({ patient: 'patient1', metricType: 'BP_SYSTOLIC' }));
       expect(docs[1]).toEqual(expect.objectContaining({ patient: 'patient1', metricType: 'HEART_RATE' }));
+    });
+
+    it('should pass the transaction session to metric reads and batch insert', async () => {
+      const session = { id: 'session1' };
+      const patientId = '64f000000000000000000101';
+      const bookingId = '64f000000000000000000102';
+      const patientQuery = {
+        session: jest.fn().mockResolvedValue({ _id: patientId })
+      };
+
+      Patient.findById.mockReturnValue(patientQuery);
+      HealthMetric.insertMany.mockResolvedValue([
+        { metricType: 'HEART_RATE', value: 72, isAbnormal: false }
+      ]);
+
+      await healthMetricService.recordMultipleMetrics(
+        patientId,
+        [{ metricType: 'HEART_RATE', value: 72 }],
+        { type: 'BOOKING', bookingId },
+        { session }
+      );
+
+      expect(patientQuery.session).toHaveBeenCalledWith(session);
+      expect(HealthMetric.insertMany).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ patient: patientId, metricType: 'HEART_RATE' })
+        ]),
+        { session }
+      );
     });
   });
 
@@ -212,6 +248,63 @@ describe('Phase 2 — Health Record & Metrics', () => {
           runValidators: true,
           context: 'query'
         }
+      );
+    });
+
+    it('should pass the transaction session through health-record append writes', async () => {
+      const session = { id: 'session1' };
+      const patientId = '64f000000000000000000201';
+      const bookingId = '64f000000000000000000202';
+      const patientQuery = {
+        session: jest.fn().mockResolvedValue({
+          _id: patientId,
+          currentHealthRecordVersion: 2
+        })
+      };
+      const latestQuery = {
+        session: jest.fn().mockResolvedValue({
+          healthSnapshot: { toObject: () => ({ allergies: [] }) }
+        })
+      };
+      const mockRecord = {
+        _id: 'record2',
+        version: 3,
+        previousVersion: 'record1',
+        save: jest.fn().mockResolvedValue(true),
+        computeChanges: jest.fn().mockResolvedValue(null)
+      };
+
+      Patient.findById.mockReturnValue(patientQuery);
+      HealthRecord.getLatestApproved = jest.fn().mockReturnValue(latestQuery);
+      HealthRecord.mockImplementation(() => mockRecord);
+      Patient.findOneAndUpdate.mockResolvedValue({
+        _id: 'patient1',
+        currentHealthRecordVersion: 3
+      });
+      EmergencySummary.updateFromHealthRecord = jest.fn().mockResolvedValue(true);
+
+      await healthRecordService.appendUpdate(
+        patientId,
+        { allergies: [{ allergen: 'Pollen' }] },
+        { type: 'BOOKING', bookingId },
+        { session }
+      );
+
+      expect(patientQuery.session).toHaveBeenCalledWith(session);
+      expect(latestQuery.session).toHaveBeenCalledWith(session);
+      expect(mockRecord.save).toHaveBeenCalledWith({ session });
+      expect(mockRecord.computeChanges).toHaveBeenCalledWith({ session });
+      expect(Patient.findOneAndUpdate.mock.calls[0][2]).toEqual({
+        new: true,
+        runValidators: true,
+        context: 'query',
+        session
+      });
+      expect(EmergencySummary.updateFromHealthRecord).toHaveBeenCalledWith(
+        patientId,
+        mockRecord,
+        expect.objectContaining({ _id: 'patient1' }),
+        { session }
       );
     });
   });
