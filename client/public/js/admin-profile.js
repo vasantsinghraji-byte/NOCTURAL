@@ -158,7 +158,7 @@ function showMessage(text, type) {
   var div = document.createElement('div');
   div.className = 'message ' + type;
   div.textContent = text;
-  container.innerHTML = '';
+  AppUi.setSafeHtml(container, '');
   container.appendChild(div);
 
   if (type === 'success') {
@@ -167,7 +167,7 @@ function showMessage(text, type) {
 }
 
 function clearMessage() {
-  document.getElementById('messageContainer').innerHTML = '';
+  AppUi.setSafeHtml(document.getElementById('messageContainer'), '');
 }
 
 window.addEventListener('DOMContentLoaded', function () {

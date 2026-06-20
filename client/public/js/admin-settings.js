@@ -142,17 +142,81 @@
 
         function showMessage(text, type) {
             const container = document.getElementById('messageContainer');
-            container.innerHTML = `<div class="alert ${type}">${text}</div>`;
+            AppUi.setSafeHtml(container, `<div class="alert ${type}">${text}</div>`);
 
             // Auto-hide success messages
             if (type === 'success') {
                 setTimeout(() => {
-                    container.innerHTML = '';
+                    AppUi.setSafeHtml(container, '');
                 }, 5000);
             }
 
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function appendAuditCell(row, text) {
+            const cell = document.createElement('td');
+            cell.textContent = text || '-';
+            row.appendChild(cell);
+        }
+
+        function renderSecurityAudit(events) {
+            const container = document.getElementById('securityAuditList');
+            container.textContent = '';
+
+            if (!events || events.length === 0) {
+                container.textContent = 'No matching security audit events.';
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.className = 'audit-table';
+            const header = document.createElement('tr');
+            ['Time', 'Event', 'Actor', 'Outcome', 'IP', 'Details'].forEach((label) => {
+                const th = document.createElement('th');
+                th.textContent = label;
+                header.appendChild(th);
+            });
+            table.appendChild(header);
+
+            events.forEach((event) => {
+                const row = document.createElement('tr');
+                appendAuditCell(row, event.createdAt ? new Date(event.createdAt).toLocaleString() : '-');
+                appendAuditCell(row, event.event);
+                appendAuditCell(row, `${event.actorType || '-'}:${event.actorId || '-'}`);
+                appendAuditCell(row, event.outcome);
+                appendAuditCell(row, event.ipAddress);
+                appendAuditCell(row, JSON.stringify(event.metadata || {}));
+                table.appendChild(row);
+            });
+
+            container.appendChild(table);
+        }
+
+        async function loadSecurityAudit() {
+            const token = checkAuth();
+            if (!token) return;
+
+            const message = document.getElementById('securityAuditMessage');
+            const eventFilter = document.getElementById('securityAuditEvent').value;
+            const outcomeFilter = document.getElementById('securityAuditOutcome').value;
+            const query = { limit: '50' };
+            if (eventFilter) query.event = eventFilter;
+            if (outcomeFilter) query.outcome = outcomeFilter;
+
+            try {
+                const response = await AppConfig.fetchRoute('adminSecurityAudit.webauthn', {
+                    parseJson: true
+                }, { query });
+                const data = NocturnalSession.expectJsonSuccess(response, 'Failed to load security audit events');
+                message.textContent = '';
+                renderSecurityAudit(data.events || []);
+            } catch (error) {
+                message.textContent = error.status === 403
+                    ? 'Security audit events require platform operator access.'
+                    : (error.message || 'Security audit events could not be loaded.');
+            }
         }
 
         // Budget input live preview
@@ -166,8 +230,12 @@
             checkAuth();
             loadUserInfo();
             loadSettings();
+            loadSecurityAudit();
 
             document.getElementById('logout-btn').addEventListener('click', logout);
             document.getElementById('settingsForm').addEventListener('submit', saveSettings);
+            document.getElementById('refreshSecurityAudit')?.addEventListener('click', loadSecurityAudit);
+            document.getElementById('securityAuditEvent')?.addEventListener('change', loadSecurityAudit);
+            document.getElementById('securityAuditOutcome')?.addEventListener('change', loadSecurityAudit);
         });
 

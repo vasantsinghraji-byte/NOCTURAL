@@ -158,7 +158,7 @@
         const photoResponse = await fetch(photo.webPath);
         const photoBlob = await photoResponse.blob();
         formData.append(fieldName, photoBlob, `camera-${Date.now()}.${photo.format || 'jpeg'}`);
-        return windowObject.AppConfig.fetch(endpoint, {
+        return windowObject.AppConfig.fetchRoute(endpoint, {
             method: 'POST',
             body: formData,
             parseJson: true
@@ -244,7 +244,7 @@
         }
 
         await pushNotifications.addListener('registration', async (registration) => {
-            await windowObject.AppConfig.fetch('mobile-devices', {
+            await windowObject.AppConfig.fetchRoute('mobileDevices.root', {
                 method: 'POST',
                 body: JSON.stringify({
                     token: registration.value,

@@ -153,7 +153,7 @@ class UnifiedNavigation {
 
         const nav = document.createElement('nav');
         nav.className = 'unified-navbar';
-        nav.innerHTML = `
+        AppUi.setSafeHtml(nav, `
             <div class="nav-container">
                 <a href="${dashboardUrl}" class="nav-brand">
                     <div class="nav-logo">
@@ -240,7 +240,7 @@ class UnifiedNavigation {
                     </li>
                 </ul>
             </div>
-        `;
+        `);
 
         existingNav.replaceWith(nav);
         this.attachNavEventListeners(nav);

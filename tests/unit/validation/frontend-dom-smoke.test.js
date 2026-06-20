@@ -220,6 +220,11 @@ function createElementNode(tagName) {
     addEventListener(type, handler) {
       this.listeners[type] = handler;
     },
+    click() {
+      if (this.listeners.click) {
+        this.listeners.click({ target: this });
+      }
+    },
     appendChild(child) {
       this.children.push(child);
     },
@@ -243,11 +248,11 @@ function createElementNode(tagName) {
 
   node.querySelector = function(selector) {
     if (selector === '[data-sw-action="reload"]') {
-      return this.reloadButton || null;
+      return this.reloadButton || this.children.find(child => child.dataset?.swAction === 'reload') || null;
     }
 
     if (selector === '[data-sw-action="dismiss"]') {
-      return this.dismissButton || null;
+      return this.dismissButton || this.children.find(child => child.dataset?.swAction === 'dismiss') || null;
     }
 
     return null;

@@ -378,7 +378,7 @@ if (typeof AppConfig === 'undefined') {
       className: 'error-message'
     }, options || {});
 
-    container.innerHTML = '<div class="' + config.className + '">' + message + '</div>';
+    AppUi.setSafeHtml(container, '<div class="' + config.className + '">' + message + '</div>');
   }
 
   function renderSuccessMessage(container, message, options) {
@@ -391,7 +391,7 @@ if (typeof AppConfig === 'undefined') {
 
   function clearFormMessage(container) {
     if (container) {
-      container.innerHTML = '';
+      AppUi.setSafeHtml(container, '');
     }
   }
 
@@ -408,15 +408,11 @@ if (typeof AppConfig === 'undefined') {
       button.dataset.originalText = button.textContent;
     }
 
-    if (!button.dataset.originalHtml) {
-      button.dataset.originalHtml = button.innerHTML;
-    }
-
     button.classList.add('loading');
     button.disabled = true;
 
     if (config.loadingHtml) {
-      button.innerHTML = config.loadingHtml;
+      AppUi.setSafeHtml(button, config.loadingHtml);
     } else if (config.clearText) {
       button.textContent = '';
     }
@@ -435,17 +431,12 @@ if (typeof AppConfig === 'undefined') {
     button.disabled = false;
 
     if (config.htmlContent) {
-      button.innerHTML = config.htmlContent;
+      AppUi.setSafeHtml(button, config.htmlContent);
       return;
     }
 
     if (config.textContent !== undefined && config.textContent !== null) {
       button.textContent = config.textContent;
-      return;
-    }
-
-    if (button.dataset.originalHtml) {
-      button.innerHTML = button.dataset.originalHtml;
       return;
     }
 
@@ -827,7 +818,7 @@ if (typeof AppConfig === 'undefined') {
         button.disabled = true;
 
         if (config.successHtml) {
-          button.innerHTML = config.successHtml;
+          AppUi.setSafeHtml(button, config.successHtml);
         } else if (config.successText) {
           button.textContent = config.successText;
         }

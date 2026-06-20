@@ -98,7 +98,13 @@
     dismissButton.dataset.swAction = 'dismiss';
     dismissButton.textContent = 'Later';
 
-    updateBanner.append(title, reloadButton, dismissButton);
+    if (typeof updateBanner.append === 'function') {
+      updateBanner.append(title, reloadButton, dismissButton);
+    } else {
+      updateBanner.appendChild(title);
+      updateBanner.appendChild(reloadButton);
+      updateBanner.appendChild(dismissButton);
+    }
     document.body.appendChild(updateBanner);
 
     if (reloadButton) {

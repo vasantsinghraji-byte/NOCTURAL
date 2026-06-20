@@ -79,11 +79,11 @@ const showToast = (message, type = 'info', duration = 4000) => {
 
     const icons = { success: '\u2713', error: '\u2717', warning: '\u26A0', info: '\u2139' };
 
-    toast.innerHTML = `
+    AppUi.setSafeHtml(toast, `
         <span class="toast-symbol">${icons[type] || icons.info}</span>
         <span>${message}</span>
         <button type="button" class="toast-close">&times;</button>
-    `;
+    `);
 
     container.appendChild(toast);
 
@@ -114,9 +114,9 @@ const toast = {
 const showLoading = (element, loadingText = 'Loading...') => {
     if (!element) return;
     element.disabled = true;
-    element.dataset.originalText = element.innerHTML;
+    element.dataset.originalText = element.textContent;
     element.classList.add('btn-loading');
-    element.innerHTML = `<span class="spinner"></span> ${loadingText}`;
+    AppUi.setSafeHtml(element, `<span class="spinner"></span> ${loadingText}`);
 };
 
 const hideLoading = (element) => {
@@ -124,7 +124,7 @@ const hideLoading = (element) => {
     element.disabled = false;
     element.classList.remove('btn-loading');
     if (element.dataset.originalText) {
-        element.innerHTML = element.dataset.originalText;
+        AppUi.setSafeHtml(element, element.dataset.originalText);
     }
 };
 
@@ -135,10 +135,10 @@ const showPageLoading = (message = 'Loading...') => {
         overlay = document.createElement('div');
         overlay.id = 'page-loading-overlay';
         overlay.className = 'page-loading-overlay';
-        overlay.innerHTML = `
+        AppUi.setSafeHtml(overlay, `
             <div class="page-loading-spinner"></div>
             <div class="page-loading-message" id="page-loading-message">${message}</div>
-        `;
+        `);
         document.body.appendChild(overlay);
     } else {
         AppUi.setDisplay(overlay, 'flex');
@@ -235,7 +235,7 @@ const confirmDialog = (message, title = 'Confirm') => {
     return new Promise((resolve) => {
         const overlay = document.createElement('div');
         overlay.className = 'confirm-overlay';
-        overlay.innerHTML = `
+        AppUi.setSafeHtml(overlay, `
             <div class="confirm-dialog">
                 <h3 class="confirm-title">${title}</h3>
                 <p class="confirm-message">${message}</p>
@@ -244,7 +244,7 @@ const confirmDialog = (message, title = 'Confirm') => {
                     <button id="confirm-ok" class="confirm-button confirm-button-ok">Confirm</button>
                 </div>
             </div>
-        `;
+        `);
         document.body.appendChild(overlay);
 
         const cancelButton = overlay.querySelector('#confirm-cancel');

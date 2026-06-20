@@ -27,11 +27,11 @@ const Toast = {
             info: 'ℹ'
         };
 
-        toast.innerHTML = `
+        AppUi.setSafeHtml(toast, `
             <span class="toast-icon">${icons[type] || icons.info}</span>
             <span class="toast-message">${message}</span>
             <button type="button" class="toast-close">×</button>
-        `;
+        `);
 
         this.container.appendChild(toast);
 
@@ -71,7 +71,7 @@ const Toast = {
 
     clear() {
         if (this.container) {
-            this.container.innerHTML = '';
+            AppUi.setSafeHtml(this.container, '');
         }
     }
 };
