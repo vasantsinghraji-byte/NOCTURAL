@@ -11,6 +11,7 @@ const RefundOutbox = require('../models/refundOutbox');
 const logger = require('../utils/logger');
 const monitoring = require('../utils/monitoring');
 const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
+const { normalizeObjectId } = require('../utils/safeMongo');
 const { HTTP_STATUS } = require('../constants');
 
 let razorpayClient = null;
@@ -67,7 +68,9 @@ class PaymentService {
    */
   async createOrder(bookingId, userId) {
     const razorpay = getRazorpayClient();
-    const booking = await Booking.findById(bookingId);
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const booking = await Booking.findById(safeBookingId);
 
     if (!booking) {
       throw {
@@ -77,7 +80,7 @@ class PaymentService {
     }
 
     // Verify booking belongs to requesting patient
-    if (booking.patient.toString() !== userId) {
+    if (booking.patient.toString() !== safeUserId.toString()) {
       throw {
         statusCode: HTTP_STATUS.FORBIDDEN,
         message: 'Unauthorized access to booking'
@@ -147,7 +150,7 @@ class PaymentService {
     // Atomically lock: only one concurrent request can create an order
     const lockedBooking = await Booking.findOneAndUpdate(
       {
-        _id: bookingId,
+        _id: safeBookingId,
         $or: [
           { 'payment.orderId': { $exists: false } },
           { 'payment.orderId': null },
@@ -169,10 +172,10 @@ class PaymentService {
     const options = {
       amount: Math.round(booking.pricing.payableAmount * 100), // Amount in paise
       currency: 'INR',
-      receipt: `booking_${bookingId}`,
+      receipt: `booking_${safeBookingId}`,
       notes: {
-        bookingId: bookingId,
-        patientId: userId,
+        bookingId: String(safeBookingId),
+        patientId: String(safeUserId),
         serviceType: booking.serviceType
       }
     };
@@ -180,7 +183,7 @@ class PaymentService {
     const order = await razorpay.orders.create(options);
 
     // Atomically update booking with order details
-    await Booking.findByIdAndUpdate(bookingId, {
+    await Booking.findByIdAndUpdate(safeBookingId, {
       $set: {
         'payment.orderId': order.id,
         'payment.amount': booking.pricing.payableAmount,
@@ -227,7 +230,9 @@ class PaymentService {
       bookingId
     } = paymentData;
 
-    const booking = await Booking.findById(bookingId);
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const booking = await Booking.findById(safeBookingId);
 
     if (!booking) {
       throw {
@@ -237,7 +242,7 @@ class PaymentService {
     }
 
     // Verify booking belongs to requesting patient
-    if (booking.patient.toString() !== userId) {
+    if (booking.patient.toString() !== safeUserId.toString()) {
       throw {
         statusCode: HTTP_STATUS.FORBIDDEN,
         message: 'Unauthorized access to booking'
@@ -354,7 +359,9 @@ class PaymentService {
    * @returns {Promise<Object>} Updated booking
    */
   async handlePaymentFailure(bookingId, error, userId) {
-    const booking = await Booking.findById(bookingId);
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const booking = await Booking.findById(safeBookingId);
 
     if (!booking) {
       throw {
@@ -364,7 +371,7 @@ class PaymentService {
     }
 
     // Verify booking belongs to requesting patient
-    if (booking.patient.toString() !== userId) {
+    if (booking.patient.toString() !== safeUserId.toString()) {
       throw {
         statusCode: HTTP_STATUS.FORBIDDEN,
         message: 'Unauthorized access to booking'
@@ -396,7 +403,9 @@ class PaymentService {
    * @returns {Promise<Object>} Payment status
    */
   async getPaymentStatus(bookingId, userId) {
-    const booking = await Booking.findById(bookingId);
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const booking = await Booking.findById(safeBookingId);
 
     if (!booking) {
       throw {
@@ -406,7 +415,7 @@ class PaymentService {
     }
 
     // Verify booking belongs to requesting patient
-    if (booking.patient.toString() !== userId) {
+    if (booking.patient.toString() !== safeUserId.toString()) {
       throw {
         statusCode: HTTP_STATUS.FORBIDDEN,
         message: 'Unauthorized access to booking'
@@ -631,7 +640,8 @@ class PaymentService {
    */
   async processRefund(bookingId, amount = null) {
     const razorpay = getRazorpayClient();
-    const booking = await Booking.findById(bookingId);
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const booking = await Booking.findById(safeBookingId);
 
     if (!booking) {
       throw {
@@ -653,7 +663,7 @@ class PaymentService {
     // Prevents double-refund from concurrent requests
     const lockedBooking = await Booking.findOneAndUpdate(
       {
-        _id: bookingId,
+        _id: safeBookingId,
         'payment.status': 'PAID'
       },
       {
@@ -689,7 +699,7 @@ class PaymentService {
     let refundOutbox;
     try {
       refundOutbox = await RefundOutbox.create({
-        booking: bookingId,
+        booking: safeBookingId,
         paymentId: lockedBooking.payment.paymentId,
         amount: refundAmount,
         currency: lockedBooking.payment.currency || 'INR',
@@ -698,7 +708,7 @@ class PaymentService {
         nextAttemptAt: new Date()
       });
     } catch (outboxError) {
-      await Booking.findByIdAndUpdate(bookingId, {
+      await Booking.findByIdAndUpdate(safeBookingId, {
         $set: { 'payment.status': 'PAID' },
         $unset: { 'payment.refundAmount': 1 }
       }, VALIDATED_QUERY_UPDATE_OPTIONS);
@@ -723,14 +733,14 @@ class PaymentService {
         amount: Math.round(refundAmount * 100),
         receipt: `refund_${refundOutbox._id}`,
         notes: {
-          bookingId: bookingId,
+          bookingId: String(safeBookingId),
           refundOutboxId: refundOutbox._id.toString(),
           reason: 'Booking cancelled'
         }
       });
     } catch (razorpayError) {
       // Razorpay refund failed — atomically roll back to PAID
-      await Booking.findByIdAndUpdate(bookingId, {
+      await Booking.findByIdAndUpdate(safeBookingId, {
         $set: { 'payment.status': 'PAID' },
         $unset: { 'payment.refundAmount': 1 }
       }, VALIDATED_QUERY_UPDATE_OPTIONS);
@@ -759,7 +769,7 @@ class PaymentService {
 
     const confirmedOutbox = {
       _id: refundOutbox._id,
-      booking: bookingId,
+      booking: safeBookingId,
       paymentId: lockedBooking.payment.paymentId,
       gatewayRefundId: refund.id,
       amount: refundAmount,

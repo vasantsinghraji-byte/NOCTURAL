@@ -27,6 +27,48 @@ const healthIntakeService = require('./healthIntakeService');
 const healthMetricService = require('./healthMetricService');
 const healthRecordService = require('./healthRecordService');
 const doctorAccessService = require('./doctorAccessService');
+const BookingCompletionOutbox = require('../models/bookingCompletionOutbox');
+const { normalizeObjectId, nullProtoObject, setSafeField } = require('../utils/safeMongo');
+
+const ALLOWED_BOOKING_FILTERS = new Set(['patient', 'serviceProvider', 'status', 'serviceType', 'payment.status']);
+
+const safeBookingFilters = (filters = {}) => {
+  const query = nullProtoObject();
+  Object.entries(filters || {}).forEach(([field, value]) => {
+    if (!ALLOWED_BOOKING_FILTERS.has(field)) return;
+    if (['patient', 'serviceProvider'].includes(field)) {
+      setSafeField(query, field, normalizeObjectId(value, `${field} id`));
+      return;
+    }
+    setSafeField(query, field, value);
+  });
+  return query;
+};
+
+const buildCompletionVitals = (serviceReport = {}) => {
+  const checked = serviceReport.vitalsChecked || {};
+  const vitals = [];
+
+  if (checked.bloodPressure) {
+    const [systolic, diastolic] = checked.bloodPressure.split('/').map(Number);
+    if (systolic) vitals.push({ metricType: 'BP_SYSTOLIC', value: systolic, unit: 'mmHg' });
+    if (diastolic) vitals.push({ metricType: 'BP_DIASTOLIC', value: diastolic, unit: 'mmHg' });
+  }
+  if (checked.heartRate) {
+    vitals.push({ metricType: 'HEART_RATE', value: checked.heartRate, unit: 'bpm' });
+  }
+  if (checked.temperature) {
+    vitals.push({ metricType: 'TEMPERATURE', value: checked.temperature, unit: 'celsius' });
+  }
+  if (checked.oxygenLevel) {
+    vitals.push({ metricType: 'OXYGEN_LEVEL', value: checked.oxygenLevel, unit: '%' });
+  }
+  if (checked.bloodSugar) {
+    vitals.push({ metricType: 'BLOOD_SUGAR', value: checked.bloodSugar, unit: 'mg/dL' });
+  }
+
+  return vitals;
+};
 
 const resolveCancellationActor = ({ userRole, isPatient = false, isProvider = false }) => {
   if (userRole === 'admin') return 'ADMIN';
@@ -85,6 +127,7 @@ class BookingService {
    * @returns {Promise<Object>} Created booking
    */
   async createBooking(bookingData, patientId) {
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
     const {
       serviceType,
       scheduledDate,
@@ -99,7 +142,7 @@ class BookingService {
     } = bookingData;
 
     // Verify patient exists
-    const patient = await Patient.findById(patientId);
+    const patient = await Patient.findById(safePatientId);
     if (!patient) {
       throw new NotFoundError('Patient', patientId);
     }
@@ -131,6 +174,17 @@ class BookingService {
 
     if (!service) {
       throw new NotFoundError('Service');
+    }
+
+    const availableCities = service.availability?.availableCities || [];
+    const requestedCity = serviceLocation?.city;
+    if (
+      availableCities.length > 0 &&
+      (!requestedCity || !availableCities.some((city) =>
+        city.toLowerCase() === requestedCity.toLowerCase()
+      ))
+    ) {
+      throw new ValidationError(`Service is not available in ${requestedCity || 'the requested city'}`);
     }
 
     // Check if prescription is required
@@ -179,7 +233,7 @@ class BookingService {
 
     // Create booking with final pricing in a single operation
     const booking = await NurseBooking.create({
-      patient: patientId,
+      patient: safePatientId,
       serviceType,
       scheduledDate,
       scheduledTime,
@@ -241,7 +295,9 @@ class BookingService {
    * @returns {Promise<Object>} Booking details
    */
   async getBookingById(bookingId, userId, userRole) {
-    const booking = await NurseBooking.findById(bookingId)
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const booking = await NurseBooking.findById(safeBookingId)
       .populate('patient', 'name email phone')
       .populate('serviceProvider', 'name email phone specialty professional');
 
@@ -250,8 +306,8 @@ class BookingService {
     }
 
     // Authorization check - only patient, assigned provider, or admin can view
-    const isPatient = booking.patient._id.toString() === userId;
-    const isProvider = booking.serviceProvider && booking.serviceProvider._id.toString() === userId;
+    const isPatient = booking.patient._id.toString() === safeUserId.toString();
+    const isProvider = booking.serviceProvider && booking.serviceProvider._id.toString() === safeUserId.toString();
     const isAdmin = userRole === 'admin';
 
     if (!isPatient && !isProvider && !isAdmin) {
@@ -274,7 +330,8 @@ class BookingService {
       sort = { scheduledDate: -1, scheduledTime: -1 }
     } = options;
 
-    const bookings = await NurseBooking.find(filters)
+    const query = safeBookingFilters(filters);
+    const bookings = await NurseBooking.find(query)
       .populate('patient', 'name email phone')
       .populate('serviceProvider', 'name email phone')
       .sort(sort)
@@ -282,7 +339,7 @@ class BookingService {
       .skip((page - 1) * limit)
       .lean();
 
-    const total = await NurseBooking.countDocuments(filters);
+    const total = await NurseBooking.countDocuments(query);
 
     return {
       bookings,
@@ -302,7 +359,7 @@ class BookingService {
    * @returns {Promise<Object>} Patient's bookings
    */
   async getPatientBookings(patientId, options = {}) {
-    return this.getAllBookings({ patient: patientId }, options);
+    return this.getAllBookings({ patient: normalizeObjectId(patientId, 'patient id') }, options);
   }
 
   /**
@@ -312,7 +369,7 @@ class BookingService {
    * @returns {Promise<Object>} Provider's bookings
    */
   async getProviderBookings(providerId, options = {}) {
-    return this.getAllBookings({ serviceProvider: providerId }, options);
+    return this.getAllBookings({ serviceProvider: normalizeObjectId(providerId, 'provider id') }, options);
   }
 
   /**
@@ -340,9 +397,12 @@ class BookingService {
     if (!adminId) {
       throw new ValidationError('Admin ID is required to assign a provider');
     }
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeProviderId = normalizeObjectId(providerId, 'provider id');
+    const safeAdminId = normalizeObjectId(adminId, 'admin id');
 
     // Verify provider exists and has correct role
-    const provider = await User.findById(providerId);
+    const provider = await User.findById(safeProviderId);
     if (!provider) {
       throw new NotFoundError('Service provider', providerId);
     }
@@ -355,12 +415,12 @@ class BookingService {
     // Atomic: assign provider only if booking is in assignable status
     const booking = await NurseBooking.findOneAndUpdate(
       {
-        _id: bookingId,
+        _id: safeBookingId,
         status: { $in: ['REQUESTED', 'SEARCHING'] }
       },
       {
         $set: {
-          serviceProvider: providerId,
+          serviceProvider: safeProviderId,
           status: 'ASSIGNED'
         }
       },
@@ -369,7 +429,7 @@ class BookingService {
 
     if (!booking) {
       // Check if booking exists at all to give a better error
-      const exists = await NurseBooking.findById(bookingId);
+      const exists = await NurseBooking.findById(safeBookingId);
       if (!exists) {
         throw new NotFoundError('Booking', bookingId);
       }
@@ -380,30 +440,30 @@ class BookingService {
     try {
       await doctorAccessService.grantAccess({
         patientId: booking.patient,
-        doctorId: providerId,
+        doctorId: safeProviderId,
         bookingId: booking._id,
         accessLevel: 'READ_WRITE',
         allowedResources: ['HEALTH_RECORD', 'HEALTH_METRIC', 'DOCTOR_NOTE'],
         grantReason: `Assigned to booking ${booking._id}`,
-        adminId,
+        adminId: safeAdminId,
         adminName: 'System'
       });
 
       logger.info('Health data access granted to provider', {
         bookingId: booking._id,
-        providerId,
+        providerId: safeProviderId,
         patientId: booking.patient
       });
     } catch (error) {
       // Roll back assignment — provider can't work without health data access
-      await NurseBooking.findByIdAndUpdate(bookingId, {
+      await NurseBooking.findByIdAndUpdate(safeBookingId, {
         $set: { status: 'SEARCHING' },
         $unset: { serviceProvider: 1 }
       }, VALIDATED_QUERY_UPDATE_OPTIONS);
 
       logger.error('Provider assignment rolled back - access grant failed', {
         bookingId: booking._id,
-        providerId,
+        providerId: safeProviderId,
         error: error.message
       });
 
@@ -431,7 +491,9 @@ class BookingService {
    * @returns {Promise<Object>} Updated booking
    */
   async updateStatus(bookingId, newStatus, userId, note = '', userRole) {
-    const booking = await NurseBooking.findById(bookingId);
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const booking = await NurseBooking.findById(safeBookingId);
 
     if (!booking) {
       throw new NotFoundError('Booking', bookingId);
@@ -455,7 +517,7 @@ class BookingService {
     }
 
     // Authorization check — role passed from controller, no extra DB query needed
-    const isProvider = booking.serviceProvider && booking.serviceProvider.toString() === userId;
+    const isProvider = booking.serviceProvider && booking.serviceProvider.toString() === safeUserId.toString();
     const isAdmin = userRole === 'admin';
 
     if (!isProvider && !isAdmin) {
@@ -481,7 +543,7 @@ class BookingService {
       booking.cancellation = {
         cancelledAt: new Date(),
         cancelledBy: resolveCancellationActor({ userRole, isProvider }),
-        cancelledByUser: userId,
+        cancelledByUser: safeUserId,
         reason: note
       };
     }
@@ -508,15 +570,17 @@ class BookingService {
    * @param {Object} serviceReport - Service report data
    * @returns {Promise<Object>} Updated booking
    */
-  async completeService(bookingId, providerId, serviceReport) {
-    const booking = await NurseBooking.findById(bookingId);
+  async completeService(bookingId, providerId, serviceReport = {}) {
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeProviderId = normalizeObjectId(providerId, 'provider id');
+    const booking = await NurseBooking.findById(safeBookingId);
 
     if (!booking) {
       throw new NotFoundError('Booking', bookingId);
     }
 
     // Authorization check
-    if (booking.serviceProvider.toString() !== providerId) {
+    if (booking.serviceProvider.toString() !== safeProviderId.toString()) {
       throw new AuthorizationError('Only assigned provider can complete the service');
     }
 
@@ -524,36 +588,140 @@ class BookingService {
       throw new ValidationError('Service must be in progress to complete');
     }
 
-    // Capture health metrics BEFORE marking as completed
-    // Failures are tracked and surfaced to caller, but do not block booking completion
-    // since vitals data is preserved in the serviceReport on the booking document
+    const endTime = new Date();
+    const duration = booking.actualService?.startTime
+      ? Math.round((endTime - booking.actualService.startTime) / (1000 * 60))
+      : null;
+    const completionUpdate = {
+      $set: {
+        status: 'COMPLETED',
+        'completionAccounting.appliedAt': endTime,
+        'statusTimestamps.completedAt': endTime,
+        'actualService.serviceReport': serviceReport,
+        'actualService.endTime': endTime,
+        'actualService.duration': duration
+      }
+    };
+    const vitals = buildCompletionVitals(serviceReport);
+    const shouldCaptureHealthRecord = Boolean(serviceReport.observations || serviceReport.recommendations);
+
+    let completedBooking;
+    const claimCompletion = async (session) => {
+      const queryOptions = session
+        ? { ...VALIDATED_QUERY_UPDATE_OPTIONS, session }
+        : VALIDATED_QUERY_UPDATE_OPTIONS;
+      completedBooking = await NurseBooking.findOneAndUpdate(
+        {
+          _id: booking._id,
+          serviceProvider: safeProviderId,
+          status: 'IN_PROGRESS'
+        },
+        completionUpdate,
+        queryOptions
+      );
+      if (!completedBooking) return;
+
+      const updatedPatient = await Patient.findByIdAndUpdate(booking.patient, {
+        $inc: {
+          totalBookings: 1,
+          totalSpent: booking.pricing.payableAmount
+        }
+      }, queryOptions);
+      if (!updatedPatient) {
+        throw new NotFoundError('Patient', booking.patient);
+      }
+
+      if (vitals.length > 0) {
+        await healthMetricService.recordMultipleMetrics(booking.patient, vitals, {
+          type: 'BOOKING',
+          bookingId: booking._id,
+          providerId
+        }, session ? { session } : undefined);
+      }
+
+      if (shouldCaptureHealthRecord) {
+        await healthRecordService.captureBookingVitals(
+          booking.patient,
+          booking._id,
+          serviceReport,
+          providerId,
+          session ? { session } : undefined
+        );
+      }
+
+      if (session) {
+        await BookingCompletionOutbox.create([{
+          booking: booking._id,
+          patient: booking.patient,
+          status: 'COMPLETED',
+          completedAt: endTime,
+          lastError: null
+        }], { session });
+      }
+    };
+
+    // In connected environments the completion claim, patient accounting, and
+    // reconciliation outbox are committed together. Unit tests and offline
+    // tooling use the same guarded writes without opening a network session.
+    if (mongoose.connection.readyState === 1) {
+      const session = await mongoose.startSession();
+      try {
+        await session.withTransaction(() => claimCompletion(session));
+      } finally {
+        await session.endSession();
+      }
+    } else {
+      await claimCompletion();
+    }
+
+    if (!completedBooking) {
+      throw new ValidationError('Service has already been completed or is no longer in progress');
+    }
+
+    if (vitals.length > 0) {
+      logger.info('Health metrics captured from booking', {
+        bookingId: booking._id,
+        patientId: booking.patient,
+        metricsCount: vitals.length
+      });
+    }
+
+    if (shouldCaptureHealthRecord) {
+      logger.info('Booking observations captured to health record', {
+        bookingId: booking._id,
+        patientId: booking.patient
+      });
+    }
+
+    // Legacy post-commit side-effect path is intentionally disabled. Completion
+    // side effects are now part of the guarded transaction above.
     const warnings = [];
 
-    if (serviceReport.vitalsChecked) {
-      const vitals = [];
+    if (vitals.length < 0 && serviceReport.vitalsChecked) {
+      const legacyVitals = [];
 
       // Map vitals from service report to health metrics
       if (serviceReport.vitalsChecked.bloodPressure) {
         const [systolic, diastolic] = serviceReport.vitalsChecked.bloodPressure.split('/').map(Number);
-        if (systolic) vitals.push({ metricType: 'BP_SYSTOLIC', value: systolic, unit: 'mmHg' });
-        if (diastolic) vitals.push({ metricType: 'BP_DIASTOLIC', value: diastolic, unit: 'mmHg' });
+        if (systolic) legacyVitals.push({ metricType: 'BP_SYSTOLIC', value: systolic, unit: 'mmHg' });
+        if (diastolic) legacyVitals.push({ metricType: 'BP_DIASTOLIC', value: diastolic, unit: 'mmHg' });
       }
       if (serviceReport.vitalsChecked.heartRate) {
-        vitals.push({ metricType: 'HEART_RATE', value: serviceReport.vitalsChecked.heartRate, unit: 'bpm' });
+        legacyVitals.push({ metricType: 'HEART_RATE', value: serviceReport.vitalsChecked.heartRate, unit: 'bpm' });
       }
       if (serviceReport.vitalsChecked.temperature) {
-        vitals.push({ metricType: 'TEMPERATURE', value: serviceReport.vitalsChecked.temperature, unit: 'celsius' });
+        legacyVitals.push({ metricType: 'TEMPERATURE', value: serviceReport.vitalsChecked.temperature, unit: 'celsius' });
       }
-      if (serviceReport.vitalsChecked.oxygenSaturation) {
-        vitals.push({ metricType: 'OXYGEN', value: serviceReport.vitalsChecked.oxygenSaturation, unit: '%' });
+      if (serviceReport.vitalsChecked.oxygenLevel) {
+        legacyVitals.push({ metricType: 'OXYGEN_LEVEL', value: serviceReport.vitalsChecked.oxygenLevel, unit: '%' });
       }
       if (serviceReport.vitalsChecked.bloodSugar) {
-        vitals.push({ metricType: 'BLOOD_SUGAR', value: serviceReport.vitalsChecked.bloodSugar, unit: 'mg/dL' });
+        legacyVitals.push({ metricType: 'BLOOD_SUGAR', value: serviceReport.vitalsChecked.bloodSugar, unit: 'mg/dL' });
       }
 
-      if (vitals.length > 0) {
+      if (legacyVitals.length > 0) {
         try {
-          await healthMetricService.recordMultipleMetrics(booking.patient, vitals, {
+          await healthMetricService.recordMultipleMetrics(booking.patient, legacyVitals, {
             type: 'BOOKING',
             bookingId: booking._id,
             providerId
@@ -562,13 +730,13 @@ class BookingService {
           logger.info('Health metrics captured from booking', {
             bookingId: booking._id,
             patientId: booking.patient,
-            metricsCount: vitals.length
+            metricsCount: legacyVitals.length
           });
         } catch (error) {
           logger.error('Failed to capture health metrics from booking — data preserved in service report', {
             bookingId: booking._id,
             patientId: booking.patient,
-            vitalsCount: vitals.length,
+            vitalsCount: legacyVitals.length,
             error: error.message
           });
           warnings.push({ type: 'HEALTH_METRICS_FAILED', message: 'Health metrics could not be saved to patient record. Data is preserved in the service report.', error: error.message });
@@ -577,7 +745,7 @@ class BookingService {
     }
 
     // Capture observations to health record
-    if (serviceReport.observations || serviceReport.recommendations) {
+    if (!shouldCaptureHealthRecord && (serviceReport.observations || serviceReport.recommendations)) {
       try {
         await healthRecordService.captureBookingVitals(
           booking.patient,
@@ -599,34 +767,27 @@ class BookingService {
       }
     }
 
-    // Now save the service report and mark as COMPLETED
-    const endTime = new Date();
-    const duration = booking.actualService?.startTime
-      ? Math.round((endTime - booking.actualService.startTime) / (1000 * 60))
-      : null;
-
-    const completionUpdate = {
-      $set: {
-        status: 'COMPLETED',
-        'actualService.serviceReport': serviceReport,
-        'actualService.endTime': endTime,
-        'actualService.duration': duration
-      }
-    };
-
-    const completedBooking = await NurseBooking.findByIdAndUpdate(
-      booking._id,
-      completionUpdate,
-      VALIDATED_QUERY_UPDATE_OPTIONS
-    );
-
-    // Update patient statistics
-    await Patient.findByIdAndUpdate(booking.patient, {
-      $inc: {
-        totalBookings: 1,
-        totalSpent: booking.pricing.payableAmount
-      }
-    }, VALIDATED_QUERY_UPDATE_OPTIONS);
+    if (!completedBooking && mongoose.connection.readyState === 1) {
+      await BookingCompletionOutbox.updateOne(
+        { booking: booking._id },
+        warnings.length > 0
+          ? {
+            $set: {
+              status: 'RETRY_PENDING',
+              lastError: warnings.map(warning => warning.error).join('; '),
+              nextAttemptAt: new Date(Date.now() + 5 * 60 * 1000)
+            },
+            $inc: { attemptCount: 1 }
+          }
+          : {
+            $set: {
+              status: 'COMPLETED',
+              completedAt: new Date(),
+              lastError: null
+            }
+          }
+      );
+    }
 
     // Invalidate cache
     await invalidateCache('*:/api/bookings*');
@@ -654,11 +815,7 @@ class BookingService {
       return;
     }
 
-    const aggregateProviderId = (
-      typeof providerId === 'string' && mongoose.Types.ObjectId.isValid(providerId)
-    )
-      ? new mongoose.Types.ObjectId(providerId)
-      : providerId;
+    const aggregateProviderId = normalizeObjectId(providerId, 'provider id');
 
     const reviewStats = await NurseBooking.aggregate([
       {
@@ -679,7 +836,7 @@ class BookingService {
     const { totalReviews = 0, avgRating = 0 } = reviewStats[0] || {};
 
     await User.findByIdAndUpdate(
-      providerId,
+      aggregateProviderId,
       {
         rating: roundToTwoDecimals(avgRating),
         totalReviews
@@ -712,14 +869,16 @@ class BookingService {
    * @returns {Promise<Object>} Updated booking
    */
   async addReview(bookingId, patientId, reviewData) {
-    const booking = await NurseBooking.findById(bookingId);
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const booking = await NurseBooking.findById(safeBookingId);
 
     if (!booking) {
       throw new NotFoundError('Booking', bookingId);
     }
 
     // Authorization check
-    if (booking.patient.toString() !== patientId) {
+    if (booking.patient.toString() !== safePatientId.toString()) {
       throw new AuthorizationError('Only the patient can review this booking');
     }
 
@@ -766,13 +925,15 @@ class BookingService {
    * @returns {Promise<Object>} Updated booking
    */
   async updateReview(bookingId, patientId, reviewData) {
-    const booking = await NurseBooking.findById(bookingId);
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const booking = await NurseBooking.findById(safeBookingId);
 
     if (!booking) {
       throw new NotFoundError('Booking', bookingId);
     }
 
-    if (booking.patient.toString() !== patientId) {
+    if (booking.patient.toString() !== safePatientId.toString()) {
       throw new AuthorizationError('Only the patient can update this review');
     }
 
@@ -812,13 +973,15 @@ class BookingService {
    * @returns {Promise<Object>} Updated booking
    */
   async deleteReview(bookingId, patientId) {
-    const booking = await NurseBooking.findById(bookingId);
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const booking = await NurseBooking.findById(safeBookingId);
 
     if (!booking) {
       throw new NotFoundError('Booking', bookingId);
     }
 
-    if (booking.patient.toString() !== patientId) {
+    if (booking.patient.toString() !== safePatientId.toString()) {
       throw new AuthorizationError('Only the patient can delete this review');
     }
 
@@ -854,7 +1017,9 @@ class BookingService {
    * @returns {Promise<Object>} Updated booking
    */
   async cancelBooking(bookingId, userId, reason, userRole) {
-    const booking = await NurseBooking.findById(bookingId);
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const booking = await NurseBooking.findById(safeBookingId);
 
     if (!booking) {
       throw new NotFoundError('Booking', bookingId);
@@ -866,8 +1031,8 @@ class BookingService {
     }
 
     // Authorization check — role passed from controller, no extra DB query needed
-    const isPatient = booking.patient.toString() === userId;
-    const isProvider = booking.serviceProvider && booking.serviceProvider.toString() === userId;
+    const isPatient = booking.patient.toString() === safeUserId.toString();
+    const isProvider = booking.serviceProvider && booking.serviceProvider.toString() === safeUserId.toString();
     const isAdmin = userRole === 'admin';
 
     if (!isPatient && !isProvider && !isAdmin) {
@@ -879,7 +1044,7 @@ class BookingService {
     booking.cancellation = {
       cancelledAt: new Date(),
       cancelledBy: resolveCancellationActor({ userRole, isPatient, isProvider }),
-      cancelledByUser: userId,
+      cancelledByUser: safeUserId,
       reason
     };
 

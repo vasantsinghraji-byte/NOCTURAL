@@ -38,7 +38,7 @@ const getIdentity = (req) => {
  *   - caches only successful (2xx) responses, encrypted, and releases the claim
  *     on failure so the client may retry.
  *
- * @param {{ route: string }} options - stable route identifier for scoping.
+ * @param {{ route: string, required?: boolean }} options - stable route identifier for scoping.
  */
 module.exports = function idempotency(options = {}) {
   const route = options.route;
@@ -49,7 +49,13 @@ module.exports = function idempotency(options = {}) {
   return async function idempotencyMiddleware(req, res, next) {
     const rawKey = req.get('Idempotency-Key');
     if (!rawKey || typeof rawKey !== 'string' || !rawKey.trim()) {
-      return next(); // No key => no protection requested.
+      if (options.required) {
+        return res.status(400).json({
+          success: false,
+          message: 'Idempotency-Key header is required'
+        });
+      }
+      return next();
     }
 
     const key = rawKey.trim();

@@ -278,7 +278,8 @@
                     method: 'POST',
                     parseJson: true,
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Idempotency-Key': AppConfig.createIdempotencyKey()
                     },
                     body: JSON.stringify({
                         bookingId: bookingId,

@@ -74,6 +74,17 @@ describe('idempotency middleware', () => {
     expect(IdempotencyKey.__store.size).toBe(0);
   });
 
+  it('rejects a missing Idempotency-Key when the route requires one', async () => {
+    const next = jest.fn();
+    const res = makeRes();
+    await idempotency({ route: 'bookings/complete', required: true })(makeReq(), res, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.sent).toEqual({
+      statusCode: 400,
+      body: { success: false, message: 'Idempotency-Key header is required' }
+    });
+  });
+
   it('claims the key, caches the 2xx response, and stores no raw body or PHI', async () => {
     const mw = idempotency({ route: 'bookings/create' });
     const req = makeReq({ headers: KEY, body: { patientName: 'SENSITIVE', bookingId: 'b1' } });

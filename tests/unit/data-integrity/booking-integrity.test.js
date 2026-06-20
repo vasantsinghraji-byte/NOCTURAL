@@ -42,6 +42,13 @@ jest.mock('../../../services/healthRecordService', () => ({
 jest.mock('../../../services/doctorAccessService', () => ({
   grantAccess: jest.fn()
 }));
+jest.mock('../../../utils/safeMongo', () => {
+  const actual = jest.requireActual('../../../utils/safeMongo');
+  return {
+    ...actual,
+    normalizeObjectId: value => value
+  };
+});
 
 const NurseBooking = require('../../../models/nurseBooking');
 const ServiceCatalog = require('../../../models/serviceCatalog');
@@ -211,9 +218,12 @@ describe('Phase 2 — Booking Integrity', () => {
       expect(NurseBooking.create).toHaveBeenCalledTimes(1);
     });
 
-    it('should complete service with warnings when health metric capture fails', async () => {
+    it('should reject completion when health metric capture fails', async () => {
+      const bookingId = '64f000000000000000000001';
+      const patientId = '64f000000000000000000002';
+      const providerId = '64f000000000000000000003';
       const completedBooking = {
-        _id: 'booking1',
+        _id: bookingId,
         status: 'COMPLETED',
         actualService: {
           serviceReport: {
@@ -224,31 +234,40 @@ describe('Phase 2 — Booking Integrity', () => {
         toObject: function () { return { ...this }; }
       };
       const mockBooking = {
-        _id: 'booking1',
-        patient: 'patient1',
-        serviceProvider: { toString: () => 'provider1' },
+        _id: bookingId,
+        patient: patientId,
+        serviceProvider: { toString: () => providerId },
         status: 'IN_PROGRESS',
         actualService: { startTime: new Date(Date.now() - 3600000) },
         pricing: { payableAmount: 500 },
         toObject: function () { return { ...this }; }
       };
       NurseBooking.findById.mockResolvedValue(mockBooking);
-      NurseBooking.findByIdAndUpdate.mockResolvedValue(completedBooking);
+      NurseBooking.findOneAndUpdate.mockResolvedValue(completedBooking);
       Patient.findByIdAndUpdate.mockResolvedValue(true);
 
       // Health metric service throws
       healthMetricService.recordMultipleMetrics.mockRejectedValue(new Error('Metric write failed'));
 
-      const result = await bookingService.completeService('booking1', 'provider1', {
+      await expect(bookingService.completeService(bookingId, providerId, {
         vitalsChecked: { bloodPressure: '120/80' },
         observations: 'Patient stable'
-      });
+      })).rejects.toThrow('Metric write failed');
 
-      // Should still complete — warnings attached
-      expect(result).toBeDefined();
-      expect(result.warnings).toBeDefined();
-      expect(result.warnings.length).toBeGreaterThan(0);
-      expect(result.warnings[0].type).toBe('HEALTH_METRICS_FAILED');
+      // Dependent writes are part of completion, so failure aborts the request.
+      expect(healthMetricService.recordMultipleMetrics).toHaveBeenCalledWith(
+        patientId,
+        [
+          { metricType: 'BP_SYSTOLIC', value: 120, unit: 'mmHg' },
+          { metricType: 'BP_DIASTOLIC', value: 80, unit: 'mmHg' }
+        ],
+        {
+          type: 'BOOKING',
+          bookingId,
+          providerId
+        },
+        undefined
+      );
     });
 
     it('should complete service using query validators on the booking update', async () => {
@@ -263,15 +282,20 @@ describe('Phase 2 — Booking Integrity', () => {
       };
 
       NurseBooking.findById.mockResolvedValue(mockBooking);
-      NurseBooking.findByIdAndUpdate.mockResolvedValue(mockBooking);
+      NurseBooking.findOneAndUpdate.mockResolvedValue(mockBooking);
       Patient.findByIdAndUpdate.mockResolvedValue(true);
 
       await bookingService.completeService('booking1', 'provider1', {
         observations: 'Done'
       });
 
-      expect(NurseBooking.findByIdAndUpdate).toHaveBeenCalledTimes(1);
-      expect(NurseBooking.findByIdAndUpdate.mock.calls[0][2]).toEqual({
+      expect(NurseBooking.findOneAndUpdate).toHaveBeenCalledTimes(1);
+      expect(NurseBooking.findOneAndUpdate.mock.calls[0][0]).toEqual({
+        _id: 'booking1',
+        serviceProvider: 'provider1',
+        status: 'IN_PROGRESS'
+      });
+      expect(NurseBooking.findOneAndUpdate.mock.calls[0][2]).toEqual({
         new: true,
         runValidators: true,
         context: 'query'
@@ -431,19 +455,51 @@ describe('Phase 2 — Booking Integrity', () => {
         toObject: function () { return { ...this }; }
       };
       NurseBooking.findById.mockResolvedValue(mockBooking);
-      NurseBooking.findByIdAndUpdate.mockResolvedValue(true);
+      NurseBooking.findOneAndUpdate.mockResolvedValue(true);
       Patient.findByIdAndUpdate.mockResolvedValue(true);
 
       await bookingService.completeService('booking1', 'provider1', {
         observations: 'Done'
       });
 
-      expect(NurseBooking.findByIdAndUpdate).toHaveBeenCalledTimes(1);
-      const updateArg = NurseBooking.findByIdAndUpdate.mock.calls[0][1];
+      expect(NurseBooking.findOneAndUpdate).toHaveBeenCalledTimes(1);
+      const updateArg = NurseBooking.findOneAndUpdate.mock.calls[0][1];
       const duration = updateArg.$set['actualService.duration'];
 
       // Must be null, NOT NaN or undefined
       expect(duration).toBeNull();
+    });
+
+    it('should prevent a concurrent loser from processing completion side effects', async () => {
+      const mockBooking = {
+        _id: 'booking1',
+        patient: 'patient1',
+        serviceProvider: { toString: () => 'provider1' },
+        status: 'IN_PROGRESS',
+        actualService: { startTime: new Date() },
+        pricing: { payableAmount: 500 }
+      };
+      NurseBooking.findById.mockResolvedValue(mockBooking);
+      NurseBooking.findOneAndUpdate.mockResolvedValue(null);
+
+      await expect(
+        bookingService.completeService('booking1', 'provider1', {
+          vitalsChecked: { heartRate: 80 },
+          observations: 'Done'
+        })
+      ).rejects.toThrow(/already been completed|no longer in progress/i);
+
+      expect(NurseBooking.findOneAndUpdate).toHaveBeenCalledWith(
+        {
+          _id: 'booking1',
+          serviceProvider: 'provider1',
+          status: 'IN_PROGRESS'
+        },
+        expect.any(Object),
+        expect.any(Object)
+      );
+      expect(healthMetricService.recordMultipleMetrics).not.toHaveBeenCalled();
+      expect(Patient.findByIdAndUpdate).not.toHaveBeenCalled();
     });
   });
 
