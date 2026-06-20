@@ -59,12 +59,12 @@
         // Populate skills
         const skillsSelection = document.getElementById('skillsSelection');
         skills.forEach(skill => {
-            skillsSelection.innerHTML += `
+            AppUi.appendSafeHtml(skillsSelection, `
                 <div class="skill-item">
                     <input type="checkbox" id="skill-${skill.replace(/\s+/g, '-')}" value="${skill}">
                     <label for="skill-${skill.replace(/\s+/g, '-')}">${skill}</label>
                 </div>
-            `;
+            `);
         });
 
         // Populate shift preferences

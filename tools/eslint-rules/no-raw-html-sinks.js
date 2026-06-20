@@ -11,12 +11,13 @@
 const getSourceText = (context, node) => context.getSourceCode().getText(node);
 
 module.exports = {
-  meta: {
+    meta: {
     type: 'problem',
     docs: {
       description: 'disallow direct DOM HTML sinks; use AppUi helpers or DOM node construction',
       recommended: true
     },
+    fixable: 'code',
     hasSuggestions: true,
     schema: [],
     messages: {
@@ -45,6 +46,12 @@ module.exports = {
         context.report({
           node,
           messageId: 'innerHTML',
+          fix: isSimpleAssignment
+            ? (fixer) => fixer.replaceText(
+                parent,
+                `AppUi.setSafeHtml(${getSourceText(context, node.object)}, ${getSourceText(context, parent.right)})`
+              )
+            : null,
           suggest: isSimpleAssignment
             ? [{
                 messageId: 'replaceAssignment',
@@ -80,6 +87,12 @@ module.exports = {
         context.report({
           node,
           messageId: 'insertAdjacentHTML',
+          fix: canSuggestAppend
+            ? (fixer) => fixer.replaceText(
+                node,
+                `AppUi.appendSafeHtml(${getSourceText(context, callee.object)}, ${getSourceText(context, html)})`
+              )
+            : null,
           suggest: canSuggestAppend
             ? [{
                 messageId: 'replaceAppend',

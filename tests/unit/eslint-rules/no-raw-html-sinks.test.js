@@ -19,6 +19,7 @@ ruleTester.run('no-raw-html-sinks', rule, {
   invalid: [
     {
       code: 'element.innerHTML = html;',
+      output: 'AppUi.setSafeHtml(element, html);',
       errors: [{
         messageId: 'innerHTML',
         suggestions: [{
@@ -33,6 +34,7 @@ ruleTester.run('no-raw-html-sinks', rule, {
     },
     {
       code: "container.insertAdjacentHTML('beforeend', html);",
+      output: 'AppUi.appendSafeHtml(container, html);',
       errors: [{
         messageId: 'insertAdjacentHTML',
         suggestions: [{

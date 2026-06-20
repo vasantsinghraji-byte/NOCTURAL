@@ -32,7 +32,7 @@
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
-            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`;
+            AppUi.setSafeHtml(toast, `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`);
             container.appendChild(toast);
             setTimeout(() => toast.remove(), 4000);
         }
@@ -88,13 +88,13 @@
 
             // Files
             const filesGrid = document.getElementById('filesGrid');
-            filesGrid.innerHTML = report.files.map(file => `
+            AppUi.setSafeHtml(filesGrid, report.files.map(file => `
                 <div class="file-card" data-file-url="${file.url}">
                     <i class="fas ${file.mimeType === 'application/pdf' ? 'fa-file-pdf' : 'fa-file-image'}"></i>
                     <div class="file-name">${file.originalName}</div>
                     <div class="file-size">${AppFormat.megabytes(file.size, 2)}</div>
                 </div>
-            `).join('');
+            `).join(''));
 
             // AI Analysis
             renderAIAnalysis(report);
@@ -110,13 +110,13 @@
 
             if (!report.aiAnalysis || report.aiAnalysis.status === 'PENDING') {
                 AppUi.setDisplay(card, report.status === 'UPLOADED' || report.status === 'AI_ANALYZING' ? 'block' : 'none');
-                content.innerHTML = `
+                AppUi.setSafeHtml(content, `
                     <div class="analysis-state">
                         <i class="fas fa-spinner fa-spin analysis-state-icon analysis-state-icon-primary"></i>
                         <h4>AI Analysis in Progress</h4>
                         <p class="muted-text">Please wait while our AI analyzes your report...</p>
                     </div>
-                `;
+                `);
                 return;
             }
 
@@ -124,7 +124,7 @@
                 const isRetryable = report.aiAnalysis.error?.retryable !== false;
                 const isNotConfigured = report.aiAnalysis.error?.code === 'AI_NOT_CONFIGURED';
 
-                content.innerHTML = `
+                AppUi.setSafeHtml(content, `
                     <div class="analysis-state">
                         <i class="fas fa-exclamation-triangle analysis-state-icon analysis-state-icon-danger"></i>
                         <h4>Analysis ${isNotConfigured ? 'Unavailable' : 'Failed'}</h4>
@@ -140,13 +140,13 @@
                             </button>
                         </div>
                     </div>
-                `;
+                `);
                 return;
             }
 
             // Show confidence score
             if (report.aiAnalysis.confidenceScore) {
-                confidence.innerHTML = `<i class="fas fa-chart-pie"></i> ${report.aiAnalysis.confidenceScore}% confidence`;
+                AppUi.setSafeHtml(confidence, `<i class="fas fa-chart-pie"></i> ${report.aiAnalysis.confidenceScore}% confidence`);
             }
 
             let html = '';
@@ -225,7 +225,7 @@
                 `;
             }
 
-            content.innerHTML = html || '<p class="muted-text">No detailed analysis available.</p>';
+            AppUi.setSafeHtml(content, html || '<p class="muted-text">No detailed analysis available.</p>');
         }
 
         function renderDoctorReview(report) {
@@ -236,7 +236,7 @@
             // Show request review section if not reviewed yet
             if (!report.doctorReview || report.doctorReview.status === 'PENDING' || !report.doctorReview.assignedTo) {
                 if (report.status === 'AI_ANALYZED' || report.status === 'AI_FAILED') {
-                    content.innerHTML = `
+                    AppUi.setSafeHtml(content, `
                         <div class="request-review-section">
                             <i class="fas fa-user-md request-review-icon"></i>
                             <h4>Get Expert Review</h4>
@@ -247,15 +247,15 @@
                                 </button>
                             </div>
                         </div>
-                    `;
+                    `);
                 } else if (report.status === 'PENDING_DOCTOR_REVIEW') {
-                    content.innerHTML = `
+                    AppUi.setSafeHtml(content, `
                         <div class="analysis-state">
                             <i class="fas fa-clock analysis-state-icon analysis-state-icon-warning"></i>
                             <h4>Awaiting Doctor Review</h4>
                             <p class="muted-text">Your report is in the queue for review. You'll be notified when complete.</p>
                         </div>
-                    `;
+                    `);
                 } else {
                     AppUi.setDisplay(card, 'none');
                 }
@@ -267,7 +267,7 @@
             const doctor = review.assignedTo;
 
             if (review.completedAt) {
-                dateEl.innerHTML = `<i class="fas fa-calendar-check"></i> ${AppFormat.date(review.completedAt)}`;
+                AppUi.setSafeHtml(dateEl, `<i class="fas fa-calendar-check"></i> ${AppFormat.date(review.completedAt)}`);
             }
 
             let html = '';
@@ -363,7 +363,7 @@
                 `;
             }
 
-            content.innerHTML = html;
+            AppUi.setSafeHtml(content, html);
         }
 
         function renderQuestionsSection(report) {
@@ -446,8 +446,8 @@
                 const result = await apiCall('/patient-analytics/specializations');
                 if (result?.success) {
                     const select = document.getElementById('specialization');
-                    select.innerHTML = '<option value="">Select Specialization</option>' +
-                        result.specializations.map(s => `<option value="${s}">${s}</option>`).join('');
+                    AppUi.setSafeHtml(select, '<option value="">Select Specialization</option>' +
+                        result.specializations.map(s => `<option value="${s}">${s}</option>`).join(''));
                 }
             } catch (e) { console.error(e); }
         }
@@ -457,8 +457,8 @@
                 const result = await apiCall(`/patient-analytics/available-doctors?specialization=${specialization}`);
                 if (result?.success) {
                     const select = document.getElementById('doctorSelect');
-                    select.innerHTML = '<option value="">Select Doctor</option>' +
-                        result.doctors.map(d => `<option value="${d._id}">Dr. ${d.name} - ${d.specialization || 'General'}</option>`).join('');
+                    AppUi.setSafeHtml(select, '<option value="">Select Doctor</option>' +
+                        result.doctors.map(d => `<option value="${d._id}">Dr. ${d.name} - ${d.specialization || 'General'}</option>`).join(''));
                 }
             } catch (e) { console.error(e); }
         }
@@ -484,7 +484,7 @@
             }
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            AppUi.setSafeHtml(btn, '<i class="fas fa-spinner fa-spin"></i> Submitting...');
 
             try {
                 const result = await apiCall(`/patient-analytics/reports/${reportId}/request-review`, {
@@ -503,7 +503,7 @@
                 showToast('Failed to request review', 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Request Review';
+                AppUi.setSafeHtml(btn, '<i class="fas fa-paper-plane"></i> Request Review');
             }
         }
 
@@ -517,7 +517,7 @@
             }
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            AppUi.setSafeHtml(btn, '<i class="fas fa-spinner fa-spin"></i> Submitting...');
 
             try {
                 const result = await apiCall(`/patient-analytics/reports/${reportId}/questions`, {
@@ -536,7 +536,7 @@
                 showToast('Failed to submit question', 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Question';
+                AppUi.setSafeHtml(btn, '<i class="fas fa-paper-plane"></i> Submit Question');
             }
         }
 

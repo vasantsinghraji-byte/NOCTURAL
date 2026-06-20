@@ -259,9 +259,8 @@
                 restoreScrollPosition();
             } catch (error) {
                 console.error('Error fetching applications:', error);
-                document.getElementById('applicationsContainer').innerHTML = 
-                    '<div class="no-applications">Error loading applications. Please try again later.</div>';
-                document.getElementById('paginationControls').innerHTML = '';
+                AppUi.setSafeHtml(document.getElementById('applicationsContainer'), '<div class="no-applications">Error loading applications. Please try again later.</div>');
+                AppUi.setSafeHtml(document.getElementById('paginationControls'), '');
             }
         }
 
@@ -326,7 +325,7 @@
                 return;
             }
 
-            container.innerHTML = applications.map(app => {
+            AppUi.setSafeHtml(container, applications.map(app => {
                 const duty = app.duty || {};
                 const appliedDate = AppFormat.date(app.appliedAt || app.createdAt, 'en-IN', {
                     day: 'numeric',
@@ -383,23 +382,23 @@
                         </div>
                     </div>
                 `;
-            }).join('');
+            }).join(''));
         }
 
         // Display no applications message
         function displayNoApplications() {
-            document.getElementById('paginationControls').innerHTML = '';
+            AppUi.setSafeHtml(document.getElementById('paginationControls'), '');
             document.getElementById('applicationsSummary').textContent = currentFilter === 'all'
                 ? 'No applications found'
                 : `No ${currentFilter} applications found`;
-            document.getElementById('applicationsContainer').innerHTML = `
+            AppUi.setSafeHtml(document.getElementById('applicationsContainer'), `
                 <div class="no-applications">
                     <div class="icon">📭</div>
                     <h3>${currentFilter === 'all' ? 'No applications yet' : `No ${currentFilter} applications`}</h3>
                     <p>Start browsing available duties and apply to begin your journey!</p>
                     <a href="${AppConfig.routes.page('doctor.browseDuties')}" class="browse-btn">Browse Duties</a>
                 </div>
-            `;
+            `);
         }
 
         function renderPagination() {
@@ -410,7 +409,7 @@
                 summary.textContent = currentFilter === 'all'
                     ? 'No applications found'
                     : `No ${currentFilter} applications found`;
-                container.innerHTML = '';
+                AppUi.setSafeHtml(container, '');
                 return;
             }
 
@@ -420,11 +419,11 @@
             summary.textContent = `Showing ${startItem}-${endItem} of ${currentPagination.total} ${currentFilter === 'all' ? 'applications' : `${currentFilter} applications`}`;
 
             if (currentPagination.pages <= 1) {
-                container.innerHTML = '';
+                AppUi.setSafeHtml(container, '');
                 return;
             }
 
-            container.innerHTML = `
+            AppUi.setSafeHtml(container, `
                 <div class="pagination-info">
                     Page size ${currentPagination.limit}
                 </div>
@@ -442,7 +441,7 @@
                         Next
                     </button>
                 </div>
-            `;
+            `);
         }
 
         function getVisiblePageNumbers() {

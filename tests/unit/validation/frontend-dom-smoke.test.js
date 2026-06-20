@@ -170,6 +170,18 @@ function createBaseContext() {
     window: windowObject,
     navigator: { serviceWorker: { addEventListener: jest.fn() }, onLine: true },
     AppConfig: undefined,
+    AppUi: {
+      setSafeHtml(element, html) {
+        if (element) {
+          element.innerHTML = html;
+        }
+      },
+      appendSafeHtml(element, html) {
+        if (element) {
+          element.innerHTML += html;
+        }
+      }
+    },
     URLSearchParams,
     __documentListeners: documentListeners
   };

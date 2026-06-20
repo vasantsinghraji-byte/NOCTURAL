@@ -121,14 +121,13 @@
                 displayServices(services);
             } catch (error) {
                 console.error('Error loading services:', error);
-                document.getElementById('servicesGrid').innerHTML =
-                    '<div class="empty-state"><h3>Failed to load services</h3><p>Please try again later</p></div>';
+                AppUi.setSafeHtml(document.getElementById('servicesGrid'), '<div class="empty-state"><h3>Failed to load services</h3><p>Please try again later</p></div>');
             }
         }
 
         function displayServices(services) {
             const grid = document.getElementById('servicesGrid');
-            grid.innerHTML = services.map(service => `
+            AppUi.setSafeHtml(grid, services.map(service => `
                 <div class="service-card" data-service-type="${service.serviceType}" data-service-name="${service.name}" data-service-price="${service.price}">
                     <div class="category-badge">${service.category}</div>
                     <div class="service-icon">${service.icon}</div>
@@ -139,7 +138,7 @@
                         <button class="btn-book">Book Now</button>
                     </div>
                 </div>
-            `).join('');
+            `).join(''));
         }
 
         // Fetch patient stats
@@ -172,8 +171,7 @@
                 displayBookings(data.data || []);
             } catch (error) {
                 console.error('Error loading bookings:', error);
-                document.getElementById('bookingsList').innerHTML =
-                    '<div class="empty-state"><h3>No bookings yet</h3><p>Book your first service to get started!</p></div>';
+                AppUi.setSafeHtml(document.getElementById('bookingsList'), '<div class="empty-state"><h3>No bookings yet</h3><p>Book your first service to get started!</p></div>');
             }
         }
 
@@ -181,11 +179,11 @@
             const list = document.getElementById('bookingsList');
 
             if (bookings.length === 0) {
-                list.innerHTML = '<div class="empty-state"><h3>No bookings yet</h3><p>Book your first service to get started!</p></div>';
+                AppUi.setSafeHtml(list, '<div class="empty-state"><h3>No bookings yet</h3><p>Book your first service to get started!</p></div>');
                 return;
             }
 
-            list.innerHTML = bookings.map(booking => `
+            AppUi.setSafeHtml(list, bookings.map(booking => `
                 <div class="service-card">
                     <div class="category-badge">${booking.status}</div>
                     <h3>${booking.serviceType}</h3>
@@ -196,7 +194,7 @@
                         <span class="price">₹${AppFormat.decimal(booking.pricing.payableAmount, 2)}</span>
                     </div>
                 </div>
-            `).join('');
+            `).join(''));
         }
 
         function showTab(tab, tabButton) {
