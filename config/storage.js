@@ -1,7 +1,20 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const logger = require('../utils/logger');
 const { createMagicByteValidatedStream } = require('../utils/uploadMagicByteValidator');
+const UPLOADS_ROOT = path.resolve(__dirname, '../uploads');
+
+const FIELD_UPLOAD_FOLDERS = {
+  profilePhoto: 'profile-photos',
+  mciCertificate: 'documents/mci',
+  mbbsDegree: 'documents/degrees',
+  photoId: 'documents/ids',
+  certificate: 'documents/certificates',
+  files: 'investigation-reports'
+};
+
+const getUploadFolder = (req, file) => FIELD_UPLOAD_FOLDERS[file.fieldname] || req.uploadType || 'general';
 
 // Determine storage backend — only use GCS when explicitly enabled and configured
 const USE_GCS = process.env.USE_GCS === 'true' && !!process.env.GCS_BUCKET;
@@ -52,11 +65,10 @@ if (USE_GCS && process.env.GCS_BUCKET) {
 // Local Storage Configuration (fallback for development)
 const localStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const folder = req.uploadType || 'general';
+    const folder = getUploadFolder(req, file);
     const uploadPath = path.join(__dirname, '../uploads', folder);
 
     // Create directory if it doesn't exist
-    const fs = require('fs');
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
@@ -85,7 +97,7 @@ const gcsStorage = {
       const filename = `${basename}-${uniqueSuffix}${ext}`;
 
       // Organize by upload type and date
-      const folder = req.uploadType || 'general';
+      const folder = getUploadFolder(req, file);
       const dateFolder = new Date().toISOString().split('T')[0];
       const key = `${folder}/${dateFolder}/${filename}`;
 
@@ -137,6 +149,7 @@ const gcsStorage = {
         const publicUrl = `https://storage.googleapis.com/${process.env.GCS_BUCKET}/${key}`;
         done(null, {
           key: key,
+          filename: key,
           location: publicUrl,
           bucket: process.env.GCS_BUCKET,
           size: validatedUpload.getSize(),
@@ -176,6 +189,54 @@ const MIME_EXTENSION_MAP = {
 
 const ALLOWED_MIME_TYPES = Object.keys(MIME_EXTENSION_MAP);
 
+const normalizeStorageKey = (key) => {
+  if (typeof key !== 'string' || !key.trim()) {
+    throw new Error('Stored file key is missing');
+  }
+
+  const normalized = key.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (normalized.split('/').includes('..')) {
+    throw new Error('Stored file key is invalid');
+  }
+  return normalized;
+};
+
+const getStorageKey = (file) => {
+  if (file.key) {
+    return normalizeStorageKey(file.key);
+  }
+  if (!file.path) {
+    throw new Error('Uploaded file does not include a storage path');
+  }
+
+  const resolvedPath = path.resolve(file.path);
+  const relativePath = path.relative(UPLOADS_ROOT, resolvedPath);
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    throw new Error('Uploaded file is outside the configured storage root');
+  }
+  return normalizeStorageKey(relativePath);
+};
+
+const toStoredFile = (file) => {
+  const key = getStorageKey(file);
+  return {
+    key,
+    url: `/api/v1/uploads/file?key=${encodeURIComponent(key)}`,
+    originalName: file.originalname,
+    mimeType: file.mimetype,
+    size: file.size
+  };
+};
+
+const resolveLocalFile = (key) => {
+  const normalized = normalizeStorageKey(key);
+  const resolvedPath = path.resolve(UPLOADS_ROOT, normalized);
+  if (resolvedPath !== UPLOADS_ROOT && !resolvedPath.startsWith(`${UPLOADS_ROOT}${path.sep}`)) {
+    throw new Error('Stored file key resolves outside the upload root');
+  }
+  return resolvedPath;
+};
+
 const fileFilter = (req, file, cb) => {
   // Validate MIME type
   if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
@@ -211,16 +272,12 @@ module.exports = {
   // Allowed MIME types and extension map (for consumers that need the list)
   ALLOWED_MIME_TYPES,
   MIME_EXTENSION_MAP,
+  getStorageKey,
+  toStoredFile,
+  resolveLocalFile,
 
   // Get file URL (works for both GCS and local)
-  getFileUrl: (filename) => {
-    if (USE_GCS) {
-      const bucket = process.env.GCS_BUCKET;
-      return `https://storage.googleapis.com/${bucket}/${filename}`;
-    } else {
-      return `/uploads/${filename}`;
-    }
-  },
+  getFileUrl: (filename) => `/api/v1/uploads/file?key=${encodeURIComponent(normalizeStorageKey(filename))}`,
 
   // Generate signed URL for private GCS files
   getSignedUrl: async (key, expiresIn = 3600) => {
@@ -243,19 +300,30 @@ module.exports = {
 
   // Delete file (works for both GCS and local)
   deleteFile: async (filename) => {
+    if (!filename) return;
+    const key = normalizeStorageKey(filename);
     if (USE_GCS && gcsBucket) {
       try {
-        await gcsBucket.file(filename).delete();
+        await gcsBucket.file(key).delete();
       } catch (error) {
-        logger.warn('Failed to delete file from GCS', { filename, error: error.message });
+        if (error.code !== 404) {
+          logger.error('Failed to delete file from GCS', { filename: key, error: error.message });
+          throw error;
+        }
       }
     } else {
-      const fs = require('fs').promises;
-      const filePath = path.join(__dirname, '../uploads', filename);
+      const filePath = resolveLocalFile(key);
+      const relativePath = path.relative(UPLOADS_ROOT, filePath);
+      if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+        throw new Error('Refusing to delete a file outside the configured storage root');
+      }
       try {
-        await fs.unlink(filePath);
+        await fs.promises.unlink(filePath);
       } catch (error) {
-        // File might not exist, ignore error
+        if (error.code !== 'ENOENT') {
+          logger.error('Failed to delete local file', { filename: key, error: error.message });
+          throw error;
+        }
       }
     }
   }

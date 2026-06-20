@@ -182,6 +182,9 @@
                 NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('uploads.profilePhoto', {
                     method: 'POST',
                     parseJson: true,
+                    headers: {
+                        'Idempotency-Key': AppConfig.createIdempotencyKey()
+                    },
                     body: formData
                 }), 'Upload failed');
                 showAlert('Profile photo updated successfully!', 'success');
@@ -209,6 +212,9 @@
                     NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('uploads.document', {
                         method: 'POST',
                         parseJson: true,
+                        headers: {
+                            'Idempotency-Key': AppConfig.createIdempotencyKey()
+                        },
                         body: formData
                     }, {
                         params: { documentType: docType }

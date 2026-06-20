@@ -20,6 +20,8 @@ jest.mock('../../../middleware/upload', () => ({
   uploadDocuments: (_req, _res, next) => next()
 }));
 
+jest.mock('../../../middleware/idempotency', () => () => (_req, _res, next) => next());
+
 jest.mock('../../../models/user', () => ({
   findById: jest.fn()
 }));

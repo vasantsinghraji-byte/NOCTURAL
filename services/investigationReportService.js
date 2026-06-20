@@ -13,6 +13,8 @@ const geminiService = require('./geminiAnalysisService');
 const notificationService = require('./notificationService');
 const logger = require('../utils/logger');
 const path = require('path');
+const storageConfig = require('../config/storage');
+const { normalizeObjectId } = require('../utils/safeMongo');
 const {
   INVESTIGATION_REPORT_STATUS,
   INVESTIGATION_REPORT_TYPES,
@@ -22,6 +24,18 @@ const {
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const ALLOWED_URL_PROTOCOLS = ['https:'];
 const UPLOADS_BASE_DIR = path.resolve('./uploads');
+
+const getAnalysisFile = async (file) => {
+  const key = file.publicId || file.fileName;
+  const url = storageConfig.USE_GCS
+    ? await storageConfig.getSignedUrl(key)
+    : storageConfig.resolveLocalFile(key);
+
+  if (!url) {
+    throw new Error('Unable to access stored report file');
+  }
+  return { url, mimeType: file.mimeType };
+};
 
 /**
  * Validate file URL/path before sending to AI analysis
@@ -61,25 +75,37 @@ const validateFileForAnalysis = (file) => {
  * Create a new investigation report
  */
 const createReport = async (patientId, reportData, files) => {
+  const storedFiles = files.map(file => ({
+    ...storageConfig.toStoredFile(file),
+    originalName: file.originalname,
+    mimeType: file.mimetype,
+    size: file.size
+  }));
   const report = new InvestigationReport({
     patient: patientId,
     title: reportData.title,
     description: reportData.description,
     reportType: reportData.reportType,
     reportDate: new Date(reportData.reportDate),
-    files: files.map(file => ({
-      originalName: file.originalname,
-      fileName: file.filename || file.key,
-      mimeType: file.mimetype,
-      size: file.size,
-      url: file.location || `/uploads/investigation-reports/${file.filename}`,
-      publicId: file.key // For S3
-    })),
+    files: [],
     tags: reportData.tags || [],
     linkedBooking: reportData.linkedBooking
   });
+  report.files = storedFiles.map((file, index) => ({
+    originalName: file.originalName,
+    fileName: file.key,
+    mimeType: file.mimeType,
+    size: file.size,
+    url: `/api/v1/patient-analytics/reports/${report._id}/files/${index}/download`,
+    publicId: file.key
+  }));
 
-  await report.save();
+  try {
+    await report.save();
+  } catch (error) {
+    await Promise.all(storedFiles.map(file => storageConfig.deleteFile(file.key)));
+    throw error;
+  }
 
   // Trigger async AI analysis — status tracked via report.status and report.aiAnalysis
   triggerAIAnalysis(report._id).catch(async (err) => {
@@ -144,16 +170,18 @@ const triggerAIAnalysis = async (reportId) => {
   await report.save();
 
   try {
-    // Validate all file URLs/paths before sending to AI
+    const analysisFiles = [];
     for (const file of report.files) {
-      validateFileForAnalysis(file);
+      const analysisFile = await getAnalysisFile(file);
+      validateFileForAnalysis(analysisFile);
+      analysisFiles.push(analysisFile);
     }
 
     let analysisResult;
 
     // Analyze based on file storage type
     if (report.files.length === 1) {
-      const file = report.files[0];
+      const file = analysisFiles[0];
       if (file.url.startsWith('http')) {
         analysisResult = await geminiService.analyzeFromUrl(file.url, file.mimeType);
       } else {
@@ -164,7 +192,7 @@ const triggerAIAnalysis = async (reportId) => {
       }
     } else {
       // Multiple files
-      const files = report.files.map(f => ({
+      const files = analysisFiles.map(f => ({
         path: f.url.startsWith('http') ? f.url : `.${f.url}`,
         mimeType: f.mimeType
       }));
@@ -224,9 +252,11 @@ const triggerAIAnalysis = async (reportId) => {
  * Retry failed AI analysis
  */
 const retryAIAnalysis = async (reportId, patientId) => {
+  const safeReportId = normalizeObjectId(reportId, 'report id');
+  const safePatientId = normalizeObjectId(patientId, 'patient id');
   const report = await InvestigationReport.findOne({
-    _id: reportId,
-    patient: patientId,
+    _id: safeReportId,
+    patient: safePatientId,
     status: INVESTIGATION_REPORT_STATUS.AI_FAILED
   });
 
@@ -234,7 +264,7 @@ const retryAIAnalysis = async (reportId, patientId) => {
     throw new Error('Report not found or not in failed state');
   }
 
-  return triggerAIAnalysis(reportId);
+  return triggerAIAnalysis(safeReportId);
 };
 
 /**
@@ -242,10 +272,12 @@ const retryAIAnalysis = async (reportId, patientId) => {
  */
 const requestDoctorReview = async (reportId, patientId, options) => {
   const { assignmentType, doctorId, specialization } = options;
+  const safeReportId = normalizeObjectId(reportId, 'report id');
+  const safePatientId = normalizeObjectId(patientId, 'patient id');
 
   const report = await InvestigationReport.findOne({
-    _id: reportId,
-    patient: patientId,
+    _id: safeReportId,
+    patient: safePatientId,
     status: { $in: [INVESTIGATION_REPORT_STATUS.AI_ANALYZED, INVESTIGATION_REPORT_STATUS.AI_FAILED] }
   });
 
@@ -266,11 +298,12 @@ const requestDoctorReview = async (reportId, patientId, options) => {
       if (!doctorId) {
         throw new Error('Doctor ID required for manual assignment');
       }
-      const doctor = await User.findOne({ _id: doctorId, role: 'doctor', isActive: true });
+      const safeDoctorId = normalizeObjectId(doctorId, 'doctor id');
+      const doctor = await User.findOne({ _id: safeDoctorId, role: 'doctor', isActive: true });
       if (!doctor) {
         throw new Error('Doctor not found');
       }
-      doctorReview.assignedTo = doctorId;
+      doctorReview.assignedTo = safeDoctorId;
       doctorReview.assignedBy = options.assignedBy;
       break;
     }
@@ -280,12 +313,13 @@ const requestDoctorReview = async (reportId, patientId, options) => {
       if (!doctorId) {
         throw new Error('Doctor ID required for patient choice');
       }
-      const chosenDoctor = await User.findOne({ _id: doctorId, role: 'doctor', isActive: true });
+      const safeDoctorId = normalizeObjectId(doctorId, 'doctor id');
+      const chosenDoctor = await User.findOne({ _id: safeDoctorId, role: 'doctor', isActive: true });
       if (!chosenDoctor) {
         throw new Error('Doctor not found');
       }
-      doctorReview.assignedTo = doctorId;
-      doctorReview.assignedBy = patientId;
+      doctorReview.assignedTo = safeDoctorId;
+      doctorReview.assignedBy = safePatientId;
       break;
     }
 
@@ -324,21 +358,23 @@ const requestDoctorReview = async (reportId, patientId, options) => {
  * Doctor picks report from auto-queue
  */
 const pickReportFromQueue = async (reportId, doctorId) => {
-  const doctor = await User.findById(doctorId);
+  const safeReportId = normalizeObjectId(reportId, 'report id');
+  const safeDoctorId = normalizeObjectId(doctorId, 'doctor id');
+  const doctor = await User.findById(safeDoctorId);
   if (!doctor || doctor.role !== 'doctor') {
     throw new Error('Invalid doctor');
   }
 
   const report = await InvestigationReport.findOneAndUpdate(
     {
-      _id: reportId,
+      _id: safeReportId,
       'doctorReview.assignmentType': REPORT_ASSIGNMENT_TYPE.AUTO_QUEUE,
       'doctorReview.assignedTo': { $exists: false },
       status: INVESTIGATION_REPORT_STATUS.PENDING_DOCTOR_REVIEW
     },
     {
       $set: {
-        'doctorReview.assignedTo': doctorId,
+        'doctorReview.assignedTo': safeDoctorId,
         'doctorReview.assignedAt': new Date()
       }
     },
@@ -442,6 +478,8 @@ const getReportDetails = async (reportId, patientId) => {
     throw new Error('Report not found');
   }
 
+  await Promise.all(report.files.map(file => storageConfig.deleteFile(file.publicId || file.fileName)));
+
   return report;
 };
 
@@ -485,9 +523,11 @@ const askQuestion = async (reportId, patientId, question) => {
  * Doctor answers patient question
  */
 const answerQuestion = async (reportId, questionId, doctorId, answer) => {
+  const safeReportId = normalizeObjectId(reportId, 'report id');
+  const safeDoctorId = normalizeObjectId(doctorId, 'doctor id');
   const report = await InvestigationReport.findOne({
-    _id: reportId,
-    'doctorReview.assignedTo': doctorId
+    _id: safeReportId,
+    'doctorReview.assignedTo': safeDoctorId
   });
 
   if (!report) {
@@ -500,7 +540,7 @@ const answerQuestion = async (reportId, questionId, doctorId, answer) => {
   }
 
   question.answer = answer;
-  question.answeredBy = doctorId;
+  question.answeredBy = safeDoctorId;
   question.answeredAt = new Date();
 
   await report.save();
