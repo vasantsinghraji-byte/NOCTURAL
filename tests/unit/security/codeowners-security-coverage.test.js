@@ -7,10 +7,26 @@ const {
   validateRequiredStatusChecksExist
 } = require('../../../scripts/validate-codeowners-security-coverage');
 const {
-  classifyStatus
+  classifyStatus,
+  findBranchProtectionRule
 } = require('../../../scripts/manage-security-governance-protection');
 
 describe('CODEOWNERS security-governance validator', () => {
+  it('reads branch protection rules from the GitHub GraphQL data envelope', () => {
+    expect(findBranchProtectionRule({
+      data: {
+        repository: {
+          branchProtectionRules: {
+            nodes: [
+              { id: 'rule-main', pattern: 'main' },
+              { id: 'rule-develop', pattern: 'develop' }
+            ]
+          }
+        }
+      }
+    }, 'develop')).toEqual({ id: 'rule-develop', pattern: 'develop' });
+  });
+
   it('classifies bootstrap-safe, fully-enforced, and drifted branch protection', () => {
     expect(classifyStatus({
       contexts: ['Required Post-Deploy Render Smoke'],
