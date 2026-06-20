@@ -11,6 +11,7 @@ const paymentService = require('./services/paymentService');
 const { connectDB, disconnectDB } = require('./config/database');
 const { cleanup: cleanupRateLimits } = require('./config/rateLimit');
 const { validateEnvironment } = require('./config/validateEnv');
+const securityNotificationOutboxService = require('./services/securityNotificationOutboxService');
 
 let server = null;
 let processHandlersRegistered = false;
@@ -35,6 +36,7 @@ async function stopServer() {
   cleanupRateLimits();
   monitoring.cleanup();
   metricsRouter.cleanup();
+  securityNotificationOutboxService.stop();
 
   if (!server) {
     await disconnectDB();
@@ -154,6 +156,7 @@ function startServer(options = {}) {
   server.keepAliveTimeout = SERVER_KEEP_ALIVE_TIMEOUT_MS;
 
   paymentService.startRefundOutboxWorker();
+  securityNotificationOutboxService.start();
 
   server.on('close', () => {
     server = null;

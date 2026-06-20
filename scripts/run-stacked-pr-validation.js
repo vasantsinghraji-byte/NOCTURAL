@@ -36,7 +36,7 @@ const TESTS = {
     command('npm test -- --runInBand --runTestsByPath tests/unit/utils/tenant-scope.test.js')
   ],
   'feature/security-audit-notification-core': [
-    command('npm test -- --runInBand --runTestsByPath tests/unit/security/notification-route-authorization.test.js tests/unit/security/notification-service-sanitization.test.js tests/unit/security/security-notification-outbox.test.js')
+    command('npm test -- --runInBand --runTestsByPath tests/unit/security/mobile-device-ownership.test.js tests/unit/security/notification-route-authorization.test.js tests/unit/security/notification-service-sanitization.test.js tests/unit/security/security-notification-outbox.test.js')
   ],
   'fix/auth-session-revocation': [
     command('npm test -- --runInBand --runTestsByPath tests/unit/authorization/session-auth.test.js tests/unit/security/auth-middleware.test.js tests/unit/security/compromised-password.test.js tests/unit/security/password-mfa-outbox-hardening.test.js tests/unit/security/refresh-session-password-invalidation.test.js tests/unit/security/token-identity-contract.test.js tests/integration/auth-change-password.test.js tests/integration/security/auth-flow.test.js')
@@ -94,6 +94,7 @@ const LINTS = {
     command('node --check utils/requestSecurityMetadata.js')
   ],
   'feature/security-audit-notification-core': [
+    command('node --check services/mobileDeviceService.js'),
     command('node --check services/securityAuditService.js'),
     command('node --check services/securityNotificationService.js')
   ],
@@ -151,7 +152,7 @@ const SECURITY = {
     command('npm test -- --runInBand --runTestsByPath tests/unit/utils/tenant-scope.test.js')
   ],
   'feature/security-audit-notification-core': [
-    command('npm test -- --runInBand --runTestsByPath tests/unit/security/notification-route-authorization.test.js tests/unit/security/notification-service-sanitization.test.js')
+    command('npm test -- --runInBand --runTestsByPath tests/unit/security/mobile-device-ownership.test.js tests/unit/security/notification-route-authorization.test.js tests/unit/security/notification-service-sanitization.test.js')
   ],
   'fix/auth-session-revocation': [
     command('npm run test:security-gate')
