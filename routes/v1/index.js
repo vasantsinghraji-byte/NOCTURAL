@@ -30,6 +30,8 @@ const bookingRoutes = require('../booking');
 const funnelEventRoutes = require('../funnelEvents');
 const hospitalWaitlistRoutes = require('../hospitalWaitlist');
 const mobileDeviceRoutes = require('../mobileDevices');
+const webAuthnRoutes = require('../webAuthn');
+const stagingWebAuthnSmokeRoutes = require('../stagingWebAuthnSmoke');
 
 // Health Dashboard routes (Patient Analytics & Health History)
 const patientDashboardRoutes = require('../patientDashboard');
@@ -83,6 +85,8 @@ router.use('/bookings', bookingRoutes);
 router.use('/funnel-events', funnelEventRoutes);
 router.use('/hospital-waitlist', hospitalWaitlistRoutes);
 router.use('/mobile-devices', mobileDeviceRoutes);
+router.use('/webauthn', webAuthnRoutes);
+router.use('/staging', stagingWebAuthnSmokeRoutes);
 
 const hasRazorpayCredentials = !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
 const isB2CPaymentEnabled = hasRazorpayCredentials && process.env.RAZORPAY_ENABLED !== 'false';
