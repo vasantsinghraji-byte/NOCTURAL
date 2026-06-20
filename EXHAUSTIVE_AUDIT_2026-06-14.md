@@ -1,6 +1,6 @@
 # NOCTURAL Full-Spectrum Audit
 
-Date: 2026-06-14  
+Date: 2026-06-14
 Scope: 447 backend, frontend, Android/mobile, configuration, script, and test files; 279 Express route declarations.
 
 ## Executive Assessment
