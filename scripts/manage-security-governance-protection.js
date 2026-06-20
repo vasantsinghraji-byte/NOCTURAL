@@ -6,7 +6,8 @@ const BOOTSTRAP_CONTEXTS = ['Required Post-Deploy Render Smoke'];
 const ENFORCED_CONTEXTS = [
   'Required Post-Deploy Render Smoke',
   'CODEOWNERS Security Governance Gate',
-  'Analyze (javascript-typescript)'
+  'Analyze (javascript-typescript)',
+  'CodeQL Alert Gate'
 ];
 
 function getArgValue(name, fallback) {
