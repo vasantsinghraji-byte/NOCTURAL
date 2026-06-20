@@ -8,6 +8,8 @@
 
 const mongoose = require('mongoose');
 
+const USER_ID = '000000000000000000000001';
+
 jest.mock('../../../models/availability');
 jest.mock('../../../models/calendarEvent');
 jest.mock('../../../models/duty');
@@ -83,7 +85,7 @@ describe('Phase 2 — Calendar & Health Intake', () => {
         return { deletedCount: 2 };
       });
 
-      await calendarService.setAvailability('user1', [
+      await calendarService.setAvailability(USER_ID, [
         { dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '17:00' }
       ]);
 
@@ -97,7 +99,7 @@ describe('Phase 2 — Calendar & Health Intake', () => {
       ]);
       Availability.deleteMany.mockResolvedValue({ deletedCount: 1 });
 
-      await calendarService.setAvailability('user1', [
+      await calendarService.setAvailability(USER_ID, [
         { dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '17:00' },
         { dayOfWeek: 'TUESDAY', startTime: '09:00', endTime: '17:00' }
       ]);
@@ -114,7 +116,7 @@ describe('Phase 2 — Calendar & Health Intake', () => {
 
       const [deleteFilter, deleteOptions] = Availability.deleteMany.mock.calls[0];
       expect(deleteFilter).toEqual(expect.objectContaining({
-        user: 'user1',
+        user: new mongoose.Types.ObjectId(USER_ID),
         _id: { $nin: ['newSlot1', 'newSlot2'] }
       }));
       expect(deleteOptions).toEqual({ session });
@@ -125,7 +127,7 @@ describe('Phase 2 — Calendar & Health Intake', () => {
       Availability.validate.mockRejectedValue(new Error('Validation failed'));
 
       await expect(
-        calendarService.setAvailability('user1', [
+        calendarService.setAvailability(USER_ID, [
           { dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '17:00' }
         ])
       ).rejects.toThrow('Validation failed');
@@ -144,7 +146,7 @@ describe('Phase 2 — Calendar & Health Intake', () => {
         .mockResolvedValueOnce({ deletedCount: 2 });
 
       await expect(
-        calendarService.setAvailability('user1', [
+        calendarService.setAvailability(USER_ID, [
           { dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '17:00' }
         ])
       ).rejects.toThrow('Delete failed');
@@ -152,7 +154,7 @@ describe('Phase 2 — Calendar & Health Intake', () => {
       expect(Availability.deleteMany).toHaveBeenNthCalledWith(
         2,
         {
-          user: 'user1',
+          user: new mongoose.Types.ObjectId(USER_ID),
           _id: { $in: ['newSlot1', 'newSlot2'] }
         }
       );

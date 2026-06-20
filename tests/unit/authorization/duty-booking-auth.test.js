@@ -8,6 +8,14 @@
 
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
+
+const DUTY_ID = '000000000000000000000001';
+const BOOKING_ID = '000000000000000000000002';
+const PATIENT_ID = '000000000000000000000003';
+const PROVIDER_ID = '000000000000000000000004';
+const ADMIN_ID = '000000000000000000000005';
+const OTHER_USER_ID = '000000000000000000000006';
 
 jest.mock('../../../models/duty');
 jest.mock('../../../models/nurseBooking');
@@ -65,7 +73,7 @@ describe('Authorization Unit: duty and booking access rules', () => {
 
     it('should authorize when ObjectId-like postedBy matches user._id as strings', async () => {
       const mockDuty = {
-        _id: 'duty1',
+        _id: DUTY_ID,
         postedBy: { toString: () => 'user123' },
         title: 'Test Duty'
       };
@@ -74,11 +82,11 @@ describe('Authorization Unit: duty and booking access rules', () => {
 
       const user = { _id: { toString: () => 'user123' } };
 
-      const result = await dutyService.updateDuty('duty1', { title: 'Updated' }, user);
+      const result = await dutyService.updateDuty(DUTY_ID, { title: 'Updated' }, user);
 
       expect(result).toBeDefined();
       expect(Duty.findByIdAndUpdate).toHaveBeenCalledWith(
-        'duty1',
+        new mongoose.Types.ObjectId(DUTY_ID),
         { title: 'Updated' },
         {
           new: true,
@@ -90,7 +98,7 @@ describe('Authorization Unit: duty and booking access rules', () => {
 
     it('should reject when postedBy and user._id differ', async () => {
       const mockDuty = {
-        _id: 'duty1',
+        _id: DUTY_ID,
         postedBy: { toString: () => 'user123' }
       };
       Duty.findById.mockResolvedValue(mockDuty);
@@ -98,7 +106,7 @@ describe('Authorization Unit: duty and booking access rules', () => {
       const user = { _id: { toString: () => 'differentUser' } };
 
       await expect(
-        dutyService.updateDuty('duty1', { title: 'Updated' }, user)
+        dutyService.updateDuty(DUTY_ID, { title: 'Updated' }, user)
       ).rejects.toMatchObject({
         statusCode: 403
       });
@@ -108,9 +116,9 @@ describe('Authorization Unit: duty and booking access rules', () => {
   describe('AUTH-003: Role param in booking status updates', () => {
     it('should authorize admin via userRole param without extra DB lookup', async () => {
       const mockBooking = {
-        _id: 'booking1',
-        patient: { toString: () => 'patient1' },
-        serviceProvider: { toString: () => 'provider1' },
+        _id: BOOKING_ID,
+        patient: { toString: () => PATIENT_ID },
+        serviceProvider: { toString: () => PROVIDER_ID },
         status: 'EN_ROUTE',
         actualService: {},
         save: jest.fn().mockResolvedValue(true)
@@ -118,7 +126,7 @@ describe('Authorization Unit: duty and booking access rules', () => {
       NurseBooking.findById.mockResolvedValue(mockBooking);
 
       // userId doesn't match provider, but userRole = 'admin'
-      await bookingService.updateStatus('booking1', 'IN_PROGRESS', 'adminUser', '', 'admin');
+      await bookingService.updateStatus(BOOKING_ID, 'IN_PROGRESS', ADMIN_ID, '', 'admin');
 
       expect(mockBooking.save).toHaveBeenCalled();
       // Verify no User.findById call was needed for role checking
@@ -128,9 +136,9 @@ describe('Authorization Unit: duty and booking access rules', () => {
 
     it('should reject non-provider, non-admin user', async () => {
       const mockBooking = {
-        _id: 'booking1',
-        patient: { toString: () => 'patient1' },
-        serviceProvider: { toString: () => 'provider1' },
+        _id: BOOKING_ID,
+        patient: { toString: () => PATIENT_ID },
+        serviceProvider: { toString: () => PROVIDER_ID },
         status: 'EN_ROUTE',
         actualService: {},
         save: jest.fn().mockResolvedValue(true)
@@ -138,7 +146,7 @@ describe('Authorization Unit: duty and booking access rules', () => {
       NurseBooking.findById.mockResolvedValue(mockBooking);
 
       await expect(
-        bookingService.updateStatus('booking1', 'IN_PROGRESS', 'randomUser', '')
+        bookingService.updateStatus(BOOKING_ID, 'IN_PROGRESS', OTHER_USER_ID, '')
       ).rejects.toThrow(/Not authorized/);
     });
 

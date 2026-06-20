@@ -11,7 +11,7 @@ describe('Numeric rounding standardization', () => {
     const src = readRepoFile('services', 'bookingService.js');
 
     expect(src).toContain("const { roundToTwoDecimals } = require('../utils/number');");
-    expect(src).toContain("'professional.rating': roundToTwoDecimals(avgRating)");
+    expect(src).toContain('rating: roundToTwoDecimals(avgRating)');
     expect(src).toContain('? roundToTwoDecimals((completedBookings / totalBookings) * 100)');
   });
 

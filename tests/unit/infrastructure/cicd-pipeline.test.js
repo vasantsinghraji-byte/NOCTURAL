@@ -72,14 +72,14 @@ describe('Phase 6 — CI/CD Pipeline', () => {
       expect(lintBlock[0]).not.toMatch(/continue-on-error:\s*true/);
     });
 
-    it('should run npm run lint directly (no echo fallback)', () => {
-      expect(ciYaml).toMatch(/run:\s*npm run lint/);
+    it('should run the stack-aware lint validator without a fallback', () => {
+      expect(ciYaml).toMatch(/run:\s*node scripts\/run-stacked-pr-validation\.js lint/);
     });
   });
 
   describe('CICD-005: Security audit configured', () => {
-    it('should run npm audit with an audit level', () => {
-      expect(ciYaml).toMatch(/--audit-level=/);
+    it('should run the stack-aware security validator', () => {
+      expect(ciYaml).toMatch(/run:\s*node scripts\/run-stacked-pr-validation\.js security/);
     });
   });
 
