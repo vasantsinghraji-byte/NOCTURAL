@@ -21,7 +21,8 @@ describe('CODEOWNERS security-governance validator', () => {
       contexts: [
         'Required Post-Deploy Render Smoke',
         'CODEOWNERS Security Governance Gate',
-        'Analyze (javascript-typescript)'
+        'Analyze (javascript-typescript)',
+        'CodeQL Alert Gate'
       ],
       requireCodeOwnerReviews: true
     })).toBe('fully-enforced');
