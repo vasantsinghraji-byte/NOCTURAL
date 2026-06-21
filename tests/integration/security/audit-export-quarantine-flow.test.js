@@ -66,11 +66,14 @@ describe('Security audit export quarantine flow integration', () => {
     await User.deleteMany({ _id: { $in: [operatorA, operatorB, operatorC] } });
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     Object.entries(originalEnv).forEach(([key, value]) => {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     });
+    if (databaseAvailable && mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
   });
 
   it('requires a second operator before a quarantined export can be released', async () => {

@@ -49,6 +49,9 @@ describe('Staging WebAuthn smoke account API', () => {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     });
+    if (databaseAvailable && mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
   });
 
   it('mints and revokes a short-lived staging smoke account against the isolated test database', async () => {

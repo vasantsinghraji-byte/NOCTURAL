@@ -46,11 +46,14 @@ describe('Security audit export quota integration', () => {
     await SecurityAuditEvent.deleteMany({ actorId: String(operatorId) });
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     Object.entries(originalEnv).forEach(([key, value]) => {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     });
+    if (databaseAvailable && mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
   });
 
   it('blocks export creation when the operator active-job quota is exhausted in MongoDB', async () => {
