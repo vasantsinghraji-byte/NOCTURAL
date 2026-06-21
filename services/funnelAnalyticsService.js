@@ -4,6 +4,9 @@ const logger = require('../utils/logger');
 const MAX_VALUE_LENGTH = 300;
 
 const normalizeValue = (value, fallback = '') => {
+  if (value !== undefined && value !== null && typeof value !== 'string' && typeof value !== 'number') {
+    return fallback;
+  }
   const normalized = String(value || fallback).trim();
   return normalized.slice(0, MAX_VALUE_LENGTH) || fallback;
 };
@@ -47,8 +50,10 @@ const getDailyReport = async ({ days = 30, event, path } = {}) => {
   const sinceDay = toDayKey(since);
 
   const filter = { day: { $gte: sinceDay } };
-  if (event) filter.event = event;
-  if (path) filter.path = path;
+  const eventName = event ? normalizeValue(event).slice(0, 80) : '';
+  const pagePath = path ? normalizeValue(path) : '';
+  if (eventName) filter.event = eventName;
+  if (pagePath) filter.path = pagePath;
 
   const rows = await FunnelDailyMetric.find(filter)
     .sort({ day: -1, event: 1, path: 1 })

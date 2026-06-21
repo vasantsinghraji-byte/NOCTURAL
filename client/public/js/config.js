@@ -792,26 +792,15 @@ const AppUi = {
     },
 
     sanitizeHtml: function(html) {
-        const template = document.createElement('template');
-        template.innerHTML = String(html || '');
-        template.content.querySelectorAll('script, iframe, object, embed, base, meta, link').forEach(
-            (element) => element.remove()
-        );
-        template.content.querySelectorAll('*').forEach((element) => {
-            Array.from(element.attributes).forEach((attribute) => {
-                const name = attribute.name.toLowerCase();
-                if (name.startsWith('on') || name === 'srcdoc' || name === 'style') {
-                    element.removeAttribute(attribute.name);
-                    return;
-                }
-                if (['href', 'src', 'action', 'formaction'].includes(name)) {
-                    const safeUrl = AppUi.sanitizeUrl(attribute.value);
-                    if (safeUrl) element.setAttribute(attribute.name, safeUrl);
-                    else element.removeAttribute(attribute.name);
-                }
-            });
+        if (typeof DOMPurify === 'undefined') {
+            throw new Error('DOMPurify must be loaded before config.js');
+        }
+        return DOMPurify.sanitize(String(html || ''), {
+            ALLOW_DATA_ATTR: true,
+            ALLOW_UNKNOWN_PROTOCOLS: false,
+            FORBID_ATTR: ['srcdoc', 'style'],
+            FORBID_TAGS: ['base', 'embed', 'iframe', 'link', 'meta', 'object', 'script']
         });
-        return template.innerHTML;
     },
 
     setSafeHtml: function(element, html) {

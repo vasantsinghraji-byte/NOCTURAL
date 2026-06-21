@@ -68,7 +68,7 @@ describe('Security Unit: Prometheus metrics authentication', () => {
 
     expect(deploymentYaml).toContain('PROMETHEUS_METRICS_TOKEN');
     expect(deploymentYaml).toContain('prometheus-metrics-token');
-    expect(monitoringYaml).toMatch(/authorization:\s*\n\s*type:\s*Bearer\s*\n\s*credentials:\s*\n\s*name:\s*nocturnal-secrets\s*\n\s*key:\s*prometheus-metrics-token/);
+    expect(monitoringYaml).toMatch(/^[\s\S]*authorization:\s*\n\s*type:\s*Bearer\s*\n\s*credentials:\s*\n\s*name:\s*nocturnal-secrets\s*\n\s*key:\s*prometheus-metrics-token[\s\S]*$/);
     expect(secretsYaml).toContain('nocturnal/prometheus-metrics-token');
     expect(composeYaml).toContain('PROMETHEUS_METRICS_TOKEN_FILE');
     expect(composeYaml).toContain('/etc/prometheus/secrets/nocturnal-metrics-token');

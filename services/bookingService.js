@@ -15,7 +15,7 @@ const logger = require('../utils/logger');
 const { roundToTwoDecimals } = require('../utils/number');
 const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
 const { hasReviewAggregateStateChanged } = require('../utils/bookingReviewAggregate');
-const { HTTP_STATUS, PAGINATION } = require('../constants');
+const { PAGINATION } = require('../constants');
 const {
   ValidationError,
   AuthorizationError,

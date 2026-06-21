@@ -161,9 +161,14 @@ function requirePrometheusBearerToken(req, res, next) {
     }
 
     const authHeader = req.get('authorization') || '';
-    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const bearerPrefix = 'bearer ';
+    const providedToken = typeof authHeader === 'string'
+        && authHeader.length <= 8192
+        && authHeader.slice(0, bearerPrefix.length).toLowerCase() === bearerPrefix
+        ? authHeader.slice(bearerPrefix.length).trim()
+        : '';
 
-    if (!match || !tokensEqual(match[1], expectedToken)) {
+    if (!providedToken || !tokensEqual(providedToken, expectedToken)) {
         return res.status(401).json({
             success: false,
             message: 'Unauthorized metrics scrape'

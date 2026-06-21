@@ -6,7 +6,6 @@
  */
 
 const Patient = require('../models/patient');
-const logger = require('../utils/logger');
 const { getAccessTokenFromRequest, verifyAccessToken } = require('./auth');
 const { IDENTITY_TYPES } = require('../utils/authTokens');
 const { normalizeObjectId } = require('../utils/safeMongo');

@@ -123,7 +123,11 @@ describe('Security Unit: static analysis guardrails', () => {
 
       for (const file of jsFiles) {
         const source = readFile(file);
-        if (file.replace(/\\/g, '/') === 'client/public/js/config.js') {
+        const normalizedFile = file.replace(/\\/g, '/');
+        if (
+          normalizedFile === 'client/public/js/config.js'
+          || normalizedFile.startsWith('client/public/js/vendor/')
+        ) {
           continue;
         }
 
@@ -133,6 +137,21 @@ describe('Security Unit: static analysis guardrails', () => {
       }
 
       expect(violations).toEqual([]);
+    });
+
+    it('loads DOMPurify before config.js on every maintained frontend page', () => {
+      const htmlFiles = listFiles('client/public', file => file.endsWith('.html'));
+      const pagesWithConfig = htmlFiles.filter(file => readFile(file).includes('js/config.js'));
+      const missingOrMisordered = pagesWithConfig.filter((file) => {
+        const source = readFile(file);
+        const purifierIndex = source.indexOf('/js/vendor/dompurify.min.js');
+        const configIndex = source.indexOf('js/config.js');
+        return purifierIndex < 0 || purifierIndex > configIndex;
+      });
+
+      expect(missingOrMisordered).toEqual([]);
+      expect(readFile('client/public/js/config.js')).toContain('DOMPurify.sanitize');
+      expect(readFile('client/public/js/vendor/dompurify.min.js')).toContain('DOMPurify');
     });
   });
 

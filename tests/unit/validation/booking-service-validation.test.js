@@ -57,7 +57,6 @@ describe('Booking Service Validation', () => {
       // Extract createBooking method
       const methodMatch = src.match(/async createBooking[\s\S]*?(?=\n\s{2}async |\n\s{2}\/\*\*)/);
       expect(methodMatch).not.toBeNull();
-      const methodBody = methodMatch[0];
 
       // Should validate time format with regex
       expect(src).toMatch(/TIME_FORMAT_REGEX/);

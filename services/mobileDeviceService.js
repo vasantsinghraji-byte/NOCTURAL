@@ -1,12 +1,17 @@
 const MobileDevice = require('../models/mobileDevice');
+const { normalizeObjectId } = require('../utils/safeMongo');
 
 const normalizeOwnerType = (userType) => userType === 'patient' ? 'patient' : 'provider';
+const normalizePlatform = (platform) => {
+  if (platform === 'android' || platform === 'ios') return platform;
+  throw new TypeError('platform is invalid');
+};
 const normalizeQueryValue = (value, field, maxLength) => {
-  if (typeof value !== 'string' && typeof value !== 'number') {
-    throw new TypeError(`${field} must be a primitive value`);
+  if (typeof value !== 'string') {
+    throw new TypeError(`${field} must be a string`);
   }
 
-  const normalized = String(value).trim();
+  const normalized = value.trim();
   if (!normalized || normalized.length > maxLength) {
     throw new TypeError(`${field} is invalid`);
   }
@@ -16,9 +21,9 @@ const normalizeQueryValue = (value, field, maxLength) => {
 const register = ({ owner, userType, token, platform }) => MobileDevice.findOneAndUpdate(
   { token: normalizeQueryValue(token, 'token', 4096) },
   {
-    owner: normalizeQueryValue(owner, 'owner', 128),
+    owner: normalizeObjectId(owner, 'owner'),
     ownerType: normalizeOwnerType(userType),
-    platform,
+    platform: normalizePlatform(platform),
     enabled: true,
     lastSeenAt: new Date()
   },
@@ -27,7 +32,7 @@ const register = ({ owner, userType, token, platform }) => MobileDevice.findOneA
 
 const unregister = ({ owner, userType, token }) => MobileDevice.findOneAndUpdate(
   {
-    owner: normalizeQueryValue(owner, 'owner', 128),
+    owner: normalizeObjectId(owner, 'owner'),
     ownerType: normalizeOwnerType(userType),
     token: normalizeQueryValue(token, 'token', 4096)
   },
@@ -40,7 +45,7 @@ const unregister = ({ owner, userType, token }) => MobileDevice.findOneAndUpdate
 
 const getEnabledTokens = async ({ owner, userType }) => {
   const devices = await MobileDevice.find({
-    owner: normalizeQueryValue(owner, 'owner', 128),
+    owner: normalizeObjectId(owner, 'owner'),
     ownerType: normalizeOwnerType(userType),
     enabled: true
   }).select('token -_id').lean();

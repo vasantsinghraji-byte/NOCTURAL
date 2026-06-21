@@ -4,7 +4,6 @@ const { protect, authorize } = require('../middleware/auth');
 const Earning = require('../models/earning');
 const Duty = require('../models/duty');
 const Application = require('../models/application');
-const { DoctorAnalytics } = require('../models/analytics');
 const { paginate, paginationMiddleware, sendPaginatedResponse } = require('../utils/pagination');
 const { belongsToTenant, getTenantFields, getTenantQuery } = require('../utils/tenantScope');
 const pickAllowedFields = require('../utils/pickAllowedFields');

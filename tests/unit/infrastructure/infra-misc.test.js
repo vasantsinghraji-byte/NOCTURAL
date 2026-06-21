@@ -27,11 +27,12 @@ describe('Phase 6 — Rate Limiting & Miscellaneous', () => {
       'utf8'
     );
 
-    it('should define Redis persistence helpers', () => {
+    it('should define the Redis persistence and restore paths used at runtime', () => {
       expect(src).toMatch(/persistMetricToRedis/);
       expect(src).toMatch(/persistBlockedToRedis/);
-      expect(src).toMatch(/isBlockedInRedis/);
-      expect(src).toMatch(/getMetricFromRedis/);
+      expect(src).toMatch(/restoreBlockedFromRedis/);
+      expect(src).toMatch(/persistMetricToRedis\(type, mapName, key, count\)/);
+      expect(src).toMatch(/persistBlockedToRedis\(ip, blockUntil, blockReason\)/);
     });
 
     it('should use non-critical try-catch for Redis operations', () => {

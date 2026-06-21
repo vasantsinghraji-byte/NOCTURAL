@@ -55,6 +55,7 @@ module.exports = [
     ignores: [
       'client/dist/**',
       'client/build/**',
+      'client/public/js/vendor/**',
       'coverage/**',
       'logs/**',
       'uploads/**',
@@ -140,6 +141,7 @@ module.exports = [
         AppConfig: 'readonly',
         AppFormat: 'readonly',
         AppUi: 'readonly',
+        DOMPurify: 'readonly',
         AdminSession: 'readonly',
         DoctorSession: 'readonly',
         PatientSession: 'readonly',

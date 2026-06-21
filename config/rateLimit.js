@@ -151,30 +151,6 @@ const persistBlockedToRedis = async (key, until, reason) => {
   }
 };
 
-const isBlockedInRedis = async (key) => {
-  const redisClient = await getActiveRedisClient();
-  if (!redisClient) return false;
-  try {
-    const data = await redisClient.get(`${REDIS_BLOCKED_PREFIX}${key}`);
-    if (!data) return false;
-    const parsed = JSON.parse(data);
-    return parsed.until > Date.now();
-  } catch (err) {
-    return false;
-  }
-};
-
-const getMetricFromRedis = async (type, mapName, key) => {
-  const redisClient = await getActiveRedisClient();
-  if (!redisClient) return 0;
-  try {
-    const val = await redisClient.hGet(`${REDIS_METRICS_PREFIX}${type}:${mapName}`, key);
-    return val ? parseInt(val, 10) : 0;
-  } catch (err) {
-    return 0;
-  }
-};
-
 // Restore blocked entities from Redis on startup
 const restoreBlockedFromRedis = async () => {
   const redisClient = await getActiveRedisClient();

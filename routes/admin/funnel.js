@@ -2,6 +2,7 @@ const express = require('express');
 const HospitalWaitlist = require('../../models/hospitalWaitlist');
 const funnelAnalyticsService = require('../../services/funnelAnalyticsService');
 const { protect, authorize } = require('../../middleware/auth');
+const { normalizeObjectId, safeCaseInsensitiveRegex } = require('../../utils/safeMongo');
 
 const router = express.Router();
 
@@ -10,14 +11,39 @@ const escapeCsv = (value) => {
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 };
 
-const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const normalizeWaitlistStatus = (value) => {
+  if (typeof value !== 'string') return '';
+  switch (value.trim()) {
+    case 'new': return 'new';
+    case 'contacted': return 'contacted';
+    case 'qualified': return 'qualified';
+    case 'closed': return 'closed';
+    default: return '';
+  }
+};
+
+const normalizeFacilityType = (value) => {
+  if (typeof value !== 'string') return '';
+  switch (value.trim()) {
+    case 'hospital': return 'hospital';
+    case 'tertiary_care': return 'tertiary_care';
+    case 'clinic': return 'clinic';
+    case 'care_centre': return 'care_centre';
+    case 'other': return 'other';
+    default: return '';
+  }
+};
 
 const buildWaitlistFilters = (query) => {
   const filters = {};
 
-  if (query.status) filters.status = query.status;
-  if (query.facilityType) filters.facilityType = query.facilityType;
-  if (query.city) filters.city = new RegExp(escapeRegex(query.city.trim()), 'i');
+  const status = normalizeWaitlistStatus(query.status);
+  const facilityType = normalizeFacilityType(query.facilityType);
+  const city = safeCaseInsensitiveRegex(query.city, 100);
+
+  if (status) filters.status = status;
+  if (facilityType) filters.facilityType = facilityType;
+  if (city) filters.city = city;
 
   return filters;
 };
@@ -92,22 +118,22 @@ router.get('/waitlist/export', async (req, res, next) => {
 
 router.patch('/waitlist/:id/status', async (req, res, next) => {
   try {
-    const allowedStatuses = ['new', 'contacted', 'qualified', 'closed'];
-    if (!allowedStatuses.includes(req.body.status)) {
+    const status = normalizeWaitlistStatus(req.body.status);
+    if (!status) {
       return res.status(400).json({
         success: false,
         message: 'Invalid waitlist status'
       });
     }
 
-    const update = { status: req.body.status };
-    if (req.body.status === 'contacted') {
+    const update = { status };
+    if (status === 'contacted') {
       update.contactedAt = new Date();
-      update.contactedBy = req.user._id || req.user.id;
+      update.contactedBy = normalizeObjectId(req.user._id || req.user.id, 'user id');
     }
 
     const lead = await HospitalWaitlist.findByIdAndUpdate(
-      req.params.id,
+      normalizeObjectId(req.params.id, 'waitlist id'),
       update,
       { new: true, runValidators: true }
     ).lean();

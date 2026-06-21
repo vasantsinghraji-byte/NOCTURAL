@@ -397,7 +397,7 @@
                 console.log('Diabetes chart result:', chartResult);
 
                 if (summaryResult?.success && chartResult?.success) {
-                    AppUi.setSafeHtml(content, renderDiabetesContent(summaryResult.summary, chartResult));
+                    AppUi.setSafeHtml(content, renderDiabetesContent(summaryResult.summary));
                     initDiabetesCharts(chartResult);
                 } else {
                     // Show error if API returned success:false
@@ -450,7 +450,7 @@
                 console.log('Hypertension chart result:', chartResult);
 
                 if (summaryResult?.success && chartResult?.success) {
-                    AppUi.setSafeHtml(content, renderHypertensionContent(summaryResult.summary, chartResult));
+                    AppUi.setSafeHtml(content, renderHypertensionContent(summaryResult.summary));
                     initHypertensionCharts(chartResult);
                 } else {
                     // Show error if API returned success:false

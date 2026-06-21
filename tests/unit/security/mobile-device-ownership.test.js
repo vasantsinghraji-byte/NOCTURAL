@@ -4,6 +4,10 @@ jest.mock('../../../models/mobileDevice', () => ({
 
 const MobileDevice = require('../../../models/mobileDevice');
 const mobileDeviceService = require('../../../services/mobileDeviceService');
+const mongoose = require('mongoose');
+
+const PATIENT_ID = '507f1f77bcf86cd799439011';
+const PROVIDER_ID = '507f191e810c19729de860ea';
 
 describe('mobile device ownership', () => {
   beforeEach(() => {
@@ -14,7 +18,7 @@ describe('mobile device ownership', () => {
     MobileDevice.findOneAndUpdate.mockResolvedValue({ token: 'device-token-123456' });
 
     await mobileDeviceService.register({
-      owner: 'patient-1',
+      owner: PATIENT_ID,
       userType: 'patient',
       token: 'device-token-123456',
       platform: 'android'
@@ -23,7 +27,7 @@ describe('mobile device ownership', () => {
     expect(MobileDevice.findOneAndUpdate).toHaveBeenCalledWith(
       { token: 'device-token-123456' },
       expect.objectContaining({
-        owner: 'patient-1',
+        owner: new mongoose.Types.ObjectId(PATIENT_ID),
         ownerType: 'patient',
         platform: 'android',
         enabled: true
@@ -36,14 +40,14 @@ describe('mobile device ownership', () => {
     MobileDevice.findOneAndUpdate.mockResolvedValue(null);
 
     await mobileDeviceService.unregister({
-      owner: 'provider-1',
+      owner: PROVIDER_ID,
       userType: 'provider',
       token: 'device-token-123456'
     });
 
     expect(MobileDevice.findOneAndUpdate).toHaveBeenCalledWith(
       {
-        owner: 'provider-1',
+        owner: new mongoose.Types.ObjectId(PROVIDER_ID),
         ownerType: 'provider',
         token: 'device-token-123456'
       },
@@ -58,7 +62,7 @@ describe('mobile device ownership', () => {
       userType: 'patient',
       token: { $gt: '' },
       platform: 'android'
-    })).toThrow('token must be a primitive value');
+    })).toThrow('token must be a string');
 
     expect(MobileDevice.findOneAndUpdate).not.toHaveBeenCalled();
   });

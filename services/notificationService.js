@@ -272,7 +272,7 @@ class NotificationService {
    * @returns {Promise<Object>} Created notification
    */
   async notifyPayment(params) {
-    const { userId, amount, bookingId, status } = params;
+    const { userId, amount, status } = params;
 
     const notificationData = {
       user: userId,

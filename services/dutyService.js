@@ -9,7 +9,6 @@ const Duty = require('../models/duty');
 const { invalidateCache } = require('../middleware/queryCache');
 const {  HTTP_STATUS,
   DUTY_STATUS,
-  SUCCESS_MESSAGE,
   ERROR_MESSAGE,
   PAGINATION
 } = require('../constants');

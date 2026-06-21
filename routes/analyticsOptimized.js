@@ -5,7 +5,6 @@ const { DoctorAnalytics, HospitalAnalytics } = require('../models/analytics');
 const Application = require('../models/application');
 const Duty = require('../models/duty');
 const HospitalSettings = require('../models/hospitalSettings');
-const User = require('../models/user');
 const { roundToDecimals } = require('../utils/number');
 
 // @route   GET /api/analytics/doctor
@@ -316,7 +315,6 @@ router.get('/hospital/dashboard', protect, async (req, res) => {
 
         // Calculate total spend (current month)
         const now = new Date();
-        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
         const monthlyDuties = duties.filter(d => new Date(d.date) >= monthStart);
