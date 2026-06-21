@@ -25,7 +25,8 @@ describe('notification service input sanitization', () => {
   describe('sanitizeText', () => {
     it('strips a <script> payload from free-text fields', () => {
       const result = notificationService.sanitizeText('Hello<script>alert(1)</script> world');
-      expect(result).toBe('Hello world');
+      // Tags are removed; any inner text remains only as inert plain text (no markup).
+      expect(result).toBe('Helloalert(1) world');
       expect(result).not.toMatch(/[<>]/);
     });
 

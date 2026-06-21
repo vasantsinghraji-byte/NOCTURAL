@@ -3,18 +3,10 @@ name: "CodeQL"
 # Static analysis (code scanning) for JavaScript/TypeScript. Results appear under
 # the repository's Security → Code scanning alerts.
 on:
-  workflow_dispatch:
   push:
-    branches: ["main", "develop", "fix/render-health-upload-audit"]
+    branches: ["main", "develop"]
   pull_request:
-    branches:
-      - main
-      - develop
-      - "chore/**"
-      - "feature/**"
-      - "fix/**"
-      - "refactor/**"
-      - "docs/**"
+    branches: ["main", "develop"]
   schedule:
     # Weekly, Monday 03:00 UTC
     - cron: "0 3 * * 1"
@@ -31,16 +23,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
           queries: security-and-quality
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:javascript-typescript"
 
@@ -57,14 +49,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Fail when CodeQL alerts increase over base
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_REF: refs/pull/${{ github.event.pull_request.number }}/merge
           CODEQL_GATE_SETTLE_SECONDS: "30"
           CODEQL_GATE_MAX_ATTEMPTS: "6"
@@ -78,11 +69,11 @@ jobs:
             echo "CodeQL threshold check attempt ${attempt}/${CODEQL_GATE_MAX_ATTEMPTS}"
             if node scripts/check-codeql-alert-threshold.js; then
               exit 0
-            else
-              sleep_seconds=$((attempt * 10))
-              echo "CodeQL threshold check failed or API not ready; retrying in ${sleep_seconds}s..."
-              sleep "${sleep_seconds}"
             fi
+
+            sleep_seconds=$((attempt * 10))
+            echo "CodeQL threshold check failed or API not ready; retrying in ${sleep_seconds}s..."
+            sleep "${sleep_seconds}"
           done
 
           echo "CodeQL alert threshold failed after retries."
@@ -117,7 +108,6 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_REF: refs/pull/${{ github.event.pull_request.number }}/merge
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/post-codeql-pr-comment.js

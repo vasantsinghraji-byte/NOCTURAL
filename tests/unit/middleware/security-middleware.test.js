@@ -8,11 +8,12 @@ jest.mock('../../../utils/logger', () => ({
 const { corsConfig, detectSuspiciousRequests } = require('../../../middleware/security');
 const logger = require('../../../utils/logger');
 
-const buildReq = ({ body = {}, query = {}, url = '/api/test' } = {}) => ({
+const buildReq = ({ body = {}, query = {}, url = '/api/test', method = 'POST', path } = {}) => ({
   body,
   query,
   url,
-  method: 'POST',
+  path: path || url.split('?')[0],
+  method,
   ip: '127.0.0.1',
   fingerprint: {},
   get: jest.fn().mockReturnValue('jest-agent')
@@ -63,6 +64,51 @@ describe('security middleware suspicious request detection', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('skips scanning for static (non-API) page GET requests', () => {
+    // These are served by express.static and never process query/body input,
+    // so scanning them only produced false-positive 403s (deployed CSP smoke).
+    const req = buildReq({
+      method: 'GET',
+      url: '/roles/doctor/doctor-profile-enhanced.html?a=b&c=d',
+      query: { a: 'b', c: 'd' }
+    });
+    const res = buildRes();
+    const next = jest.fn();
+
+    detectSuspiciousRequests(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('does not flag legitimate values containing shell metacharacters', () => {
+    const req = buildReq({ body: { note: 'rock & roll; jazz | blues' } });
+    const res = buildRes();
+    const next = jest.fn();
+
+    detectSuspiciousRequests(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('still blocks shell command chaining', () => {
+    const req = buildReq({ body: { input: 'x; rm -rf /' } });
+    const res = buildRes();
+    const next = jest.fn();
+
+    detectSuspiciousRequests(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(logger.error).toHaveBeenCalledWith(
+      'Suspicious request detected',
+      expect.objectContaining({
+        patterns: expect.arrayContaining(['COMMAND_INJECTION_ATTEMPT'])
+      })
+    );
   });
 
   it('still blocks obvious SQL injection strings', () => {

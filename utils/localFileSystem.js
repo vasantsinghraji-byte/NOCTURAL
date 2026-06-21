@@ -21,12 +21,10 @@ function writeFileSync(filePath, content, options) {
 }
 
 function copyFileSync(sourcePath, targetPath) {
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   return fs.copyFileSync(sourcePath, targetPath);
 }
 
 function rmSync(filePath, options) {
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   return fs.rmSync(filePath, options);
 }
 

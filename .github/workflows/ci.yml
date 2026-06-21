@@ -51,40 +51,6 @@ jobs:
       - name: Run repository governance check
         run: node scripts/run-stacked-pr-validation.js lint
 
-  codeowners-security-governance:
-    name: CODEOWNERS Security Governance Gate
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Validate stacked PR frontend ownership
-        if: github.event_name == 'pull_request'
-        run: node scripts/check-pr-stack-scope.js
-        env:
-          STACK_SCOPE_BRANCH: ${{ github.head_ref }}
-          STACK_SCOPE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          STACK_SCOPE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            client/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-
-      - name: Validate CODEOWNERS security-governance coverage
-        run: npm run validate:codeowners-security
-
   # Unit & Integration Tests
   test:
     name: Run Tests
@@ -219,6 +185,45 @@ jobs:
       - name: Audit root dependencies
         run: node scripts/run-stacked-pr-validation.js security
 
+  codeowners-security-governance-gate:
+    name: CODEOWNERS Security Governance Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate stacked PR frontend ownership
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-pr-stack-scope.js
+        env:
+          STACK_SCOPE_BRANCH: ${{ github.head_ref }}
+          STACK_SCOPE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          STACK_SCOPE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Validate CODEOWNERS security-governance coverage
+        run: npm run validate:codeowners-security -- --validate-owners
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Run CODEOWNERS validator unit tests
+        run: node ./node_modules/jest/bin/jest.js --config jest.fast.config.js --runInBand --runTestsByPath tests/unit/security/codeowners-security-coverage.test.js
+
   # Build + Deployment Gate Validation
   build:
     name: Deployment Gate
@@ -326,7 +331,9 @@ jobs:
           push: false
           tags: nocturnal-ci:${{ github.sha }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # ignore-error: a GHA cache-export hiccup (504 / not_found) must not fail
+          # the build - the image is already built by this point.
+          cache-to: type=gha,mode=max,ignore-error=true
 
   # API Documentation
   docs:
@@ -358,7 +365,7 @@ jobs:
   notify:
     name: Send Notifications
     runs-on: ubuntu-latest
-    needs: [lint, test, secret-scan, security, build, public-funnel-e2e, container-smoke]
+    needs: [lint, test, secret-scan, security, codeowners-security-governance-gate, build, public-funnel-e2e, container-smoke]
     if: always()
     timeout-minutes: 5
 
@@ -370,6 +377,7 @@ jobs:
           echo "Tests: ${{ needs.test.result }}"
           echo "Secret Scan: ${{ needs.secret-scan.result }}"
           echo "Security: ${{ needs.security.result }}"
+          echo "CODEOWNERS Security Governance Gate: ${{ needs.codeowners-security-governance-gate.result }}"
           echo "Build: ${{ needs.build.result }}"
           echo "Public Funnel E2E: ${{ needs.public-funnel-e2e.result }}"
           echo "Container Smoke: ${{ needs.container-smoke.result }}"

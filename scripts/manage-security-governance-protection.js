@@ -1,4 +1,4 @@
-/* eslint-disable no-console, security/detect-non-literal-fs-filename */
+/* eslint-disable security/detect-non-literal-fs-filename */
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 
@@ -6,7 +6,6 @@ const BOOTSTRAP_CONTEXTS = ['Required Post-Deploy Render Smoke'];
 const ENFORCED_CONTEXTS = [
   'Required Post-Deploy Render Smoke',
   'CODEOWNERS Security Governance Gate',
-  'Analyze (javascript-typescript)',
   'CodeQL Alert Gate'
 ];
 
@@ -61,60 +60,19 @@ function patchRequiredChecks(repository, branch, contexts) {
   ]);
 }
 
-function patchReviewProtection(repository, branch, settings) {
+function patchReviewProtection(repository, branch, requireCodeOwnerReviews) {
   ghApi([
     '--method',
     'PATCH',
     `repos/${repository}/branches/${branch}/protection/required_pull_request_reviews`,
     '-F',
-    `dismiss_stale_reviews=${settings.dismissStaleReviews ? 'true' : 'false'}`,
+    'dismiss_stale_reviews=false',
     '-F',
-    `require_code_owner_reviews=${settings.requireCodeOwnerReviews ? 'true' : 'false'}`,
+    `require_code_owner_reviews=${requireCodeOwnerReviews ? 'true' : 'false'}`,
     '-F',
     'required_approving_review_count=1',
     '-F',
-    `require_last_push_approval=${settings.requireLastPushApproval ? 'true' : 'false'}`
-  ]);
-}
-
-function getBranchProtectionRuleId(repository, branch) {
-  const [owner, name, ...extra] = repository.split('/');
-  if (!owner || !name || extra.length > 0) {
-    throw new Error(`Invalid GITHUB_REPOSITORY value: ${repository}`);
-  }
-
-  const response = ghApiJson([
-    'graphql',
-    '-f',
-    'query=query($owner:String!,$name:String!){repository(owner:$owner,name:$name){branchProtectionRules(first:100){nodes{id pattern}}}}',
-    '-F',
-    `owner=${owner}`,
-    '-F',
-    `name=${name}`
-  ]);
-  const rule = findBranchProtectionRule(response, branch);
-  if (!rule) {
-    throw new Error(`No exact branch protection rule found for ${branch}.`);
-  }
-  return rule.id;
-}
-
-function findBranchProtectionRule(response, branch) {
-  const repository = response.data?.repository || response.repository;
-  const rules = repository?.branchProtectionRules?.nodes || [];
-  return rules.find(candidate => candidate.pattern === branch);
-}
-
-function patchConversationResolution(repository, branch, enabled) {
-  const ruleId = getBranchProtectionRuleId(repository, branch);
-  ghApi([
-    'graphql',
-    '-f',
-    'query=mutation($ruleId:ID!,$enabled:Boolean!){updateBranchProtectionRule(input:{branchProtectionRuleId:$ruleId,requiresConversationResolution:$enabled}){branchProtectionRule{id}}}',
-    '-F',
-    `ruleId=${ruleId}`,
-    '-F',
-    `enabled=${enabled ? 'true' : 'false'}`
+    'require_last_push_approval=false'
   ]);
 }
 
@@ -123,16 +81,12 @@ function getProtectionStatus(repository, branch) {
     `repos/${repository}/branches/${branch}/protection`
   ]);
 
-  const reviews = protection.required_pull_request_reviews || {};
   return {
     branch,
     contexts: protection.required_status_checks ? protection.required_status_checks.contexts || [] : [],
-    requireCodeOwnerReviews: Boolean(reviews.require_code_owner_reviews),
-    dismissStaleReviews: Boolean(reviews.dismiss_stale_reviews),
-    requireLastPushApproval: Boolean(reviews.require_last_push_approval),
-    requireConversationResolution: Boolean(
-      protection.required_conversation_resolution
-      && protection.required_conversation_resolution.enabled
+    requireCodeOwnerReviews: Boolean(
+      protection.required_pull_request_reviews
+      && protection.required_pull_request_reviews.require_code_owner_reviews
     )
   };
 }
@@ -144,9 +98,6 @@ function classifyStatus(status) {
 
   if (
     status.requireCodeOwnerReviews
-    && status.dismissStaleReviews
-    && status.requireLastPushApproval
-    && status.requireConversationResolution
     && JSON.stringify(contexts) === JSON.stringify(enforcedContexts)
   ) {
     return 'fully-enforced';
@@ -154,9 +105,6 @@ function classifyStatus(status) {
 
   if (
     !status.requireCodeOwnerReviews
-    && !status.dismissStaleReviews
-    && !status.requireLastPushApproval
-    && !status.requireConversationResolution
     && JSON.stringify(contexts) === JSON.stringify(bootstrapContexts)
   ) {
     return 'bootstrap-safe';
@@ -165,11 +113,17 @@ function classifyStatus(status) {
   return 'custom-or-drifted';
 }
 
+function getDriftedBranches(statuses) {
+  return statuses
+    .filter(branchStatus => classifyStatus(branchStatus) !== 'fully-enforced')
+    .map(branchStatus => branchStatus.branch);
+}
+
 function assertBaseConfigExists() {
   const required = [
     ['.github/CODEOWNERS', '.github/CODEOWNERS'],
     ['.github/workflows/ci.yml', 'CODEOWNERS Security Governance Gate'],
-    ['.github/workflows/codeql.yml', 'Analyze (javascript-typescript)']
+    ['.github/workflows/codeql.yml', 'CodeQL Alert Gate']
   ];
 
   for (const [file, requiredText] of required) {
@@ -191,10 +145,10 @@ function writeStepSummary(statuses) {
   const lines = [
     '## Security Governance Protection Status',
     '',
-    '| Branch | Mode | Required checks | Code owner reviews | Dismiss stale reviews | Last-push approval | Resolved conversations |',
-    '|---|---|---|---|---|---|---|',
+    '| Branch | Mode | Required checks | Code owner reviews |',
+    '|---|---|---|---|',
     ...statuses.map(status => (
-      `| ${status.branch} | ${classifyStatus(status)} | ${status.contexts.join('<br>')} | ${status.requireCodeOwnerReviews} | ${status.dismissStaleReviews} | ${status.requireLastPushApproval} | ${status.requireConversationResolution} |`
+      `| ${status.branch} | ${classifyStatus(status)} | ${status.contexts.join('<br>')} | ${status.requireCodeOwnerReviews} |`
     )),
     ''
   ];
@@ -207,8 +161,7 @@ function preflight(repository, branches) {
 
   for (const status of statuses) {
     patchRequiredChecks(repository, status.branch, status.contexts);
-    patchReviewProtection(repository, status.branch, status);
-    patchConversationResolution(repository, status.branch, status.requireConversationResolution);
+    patchReviewProtection(repository, status.branch, status.requireCodeOwnerReviews);
     console.log(`Preflight edit check passed for ${status.branch}.`);
   }
 
@@ -222,12 +175,7 @@ function enforce(repository, branches) {
 
   for (const branch of branches) {
     patchRequiredChecks(repository, branch, ENFORCED_CONTEXTS);
-    patchReviewProtection(repository, branch, {
-      requireCodeOwnerReviews: true,
-      dismissStaleReviews: true,
-      requireLastPushApproval: true
-    });
-    patchConversationResolution(repository, branch, true);
+    patchReviewProtection(repository, branch, true);
     console.log(`Enabled fully-enforced governance protection for ${branch}.`);
   }
 }
@@ -235,12 +183,7 @@ function enforce(repository, branches) {
 function rollback(repository, branches) {
   for (const branch of branches) {
     patchRequiredChecks(repository, branch, BOOTSTRAP_CONTEXTS);
-    patchReviewProtection(repository, branch, {
-      requireCodeOwnerReviews: false,
-      dismissStaleReviews: false,
-      requireLastPushApproval: false
-    });
-    patchConversationResolution(repository, branch, false);
+    patchReviewProtection(repository, branch, false);
     console.log(`Restored bootstrap-safe governance protection for ${branch}.`);
   }
 }
@@ -248,11 +191,17 @@ function rollback(repository, branches) {
 function status(repository, branches) {
   const statuses = branches.map(branch => getProtectionStatus(repository, branch));
   for (const branchStatus of statuses) {
-    console.log(`${branchStatus.branch}: ${classifyStatus(branchStatus)} (${branchStatus.contexts.join(', ')}; codeOwnerReviews=${branchStatus.requireCodeOwnerReviews}; dismissStaleReviews=${branchStatus.dismissStaleReviews}; lastPushApproval=${branchStatus.requireLastPushApproval}; conversationResolution=${branchStatus.requireConversationResolution})`);
+    console.log(`${branchStatus.branch}: ${classifyStatus(branchStatus)} (${branchStatus.contexts.join(', ')}; codeOwnerReviews=${branchStatus.requireCodeOwnerReviews})`);
   }
   writeStepSummary(statuses);
-  if (hasFlag('fail-on-drift') && statuses.some(branchStatus => classifyStatus(branchStatus) !== 'fully-enforced')) {
-    throw new Error('Security governance branch protection drift detected.');
+
+  if (hasFlag('fail-on-drift')) {
+    const driftedBranches = getDriftedBranches(statuses);
+
+    if (driftedBranches.length > 0) {
+      console.error(`Security governance protection drift detected on: ${driftedBranches.join(', ')}`);
+      process.exitCode = 1;
+    }
   }
 }
 
@@ -287,5 +236,5 @@ module.exports = {
   BOOTSTRAP_CONTEXTS,
   ENFORCED_CONTEXTS,
   classifyStatus,
-  findBranchProtectionRule
+  getDriftedBranches
 };

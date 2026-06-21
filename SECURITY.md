@@ -37,10 +37,3 @@ denial-of-service via volumetric traffic.
 - `.env` is git-ignored; only `.env.example` (with placeholder values) is tracked.
 - Demo/seed accounts are for local development only and must never exist on a deployed
   database.
-
-## Security Engineering Policies
-
-- Sensitive identifiers must not be added to GET route paths or query strings.
-  See [Sensitive GET Route Policy](docs/security/sensitive-get-route-policy.md)
-  for the enforced route-contract scanner, allowlist requirements, and PR
-  justification checklist.

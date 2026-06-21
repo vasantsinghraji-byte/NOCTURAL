@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+const yaml = require('js-yaml');
 const {
   getUniqueApiOwners,
   parseCodeowners,
@@ -8,67 +11,113 @@ const {
 } = require('../../../scripts/validate-codeowners-security-coverage');
 const {
   classifyStatus,
-  findBranchProtectionRule
+  getDriftedBranches
 } = require('../../../scripts/manage-security-governance-protection');
+const {
+  buildDriftIssueBody
+} = require('../../../scripts/render-security-governance-drift-issue');
+
+const ROOT = path.resolve(__dirname, '../../..');
 
 describe('CODEOWNERS security-governance validator', () => {
-  it('reads branch protection rules from the GitHub GraphQL data envelope', () => {
-    expect(findBranchProtectionRule({
-      data: {
-        repository: {
-          branchProtectionRules: {
-            nodes: [
-              { id: 'rule-main', pattern: 'main' },
-              { id: 'rule-develop', pattern: 'develop' }
-            ]
-          }
-        }
-      }
-    }, 'develop')).toEqual({ id: 'rule-develop', pattern: 'develop' });
-  });
-
   it('classifies bootstrap-safe, fully-enforced, and drifted branch protection', () => {
     expect(classifyStatus({
       contexts: ['Required Post-Deploy Render Smoke'],
-      requireCodeOwnerReviews: false,
-      dismissStaleReviews: false,
-      requireLastPushApproval: false,
-      requireConversationResolution: false
+      requireCodeOwnerReviews: false
     })).toBe('bootstrap-safe');
 
     expect(classifyStatus({
       contexts: [
+        'CodeQL Alert Gate',
         'Required Post-Deploy Render Smoke',
-        'CODEOWNERS Security Governance Gate',
-        'Analyze (javascript-typescript)',
-        'CodeQL Alert Gate'
+        'CODEOWNERS Security Governance Gate'
       ],
-      requireCodeOwnerReviews: true,
-      dismissStaleReviews: true,
-      requireLastPushApproval: true,
-      requireConversationResolution: true
+      requireCodeOwnerReviews: true
     })).toBe('fully-enforced');
 
     expect(classifyStatus({
       contexts: ['CodeQL Alert Gate'],
-      requireCodeOwnerReviews: false,
-      dismissStaleReviews: false,
-      requireLastPushApproval: false,
-      requireConversationResolution: false
+      requireCodeOwnerReviews: false
     })).toBe('custom-or-drifted');
+  });
 
-    expect(classifyStatus({
-      contexts: [
-        'Required Post-Deploy Render Smoke',
-        'CODEOWNERS Security Governance Gate',
-        'Analyze (javascript-typescript)',
-        'CodeQL Alert Gate'
-      ],
-      requireCodeOwnerReviews: true,
-      dismissStaleReviews: false,
-      requireLastPushApproval: true,
-      requireConversationResolution: true
-    })).toBe('custom-or-drifted');
+  it('identifies branches that would fail --fail-on-drift status audits', () => {
+    expect(getDriftedBranches([
+      {
+        branch: 'main',
+        contexts: ['Required Post-Deploy Render Smoke', 'CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
+        requireCodeOwnerReviews: true
+      },
+      {
+        branch: 'develop',
+        contexts: ['Required Post-Deploy Render Smoke'],
+        requireCodeOwnerReviews: false
+      }
+    ])).toEqual(['develop']);
+
+    expect(getDriftedBranches([
+      {
+        branch: 'main',
+        contexts: ['Required Post-Deploy Render Smoke', 'CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
+        requireCodeOwnerReviews: true
+      }
+    ])).toEqual([]);
+  });
+
+  it('renders the drift-audit issue body from the negative workflow fixture', () => {
+    const fixture = JSON.parse(fs.readFileSync(
+      path.join(ROOT, 'tests/fixtures/security/governance-drift-audit-issue.json'),
+      'utf8'
+    ));
+    const body = buildDriftIssueBody(fixture);
+
+    for (const fragment of fixture.expectedFragments) {
+      expect(body).toContain(fragment);
+    }
+  });
+
+  it('uses the shared drift issue renderer in the scheduled workflow', () => {
+    const workflowPath = path.join(ROOT, '.github/workflows/security-governance-drift-audit.yml');
+    const workflowSource = fs.readFileSync(workflowPath, 'utf8');
+    const workflow = yaml.load(workflowSource);
+
+    expect(workflow.name).toBe('Security Governance Drift Audit');
+    expect(workflowSource).toContain('node scripts/render-security-governance-drift-issue.js');
+    expect(workflowSource).toContain('gh issue create');
+    expect(workflowSource).toContain('gh issue comment');
+  });
+
+  it('prefers GitHub App authentication for branch-protection governance workflows', () => {
+    const workflowFiles = [
+      '.github/workflows/security-governance-protection-bootstrap.yml',
+      '.github/workflows/security-governance-protection-rollback.yml',
+      '.github/workflows/security-governance-drift-audit.yml'
+    ];
+
+    for (const workflowFile of workflowFiles) {
+      // Test fixtures are fixed repository-relative workflow paths.
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      const workflowSource = fs.readFileSync(path.join(ROOT, workflowFile), 'utf8');
+      expect(workflowSource).toContain('actions/create-github-app-token@v2');
+      expect(workflowSource).toContain('secrets.BRANCH_PROTECTION_APP_ID');
+      expect(workflowSource).toContain('secrets.BRANCH_PROTECTION_APP_PRIVATE_KEY');
+      expect(workflowSource).toContain('steps.branch-protection-app-token.outputs.token');
+      expect(workflowSource).not.toContain('BRANCH_PROTECTION_ADMIN_TOKEN');
+      expect(workflowSource).not.toContain('continue-on-error: true');
+    }
+  });
+
+  it('opens or updates a quarterly GitHub App private-key rotation reminder', () => {
+    const workflowPath = path.join(ROOT, '.github/workflows/security-governance-key-rotation-reminder.yml');
+    const workflowSource = fs.readFileSync(workflowPath, 'utf8');
+    const workflow = yaml.load(workflowSource);
+
+    expect(workflow.name).toBe('Security Governance Key Rotation Reminder');
+    expect(workflowSource).toContain('30 5 1 1,4,7,10 *');
+    expect(workflowSource).toContain('Rotate security governance GitHub App private key');
+    expect(workflowSource).toContain('BRANCH_PROTECTION_APP_PRIVATE_KEY');
+    expect(workflowSource).toContain('gh issue create');
+    expect(workflowSource).toContain('gh issue comment');
   });
 
   it('rejects entries without owners', () => {

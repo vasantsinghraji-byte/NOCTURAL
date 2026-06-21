@@ -23,6 +23,8 @@ jobs:
     name: Database Backup
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'production' }}
+    outputs:
+      skipped: ${{ steps.preflight.outputs.skip_backup }}
 
     steps:
       - name: Validate backup prerequisites
@@ -38,6 +40,17 @@ jobs:
             echo "upload_target=none" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
+          # Fail fast with an actionable message instead of the cryptic mongodump
+          # "scheme must be mongodb or mongodb+srv" error when the secret is set
+          # to a malformed value (wrong/placeholder string, stray whitespace, etc.).
+          case "$MONGODB_URI" in
+            mongodb://*|mongodb+srv://*) ;;
+            *)
+              echo "::error::MONGODB_URI is set but malformed - it must start with 'mongodb://' or 'mongodb+srv://'. Verify the secret value for the '${{ github.event.inputs.environment || 'production' }}' environment (check for placeholder text or leading/trailing whitespace)."
+              exit 1
+              ;;
+          esac
 
           if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
             echo "::error::AWS_SECRET_ACCESS_KEY must be configured when AWS_ACCESS_KEY_ID is set."
@@ -146,16 +159,30 @@ jobs:
         with:
           name: ${{ env.BACKUP_NAME }}
           path: ${{ env.BACKUP_FILE }}
-          retention-days: 7
+          # 90-day retention while S3 off-site backups are not yet configured.
+          # Raise this only up to the repo's max artifact retention (Settings ->
+          # Actions -> General). Once AWS secrets are set, uploads go to S3
+          # instead and this fallback stops being used.
+          retention-days: 90
 
   notify:
-    name: Notify on Failure
+    name: Notify on Failure or Skipped Backup
     runs-on: ubuntu-latest
     needs: backup
-    if: needs.backup.result == 'failure'
+    # Fire on outright failure AND on a silent skip. A skipped backup leaves the
+    # backup job "green" while producing nothing, which for patient data is the
+    # dangerous case - surface it as a failed run that needs attention.
+    if: always() && (needs.backup.result == 'failure' || needs.backup.outputs.skipped == 'true')
     steps:
-      - name: Log backup failure
+      - name: Report backup status
+        env:
+          ENV_NAME: ${{ github.event.inputs.environment || 'production' }}
         run: |
-          echo "::error::Database backup failed for ${{ github.event.inputs.environment || 'production' }}"
-          echo "Check the backup job logs for details."
+          if [ "${{ needs.backup.outputs.skipped }}" == "true" ]; then
+            echo "::error::Database backup was SKIPPED for '${ENV_NAME}' - MONGODB_URI is not configured, so NO backup was produced."
+            echo "Scheduled backup produced nothing: MONGODB_URI is unset for the '${ENV_NAME}' environment. Configure it under Settings -> Environments -> ${ENV_NAME}." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "::error::Database backup FAILED for '${ENV_NAME}'. Check the backup job logs."
           echo "Manual backup can be run with: node scripts/backup-database.js"
+          exit 1

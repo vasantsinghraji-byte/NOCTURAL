@@ -8,7 +8,10 @@ on:
       - ".github/CODEOWNERS"
       - ".github/workflows/ci.yml"
       - ".github/workflows/codeql.yml"
+      - ".github/workflows/security-governance-drift-audit.yml"
       - ".github/workflows/security-governance-protection-bootstrap.yml"
+      - ".github/workflows/security-governance-protection-rollback.yml"
+      - ".github/workflows/security-governance-key-rotation-reminder.yml"
 
 permissions:
   contents: read
@@ -18,10 +21,16 @@ jobs:
     name: Enable Security Governance Branch Protection
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout base branch config
         uses: actions/checkout@v6
+
+      - name: Create branch-protection GitHub App token
+        id: branch-protection-app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.BRANCH_PROTECTION_APP_ID }}
+          private-key: ${{ secrets.BRANCH_PROTECTION_APP_PRIVATE_KEY }}
 
       - name: Confirm required governance files and jobs exist
         run: |
@@ -31,21 +40,21 @@ jobs:
           grep -q "CODEOWNERS Security Governance Gate" .github/workflows/ci.yml
           grep -q "CodeQL Alert Gate" .github/workflows/codeql.yml
 
-      - name: Preflight branch-protection admin token
+      - name: Preflight branch-protection GitHub App token
         env:
-          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
+          GH_TOKEN: ${{ steps.branch-protection-app-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/manage-security-governance-protection.js --mode=preflight --branches=main,develop
 
       - name: Enable governance protections on main and develop
         env:
-          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
+          GH_TOKEN: ${{ steps.branch-protection-app-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/manage-security-governance-protection.js --mode=enforce --branches=main,develop
 
       - name: Report branch-protection status
         if: always()
         env:
-          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_ADMIN_TOKEN }}
+          GH_TOKEN: ${{ steps.branch-protection-app-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/manage-security-governance-protection.js --mode=status --branches=main,develop

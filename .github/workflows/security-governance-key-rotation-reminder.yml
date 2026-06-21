@@ -1,0 +1,49 @@
+name: Security Governance Key Rotation Reminder
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Quarterly on the first day of Jan, Apr, Jul, and Oct at 05:30 UTC.
+    - cron: "30 5 1 1,4,7,10 *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  remind-key-rotation:
+    name: Remind GitHub App Private-Key Rotation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Open or update key rotation reminder
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          title="Rotate security governance GitHub App private key"
+          existing_issue="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open --search "${title} in:title" --json number --jq '.[0].number // empty')"
+          body="$(cat <<EOF
+          Quarterly reminder: rotate the GitHub App private key used for branch-protection governance.
+
+          Workflow run: ${RUN_URL}
+
+          Rotation steps:
+          1. Generate a new private key from the GitHub App settings page.
+          2. Update BRANCH_PROTECTION_APP_PRIVATE_KEY with the full PEM contents.
+          3. Run Security Governance Protection Rollback from main.
+          4. Run Security Governance Protection Bootstrap from main.
+          5. Run Security Governance Drift Audit from main.
+          6. Delete the previous private key from the GitHub App settings page.
+          EOF
+          )"
+
+          if [ -n "${existing_issue}" ]; then
+            gh issue comment "${existing_issue}" --repo "${GITHUB_REPOSITORY}" --body "${body}"
+          else
+            gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" --body "${body}"
+          fi

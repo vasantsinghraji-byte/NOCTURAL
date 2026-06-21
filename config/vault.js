@@ -36,7 +36,7 @@ class VaultManager {
       let vault;
       try {
         vault = require('node-vault');
-      } catch (e) {
+      } catch {
         throw new Error('node-vault package is required when VAULT_ENABLED=true. Install it with: npm install node-vault');
       }
 
@@ -133,7 +133,7 @@ class VaultManager {
       try {
         const existing = await this.client.read(fullPath);
         existingData = existing.data.data || {};
-      } catch (error) {
+      } catch {
         // Path doesn't exist yet, that's okay
       }
 

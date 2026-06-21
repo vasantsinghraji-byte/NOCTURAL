@@ -1,0 +1,68 @@
+name: Security Governance Drift Audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Monthly on the first day at 05:00 UTC.
+    - cron: "0 5 1 * *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit-security-governance-protection:
+    name: Audit Security Governance Branch Protection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Create branch-protection GitHub App token
+        id: branch-protection-app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.BRANCH_PROTECTION_APP_ID }}
+          private-key: ${{ secrets.BRANCH_PROTECTION_APP_PRIVATE_KEY }}
+
+      - name: Audit branch-protection status
+        id: audit
+        env:
+          GH_TOKEN: ${{ steps.branch-protection-app-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set +e
+          output="$(node scripts/manage-security-governance-protection.js --mode=status --branches=main,develop --fail-on-drift 2>&1)"
+          exit_code=$?
+          printf '%s\n' "$output"
+
+          {
+            echo "exit_code=${exit_code}"
+            echo "output<<GOVERNANCE_STATUS"
+            printf '%s\n' "$output"
+            echo "GOVERNANCE_STATUS"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open or update drift issue
+        if: steps.audit.outputs.exit_code != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          AUDIT_OUTPUT: ${{ steps.audit.outputs.output }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          title="Security governance branch protection drift detected"
+          existing_issue="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open --search "${title} in:title" --json number --jq '.[0].number // empty')"
+          body="$(node scripts/render-security-governance-drift-issue.js)"
+
+          if [ -n "${existing_issue}" ]; then
+            gh issue comment "${existing_issue}" --repo "${GITHUB_REPOSITORY}" --body "${body}"
+          else
+            gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" --body "${body}"
+          fi
+
+          exit 1
