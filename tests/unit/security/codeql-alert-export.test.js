@@ -16,6 +16,9 @@ const {
 const {
   getFalsePositiveRows
 } = require('../../../scripts/dismiss-codeql-false-positives');
+const {
+  resolveCodeqlBaselineRef
+} = require('../../../scripts/post-codeql-pr-comment');
 
 function makeAlert(number, ruleId, filePath, severity = 'warning', securitySeverity = 'high') {
   return {
@@ -43,6 +46,14 @@ function makeAlert(number, ruleId, filePath, severity = 'warning', securitySever
 }
 
 describe('CodeQL alert export helpers', () => {
+  it('uses integration as the baseline for integration-to-develop promotion PRs', () => {
+    expect(resolveCodeqlBaselineRef('develop', 'release/promote-integration-to-develop'))
+      .toBe('refs/heads/integration');
+    expect(resolveCodeqlBaselineRef('main', 'release/promote-develop-to-main'))
+      .toBe('refs/heads/develop');
+    expect(resolveCodeqlBaselineRef('develop', 'feature/example'))
+      .toBe('refs/heads/develop');
+  });
   it('round-trips CSV values with commas and quotes', () => {
     const csv = toCsv([
       {

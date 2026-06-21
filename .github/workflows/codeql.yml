@@ -64,6 +64,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_REF: refs/pull/${{ github.event.pull_request.number }}/merge
           CODEQL_GATE_SETTLE_SECONDS: "30"
           CODEQL_GATE_MAX_ATTEMPTS: "6"
@@ -116,6 +117,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_REF: refs/pull/${{ github.event.pull_request.number }}/merge
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/post-codeql-pr-comment.js
