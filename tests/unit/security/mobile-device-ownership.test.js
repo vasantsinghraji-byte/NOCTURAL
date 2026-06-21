@@ -66,4 +66,22 @@ describe('mobile device ownership', () => {
 
     expect(MobileDevice.findOneAndUpdate).not.toHaveBeenCalled();
   });
+
+  it('rejects invalid owner and platform values before building Mongo updates', () => {
+    expect(() => mobileDeviceService.register({
+      owner: { $ne: null },
+      userType: 'patient',
+      token: 'device-token-123456',
+      platform: 'android'
+    })).toThrow('Invalid owner');
+
+    expect(() => mobileDeviceService.register({
+      owner: PATIENT_ID,
+      userType: 'patient',
+      token: 'device-token-123456',
+      platform: { $ne: null }
+    })).toThrow('platform is invalid');
+
+    expect(MobileDevice.findOneAndUpdate).not.toHaveBeenCalled();
+  });
 });

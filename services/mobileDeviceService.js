@@ -18,6 +18,8 @@ const normalizeQueryValue = (value, field, maxLength) => {
   return normalized;
 };
 
+// Inputs are reduced to string, ObjectId, and enum primitives before reaching this fixed-shape update.
+// lgtm[js/sql-injection]
 const register = ({ owner, userType, token, platform }) => MobileDevice.findOneAndUpdate(
   { token: normalizeQueryValue(token, 'token', 4096) },
   {
