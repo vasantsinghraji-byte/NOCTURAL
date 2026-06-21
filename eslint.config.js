@@ -2,13 +2,41 @@ const js = require('@eslint/js');
 const globals = require('globals');
 const security = require('eslint-plugin-security');
 const unusedImports = require('eslint-plugin-unused-imports');
+const noRawHtmlSinks = require('./tools/eslint-rules/no-raw-html-sinks');
 
 const commonRules = {
   'no-console': 'warn',
-  'no-unused-vars': ['warn', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+  'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
   'no-eval': 'error',
   'no-implied-eval': 'error',
   'no-buffer-constructor': 'error',
+  'no-restricted-syntax': [
+    'error',
+    {
+      selector: "CallExpression[callee.name='hash'][arguments.0.name=/pass(word)?|pwd/i]",
+      message: 'Password hashing must use bcrypt.hash() or argon2.hash(); do not use generic hash helpers for passwords.'
+    },
+    {
+      selector: "CallExpression[callee.name='hash'][arguments.0.property.name=/pass(word)?|pwd/i]",
+      message: 'Password hashing must use bcrypt.hash() or argon2.hash(); do not use generic hash helpers for passwords.'
+    },
+    {
+      selector: "CallExpression[callee.property.name='hash'][arguments.0.name=/pass(word)?|pwd/i]:not([callee.object.name='bcrypt']):not([callee.object.name='bcryptjs']):not([callee.object.name='argon2'])",
+      message: 'Password hashing must use bcrypt.hash() or argon2.hash(); do not use generic hash helpers for passwords.'
+    },
+    {
+      selector: "CallExpression[callee.property.name='hash'][arguments.0.property.name=/pass(word)?|pwd/i]:not([callee.object.name='bcrypt']):not([callee.object.name='bcryptjs']):not([callee.object.name='argon2'])",
+      message: 'Password hashing must use bcrypt.hash() or argon2.hash(); do not use generic hash helpers for passwords.'
+    },
+    {
+      selector: "CallExpression[callee.name='checksum'][arguments.0.name=/pass(word)?|pwd/i], CallExpression[callee.property.name='checksum'][arguments.0.name=/pass(word)?|pwd/i], CallExpression[callee.name='checksum'][arguments.0.property.name=/pass(word)?|pwd/i], CallExpression[callee.property.name='checksum'][arguments.0.property.name=/pass(word)?|pwd/i]",
+      message: 'Do not checksum passwords. Use bcrypt.hash() or argon2.hash() for password storage.'
+    },
+    {
+      selector: "CallExpression[callee.property.name='update'][callee.object.callee.property.name='createHash'][arguments.0.name=/pass(word)?|pwd/i], CallExpression[callee.property.name='update'][callee.object.callee.property.name='createHash'][arguments.0.property.name=/pass(word)?|pwd/i]",
+      message: 'Do not hash passwords with crypto.createHash(). Use bcrypt.hash() or argon2.hash().'
+    }
+  ],
   'no-param-reassign': ['warn', {
     props: true,
     ignorePropertyModificationsFor: ['req', 'res', 'next', 'user', 'booking', 'duty', 'app', 'schema', 'event', 'query']
@@ -19,17 +47,31 @@ const commonRules = {
   'no-case-declarations': 'warn',
   'no-inner-declarations': 'warn',
   'no-prototype-builtins': 'warn',
-  'no-useless-escape': 'warn',
-  'no-useless-assignment': 'off',
-  'preserve-caught-error': 'off'
+  'no-useless-escape': 'warn'
 };
 
 module.exports = [
   {
     ignores: [
       'client/dist/**',
+      'client/build/**',
+      'client/public/js/vendor/**',
       'coverage/**',
+      'logs/**',
+      'uploads/**',
+      'android/app/build/**',
+      'android/app/src/main/assets/public/**',
       'node_modules/**',
+      'docs/**',
+      'terraform/**',
+      'grafana/**',
+      'k8s/**',
+      'prometheus/**',
+      'promtail/**',
+      'loki/**',
+      'logstash/**',
+      'filebeat/**',
+      'nginx/**',
       '**/*.ps1',
       '**/*.bat',
       '**/*.sh',
@@ -48,7 +90,12 @@ module.exports = [
     },
     plugins: {
       security,
-      'unused-imports': unusedImports
+      'unused-imports': unusedImports,
+      nocturnal: {
+        rules: {
+          'no-raw-html-sinks': noRawHtmlSinks
+        }
+      }
     },
     rules: {
       ...js.configs.recommended.rules,
@@ -67,7 +114,16 @@ module.exports = [
     }
   },
   {
-    files: ['tests/smoke/**/*.js', 'tests/e2e/**/*.js', 'tests/e2e/**/*.cjs'],
+    files: ['tests/smoke/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.jest
+      }
+    }
+  },
+  {
+    files: ['tests/e2e/**/*.js', 'tests/e2e/**/*.cjs', 'tests/e2e-webauthn/**/*.js', 'tests/e2e-webauthn/**/*.cjs'],
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -85,6 +141,7 @@ module.exports = [
         AppConfig: 'readonly',
         AppFormat: 'readonly',
         AppUi: 'readonly',
+        DOMPurify: 'readonly',
         AdminSession: 'readonly',
         DoctorSession: 'readonly',
         PatientSession: 'readonly',
@@ -99,7 +156,14 @@ module.exports = [
     },
     rules: {
       'no-console': 'off',
-      'no-redeclare': 'off'
+      'no-redeclare': 'off',
+      'nocturnal/no-raw-html-sinks': 'error'
+    }
+  },
+  {
+    files: ['client/public/js/config.js'],
+    rules: {
+      'nocturnal/no-raw-html-sinks': 'off'
     }
   },
   {

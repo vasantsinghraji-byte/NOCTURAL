@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const { execFileSync } = require('child_process');
 
 const COMMENT_MARKER = '<!-- nocturnal-codeql-alert-summary -->';
@@ -42,6 +43,16 @@ function countOpenCodeqlAlerts(repository, ref) {
   return count;
 }
 
+function resolveCodeqlBaselineRef(baseRef, headRef = '') {
+  if (baseRef === 'develop' && headRef === 'release/promote-integration-to-develop') {
+    return 'refs/heads/chore/pr-stack-base-d3ca3d7';
+  }
+  if (baseRef === 'main' && headRef === 'release/promote-develop-to-main') {
+    return 'refs/heads/develop';
+  }
+  return `refs/heads/${baseRef}`;
+}
+
 function getExistingComment(repository, issueNumber) {
   const comments = ghApiJson([
     `repos/${repository}/issues/${issueNumber}/comments?per_page=100`
@@ -76,10 +87,12 @@ function main() {
   const repository = requiredEnv('GITHUB_REPOSITORY');
   const prNumber = requiredEnv('PR_NUMBER');
   const baseRef = requiredEnv('BASE_REF');
+  const headRef = process.env.HEAD_REF || '';
   const prRef = requiredEnv('PR_REF');
   const runUrl = requiredEnv('RUN_URL');
+  const baselineRef = resolveCodeqlBaselineRef(baseRef, headRef);
 
-  const beforeCount = countOpenCodeqlAlerts(repository, `refs/heads/${baseRef}`);
+  const beforeCount = countOpenCodeqlAlerts(repository, baselineRef);
   const afterCount = countOpenCodeqlAlerts(repository, prRef);
   const delta = afterCount - beforeCount;
   const deltaText = delta > 0 ? `+${delta}` : String(delta);
@@ -87,7 +100,7 @@ function main() {
     COMMENT_MARKER,
     '## CodeQL Alert Summary',
     '',
-    `- Base branch open CodeQL alerts (${baseRef}): ${beforeCount}`,
+    `- Baseline ref open CodeQL alerts (${baselineRef}): ${beforeCount}`,
     `- PR ref open CodeQL alerts (${prRef}): ${afterCount}`,
     `- Delta: ${deltaText}`,
     `- Workflow run: ${runUrl}`,
@@ -109,5 +122,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  countOpenCodeqlAlerts
+  countOpenCodeqlAlerts,
+  resolveCodeqlBaselineRef
 };
