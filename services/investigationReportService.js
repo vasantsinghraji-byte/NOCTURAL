@@ -523,6 +523,7 @@ const askQuestion = async (reportId, patientId, question) => {
  */
 const answerQuestion = async (reportId, questionId, doctorId, answer) => {
   const safeReportId = normalizeObjectId(reportId, 'report id');
+  const safeQuestionId = normalizeObjectId(questionId, 'question id');
   const safeDoctorId = normalizeObjectId(doctorId, 'doctor id');
   const report = await InvestigationReport.findOne({
     _id: safeReportId,
@@ -533,7 +534,7 @@ const answerQuestion = async (reportId, questionId, doctorId, answer) => {
     throw new Error('Report not found or not assigned to this doctor');
   }
 
-  const question = report.patientQuestions.id(questionId);
+  const question = report.patientQuestions.id(safeQuestionId);
   if (!question) {
     throw new Error('Question not found');
   }
@@ -561,17 +562,26 @@ const answerQuestion = async (reportId, questionId, doctorId, answer) => {
  * Get available doctors for patient choice
  */
 const getAvailableDoctors = async (specialization) => {
-  const query = {
+  const safeSpecialization = specialization === undefined || specialization === null || specialization === ''
+    ? ''
+    : typeof specialization === 'string' && specialization.trim().length <= 120
+      ? specialization.trim()
+      : null;
+  if (safeSpecialization === null) {
+    throw new TypeError('Invalid specialization');
+  }
+
+  let query = User.find({
     role: 'doctor',
     isActive: true,
     isAvailable: true
-  };
+  });
 
-  if (specialization) {
-    query.specialization = specialization;
+  if (safeSpecialization) {
+    query = query.where('specialization').equals(safeSpecialization);
   }
 
-  return User.find(query)
+  return query
     .select('name email specialization profilePhoto rating reviewCount')
     .sort({ rating: -1 })
     .limit(20);

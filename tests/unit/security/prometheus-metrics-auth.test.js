@@ -68,7 +68,10 @@ describe('Security Unit: Prometheus metrics authentication', () => {
 
     expect(deploymentYaml).toContain('PROMETHEUS_METRICS_TOKEN');
     expect(deploymentYaml).toContain('prometheus-metrics-token');
-    expect(monitoringYaml).toMatch(/^[\s\S]*authorization:\s*\n\s*type:\s*Bearer\s*\n\s*credentials:\s*\n\s*name:\s*nocturnal-secrets\s*\n\s*key:\s*prometheus-metrics-token[\s\S]*$/);
+    expect(monitoringYaml).toContain('authorization:');
+    expect(monitoringYaml).toContain('type: Bearer');
+    expect(monitoringYaml).toContain('name: nocturnal-secrets');
+    expect(monitoringYaml).toContain('key: prometheus-metrics-token');
     expect(secretsYaml).toContain('nocturnal/prometheus-metrics-token');
     expect(composeYaml).toContain('PROMETHEUS_METRICS_TOKEN_FILE');
     expect(composeYaml).toContain('/etc/prometheus/secrets/nocturnal-metrics-token');
@@ -77,6 +80,14 @@ describe('Security Unit: Prometheus metrics authentication', () => {
   it('restricts app metrics ingress to Prometheus pods in the monitoring namespace', () => {
     const deploymentYaml = readFile('k8s/deployment.yaml');
 
-    expect(deploymentYaml).toMatch(/kubernetes\.io\/metadata\.name:\s*monitoring[\s\S]*app\.kubernetes\.io\/name:\s*prometheus[\s\S]*port:\s*5000/);
+    const prometheusIngressStart = deploymentYaml.indexOf('# Allow Prometheus scraping');
+    const egressStart = deploymentYaml.indexOf('  egress:', prometheusIngressStart);
+    const prometheusIngress = deploymentYaml.slice(prometheusIngressStart, egressStart);
+
+    expect(prometheusIngressStart).toBeGreaterThanOrEqual(0);
+    expect(egressStart).toBeGreaterThan(prometheusIngressStart);
+    expect(prometheusIngress).toContain('kubernetes.io/metadata.name: monitoring');
+    expect(prometheusIngress).toContain('app.kubernetes.io/name: prometheus');
+    expect(prometheusIngress).toContain('port: 5000');
   });
 });

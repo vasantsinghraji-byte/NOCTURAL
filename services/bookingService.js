@@ -80,6 +80,26 @@ const resolveCancellationActor = ({ userRole, isPatient = false, isProvider = fa
 
 const TIME_FORMAT_REGEX = /^\d{1,2}:\d{2}$/;
 
+const resolveCatalogServiceName = (serviceType) => {
+  switch (serviceType) {
+    case 'INJECTION': return 'INJECTION_IM';
+    case 'IV_DRIP': return 'IV_DRIP';
+    case 'WOUND_DRESSING': return 'WOUND_DRESSING';
+    case 'CATHETER_CARE': return 'CATHETER_CARE';
+    case 'POST_SURGERY_CARE': return 'POST_SURGERY_CARE';
+    case 'ELDERLY_CARE': return 'ELDERLY_CARE_DAILY';
+    case 'PHYSIOTHERAPY_SESSION': return 'PHYSIO_SESSION';
+    case 'BACK_PAIN_THERAPY': return 'BACK_PAIN_PHYSIO';
+    case 'KNEE_PAIN_THERAPY': return 'KNEE_PAIN_PHYSIO';
+    case 'POST_SURGERY_REHAB': return 'POST_SURGERY_REHAB';
+    case 'STROKE_REHAB': return 'STROKE_REHAB';
+    case 'PHYSIO_PACKAGE_10': return 'PHYSIO_PACKAGE_10';
+    case 'ELDERLY_CARE_PACKAGE': return 'ELDERLY_CARE_MONTHLY';
+    case 'POST_SURGERY_PACKAGE': return 'POST_SURGERY_14DAY';
+    default: throw new ValidationError('Unsupported service type');
+  }
+};
+
 const formatUtcOffset = (offsetMinutes) => {
   const sign = offsetMinutes >= 0 ? '+' : '-';
   const absoluteMinutes = Math.abs(offsetMinutes);
@@ -149,24 +169,7 @@ class BookingService {
 
     // Get service from catalog (match by name which corresponds to serviceType enum)
     // Convert INJECTION → INJECTION_IM mapping
-    const serviceNameMap = {
-      'INJECTION': 'INJECTION_IM',
-      'IV_DRIP': 'IV_DRIP',
-      'WOUND_DRESSING': 'WOUND_DRESSING',
-      'CATHETER_CARE': 'CATHETER_CARE',
-      'POST_SURGERY_CARE': 'POST_SURGERY_CARE',
-      'ELDERLY_CARE': 'ELDERLY_CARE_DAILY',
-      'PHYSIOTHERAPY_SESSION': 'PHYSIO_SESSION',
-      'BACK_PAIN_THERAPY': 'BACK_PAIN_PHYSIO',
-      'KNEE_PAIN_THERAPY': 'KNEE_PAIN_PHYSIO',
-      'POST_SURGERY_REHAB': 'POST_SURGERY_REHAB',
-      'STROKE_REHAB': 'STROKE_REHAB',
-      'PHYSIO_PACKAGE_10': 'PHYSIO_PACKAGE_10',
-      'ELDERLY_CARE_PACKAGE': 'ELDERLY_CARE_MONTHLY',
-      'POST_SURGERY_PACKAGE': 'POST_SURGERY_14DAY'
-    };
-
-    const serviceName = serviceNameMap[serviceType] || serviceType;
+    const serviceName = resolveCatalogServiceName(serviceType);
     const service = await ServiceCatalog.findOne({
       name: serviceName,
       'availability.isActive': true
