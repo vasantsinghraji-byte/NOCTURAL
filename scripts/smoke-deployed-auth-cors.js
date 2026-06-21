@@ -122,6 +122,22 @@ async function main() {
   });
   await assertNoCorsFailure(register, 'register POST');
 
+  // Same-origin simple GETs reach the server with NO Origin header (browsers
+  // omit it). This guards the regression where production 500'd missing-origin
+  // requests, breaking service browsing and the /auth/me call that fires on
+  // every page load. Sent without an Origin header on purpose.
+  const noOriginGet = await fetch(`${baseUrl}/api/v1/auth/me`, {
+    redirect: 'manual',
+    headers: { Accept: 'application/json' }
+  });
+  const noOriginBody = await readBody(noOriginGet);
+  if (noOriginGet.status >= 500) {
+    throw new Error(`no-origin GET /api/v1/auth/me: expected non-5xx, received ${noOriginGet.status}: ${noOriginBody}`);
+  }
+  if (noOriginBody.includes('Not allowed by CORS')) {
+    throw new Error('no-origin GET /api/v1/auth/me: response still contains CORS rejection text');
+  }
+
   console.log('Deployed auth CORS smoke passed');
 }
 

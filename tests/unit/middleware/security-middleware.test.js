@@ -149,19 +149,14 @@ describe('security middleware CORS origin policy', () => {
     jest.clearAllMocks();
   });
 
-  it('rejects requests with missing Origin in production', () => {
+  it('allows requests with missing Origin in production (same-origin GETs, health checks)', () => {
     process.env.NODE_ENV = 'production';
     process.env.ALLOWED_ORIGINS = 'https://app.example.com';
     const callback = jest.fn();
 
     corsConfig().origin(undefined, callback);
 
-    expect(callback).toHaveBeenCalledWith(expect.any(Error));
-    expect(callback.mock.calls[0][0].message).toBe('Not allowed by CORS');
-    expect(logger.warn).toHaveBeenCalledWith(
-      'CORS blocked request with missing origin',
-      expect.any(Object)
-    );
+    expect(callback).toHaveBeenCalledWith(null, true);
   });
 
   it('allows requests with missing Origin outside production', () => {
