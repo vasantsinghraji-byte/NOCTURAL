@@ -18,19 +18,27 @@ const normalizeQueryValue = (value, field, maxLength) => {
   return normalized;
 };
 
-// Inputs are reduced to string, ObjectId, and enum primitives before reaching this fixed-shape update.
-// lgtm[js/sql-injection]
-const register = ({ owner, userType, token, platform }) => MobileDevice.findOneAndUpdate(
-  { token: normalizeQueryValue(token, 'token', 4096) },
-  {
-    owner: normalizeObjectId(owner, 'owner'),
-    ownerType: normalizeOwnerType(userType),
-    platform: normalizePlatform(platform),
-    enabled: true,
-    lastSeenAt: new Date()
-  },
-  { new: true, upsert: true, runValidators: true }
-);
+const findByToken = (token) => MobileDevice.findOne().where('token').equals(token);
+
+const register = async ({ owner, userType, token, platform }) => {
+  const safeToken = normalizeQueryValue(token, 'token', 4096);
+  const safeOwner = normalizeObjectId(owner, 'owner');
+  const safeOwnerType = normalizeOwnerType(userType);
+  const safePlatform = normalizePlatform(platform);
+  let device = await findByToken(safeToken);
+
+  if (!device) {
+    device = new MobileDevice();
+    device.token = safeToken;
+  }
+
+  device.owner = safeOwner;
+  device.ownerType = safeOwnerType;
+  device.platform = safePlatform;
+  device.enabled = true;
+  device.lastSeenAt = new Date();
+  return device.save();
+};
 
 const unregister = ({ owner, userType, token }) => MobileDevice.findOneAndUpdate(
   {
