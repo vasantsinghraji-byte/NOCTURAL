@@ -25,14 +25,17 @@ function reservePort() {
   });
 }
 
-function sendRequest(port, { method, path: requestPath, body }) {
+function sendRequest(port, { method, path: requestPath, body, omitOrigin = false }) {
   const payload = body ? JSON.stringify(body) : '';
   const headers = {
-    Origin: productionOrigin,
     'x-forwarded-proto': 'https',
     'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(payload)
   };
+
+  if (!omitOrigin) {
+    headers.Origin = productionOrigin;
+  }
 
   if (method === 'OPTIONS') {
     headers['Access-Control-Request-Method'] = 'POST';
@@ -73,7 +76,7 @@ function sendRequest(port, { method, path: requestPath, body }) {
 describe('Production Smoke: auth CORS contract', () => {
   jest.setTimeout(35000);
 
-  it('allows live Render-origin preflight and login/register POSTs through CORS', async () => {
+  it('allows live Render-origin preflight, POSTs, and same-origin GETs (incl. no-origin) through CORS', async () => {
     const originalEnv = { ...process.env };
     const port = await reservePort();
 
@@ -117,6 +120,27 @@ describe('Production Smoke: auth CORS contract', () => {
       }
       expect(login.statusCode).not.toBe(500);
       expect(register.statusCode).not.toBe(500);
+
+      // Same-origin GETs reach the server with no Origin header (browsers omit
+      // it on safe same-origin methods). Regression guard for the production
+      // no-origin rejection that previously 500'd service browsing and
+      // /auth/me. The patched origin callback must allow both the with-Origin
+      // GET and the no-origin GET in the real middleware order.
+      const sameOriginGet = await sendRequest(port, {
+        method: 'GET',
+        path: '/api/v1/auth/me'
+      });
+      const noOriginGet = await sendRequest(port, {
+        method: 'GET',
+        path: '/api/v1/auth/me',
+        omitOrigin: true
+      });
+
+      for (const response of [sameOriginGet, noOriginGet]) {
+        expect(response.statusCode).not.toBe(500);
+        expect(response.body).not.toContain('Not allowed by CORS');
+      }
+      expect(sameOriginGet.headers['access-control-allow-origin']).toBe(productionOrigin);
     } finally {
       await stopServer();
       Object.keys(process.env).forEach((key) => {

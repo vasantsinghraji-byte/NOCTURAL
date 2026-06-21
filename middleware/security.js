@@ -180,6 +180,7 @@ const corsConfig = () => {
     process.env.CLIENT_URL,
     'https://localhost',
     'capacitor://localhost',
+    'https://noctural.onrender.com',
     'https://nocturnal-api.onrender.com',
     'https://nocturnal-frontend.onrender.com',
     'https://nocturnal-frontend-208z.onrender.com'
@@ -193,18 +194,17 @@ const corsConfig = () => {
 
   return {
     origin: (origin, callback) => {
-      // Allow no-origin requests only outside production for mobile apps,
-      // Postman, and CLI tooling. Production callers must send an allowlisted
-      // Origin so the CORS policy cannot be bypassed by omitting the header.
+      // A missing Origin header is not a cross-origin browser fetch that CORS
+      // must guard: it covers same-origin requests (browsers omit Origin on
+      // same-origin simple GETs such as GET /api/v1/services), health checks,
+      // mobile apps, Postman, and server-to-server/CLI callers. CORS cannot
+      // protect these anyway — browsers force the Origin header on real
+      // cross-origin requests, and non-browser clients can spoof any value —
+      // and cookie auth is already guarded by SameSite=strict cookies. So
+      // allow no-origin requests instead of 500-ing legitimate same-origin
+      // traffic.
       if (!origin) {
-        if (process.env.NODE_ENV !== 'production') {
-          return callback(null, true);
-        }
-
-        logger.warn('CORS blocked request with missing origin', {
-          allowedOrigins: allowedOrigins.length > 0 ? allowedOrigins : 'NONE CONFIGURED'
-        });
-        return callback(new Error('Not allowed by CORS'));
+        return callback(null, true);
       }
 
       // Strict origin whitelist check - no bypasses
