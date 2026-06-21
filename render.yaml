@@ -51,7 +51,7 @@ services:
       - key: FRONTEND_URL
         value: https://nocturnal.com
       - key: ALLOWED_ORIGINS
-        value: https://nocturnal-api.onrender.com,https://nocturnal-frontend.onrender.com,https://nocturnal-frontend-208z.onrender.com,https://nocturnal.com
+        value: https://noctural.onrender.com,https://nocturnal-api.onrender.com,https://nocturnal-frontend.onrender.com,https://nocturnal-frontend-208z.onrender.com,https://nocturnal.com
       # Optional Services
       - key: REDIS_ENABLED
         value: false
@@ -63,6 +63,22 @@ services:
         sync: false
       - key: EMAIL_FROM
         value: Nocturnal <no-reply@nocturnal.com>
+      - key: SECURITY_NOTIFICATION_OUTBOX_ENABLED
+        value: true
+      - key: WEBAUTHN_RP_NAME
+        value: Nocturnal
+      - key: WEBAUTHN_RP_ID
+        value: nocturnal.com
+      - key: WEBAUTHN_ORIGIN
+        value: https://nocturnal.com
+      - key: COMPROMISED_PASSWORD_CHECK_ENABLED
+        value: true
+      - key: COMPROMISED_PASSWORD_CHECK_FAIL_OPEN
+        value: false
+      # Only populate this with known immediate reverse-proxy IPs. Location
+      # headers are ignored when the request does not originate from this list.
+      - key: TRUSTED_LOCATION_PROXY_IPS
+        sync: false
       - key: WAITLIST_ADMIN_EMAIL
         sync: false
       - key: LOG_LEVEL
