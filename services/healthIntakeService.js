@@ -18,6 +18,7 @@ const {
 } = require('../constants/healthConstants');
 const { NotFoundError, ValidationError } = require('../utils/errors');
 const notificationService = require('./notificationService');
+const { normalizeObjectId } = require('../utils/safeMongo');
 
 class HealthIntakeService {
   /**
@@ -261,24 +262,27 @@ class HealthIntakeService {
    * Assign doctor to review intake (admin action)
    */
   async assignReviewer(intakeId, doctorId, adminId) {
+    const safeDoctorId = normalizeObjectId(doctorId, 'doctor id');
+    const safeIntakeId = normalizeObjectId(intakeId, 'intake id');
+    const safeAdminId = normalizeObjectId(adminId, 'admin id');
     // Validate doctor exists and has doctor role
-    const doctor = await User.findById(doctorId);
+    const doctor = await User.findById(safeDoctorId);
     if (!doctor || doctor.role !== 'doctor') {
       throw new ValidationError('Must assign to a doctor');
     }
 
-    const record = await healthRecordService.assignIntakeReviewer(intakeId, doctorId, adminId);
+    const record = await healthRecordService.assignIntakeReviewer(safeIntakeId, safeDoctorId, safeAdminId);
 
     logger.info('Intake reviewer assigned', {
-      intakeId,
-      doctorId,
-      adminId
+      intakeId: safeIntakeId,
+      doctorId: safeDoctorId,
+      adminId: safeAdminId
     });
 
     // Notify the assigned doctor
     try {
       await notificationService.createNotification({
-        user: doctorId,
+        user: safeDoctorId,
         type: 'INTAKE_ASSIGNED',
         title: 'Intake Review Assigned',
         message: 'A patient health intake has been assigned to you for review.',

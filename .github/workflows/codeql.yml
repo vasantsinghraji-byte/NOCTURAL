@@ -1,0 +1,121 @@
+name: "CodeQL"
+
+# Static analysis (code scanning) for JavaScript/TypeScript. Results appear under
+# the repository's Security → Code scanning alerts.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main", "develop", "fix/render-health-upload-audit"]
+  pull_request:
+    branches:
+      - main
+      - develop
+      - "chore/**"
+      - "feature/**"
+      - "fix/**"
+      - "refactor/**"
+      - "docs/**"
+  schedule:
+    # Weekly, Monday 03:00 UTC
+    - cron: "0 3 * * 1"
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+  codeql-alert-gate:
+    name: CodeQL Alert Gate
+    runs-on: ubuntu-latest
+    needs: analyze
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      security-events: read
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fail when CodeQL alerts increase over base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_REF: refs/pull/${{ github.event.pull_request.number }}/merge
+          CODEQL_GATE_SETTLE_SECONDS: "30"
+          CODEQL_GATE_MAX_ATTEMPTS: "6"
+          CODEQL_ALLOWED_ALERT_INCREASE: "0"
+        run: |
+          set -euo pipefail
+          echo "Waiting ${CODEQL_GATE_SETTLE_SECONDS}s for CodeQL alert indexing..."
+          sleep "${CODEQL_GATE_SETTLE_SECONDS}"
+
+          for attempt in $(seq 1 "${CODEQL_GATE_MAX_ATTEMPTS}"); do
+            echo "CodeQL threshold check attempt ${attempt}/${CODEQL_GATE_MAX_ATTEMPTS}"
+            if node scripts/check-codeql-alert-threshold.js; then
+              exit 0
+            else
+              sleep_seconds=$((attempt * 10))
+              echo "CodeQL threshold check failed or API not ready; retrying in ${sleep_seconds}s..."
+              sleep "${sleep_seconds}"
+            fi
+          done
+
+          echo "CodeQL alert threshold failed after retries."
+          exit 1
+
+      - name: Export CodeQL alert summary
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          CODEQL_ALERT_REF: refs/pull/${{ github.event.pull_request.number }}/merge
+        run: npm run security:codeql:export -- --ref="${CODEQL_ALERT_REF}" --skip-tracker
+
+      - name: Upload CodeQL alert summary artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: codeql-open-alert-summary
+          path: |
+            reports/security/codeql-open-alert-summary.csv
+            reports/security/codeql-open-alerts.csv
+            reports/security/codeql-alert-trend.json
+            reports/security/codeql-alert-dashboard.html
+            reports/security/codeql-tracker-snapshots/*.csv
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Post CodeQL PR alert summary
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_REF: refs/pull/${{ github.event.pull_request.number }}/merge
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/post-codeql-pr-comment.js

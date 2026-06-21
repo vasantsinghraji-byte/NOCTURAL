@@ -41,7 +41,7 @@
                 info: 'fa-info-circle'
             };
 
-            toast.innerHTML = `<i class="fas ${icons[type]}"></i> ${message}`;
+            AppUi.setSafeHtml(toast, `<i class="fas ${icons[type]}"></i> ${message}`);
             container.appendChild(toast);
 
             setTimeout(() => {
@@ -125,11 +125,11 @@
         function renderFileList() {
             const fileList = document.getElementById('fileList');
             if (selectedFiles.length === 0) {
-                fileList.innerHTML = '';
+                AppUi.setSafeHtml(fileList, '');
                 return;
             }
 
-            fileList.innerHTML = selectedFiles.map((file, index) => `
+            AppUi.setSafeHtml(fileList, selectedFiles.map((file, index) => `
                 <div class="selected-file-item">
                     <i class="fas selected-file-icon ${file.type === 'application/pdf' ? 'fa-file-pdf' : 'fa-file-image'}"></i>
                     <span class="selected-file-name">${file.name}</span>
@@ -138,7 +138,7 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-            `).join('');
+            `).join(''));
         }
 
         function removeFile(index) {
@@ -159,7 +159,7 @@
             document.getElementById('uploadModal').classList.add('active');
             selectedFiles = [];
             document.getElementById('uploadForm').reset();
-            document.getElementById('fileList').innerHTML = '';
+            AppUi.setSafeHtml(document.getElementById('fileList'), '');
             initDateDefaults();
         }
 
@@ -176,9 +176,9 @@
             AppUi.setDisplay(document.getElementById('bpFields'), type === 'bp' ? 'block' : 'none');
 
             if (type === 'diabetes') {
-                title.innerHTML = '<i class="fas fa-tint"></i> Log Blood Sugar Reading';
+                AppUi.setSafeHtml(title, '<i class="fas fa-tint"></i> Log Blood Sugar Reading');
             } else {
-                title.innerHTML = '<i class="fas fa-heartbeat"></i> Log Blood Pressure Reading';
+                AppUi.setSafeHtml(title, '<i class="fas fa-heartbeat"></i> Log Blood Pressure Reading');
             }
 
             modal.classList.add('active');
@@ -208,7 +208,7 @@
         // Submit report
         async function submitReport() {
             const btn = document.getElementById('submitReportBtn');
-            const originalText = btn.innerHTML;
+            const originalText = '<i class="fas fa-upload"></i> Upload & Analyze';
 
             if (selectedFiles.length === 0) {
                 showToast('Please select at least one file', 'error');
@@ -225,7 +225,7 @@
             }
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+            AppUi.setSafeHtml(btn, '<i class="fas fa-spinner fa-spin"></i> Uploading...');
 
             try {
                 const formData = new FormData();
@@ -255,17 +255,17 @@
                 showToast('Upload failed. Please try again.', 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = originalText;
+                AppUi.setSafeHtml(btn, originalText);
             }
         }
 
         // Submit reading
         async function submitReading() {
             const btn = document.getElementById('submitReadingBtn');
-            const originalText = btn.innerHTML;
+            const originalText = '<i class="fas fa-save"></i> Save Reading';
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            AppUi.setSafeHtml(btn, '<i class="fas fa-spinner fa-spin"></i> Saving...');
 
             try {
                 let endpoint, body;
@@ -315,7 +315,7 @@
                 showToast('Failed to save reading', 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = originalText;
+                AppUi.setSafeHtml(btn, originalText);
             }
         }
 
@@ -345,12 +345,12 @@
                         AppUi.setDisplay(badge, 'none');
                     }
 
-                    content.innerHTML = await renderReportsContent(reports);
+                    AppUi.setSafeHtml(content, await renderReportsContent(reports));
                 } else {
                     // Show error if API returned success:false
                     const errorMsg = result?.message || 'Failed to load reports';
                     console.error('Reports API error:', errorMsg);
-                    content.innerHTML = `
+                    AppUi.setSafeHtml(content, `
                         <div class="empty-state">
                             <i class="fas fa-exclamation-circle"></i>
                             <h3>Error loading reports</h3>
@@ -359,11 +359,11 @@
                                 <i class="fas fa-sync"></i> Retry
                             </button>
                         </div>
-                    `;
+                    `);
                 }
             } catch (error) {
                 console.error('Error loading reports:', error);
-                content.innerHTML = `
+                AppUi.setSafeHtml(content, `
                     <div class="empty-state">
                         <i class="fas fa-exclamation-circle"></i>
                         <h3>Error loading reports</h3>
@@ -372,7 +372,7 @@
                             <i class="fas fa-sync"></i> Retry
                         </button>
                     </div>
-                `;
+                `);
             } finally {
                 AppUi.setDisplay(loading, 'none');
                 AppUi.setDisplay(content, 'block');
@@ -397,13 +397,13 @@
                 console.log('Diabetes chart result:', chartResult);
 
                 if (summaryResult?.success && chartResult?.success) {
-                    content.innerHTML = renderDiabetesContent(summaryResult.summary, chartResult);
+                    AppUi.setSafeHtml(content, renderDiabetesContent(summaryResult.summary, chartResult));
                     initDiabetesCharts(chartResult);
                 } else {
                     // Show error if API returned success:false
                     const errorMsg = summaryResult?.message || chartResult?.message || 'Failed to load diabetes data';
                     console.error('Diabetes API error:', errorMsg);
-                    content.innerHTML = `
+                    AppUi.setSafeHtml(content, `
                         <div class="empty-state">
                             <i class="fas fa-exclamation-circle"></i>
                             <h3>Error loading data</h3>
@@ -412,11 +412,11 @@
                                 <i class="fas fa-sync"></i> Retry
                             </button>
                         </div>
-                    `;
+                    `);
                 }
             } catch (error) {
                 console.error('Error loading diabetes data:', error);
-                content.innerHTML = `
+                AppUi.setSafeHtml(content, `
                     <div class="empty-state">
                         <i class="fas fa-exclamation-circle"></i>
                         <h3>Error loading data</h3>
@@ -425,7 +425,7 @@
                             <i class="fas fa-sync"></i> Retry
                         </button>
                     </div>
-                `;
+                `);
             } finally {
                 AppUi.setDisplay(loading, 'none');
                 AppUi.setDisplay(content, 'block');
@@ -450,13 +450,13 @@
                 console.log('Hypertension chart result:', chartResult);
 
                 if (summaryResult?.success && chartResult?.success) {
-                    content.innerHTML = renderHypertensionContent(summaryResult.summary, chartResult);
+                    AppUi.setSafeHtml(content, renderHypertensionContent(summaryResult.summary, chartResult));
                     initHypertensionCharts(chartResult);
                 } else {
                     // Show error if API returned success:false
                     const errorMsg = summaryResult?.message || chartResult?.message || 'Failed to load hypertension data';
                     console.error('Hypertension API error:', errorMsg);
-                    content.innerHTML = `
+                    AppUi.setSafeHtml(content, `
                         <div class="empty-state">
                             <i class="fas fa-exclamation-circle"></i>
                             <h3>Error loading data</h3>
@@ -465,11 +465,11 @@
                                 <i class="fas fa-sync"></i> Retry
                             </button>
                         </div>
-                    `;
+                    `);
                 }
             } catch (error) {
                 console.error('Error loading hypertension data:', error);
-                content.innerHTML = `
+                AppUi.setSafeHtml(content, `
                     <div class="empty-state">
                         <i class="fas fa-exclamation-circle"></i>
                         <h3>Error loading data</h3>
@@ -478,7 +478,7 @@
                             <i class="fas fa-sync"></i> Retry
                         </button>
                     </div>
-                `;
+                `);
             } finally {
                 AppUi.setDisplay(loading, 'none');
                 AppUi.setDisplay(content, 'block');
@@ -713,13 +713,13 @@
             if (allReadings.length === 0) {
                 // Show empty state message in chart area
                 const chartContainer = ctx.canvas.parentElement;
-                chartContainer.innerHTML = `
+                AppUi.setSafeHtml(chartContainer, `
                     <div class="chart-empty-state">
                         <i class="fas fa-chart-line chart-empty-icon"></i>
                         <p class="chart-empty-title">No blood sugar readings yet</p>
                         <p class="chart-empty-help">Add your first reading to see the chart</p>
                     </div>
-                `;
+                `);
                 return;
             }
 
@@ -822,13 +822,13 @@
             if (combined.length === 0) {
                 // Show empty state message in chart area
                 const chartContainer = ctx.canvas.parentElement;
-                chartContainer.innerHTML = `
+                AppUi.setSafeHtml(chartContainer, `
                     <div class="chart-empty-state">
                         <i class="fas fa-heartbeat chart-empty-icon"></i>
                         <p class="chart-empty-title">No blood pressure readings yet</p>
                         <p class="chart-empty-help">Add your first BP reading to see the chart</p>
                     </div>
-                `;
+                `);
                 return;
             }
 
@@ -899,9 +899,9 @@
 
             // Update title
             if (type === 'diabetes') {
-                title.innerHTML = '<i class="fas fa-bullseye"></i> Diabetes Target Configuration';
+                AppUi.setSafeHtml(title, '<i class="fas fa-bullseye"></i> Diabetes Target Configuration');
             } else {
-                title.innerHTML = '<i class="fas fa-bullseye"></i> Blood Pressure Target Configuration';
+                AppUi.setSafeHtml(title, '<i class="fas fa-bullseye"></i> Blood Pressure Target Configuration');
             }
 
             // Load existing targets
@@ -979,8 +979,8 @@
 
         async function saveTargets() {
             const btn = document.getElementById('saveTargetBtn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            const originalText = '<i class="fas fa-save"></i> Save Targets';
+            AppUi.setSafeHtml(btn, '<i class="fas fa-spinner fa-spin"></i> Saving...');
             btn.disabled = true;
 
             try {
@@ -1050,7 +1050,7 @@
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {
-                btn.innerHTML = originalText;
+                AppUi.setSafeHtml(btn, originalText);
                 btn.disabled = false;
             }
         }

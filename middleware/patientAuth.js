@@ -5,8 +5,21 @@
  * Separate from provider/admin authentication
  */
 
-const jwt = require('jsonwebtoken');
 const Patient = require('../models/patient');
+const logger = require('../utils/logger');
+const { getAccessTokenFromRequest, verifyAccessToken } = require('./auth');
+const { IDENTITY_TYPES } = require('../utils/authTokens');
+const { normalizeObjectId } = require('../utils/safeMongo');
+
+const requirePatientAccessToken = (req) => {
+  const token = getAccessTokenFromRequest(req);
+  if (!token) {
+    const error = new Error('No patient access token provided');
+    error.name = 'MissingAccessTokenError';
+    throw error;
+  }
+  return token;
+};
 
 const normalizeAuthenticatedUser = (user) => {
   if (!user) return user;
@@ -23,25 +36,13 @@ const normalizeAuthenticatedUser = (user) => {
  */
 exports.protectPatient = async (req, res, next) => {
   try {
-    let token;
-
-    // Get token from header
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Not authorized - No token provided'
-      });
-    }
+    const token = requirePatientAccessToken(req);
 
     // Verify JWT token with signature validation
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifyAccessToken(token, IDENTITY_TYPES.PATIENT);
 
     // Get patient from database
-    const patient = await Patient.findById(decoded.id).select('-password');
+    const patient = await Patient.findById(normalizeObjectId(decoded.id, 'token subject')).select('-password');
 
     if (!patient) {
       return res.status(401).json({
@@ -76,6 +77,12 @@ exports.protectPatient = async (req, res, next) => {
 
     next();
   } catch (error) {
+    if (error.name === 'MissingAccessTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized - No token provided'
+      });
+    }
     // Handle specific JWT errors
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
@@ -102,31 +109,20 @@ exports.protectPatient = async (req, res, next) => {
  */
 exports.protectBoth = async (req, res, next) => {
   try {
-    let token;
-
-    // Get token from header
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Not authorized - No token provided'
-      });
-    }
+    const token = requirePatientAccessToken(req);
 
     // Verify JWT token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifyAccessToken(token);
+    const decodedUserId = normalizeObjectId(decoded.id, 'token subject');
 
     // Try to find user in Patient model first
-    let user = await Patient.findById(decoded.id).select('-password');
+    let user = await Patient.findById(decodedUserId).select('-password');
     let userType = 'patient';
 
     // If not found in Patient, try User model
     if (!user) {
       const User = require('../models/user');
-      user = await User.findById(decoded.id).select('-password');
+      user = await User.findById(decodedUserId).select('-password');
       userType = 'provider';
     }
 
@@ -155,6 +151,12 @@ exports.protectBoth = async (req, res, next) => {
 
     next();
   } catch (error) {
+    if (error.name === 'MissingAccessTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized - No token provided'
+      });
+    }
     // Handle specific JWT errors
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({

@@ -26,25 +26,19 @@ describe('Database idempotency index startup contract', () => {
       debug: jest.fn(),
       logSecurity: jest.fn()
     };
-    const mockMonitoring = {
-      trackError: jest.fn(),
-      triggerAlert: jest.fn()
-    };
-    const mockIdempotencyIndexes = {
-      markReady: jest.fn(),
-      markUnavailable: jest.fn()
-    };
 
     let databaseModule;
     jest.isolateModules(() => {
       jest.doMock('mongoose', () => mockMongoose);
       jest.doMock('../../../utils/logger', () => mockLogger);
-      jest.doMock('../../../utils/monitoring', () => mockMonitoring);
-      jest.doMock('../../../config/idempotencyIndexes', () => mockIdempotencyIndexes);
+      jest.doMock('../../../utils/monitoring', () => ({
+        trackError: jest.fn(),
+        triggerAlert: jest.fn()
+      }));
       databaseModule = require('../../../config/database');
     });
 
-    return { databaseModule, collection, mockLogger, mockMonitoring, mockIdempotencyIndexes, mockMongoose };
+    return { databaseModule, collection, mockLogger };
   };
 
   beforeEach(() => {
@@ -59,7 +53,7 @@ describe('Database idempotency index startup contract', () => {
   });
 
   it('creates and verifies the production idempotency indexes', async () => {
-    const { databaseModule, collection, mockLogger, mockIdempotencyIndexes } = loadDatabaseModule();
+    const { databaseModule, collection, mockLogger } = loadDatabaseModule();
 
     await databaseModule.ensureIdempotencyIndexes();
 
@@ -68,8 +62,11 @@ describe('Database idempotency index startup contract', () => {
       unique: true,
       background: true
     });
-    expect(collection.createIndex).toHaveBeenCalledTimes(1);
-    expect(mockIdempotencyIndexes.markReady).toHaveBeenCalledTimes(1);
+    expect(collection.createIndex).toHaveBeenNthCalledWith(2, { createdAt: 1 }, {
+      name: 'idempotency_ttl_idx',
+      expireAfterSeconds: 86400,
+      background: true
+    });
     expect(mockLogger.info).toHaveBeenCalledWith('Idempotency indexes verified', {
       uniqueScope: true,
       retentionSeconds: 86400
@@ -88,8 +85,9 @@ describe('Database idempotency index startup contract', () => {
       .rejects.toThrow('Idempotency index verification failed');
   });
 
-  it('keeps the database connected but disables protected mutations when verification fails', async () => {
-    const { databaseModule, collection, mockMonitoring, mockIdempotencyIndexes, mockMongoose } = loadDatabaseModule({
+  it('closes the connection when startup index verification fails', async () => {
+    jest.spyOn(global, 'setTimeout').mockImplementation(() => ({ id: 'reconnect-timeout' }));
+    const { databaseModule, collection } = loadDatabaseModule({
       readyState: 1,
       indexes: [
         { name: 'scope_unique_idx', unique: false },
@@ -100,31 +98,7 @@ describe('Database idempotency index startup contract', () => {
     await databaseModule.connectDB();
 
     expect(collection.indexes).toHaveBeenCalled();
-    expect(databaseModule.isConnected()).toBe(true);
-    expect(mockMongoose.connection.close).not.toHaveBeenCalled();
-    expect(mockIdempotencyIndexes.markUnavailable).toHaveBeenCalled();
-    expect(mockMonitoring.triggerAlert).toHaveBeenCalledWith(
-      'idempotency_indexes_unavailable',
-      expect.objectContaining({ error: expect.any(String) })
-    );
-  });
-
-  it('reports a TTL mismatch before attempting a conflicting createIndex', async () => {
-    const { databaseModule, collection, mockIdempotencyIndexes } = loadDatabaseModule({
-      indexes: [
-        { name: 'scope_unique_idx', unique: true },
-        { name: 'idempotency_ttl_idx', expireAfterSeconds: 3600 }
-      ]
-    });
-
-    await expect(databaseModule.ensureIdempotencyIndexes())
-      .rejects.toThrow('update it with collMod before deployment');
-
-    expect(collection.createIndex).toHaveBeenCalledTimes(1);
-    expect(collection.createIndex).toHaveBeenCalledWith(
-      { scope: 1 },
-      expect.objectContaining({ name: 'scope_unique_idx', unique: true })
-    );
-    expect(mockIdempotencyIndexes.markUnavailable).toHaveBeenCalled();
+    expect(databaseModule.isConnected()).toBe(false);
+    expect(require('mongoose').connection.close).toHaveBeenCalledTimes(1);
   });
 });

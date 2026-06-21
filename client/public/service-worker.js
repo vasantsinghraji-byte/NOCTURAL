@@ -410,13 +410,22 @@ async function clearHtmlCaches() {
 }
 
 self.addEventListener('message', (event) => {
+  if (event.origin && event.origin !== self.location.origin) {
+    return;
+  }
+
   if (!event.data || event.data.type !== 'NOCTURNAL_REFRESH_HTML_CACHE') {
     return;
   }
 
   event.waitUntil(
-    clearHtmlCaches().then(() => {
-      if (event.source) {
+    clients.get(event.source?.id).then((client) => {
+      if (!client || new URL(client.url).origin !== self.location.origin) {
+        return false;
+      }
+      return clearHtmlCaches().then(() => true);
+    }).then((cleared) => {
+      if (cleared && event.source) {
         event.source.postMessage({
           type: 'NOCTURNAL_HTML_CACHE_REFRESHED',
           reason: event.data.reason || 'unknown'

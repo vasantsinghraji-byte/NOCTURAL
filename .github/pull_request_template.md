@@ -23,6 +23,7 @@
 - User-facing risk:
 - Data / migration risk:
 - External dependency or API risk:
+- [ ] Any new sensitive GET route-policy allowlist entry is justified here, including TTL/one-time-use/referrer/audit controls where relevant.
 
 ## Rollback Plan
 

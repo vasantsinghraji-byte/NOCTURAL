@@ -129,7 +129,14 @@ const HealthMetricSchema = new mongoose.Schema({
 HealthMetricSchema.index({ patient: 1, metricType: 1, measuredAt: -1 }); // Trends query
 HealthMetricSchema.index({ patient: 1, measuredAt: -1 }); // All metrics timeline
 HealthMetricSchema.index({ patient: 1, isAbnormal: 1, measuredAt: -1 }); // Abnormal values
-HealthMetricSchema.index({ 'source.bookingId': 1 }); // Booking metrics
+HealthMetricSchema.index(
+  { 'source.bookingId': 1, metricType: 1 },
+  {
+    unique: true,
+    name: 'booking_metric_type_unique_idx',
+    partialFilterExpression: { 'source.bookingId': { $exists: true } }
+  }
+); // One derived metric of each type per booking
 
 // Pre-save: Set unit from constant if not provided
 HealthMetricSchema.pre('save', function(next) {

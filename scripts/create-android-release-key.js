@@ -13,8 +13,6 @@ const credentialsPath = path.join(secretsDir, 'release-signing-credentials.txt')
 const propertiesPath = path.join(androidDir, 'keystore.properties');
 const alias = 'nocturnal-upload';
 
-// All paths below are fixed children of the repository or its dedicated secrets directory.
-// eslint-disable-next-line security/detect-non-literal-fs-filename
 if ([keystorePath, credentialsPath, propertiesPath].some(file => fs.existsSync(file))) {
   console.error('Release signing files already exist. Refusing to overwrite them.');
   process.exit(1);
@@ -35,7 +33,6 @@ const findKeytool = () => {
 
   return candidates
     .map(home => path.join(home, 'bin', process.platform === 'win32' ? 'keytool.exe' : 'keytool'))
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     .find(executable => fs.existsSync(executable));
 };
 
@@ -45,7 +42,6 @@ if (!keytool) {
   process.exit(1);
 }
 
-// eslint-disable-next-line security/detect-non-literal-fs-filename
 fs.mkdirSync(secretsDir, { recursive: true });
 const password = crypto.randomBytes(24).toString('base64url');
 const result = spawnSync(keytool, [
@@ -74,7 +70,6 @@ fs.writeFileSync(propertiesPath, [
   ''
 ].join('\n'), { mode: 0o600 });
 
-// eslint-disable-next-line security/detect-non-literal-fs-filename
 fs.writeFileSync(credentialsPath, [
   'Nocturnal Android upload signing credentials',
   `Keystore: ${keystorePath}`,

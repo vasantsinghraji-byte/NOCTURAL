@@ -172,6 +172,11 @@ const UserSchema = new mongoose.Schema({
     type: String
   },
   hospitalName: String,
+  // Structured tenant reference (backfilled from `hospital` by scripts/migrate-hospitals-to-objectid.js)
+  hospitalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Hospital'
+  },
 
   // Location
   location: {
@@ -221,7 +226,34 @@ const UserSchema = new mongoose.Schema({
   lastActive: Date,
 
   // Security
-  passwordChangedAt: Date
+  passwordChangedAt: Date,
+  sessionVersion: {
+    type: Number,
+    default: 0,
+    min: 0,
+    select: false
+  },
+  webAuthnCredentials: {
+    type: [{
+      credentialId: { type: String, required: true },
+      publicKey: { type: String, required: true },
+      counter: { type: Number, default: 0 },
+      transports: [String],
+      deviceType: String,
+      backedUp: Boolean,
+      name: String,
+      createdAt: { type: Date, default: Date.now },
+      lastUsedAt: Date
+    }],
+    default: [],
+    select: false
+  },
+
+  // Staging smoke accounts are auto-expired by TTL as a CI interruption safety net.
+  smokeTestExpiresAt: {
+    type: Date,
+    select: false
+  }
 
 }, {
   timestamps: true
@@ -376,5 +408,6 @@ UserSchema.index({ 'location.city': 1, 'location.state': 1, role: 1 }); // Locat
 UserSchema.index({ role: 1, rating: -1, completedDuties: -1 }); // Top-rated doctors
 UserSchema.index({ role: 1, isAvailableForShifts: 1, isActive: 1 }); // Available doctors
 UserSchema.index({ lastActive: -1 }); // Recent activity tracking
+UserSchema.index({ smokeTestExpiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema);

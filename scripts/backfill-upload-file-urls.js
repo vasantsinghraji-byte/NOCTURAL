@@ -104,9 +104,9 @@ function addFileUpdates(updates, path, file, fallbackFolder) {
     return;
   }
 
-  Object.assign(updates, Object.fromEntries(
-    Object.entries(next).map(([field, value]) => [`${path}.${field}`, value])
-  ));
+  for (const [field, value] of Object.entries(next)) {
+    updates[`${path}.${field}`] = value;
+  }
 }
 
 function buildUserUploadUpdates(user) {

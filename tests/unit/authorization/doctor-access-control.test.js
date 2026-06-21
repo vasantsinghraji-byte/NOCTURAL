@@ -7,6 +7,11 @@
  * - AUTH-005: Usage recording failure isolation in getPatientDataForDoctor()
  */
 
+const PATIENT_ID = '000000000000000000000001';
+const DOCTOR_ID = '000000000000000000000002';
+const ADMIN_ID = '000000000000000000000003';
+const BOOKING_ID = '000000000000000000000004';
+
 jest.mock('../../../models/healthAccessToken');
 jest.mock('../../../models/healthDataAccessLog', () => ({
   logAccess: jest.fn()
@@ -44,17 +49,17 @@ const HealthRecord = require('../../../models/healthRecord');
 const logger = require('../../../utils/logger');
 const doctorAccessService = require('../../../services/doctorAccessService');
 
-describe('Phase 3 — Doctor Access Control', () => {
+describe('Authorization Unit: doctor access control rules', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   const setupGrantAccessMocks = (overrides = {}) => {
-    Patient.findById.mockResolvedValue(overrides.patient || { _id: 'patient1', name: 'Test Patient' });
+    Patient.findById.mockResolvedValue(overrides.patient || { _id: PATIENT_ID, name: 'Test Patient' });
 
     User.findById
-      .mockResolvedValueOnce(overrides.doctor || { _id: 'doctor1', name: 'Dr. Test', role: 'doctor', hospital: 'hospitalA' })  // doctor lookup
-      .mockResolvedValueOnce(overrides.admin || { _id: 'admin1', name: 'Admin', role: 'admin', hospital: 'hospitalA' });  // admin lookup
+      .mockResolvedValueOnce(overrides.doctor || { _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor', hospital: 'hospitalA' })  // doctor lookup
+      .mockResolvedValueOnce(overrides.admin || { _id: ADMIN_ID, name: 'Admin', role: 'admin', hospital: 'hospitalA' });  // admin lookup
 
     if (overrides.hospitalProviders !== undefined) {
       User.find.mockReturnValue({
@@ -76,15 +81,15 @@ describe('Phase 3 — Doctor Access Control', () => {
   describe('AUTH-001: Hospital boundary enforcement', () => {
     it('should reject when doctor is from a different hospital than admin', async () => {
       setupGrantAccessMocks({
-        doctor: { _id: 'doctor1', name: 'Dr. Test', role: 'doctor', hospital: 'hospitalB' },
-        admin: { _id: 'admin1', name: 'Admin', role: 'admin', hospital: 'hospitalA' }
+        doctor: { _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor', hospital: 'hospitalB' },
+        admin: { _id: ADMIN_ID, name: 'Admin', role: 'admin', hospital: 'hospitalA' }
       });
 
       await expect(
         doctorAccessService.grantAccess({
-          patientId: 'patient1',
-          doctorId: 'doctor1',
-          adminId: 'admin1',
+          patientId: PATIENT_ID,
+          doctorId: DOCTOR_ID,
+          adminId: ADMIN_ID,
           grantReason: 'Test'
         })
       ).rejects.toThrow(/outside your hospital/);
@@ -97,17 +102,17 @@ describe('Phase 3 — Doctor Access Control', () => {
 
     it('should reject when patient has no bookings with admin hospital', async () => {
       setupGrantAccessMocks({
-        doctor: { _id: 'doctor1', name: 'Dr. Test', role: 'doctor', hospital: 'hospitalA' },
-        admin: { _id: 'admin1', name: 'Admin', role: 'admin', hospital: 'hospitalA' },
+        doctor: { _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor', hospital: 'hospitalA' },
+        admin: { _id: ADMIN_ID, name: 'Admin', role: 'admin', hospital: 'hospitalA' },
         hospitalProviders: [{ _id: 'prov1' }],
         patientHasBooking: null  // no booking found
       });
 
       await expect(
         doctorAccessService.grantAccess({
-          patientId: 'patient1',
-          doctorId: 'doctor1',
-          adminId: 'admin1',
+          patientId: PATIENT_ID,
+          doctorId: DOCTOR_ID,
+          adminId: ADMIN_ID,
           grantReason: 'Test'
         })
       ).rejects.toThrow(/no bookings with your hospital/);
@@ -115,14 +120,14 @@ describe('Phase 3 — Doctor Access Control', () => {
 
     it('should allow super-admin (no hospital field) to grant cross-hospital access', async () => {
       setupGrantAccessMocks({
-        doctor: { _id: 'doctor1', name: 'Dr. Test', role: 'doctor', hospital: 'hospitalB' },
-        admin: { _id: 'admin1', name: 'SuperAdmin', role: 'admin' }  // no hospital field
+        doctor: { _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor', hospital: 'hospitalB' },
+        admin: { _id: ADMIN_ID, name: 'SuperAdmin', role: 'admin' }  // no hospital field
       });
 
       const result = await doctorAccessService.grantAccess({
-        patientId: 'patient1',
-        doctorId: 'doctor1',
-        adminId: 'admin1',
+        patientId: PATIENT_ID,
+        doctorId: DOCTOR_ID,
+        adminId: ADMIN_ID,
         grantReason: 'Emergency'
       });
 
@@ -137,9 +142,9 @@ describe('Phase 3 — Doctor Access Control', () => {
 
       await expect(
         doctorAccessService.grantAccess({
-          patientId: 'patient1',
-          doctorId: 'doctor1',
-          adminId: 'admin1',
+          patientId: PATIENT_ID,
+          doctorId: DOCTOR_ID,
+          adminId: ADMIN_ID,
           grantReason: 'Test',
           expiresAt: new Date(Date.now() - 86400000).toISOString()  // yesterday
         })
@@ -151,9 +156,9 @@ describe('Phase 3 — Doctor Access Control', () => {
 
       await expect(
         doctorAccessService.grantAccess({
-          patientId: 'patient1',
-          doctorId: 'doctor1',
-          adminId: 'admin1',
+          patientId: PATIENT_ID,
+          doctorId: DOCTOR_ID,
+          adminId: ADMIN_ID,
           grantReason: 'Test',
           expiresAt: 'not-a-date'
         })
@@ -165,9 +170,9 @@ describe('Phase 3 — Doctor Access Control', () => {
 
       await expect(
         doctorAccessService.grantAccess({
-          patientId: 'patient1',
-          doctorId: 'doctor1',
-          adminId: 'admin1',
+          patientId: PATIENT_ID,
+          doctorId: DOCTOR_ID,
+          adminId: ADMIN_ID,
           grantReason: 'Test',
           maxUsage: 0
         })
@@ -179,9 +184,9 @@ describe('Phase 3 — Doctor Access Control', () => {
 
       await expect(
         doctorAccessService.grantAccess({
-          patientId: 'patient1',
-          doctorId: 'doctor1',
-          adminId: 'admin1',
+          patientId: PATIENT_ID,
+          doctorId: DOCTOR_ID,
+          adminId: ADMIN_ID,
           grantReason: 'Test',
           maxUsage: 2.5
         })
@@ -194,16 +199,16 @@ describe('Phase 3 — Doctor Access Control', () => {
       const mockToken = {
         _id: 'token1',
         allowedResources: ['HEALTH_RECORD'],
-        booking: 'booking1',
+        booking: BOOKING_ID,
         recordUsage: jest.fn().mockRejectedValue(new Error('Redis down'))
       };
 
       HealthAccessToken.hasAccess = jest.fn().mockResolvedValue(mockToken);
-      User.findById.mockResolvedValue({ _id: 'doctor1', name: 'Dr. Test', role: 'doctor' });
+      User.findById.mockResolvedValue({ _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor' });
       HealthRecord.getLatestApproved = jest.fn().mockResolvedValue({ _id: 'record1' });
 
       const result = await doctorAccessService.getPatientDataForDoctor(
-        'doctor1', 'patient1', 'HEALTH_RECORD', { ipAddress: '127.0.0.1' }
+        DOCTOR_ID, PATIENT_ID, 'HEALTH_RECORD', { ipAddress: '127.0.0.1' }
       );
 
       // Access should succeed despite usage recording failure

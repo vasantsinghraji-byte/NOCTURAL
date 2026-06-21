@@ -10,6 +10,7 @@ positions:
 
 clients:
   - url: http://loki:3100/loki/api/v1/push
+    tenant_id: nocturnal
 
 scrape_configs:
   # Application logs

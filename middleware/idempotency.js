@@ -2,7 +2,6 @@ const crypto = require('crypto');
 const IdempotencyKey = require('../models/idempotencyKey');
 const { encrypt, decrypt } = require('../utils/encryptionV2');
 const logger = require('../utils/logger');
-const idempotencyIndexes = require('../config/idempotencyIndexes');
 
 const MAX_KEY_LENGTH = 255;
 
@@ -39,13 +38,10 @@ const getIdentity = (req) => {
  *   - caches only successful (2xx) responses, encrypted, and releases the claim
  *     on failure so the client may retry.
  *
- * @param {{ route: string, failClosed?: boolean }} options - stable route
- * identifier for scoping. Set failClosed=false only for naturally idempotent
- * operations that must remain available when index verification is unavailable.
+ * @param {{ route: string, required?: boolean }} options - stable route identifier for scoping.
  */
 module.exports = function idempotency(options = {}) {
   const route = options.route;
-  const failClosed = options.failClosed !== false;
   if (!route) {
     throw new Error('idempotency() requires a non-empty { route } identifier');
   }
@@ -53,21 +49,13 @@ module.exports = function idempotency(options = {}) {
   return async function idempotencyMiddleware(req, res, next) {
     const rawKey = req.get('Idempotency-Key');
     if (!rawKey || typeof rawKey !== 'string' || !rawKey.trim()) {
-      return next(); // No key => no protection requested.
-    }
-
-    if (!idempotencyIndexes.isReady()) {
-      if (!failClosed) {
-        logger.warn('Idempotency unavailable; allowing naturally idempotent operation', { route });
-        return next();
+      if (options.required) {
+        return res.status(400).json({
+          success: false,
+          message: 'Idempotency-Key header is required'
+        });
       }
-
-      logger.error('Idempotent mutation blocked because indexes are unavailable', { route });
-      res.set('Retry-After', '30');
-      return res.status(503).json({
-        success: false,
-        message: 'This operation is temporarily unavailable'
-      });
+      return next();
     }
 
     const key = rawKey.trim();

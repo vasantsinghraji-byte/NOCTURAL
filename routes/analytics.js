@@ -6,7 +6,11 @@ const { DoctorAnalytics, HospitalAnalytics } = require('../models/analytics');
 const Application = require('../models/application');
 const Duty = require('../models/duty');
 const HospitalSettings = require('../models/hospitalSettings');
-const logger = require('../utils/logger');
+const User = require('../models/user');
+const { roundToDecimals } = require('../utils/number');
+const { rateLimiters } = require('../config/rateLimit');
+
+router.use(rateLimiters.api);
 
 // @route   GET /api/analytics/doctor
 // @desc    Get doctor analytics dashboard
@@ -307,6 +311,7 @@ router.get('/hospital/dashboard', protect, queryCache({ ttl: 180 }), async (req,
 
         // Calculate total spend (current month)
         const now = new Date();
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
         const monthlyDuties = duties.filter(d => new Date(d.date) >= monthStart);
@@ -349,15 +354,9 @@ router.get('/hospital/dashboard', protect, queryCache({ ttl: 180 }), async (req,
 
         // OPTIMIZED: Application stats in single pass through array
         const appStats = applications.reduce((acc, app) => {
-            if (app.status === 'pending') {
-                return { ...acc, pending: acc.pending + 1 };
-            }
-            if (app.status === 'accepted') {
-                return { ...acc, accepted: acc.accepted + 1 };
-            }
-            if (app.status === 'rejected') {
-                return { ...acc, rejected: acc.rejected + 1 };
-            }
+            if (app.status === 'pending') acc.pending++;
+            else if (app.status === 'accepted') acc.accepted++;
+            else if (app.status === 'rejected') acc.rejected++;
             return acc;
         }, { pending: 0, accepted: 0, rejected: 0 });
 
@@ -461,7 +460,7 @@ router.get('/hospital/dashboard', protect, queryCache({ ttl: 180 }), async (req,
         // Quality metrics
         const qualityMetrics = {
             avgDoctorRating: topDoctors.length > 0
-                ? (topDoctors.reduce((sum, d) => sum + d.rating, 0) / topDoctors.length).toFixed(1)
+                ? roundToDecimals(topDoctors.reduce((sum, d) => sum + d.rating, 0) / topDoctors.length, 1)
                 : 0,
             repeatHires: topDoctors.filter(d => d.shiftsCompleted > 1).length,
             totalDoctorsHired: doctorPerformance.size // Use Map.size instead of Object.keys
@@ -508,7 +507,7 @@ router.get('/hospital/dashboard', protect, queryCache({ ttl: 180 }), async (req,
             }
         });
     } catch (error) {
-        logger.error('Error fetching hospital dashboard analytics', { error: error.message, userId: req.user?._id });
+        console.error('Error fetching hospital dashboard analytics:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to fetch analytics',

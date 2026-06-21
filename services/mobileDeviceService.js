@@ -1,11 +1,22 @@
 const MobileDevice = require('../models/mobileDevice');
 
 const normalizeOwnerType = (userType) => userType === 'patient' ? 'patient' : 'provider';
+const normalizeQueryValue = (value, field, maxLength) => {
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    throw new TypeError(`${field} must be a primitive value`);
+  }
+
+  const normalized = String(value).trim();
+  if (!normalized || normalized.length > maxLength) {
+    throw new TypeError(`${field} is invalid`);
+  }
+  return normalized;
+};
 
 const register = ({ owner, userType, token, platform }) => MobileDevice.findOneAndUpdate(
-  { token },
+  { token: normalizeQueryValue(token, 'token', 4096) },
   {
-    owner,
+    owner: normalizeQueryValue(owner, 'owner', 128),
     ownerType: normalizeOwnerType(userType),
     platform,
     enabled: true,
@@ -16,9 +27,9 @@ const register = ({ owner, userType, token, platform }) => MobileDevice.findOneA
 
 const unregister = ({ owner, userType, token }) => MobileDevice.findOneAndUpdate(
   {
-    owner,
+    owner: normalizeQueryValue(owner, 'owner', 128),
     ownerType: normalizeOwnerType(userType),
-    token
+    token: normalizeQueryValue(token, 'token', 4096)
   },
   {
     enabled: false,
@@ -29,7 +40,7 @@ const unregister = ({ owner, userType, token }) => MobileDevice.findOneAndUpdate
 
 const getEnabledTokens = async ({ owner, userType }) => {
   const devices = await MobileDevice.find({
-    owner,
+    owner: normalizeQueryValue(owner, 'owner', 128),
     ownerType: normalizeOwnerType(userType),
     enabled: true
   }).select('token -_id').lean();
@@ -38,7 +49,7 @@ const getEnabledTokens = async ({ owner, userType }) => {
 };
 
 const disableTokens = (tokens) => MobileDevice.updateMany(
-  { token: { $in: tokens } },
+  { token: { $in: tokens.map(token => normalizeQueryValue(token, 'token', 4096)) } },
   { enabled: false, lastSeenAt: new Date() }
 );
 

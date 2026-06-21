@@ -10,6 +10,7 @@ const ROLES = {
   NURSE: 'nurse',
   PHYSIOTHERAPIST: 'physiotherapist',
   ADMIN: 'admin',
+  PLATFORM_ADMIN: 'platform_admin',
   PATIENT: 'patient'
 };
 

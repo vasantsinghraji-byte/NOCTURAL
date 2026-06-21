@@ -96,21 +96,78 @@ Recommended:
 - Use `act pull_request -W .github/workflows/ci.yml` when you want to dry-run the main CI workflow locally
 - Use `git fetch --prune` regularly to remove stale remote-tracking branches
 
+## Frontend Formatting
+
+For frontend display formatting, prefer the shared `AppFormat` helpers in `client/public/js/config.js` over ad hoc string formatting. See [docs/guides/frontend-conventions.md](docs/guides/frontend-conventions.md) for the short frontend conventions note.
+
+- Use `AppFormat` for UI dates, date-time strings, percentages, hours, and currency displays
+- When calling shared helpers from `client/public/js/utils.js`, keep them delegating to `AppFormat` rather than duplicating formatting logic
+- Avoid new direct `.toFixed(...)`, `toLocaleDateString(...)`, or `toLocaleString(...)` calls in page scripts unless the formatting is genuinely one-off and cannot be expressed through `AppFormat`
+
+## Validated Query Updates
+
+For query-based writes that persist nested or user-controlled payloads, prefer the shared `VALIDATED_QUERY_UPDATE_OPTIONS` helper in `utils/queryUpdateOptions.js` over ad hoc `{ new, runValidators, context: 'query' }` objects.
+
+- Use `VALIDATED_QUERY_UPDATE_OPTIONS` for `findByIdAndUpdate(...)` / `findOneAndUpdate(...)` when the update writes structured profile, clinical, payment, refund, or similar nested document data
+- Keep lock or lease-style query updates scoped to their coordination needs instead of automatically applying the helper everywhere
+- If a query update needs extra options such as `arrayFilters`, extend the shared helper with object spread rather than retyping the validator trio
+
 ## Hooks
 
 Git hooks are stored in `.githooks` and are installed automatically by `npm install` through the `prepare` script.
 
 Current safeguards:
 
-- `pre-commit`: blocks obvious secret leaks
+- `pre-commit`: runs Gitleaks when available and blocks obvious secret leaks
 - `commit-msg`: enforces structured commit messages
 - `pre-push`: blocks direct pushes to protected branches and validates branch naming
+
+Install Gitleaks for full local secret scanning:
+
+```bash
+# Windows
+winget install --id Gitleaks.Gitleaks -e
+
+# macOS
+brew install gitleaks
+
+# Linux with Homebrew
+brew install gitleaks
+```
+
+After installing, restart your shell and verify:
+
+```bash
+gitleaks version
+npm run hooks:install
+```
 
 To install hooks manually:
 
 ```bash
 npm run hooks:install
 ```
+
+## Secret History Cleanup
+
+If a real `.env` or credential file is ever committed or pushed, rotate the exposed credentials first. Then verify whether Git history contains the file:
+
+```bash
+git fetch --all --tags --prune
+git log --all --oneline -- .env
+git rev-list --objects --all | grep -E '(^|/)\.env$|(^|/)\.env\.'
+```
+
+Only rewrite history after coordinating with the team and working from a fresh clone:
+
+```bash
+python -m pip install git-filter-repo
+git filter-repo --path .env --invert-paths
+git push origin --force-with-lease --all
+git push origin --force-with-lease --tags
+```
+
+After a history rewrite, every developer must re-clone or hard-reset local branches to the rewritten remote history.
 
 ## GitHub Settings To Enforce
 

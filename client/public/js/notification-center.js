@@ -67,7 +67,7 @@ class NotificationCenter {
         const existingContainer = document.getElementById('notificationCenter');
         const container = existingContainer || document.createElement('div');
         container.id = 'notificationCenter';
-        container.innerHTML = `
+        AppUi.setSafeHtml(container, `
             <div class="notification-bell" id="notificationBell">
                 <i class="fas fa-bell"></i>
                 <span class="notification-badge is-hidden" id="notificationBadge">0</span>
@@ -90,7 +90,7 @@ class NotificationCenter {
                     </button>
                 </div>
             </div>
-        `;
+        `);
 
         if (!existingContainer) {
             // Find nav bar and append
@@ -219,33 +219,54 @@ class NotificationCenter {
         }
 
         if (this.notifications.length === 0) {
-            list.innerHTML = `
-                <div class="notification-empty">
-                    <i class="fas fa-bell-slash"></i>
-                    <div>No notifications</div>
-                </div>
-            `;
+            const empty = document.createElement('div');
+            empty.className = 'notification-empty';
+
+            const emptyIcon = document.createElement('i');
+            emptyIcon.className = 'fas fa-bell-slash';
+
+            const emptyText = document.createElement('div');
+            emptyText.textContent = 'No notifications';
+
+            empty.append(emptyIcon, emptyText);
+            list.replaceChildren(empty);
             return;
         }
 
-        list.innerHTML = this.notifications.map(notif => {
-            const iconClass = this.getIconClass(notif.type);
-            const timeAgo = this.getTimeAgo(notif.createdAt);
+        // Render with DOM APIs (textContent) so notification content cannot inject markup
+        const items = this.notifications.map(notif => this.createNotificationItem(notif));
+        list.replaceChildren(...items);
+    }
 
-            return `
-                <div class="notification-item ${!notif.read ? 'unread' : ''}"
-                     data-notification-id="${notif._id}">
-                    <div class="notification-icon ${iconClass}">
-                        ${this.getIcon(notif.type)}
-                    </div>
-                    <div class="notification-content">
-                        <div class="notification-content-title">${notif.title}</div>
-                        <div class="notification-content-message">${notif.message}</div>
-                        <div class="notification-time">${timeAgo}</div>
-                    </div>
-                </div>
-            `;
-        }).join('');
+    createNotificationItem(notif) {
+        const item = document.createElement('div');
+        item.className = `notification-item ${!notif.read ? 'unread' : ''}`.trim();
+        item.dataset.notificationId = notif._id;
+
+        const icon = document.createElement('div');
+        icon.className = `notification-icon ${this.getIconClass(notif.type)}`;
+        const iconGlyph = document.createElement('i');
+        iconGlyph.className = this.getIconClassName(notif.type);
+        icon.appendChild(iconGlyph);
+
+        const content = document.createElement('div');
+        content.className = 'notification-content';
+
+        const title = document.createElement('div');
+        title.className = 'notification-content-title';
+        title.textContent = notif.title || '';
+
+        const message = document.createElement('div');
+        message.className = 'notification-content-message';
+        message.textContent = notif.message || '';
+
+        const time = document.createElement('div');
+        time.className = 'notification-time';
+        time.textContent = this.getTimeAgo(notif.createdAt);
+
+        content.append(title, message, time);
+        item.append(icon, content);
+        return item;
     }
 
     getIconClass(type) {
@@ -256,12 +277,12 @@ class NotificationCenter {
         return 'icon-system';
     }
 
-    getIcon(type) {
-        if (type.includes('SHIFT')) return '<i class="fas fa-calendar-check"></i>';
-        if (type.includes('APPLICATION')) return '<i class="fas fa-file-alt"></i>';
-        if (type.includes('PAYMENT')) return '<i class="fas fa-dollar-sign"></i>';
-        if (type.includes('REVIEW')) return '<i class="fas fa-star"></i>';
-        return '<i class="fas fa-bell"></i>';
+    getIconClassName(type) {
+        if (type.includes('SHIFT')) return 'fas fa-calendar-check';
+        if (type.includes('APPLICATION')) return 'fas fa-file-alt';
+        if (type.includes('PAYMENT')) return 'fas fa-dollar-sign';
+        if (type.includes('REVIEW')) return 'fas fa-star';
+        return 'fas fa-bell';
     }
 
     getTimeAgo(dateString) {
@@ -282,13 +303,42 @@ class NotificationCenter {
 
         const notification = this.notifications.find((notif) => notif._id === notificationId);
         const actionUrl = notification && notification.actionUrl ? notification.actionUrl : '';
+        const safeUrl = this.getSafeActionUrl(actionUrl);
 
-        // Navigate if there's an action URL
-        if (actionUrl) {
-            window.location.href = actionUrl;
+        // Navigate only to allowlisted internal paths (blocks open-redirect / javascript: URIs)
+        if (safeUrl) {
+            window.location.href = safeUrl;
         }
 
         this.closePanel();
+    }
+
+    getSafeActionUrl(actionUrl) {
+        if (typeof actionUrl !== 'string' || actionUrl === '') {
+            return '';
+        }
+
+        const internalBase = 'https://internal.invalid';
+        const allowedPathPrefixes = ['/roles/', '/patient/', '/doctor/', '/admin/'];
+
+        try {
+            const parsed = new URL(actionUrl, internalBase);
+            const decodedPath = decodeURIComponent(parsed.pathname);
+            const allowedPath = allowedPathPrefixes.some(prefix => parsed.pathname.startsWith(prefix));
+
+            if (
+                parsed.origin !== internalBase ||
+                decodedPath.startsWith('//') ||
+                decodedPath.includes('\\') ||
+                !allowedPath
+            ) {
+                return '';
+            }
+
+            return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        } catch (_error) {
+            return '';
+        }
     }
 
     async markAsRead(notificationId) {

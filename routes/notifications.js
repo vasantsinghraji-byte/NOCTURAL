@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
+const { ROLES } = require('../constants/roles');
 const notificationService = require('../services/notificationService');
 const logger = require('../utils/logger');
 
@@ -119,20 +120,28 @@ router.delete('/clear/read', protect, async (req, res) => {
   }
 });
 
-// Create notification (for testing or admin use)
-router.post('/', protect, async (req, res) => {
+// Create a cross-tenant platform announcement. Hospital-scoped admins must use
+// business workflows, which create their own recipient-scoped notifications.
+router.post('/', protect, authorize(ROLES.PLATFORM_ADMIN), async (req, res) => {
   try {
-    const { userId, type, title, message, actionUrl, actionLabel, priority, channels } = req.body;
+    const { userId, title, message, actionUrl } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Notification recipient is required'
+      });
+    }
 
     const notification = await notificationService.createNotification({
-      user: userId || req.user._id,
-      type,
+      user: userId,
+      recipientModel: 'User',
+      type: 'SYSTEM_ANNOUNCEMENT',
       title,
       message,
       actionUrl,
-      actionLabel,
-      priority: priority || 'MEDIUM',
-      channels: channels || { inApp: true }
+      priority: 'MEDIUM',
+      channels: { inApp: true }
     });
 
     res.status(201).json({

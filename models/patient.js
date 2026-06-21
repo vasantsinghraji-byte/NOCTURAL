@@ -243,6 +243,27 @@ const PatientSchema = new mongoose.Schema({
 
   // Security
   passwordChangedAt: Date,
+  sessionVersion: {
+    type: Number,
+    default: 0,
+    min: 0,
+    select: false
+  },
+  webAuthnCredentials: {
+    type: [{
+      credentialId: { type: String, required: true },
+      publicKey: { type: String, required: true },
+      counter: { type: Number, default: 0 },
+      transports: [String],
+      deviceType: String,
+      backedUp: Boolean,
+      name: String,
+      createdAt: { type: Date, default: Date.now },
+      lastUsedAt: Date
+    }],
+    default: [],
+    select: false
+  },
 
   // Timestamps
   lastActive: Date,

@@ -1,6 +1,6 @@
 const winston = require('winston');
 const path = require('path');
-const localFileSystem = require('./localFileSystem');
+const fs = require('fs');
 
 // Optional: Import transport for centralized logging
 let LogstashTransport;
@@ -10,10 +10,15 @@ try {
   // Logstash transport not available
 }
 
-// Create logs directory if it doesn't exist
+// On ephemeral hosts (e.g. Render) the local filesystem is wiped on every
+// restart/redeploy, so file logs are lost. In production we log structured JSON
+// to stdout instead and let the platform capture/forward it.
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Create logs directory only when file transports are used (non-production).
 const logsDir = path.join(__dirname, '..', 'logs');
-if (!localFileSystem.existsSync(logsDir)) {
-  localFileSystem.mkdirSync(logsDir, { recursive: true });
+if (!isProduction && !fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
 }
 
 // Define log format
@@ -37,12 +42,17 @@ const consoleFormat = winston.format.combine(
   })
 );
 
-// Create Winston logger
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: logFormat,
-  defaultMeta: { service: 'nocturnal-api' },
-  transports: [
+// In production, write structured JSON to stdout (one Console transport) so an
+// ephemeral host or platform log collector can ship it onward. In other
+// environments, keep the rotating file transports for local inspection.
+const transports = isProduction
+  ? [
+    new winston.transports.Console({
+      level: process.env.LOG_LEVEL || 'info',
+      format: logFormat
+    })
+  ]
+  : [
     // Error logs
     new winston.transports.File({
       filename: path.join(logsDir, 'error.log'),
@@ -63,25 +73,31 @@ const logger = winston.createLogger({
       maxsize: 5242880, // 5MB
       maxFiles: 10,
     })
-  ],
-  // Handle exceptions and rejections
-  exceptionHandlers: [
-    new winston.transports.File({
-      filename: path.join(logsDir, 'exceptions.log')
-    })
-  ],
-  rejectionHandlers: [
-    new winston.transports.File({
-      filename: path.join(logsDir, 'rejections.log')
-    })
-  ]
+  ];
+
+// Exceptions/rejections follow the same destination policy as above.
+const exceptionHandlers = isProduction
+  ? [new winston.transports.Console({ format: logFormat })]
+  : [new winston.transports.File({ filename: path.join(logsDir, 'exceptions.log') })];
+
+const rejectionHandlers = isProduction
+  ? [new winston.transports.Console({ format: logFormat })]
+  : [new winston.transports.File({ filename: path.join(logsDir, 'rejections.log') })];
+
+// Create Winston logger
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: logFormat,
+  defaultMeta: { service: 'nocturnal-api' },
+  transports,
+  exceptionHandlers,
+  rejectionHandlers
 });
 
 // Add console transport in development
 if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({
     format: consoleFormat,
-    silent: process.env.NODE_ENV === 'test' && process.env.NOCTURNAL_TEST_LOGS !== '1',
     handleExceptions: true,
     handleRejections: true
   }));
@@ -104,6 +120,10 @@ if (process.env.ENABLE_LOKI === 'true') {
   const LokiTransport = require('winston-loki');
   logger.add(new LokiTransport({
     host: process.env.LOKI_HOST || 'http://localhost:3100',
+    basicAuth: process.env.LOKI_BASIC_AUTH || undefined,
+    headers: {
+      'X-Scope-OrgID': process.env.LOKI_TENANT_ID || 'nocturnal'
+    },
     labels: {
       application: 'nocturnal-api',
       environment: process.env.NODE_ENV || 'development'
@@ -111,7 +131,7 @@ if (process.env.ENABLE_LOKI === 'true') {
     json: true,
     format: winston.format.json(),
     replaceTimestamp: true,
-    onConnectionError: (err) => logger.error('Loki connection error', { error: err.message })
+    onConnectionError: (err) => console.error('Loki connection error:', err)
   }));
   logger.info('Loki transport enabled');
 }

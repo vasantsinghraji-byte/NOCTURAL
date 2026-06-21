@@ -9,6 +9,7 @@ const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const { protectPatient } = require('../middleware/patientAuth');
+const { emergencyQrLimiter } = require('../middleware/rateLimiter');
 const {
   validateHealthAccess,
   checkNotePermission,
@@ -18,6 +19,13 @@ const {
 const doctorAccessController = require('../controllers/doctorAccessController');
 const { validatePatientId, validateDoctorNote } = require('../validators/healthDataValidator');
 const { ALLOWED_RESOURCES, AUDIT_ACTIONS } = require('../constants/healthConstants');
+
+const copyBodyPatientIdToParams = (req, res, next) => {
+  if (req.body && req.body.patientId) {
+    req.params.patientId = req.body.patientId;
+  }
+  next();
+};
 
 // ==================== Doctor/Provider Endpoints ====================
 
@@ -33,31 +41,23 @@ router.get(
   doctorAccessController.getMyAccessTokens
 );
 
-/**
- * @route   GET /api/v1/doctor-access/patients/:patientId
- * @desc    View patient data (requires valid access token)
- * @access  Private (Doctor/Nurse/Physiotherapist - with token)
- */
-router.get(
-  '/patients/:patientId',
+router.post(
+  '/patients/read',
   protect,
   authorize('doctor', 'nurse', 'physiotherapist'),
+  copyBodyPatientIdToParams,
   validatePatientId,
   validateHealthAccess(ALLOWED_RESOURCES.HEALTH_RECORD),
-  rateLimitHealthAccess(100, 60 * 60 * 1000), // 100 requests per hour per patient
+  rateLimitHealthAccess(100, 60 * 60 * 1000),
   auditHealthAccess(ALLOWED_RESOURCES.HEALTH_RECORD, AUDIT_ACTIONS.VIEW),
   doctorAccessController.getPatientData
 );
 
-/**
- * @route   GET /api/v1/doctor-access/patients/:patientId/records
- * @desc    Get patient's health records
- * @access  Private (Doctor/Nurse/Physiotherapist - with token)
- */
-router.get(
-  '/patients/:patientId/records',
+router.post(
+  '/patients/records',
   protect,
   authorize('doctor', 'nurse', 'physiotherapist'),
+  copyBodyPatientIdToParams,
   validatePatientId,
   validateHealthAccess(ALLOWED_RESOURCES.HEALTH_RECORD),
   rateLimitHealthAccess(100, 60 * 60 * 1000),
@@ -65,15 +65,11 @@ router.get(
   doctorAccessController.getPatientRecords
 );
 
-/**
- * @route   GET /api/v1/doctor-access/patients/:patientId/metrics
- * @desc    Get patient's health metrics
- * @access  Private (Doctor/Nurse/Physiotherapist - with token)
- */
-router.get(
-  '/patients/:patientId/metrics',
+router.post(
+  '/patients/metrics',
   protect,
   authorize('doctor', 'nurse', 'physiotherapist'),
+  copyBodyPatientIdToParams,
   validatePatientId,
   validateHealthAccess(ALLOWED_RESOURCES.HEALTH_METRIC),
   rateLimitHealthAccess(100, 60 * 60 * 1000),
@@ -157,13 +153,8 @@ router.post(
   doctorAccessController.revokeAccessByAdmin
 );
 
-/**
- * @route   GET /api/v1/doctor-access/audit-logs
- * @desc    View all access logs
- * @access  Private (Admin)
- */
-router.get(
-  '/audit-logs',
+router.post(
+  '/audit-logs/search',
   protect,
   authorize('admin'),
   doctorAccessController.getAuditLogs
@@ -190,6 +181,7 @@ router.get(
  */
 router.get(
   '/emergency/:qrToken',
+  emergencyQrLimiter,
   doctorAccessController.getEmergencyData
 );
 

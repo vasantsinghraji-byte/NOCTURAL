@@ -77,3 +77,4 @@ Vanilla JS PWA in `client/public/`, built via `client/webpack.config.js`. Built 
 - **Branch from `develop`** for normal work; `main` only for hotfixes. Direct pushes to either are blocked.
 - ESLint enforces `no-console` (with per-area overrides in `.eslintrc.json`), `unused-imports/no-unused-imports`, and `eslint-plugin-security` rules. Scripts under `scripts/` and top-level `*-*.js` utilities are exempt from `no-console`.
 - `no-param-reassign` is on but `req`, `res`, `next`, `user`, `booking`, `duty`, `app`, `schema`, `event`, `query` are whitelisted for property mutation.
+- For query-based nested writes, prefer the shared `VALIDATED_QUERY_UPDATE_OPTIONS` helper from `utils/queryUpdateOptions.js` over retyping ad hoc `{ new, runValidators, context: 'query' }` objects.

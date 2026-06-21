@@ -24,11 +24,15 @@ const uploadsRoutes = require('../uploads');
 const notificationsRoutes = require('../notifications');
 const paymentsRoutes = require('../payments');
 const metricsRouter = require('../admin/metrics');
+const adminFunnelRoutes = require('../admin/funnel');
+const adminSecurityAuditRoutes = require('../admin/securityAudit');
 const patientRoutes = require('../patient');
 const bookingRoutes = require('../booking');
+const funnelEventRoutes = require('../funnelEvents');
 const hospitalWaitlistRoutes = require('../hospitalWaitlist');
-const funnelEventsRoutes = require('../funnelEvents');
 const mobileDeviceRoutes = require('../mobileDevices');
+const webAuthnRoutes = require('../webAuthn');
+const stagingWebAuthnSmokeRoutes = require('../stagingWebAuthnSmoke');
 
 // Health Dashboard routes (Patient Analytics & Health History)
 const patientDashboardRoutes = require('../patientDashboard');
@@ -66,6 +70,8 @@ router.use('/analytics', analyticsRoutes);
 
 // Admin routes
 router.use('/admin/metrics', metricsRouter.router);
+router.use('/admin/funnel', adminFunnelRoutes);
+router.use('/admin/security-audit', adminSecurityAuditRoutes);
 router.use('/shift-series', shiftSeriesRoutes);
 router.use('/hospital-settings', hospitalSettingsRoutes);
 router.use('/uploads', uploadsRoutes);
@@ -78,9 +84,11 @@ router.use('/security', securityRoutes);
 // B2C routes
 router.use('/patients', patientRoutes);
 router.use('/bookings', bookingRoutes);
+router.use('/funnel-events', funnelEventRoutes);
 router.use('/hospital-waitlist', hospitalWaitlistRoutes);
-router.use('/funnel-events', funnelEventsRoutes);
 router.use('/mobile-devices', mobileDeviceRoutes);
+router.use('/webauthn', webAuthnRoutes);
+router.use('/staging', stagingWebAuthnSmokeRoutes);
 
 const hasRazorpayCredentials = !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
 const isB2CPaymentEnabled = hasRazorpayCredentials && process.env.RAZORPAY_ENABLED !== 'false';

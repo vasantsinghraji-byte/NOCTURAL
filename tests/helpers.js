@@ -107,6 +107,9 @@ async function createHospitalUser() {
 // Generate JWT token for user
 function generateToken(userId) {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+    algorithm: 'HS256',
+    issuer: 'nocturnal-api',
+    audience: 'nocturnal',
     expiresIn: process.env.JWT_EXPIRE
   });
 }

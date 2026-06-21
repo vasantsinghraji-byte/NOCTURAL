@@ -5,6 +5,16 @@ jest.mock('../../../services/authService', () => ({
   updateProfile: jest.fn()
 }));
 
+jest.mock('../../../services/patientService', () => ({
+  getProfile: jest.fn()
+}));
+
+jest.mock('../../../services/refreshSessionService', () => ({
+  create: jest.fn(),
+  rotate: jest.fn(),
+  revoke: jest.fn()
+}));
+
 jest.mock('../../../utils/responseHelper', () => ({
   sendCreated: jest.fn(),
   sendSuccess: jest.fn(),
@@ -20,9 +30,11 @@ jest.mock('../../../utils/logger', () => ({
 }));
 
 const authService = require('../../../services/authService');
+const refreshSessionService = require('../../../services/refreshSessionService');
 const responseHelper = require('../../../utils/responseHelper');
 const authController = require('../../../controllers/authController');
 const { SUCCESS_MESSAGE } = require('../../../constants');
+const { generateRefreshToken } = require('../../../middleware/auth');
 
 describe('Auth Controller', () => {
   beforeEach(() => {
@@ -38,10 +50,13 @@ describe('Auth Controller', () => {
         role: 'doctor'
       }
     };
-    const res = {};
+    const res = {
+      cookie: jest.fn()
+    };
     const next = jest.fn();
     const result = {
       token: 'jwt-token',
+      refreshToken: 'refresh-token',
       user: { id: 'user123', role: 'doctor' }
     };
 
@@ -50,13 +65,34 @@ describe('Auth Controller', () => {
     await authController.register(req, res, next);
 
     expect(authService.register).toHaveBeenCalledWith(req.body);
+    expect(refreshSessionService.create).toHaveBeenCalledWith({
+      token: 'refresh-token',
+      userId: 'user123',
+      userType: 'user',
+      req
+    });
     expect(responseHelper.sendCreated).toHaveBeenCalledWith(
       res,
       {
-      token: 'jwt-token',
-      user: result.user
+        user: result.user
       },
       SUCCESS_MESSAGE.USER_REGISTERED
+    );
+    expect(res.cookie).toHaveBeenCalledWith(
+      'accessToken',
+      'jwt-token',
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: 'strict'
+      })
+    );
+    expect(res.cookie).toHaveBeenCalledWith(
+      'refreshToken',
+      'refresh-token',
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: 'strict'
+      })
     );
   });
 
@@ -67,10 +103,13 @@ describe('Auth Controller', () => {
         password: 'Password123!'
       }
     };
-    const res = {};
+    const res = {
+      cookie: jest.fn()
+    };
     const next = jest.fn();
     const result = {
       token: 'jwt-token',
+      refreshToken: 'refresh-token',
       user: { id: 'user123', role: 'doctor' }
     };
 
@@ -79,14 +118,164 @@ describe('Auth Controller', () => {
     await authController.login(req, res, next);
 
     expect(authService.login).toHaveBeenCalledWith(req.body);
+    expect(refreshSessionService.create).toHaveBeenCalledWith({
+      token: 'refresh-token',
+      userId: 'user123',
+      userType: 'user',
+      req
+    });
     expect(responseHelper.sendSuccess).toHaveBeenCalledWith(
       res,
       {
-      token: 'jwt-token',
-      user: result.user
+        user: result.user
       },
       SUCCESS_MESSAGE.LOGIN_SUCCESS
     );
+    expect(res.cookie).toHaveBeenCalledWith(
+      'accessToken',
+      'jwt-token',
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: 'strict'
+      })
+    );
+    expect(res.cookie).toHaveBeenCalledWith(
+      'refreshToken',
+      'refresh-token',
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: 'strict'
+      })
+    );
+  });
+
+  it('returns tokens only to an explicitly identified Capacitor client', async () => {
+    const req = {
+      headers: {
+        'x-nocturnal-mobile': 'capacitor',
+        origin: 'https://localhost'
+      },
+      body: {
+        email: 'doctor@example.com',
+        password: 'Password123!'
+      }
+    };
+    const res = { cookie: jest.fn() };
+    const result = {
+      token: 'jwt-token',
+      refreshToken: 'refresh-token',
+      user: { id: 'user123', role: 'doctor' }
+    };
+    authService.login.mockResolvedValue(result);
+
+    await authController.login(req, res, jest.fn());
+
+    expect(responseHelper.sendSuccess).toHaveBeenCalledWith(
+      res,
+      {
+        user: result.user,
+        tokens: {
+          accessToken: 'jwt-token',
+          refreshToken: 'refresh-token'
+        }
+      },
+      SUCCESS_MESSAGE.LOGIN_SUCCESS
+    );
+  });
+
+  it('should rotate refresh sessions and set replacement cookies on refresh', async () => {
+    const refreshToken = generateRefreshToken('user123');
+    const req = {
+      headers: {
+        cookie: `refreshToken=${encodeURIComponent(refreshToken)}`
+      }
+    };
+    const res = {
+      cookie: jest.fn()
+    };
+    const next = jest.fn();
+    const user = { id: 'user123', role: 'doctor' };
+
+    refreshSessionService.rotate.mockResolvedValue({
+      userType: 'user'
+    });
+    authService.getUserProfile.mockResolvedValue(user);
+
+    await authController.refresh(req, res, next);
+
+    expect(refreshSessionService.rotate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentToken: refreshToken,
+        req
+      })
+    );
+    expect(authService.getUserProfile).toHaveBeenCalledWith('user123');
+    expect(res.cookie).toHaveBeenCalledWith(
+      'accessToken',
+      expect.any(String),
+      expect.objectContaining({ httpOnly: true, sameSite: 'strict' })
+    );
+    expect(res.cookie).toHaveBeenCalledWith(
+      'refreshToken',
+      expect.any(String),
+      expect.objectContaining({ httpOnly: true, sameSite: 'strict' })
+    );
+    expect(responseHelper.sendSuccess).toHaveBeenCalledWith(res, { user }, 'Session refreshed');
+  });
+
+  it('accepts a refresh token in the body only for a Capacitor client', async () => {
+    const refreshToken = generateRefreshToken('user123');
+    const req = {
+      headers: {
+        'x-nocturnal-mobile': 'capacitor',
+        origin: 'https://localhost'
+      },
+      body: { refreshToken }
+    };
+    const res = { cookie: jest.fn() };
+    refreshSessionService.rotate.mockResolvedValue({ userType: 'user' });
+    authService.getUserProfile.mockResolvedValue({ id: 'user123' });
+
+    await authController.refresh(req, res, jest.fn());
+
+    expect(refreshSessionService.rotate).toHaveBeenCalledWith(expect.objectContaining({
+      currentToken: refreshToken
+    }));
+    expect(responseHelper.sendSuccess).toHaveBeenCalledWith(
+      res,
+      expect.objectContaining({
+        tokens: expect.objectContaining({
+          accessToken: expect.any(String),
+          refreshToken: expect.any(String)
+        })
+      }),
+      'Session refreshed'
+    );
+  });
+
+  it('should revoke refresh session on logout', async () => {
+    const req = {
+      headers: {
+        cookie: 'refreshToken=refresh-token'
+      }
+    };
+    const res = {
+      clearCookie: jest.fn()
+    };
+    const next = jest.fn();
+
+    await authController.logout(req, res, next);
+
+    expect(refreshSessionService.revoke).toHaveBeenCalledWith('refresh-token');
+    expect(res.clearCookie).toHaveBeenCalledWith(
+      'accessToken',
+      expect.objectContaining({ httpOnly: true, sameSite: 'strict' })
+    );
+    expect(res.clearCookie).toHaveBeenCalledWith(
+      'refreshToken',
+      expect.objectContaining({ httpOnly: true, sameSite: 'strict' })
+    );
+    expect(responseHelper.sendSuccess).toHaveBeenCalledWith(res, {}, 'Logged out successfully');
   });
 
   it('should expose the access token through the native token envelope for Capacitor', async () => {
@@ -114,10 +303,10 @@ describe('Auth Controller', () => {
     expect(responseHelper.sendSuccess).toHaveBeenCalledWith(
       res,
       {
-        token: 'jwt-token',
         user: result.user,
         tokens: {
-          accessToken: 'jwt-token'
+          accessToken: 'jwt-token',
+          refreshToken: undefined
         }
       },
       SUCCESS_MESSAGE.LOGIN_SUCCESS

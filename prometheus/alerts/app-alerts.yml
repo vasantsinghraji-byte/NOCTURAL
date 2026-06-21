@@ -162,3 +162,105 @@ groups:
           summary: "Rate limits being triggered frequently"
           description: "{{ $value }} rate limit violations per second"
           runbook: "https://runbooks.nocturnal.com/rate-limits"
+
+      - alert: PasswordChangeRevokedZeroSessions
+        expr: increase(nocturnal_password_change_zero_session_revocations_total[15m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Password change revoked zero refresh sessions"
+          description: "{{ $value }} password changes revoked zero active refresh sessions in the last 15 minutes"
+          runbook: "https://runbooks.nocturnal.com/password-session-revocation"
+
+      - alert: SecurityNotificationDeliveryFailures
+        expr: increase(nocturnal_security_notification_outbox_failures_total[15m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Security notification delivery failures"
+          description: "{{ $value }} security-notification outbox deliveries failed in the last 15 minutes"
+          runbook: "https://runbooks.nocturnal.com/security-notification-outbox"
+
+      - alert: SecurityNotificationOutboxDeadLetters
+        expr: nocturnal_security_notification_outbox_dead_letters > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Security notification outbox contains dead letters"
+          description: "{{ $value }} security notifications require manual intervention"
+          runbook: "https://runbooks.nocturnal.com/security-notification-outbox"
+
+      - alert: AuditExportHighFailureRate
+        expr: |
+          nocturnal:security_audit_export_failure_ratio:15m > 0.2
+          and
+          increase(nocturnal_security_audit_export_attempts_total[15m]) >= 5
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Audit export failure rate is high"
+          description: "Audit export failure ratio is {{ $value | humanizePercentage }} over the last 15 minutes"
+          runbook: "https://runbooks.nocturnal.com/audit-export-operations"
+
+      - alert: AuditExportRetryLimitExhausted
+        expr: increase(nocturnal_security_audit_export_retry_limit_exhausted_total[15m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Audit export retry limit exhausted"
+          description: "{{ $value }} audit export jobs reached dead-letter state in the last 15 minutes"
+          runbook: "https://runbooks.nocturnal.com/audit-export-operations"
+
+      - alert: AuditExportSignedDownloadSpike
+        expr: increase(nocturnal_security_audit_export_signed_download_issued_total[5m]) > 20
+        for: 2m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Audit export signed-download spike"
+          description: "{{ $value }} signed audit export download URLs were issued in the last 5 minutes"
+          runbook: "https://runbooks.nocturnal.com/audit-export-operations"
+
+      - alert: AuditExportChecksumMismatch
+        expr: increase(nocturnal_security_audit_export_checksum_mismatch_total[15m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Audit export checksum mismatch"
+          description: "{{ $value }} audit export uploads failed checksum verification in the last 15 minutes"
+          runbook: "https://runbooks.nocturnal.com/audit-export-operations"
+
+      - alert: AuditExportQuarantineInvestigationSlaBreached
+        expr: nocturnal_security_audit_exports_quarantined_over_sla > 0
+        for: 15m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Audit exports are stuck in quarantine"
+          description: "{{ $value }} quarantined audit exports are older than the investigation SLA"
+          runbook: "https://runbooks.nocturnal.com/audit-export-operations"
+
+      - alert: AuditExportReleaseApprovalNotificationFailures
+        expr: increase(nocturnal_security_audit_export_release_approval_notification_failures_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Audit export release approval notifications are failing"
+          description: "{{ $value }} audit export approval notification deliveries failed in the last 15 minutes"
+          runbook: "https://runbooks.nocturnal.com/audit-export-operations"

@@ -124,6 +124,11 @@ spec:
             secretKeyRef:
               name: nocturnal-secrets
               key: jwt-secret
+        - name: PROMETHEUS_METRICS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: nocturnal-secrets
+              key: prometheus-metrics-token
 
         resources:
           requests:
@@ -275,6 +280,9 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: monitoring
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
     ports:
     - protocol: TCP
       port: 5000

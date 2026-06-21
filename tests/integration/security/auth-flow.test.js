@@ -11,7 +11,11 @@
 
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-const { generateToken } = require('../../../middleware/auth');
+const {
+  generateToken,
+  JWT_ACCESS_SIGN_OPTIONS,
+  JWT_ACCESS_VERIFY_OPTIONS
+} = require('../../../middleware/auth');
 const { sanitizeInput } = require('../../../middleware/validation');
 const { sanitizationMiddleware } = require('../../../utils/sanitization');
 const { mockRequest, mockResponse, mockNext } = require('../../helpers');
@@ -31,8 +35,12 @@ describe('Security Integration: JWT lifecycle and auth middleware chain', () => 
       const token = generateToken(userId);
 
       // Verify the token is valid
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, JWT_ACCESS_VERIFY_OPTIONS);
       expect(decoded.id).toBe(userId);
+      expect(decoded.iss).toBe('nocturnal-api');
+      expect(decoded.aud).toBe('nocturnal:user');
+      expect(decoded.identityType).toBe('user');
+      expect(decoded.tokenVersion).toBe(1);
 
       // Verify expiry is set
       expect(decoded.exp).toBeDefined();
@@ -53,7 +61,7 @@ describe('Security Integration: JWT lifecycle and auth middleware chain', () => 
       const unsignedToken = `${header}.${body}.`;
 
       expect(() => {
-        jwt.verify(unsignedToken, process.env.JWT_SECRET);
+        jwt.verify(unsignedToken, process.env.JWT_SECRET, JWT_ACCESS_VERIFY_OPTIONS);
       }).toThrow();
     });
 
@@ -62,11 +70,11 @@ describe('Security Integration: JWT lifecycle and auth middleware chain', () => 
       const token = jwt.sign(
         { id: '507f1f77bcf86cd799439011' },
         'attacker-controlled-secret',
-        { algorithm: 'HS256', expiresIn: '1h' }
+        { ...JWT_ACCESS_SIGN_OPTIONS, expiresIn: '1h' }
       );
 
       expect(() => {
-        jwt.verify(token, process.env.JWT_SECRET);
+        jwt.verify(token, process.env.JWT_SECRET, JWT_ACCESS_VERIFY_OPTIONS);
       }).toThrow();
     });
   });
@@ -184,7 +192,8 @@ describe('Security Integration: JWT lifecycle and auth middleware chain', () => 
       const encrypted = encrypt('test data');
       // Tamper with the ciphertext portion
       const parts = encrypted.split(':');
-      parts[1] = 'ff' + parts[1].substring(2); // Corrupt ciphertext
+      const ciphertextIndex = parts.length - 1;
+      parts[ciphertextIndex] = `${parts[ciphertextIndex][0] === 'a' ? 'b' : 'a'}${parts[ciphertextIndex].slice(1)}`;
       const tampered = parts.join(':');
 
       const result = decrypt(tampered);
