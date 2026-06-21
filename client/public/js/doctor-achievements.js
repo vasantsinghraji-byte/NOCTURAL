@@ -47,7 +47,7 @@
             const list = document.getElementById('achievementsList');
 
             if (achievements.length === 0) {
-                list.innerHTML = '<p class="achievement-empty">No achievements yet. Start completing shifts to earn badges!</p>';
+                AppUi.setSafeHtml(list, '<p class="achievement-empty">No achievements yet. Start completing shifts to earn badges!</p>');
                 return;
             }
 
@@ -86,7 +86,7 @@
                 `;
             });
 
-            list.innerHTML = html;
+            AppUi.setSafeHtml(list, html);
         }
 
         async function loadLeaderboard() {
@@ -141,7 +141,7 @@
                 `;
             });
 
-            list.innerHTML = html;
+            AppUi.setSafeHtml(list, html);
         }
 
         function changeCategory(category, button) {

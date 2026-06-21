@@ -138,6 +138,10 @@ notificationSchema.index({ user: 1, type: 1, read: 1 }); // Filtered notificatio
 notificationSchema.index({ user: 1, priority: 1, read: 1 }); // Priority notifications
 notificationSchema.index({ relatedDuty: 1 }); // Duty-related notifications lookup
 notificationSchema.index({ relatedApplication: 1 }); // Application notifications lookup
+notificationSchema.index(
+  { 'metadata.outboxId': 1 },
+  { unique: true, sparse: true, name: 'notification_outbox_dedupe_idx' }
+);
 
 // Static method to create notification
 notificationSchema.statics.createNotification = async function(data) {

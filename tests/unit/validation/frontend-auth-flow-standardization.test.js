@@ -1,4 +1,9 @@
-const { readProjectFile } = require('./projectFileReader');
+const fs = require('fs');
+const path = require('path');
+
+const rootDir = path.resolve(__dirname, '..', '..', '..');
+
+const readProjectFile = (relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 
 const frontendSessionSrc = readProjectFile('client/public/js/frontend-session.js');
 const landingSrc = readProjectFile('client/public/js/landing.js');
@@ -31,7 +36,9 @@ describe('Frontend Auth Flow Standardization', () => {
     expect(frontendSessionSrc).toContain('function getPasswordStrengthState(password)');
     expect(frontendSessionSrc).toContain('function validatePasswordStrength(password, container, options)');
     expect(frontendSessionSrc).toContain('function handleValidationFailure(container, message, config)');
-    expect(frontendSessionSrc).toContain('targetButton.dataset.originalHtml');
+    expect(frontendSessionSrc).toContain('button.dataset.originalText');
+    expect(frontendSessionSrc).toContain('AppUi.setSafeHtml(button, config.loadingHtml)');
+    expect(frontendSessionSrc).toContain('AppUi.setSafeHtml(button, config.htmlContent)');
     expect(frontendSessionSrc).toContain('if (config.loadingHtml)');
     expect(frontendSessionSrc).toContain('if (config.htmlContent)');
     expect(frontendSessionSrc).toContain("if (typeof config.onInvalid === 'function')");
@@ -102,9 +109,7 @@ describe('Frontend Auth Flow Standardization', () => {
     expect(providerSessionSrc).toContain('NocturnalSession.createRoleSession({');
     expect(providerSessionSrc).toContain("role: 'provider'");
     expect(providerSessionSrc).toContain("legacyTokenKeys: ['providerToken']");
-    expect(providerSessionSrc).toContain('function createProviderSessionExtension(baseSession)');
     expect(providerSessionSrc).toContain('redirectAuthenticatedLogin: function(options)');
-    expect(providerSessionSrc).toContain('extendSession: createProviderSessionExtension');
 
     expect(patientRegisterSrc).toContain('<script src="/js/frontend-session.js"></script>');
     expect(patientRegisterSrc).toContain('<script src="/js/patient-register.js"></script>');

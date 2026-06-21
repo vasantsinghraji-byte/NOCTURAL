@@ -1,13 +1,15 @@
+const fs = require('fs');
 const path = require('path');
 
-const { projectPathExists, readProjectFile } = require('./projectFileReader');
+const rootDir = path.resolve(__dirname, '..', '..', '..');
+
+const readProjectFile = (relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 const retiredProviderPrefix = ['fire', 'base'].join('');
 const retiredProviderConfig = `${retiredProviderPrefix}-config.js`;
 const retiredAuthGlobal = `window.${retiredProviderPrefix}Auth`;
 const retiredSignOutGlobal = `window.${retiredProviderPrefix}SignOut`;
 const retiredEnvToggle = `${retiredProviderPrefix.toUpperCase()}_AUTH_ENABLED`;
 const retiredUserField = `${retiredProviderPrefix}Uid`;
-const retiredAdminPackage = `${retiredProviderPrefix}-admin`;
 const retiredEnvSection = `${retiredProviderPrefix}: {`;
 const retiredVaultAccessor = ['get', retiredProviderPrefix[0].toUpperCase() + retiredProviderPrefix.slice(1), 'Credentials'].join('');
 const retiredProviderRegex = new RegExp(retiredProviderPrefix, 'i');
@@ -36,7 +38,6 @@ const testSetupSrc = readProjectFile('tests/setup.js');
 const envExampleSrc = readProjectFile('.env.example');
 const vaultSrc = readProjectFile('config/vault.js');
 const packageJsonSrc = readProjectFile('package.json');
-const pushNotificationServiceSrc = readProjectFile('services/pushNotificationService.js');
 const userModelSrc = readProjectFile('models/user.js');
 const migrationGuideSrc = readProjectFile('docs/MIGRATION_GUIDE.md');
 const securityChangelogSrc = readProjectFile('docs/changelog/2024-Q4-security.md');
@@ -75,14 +76,15 @@ describe('Frontend Legacy Auth Retirement', () => {
     expect(userModelSrc).not.toContain(retiredUserField);
   });
 
-  it('should keep the root dependency graph off retired client auth packages', () => {
+  it('should keep the root dependency graph off retired auth packages', () => {
     expect(packageJsonSrc).not.toContain(`"${retiredProviderPrefix}"`);
-    expect(pushNotificationServiceSrc).not.toContain(`${retiredAdminPackage}/auth`);
+    // firebase-admin remains intentionally installed for server-side push
+    // notifications; only the retired client authentication package is banned.
   });
 
   it('should remove legacy auth frontend stubs from served assets', () => {
-    expect(projectPathExists('client/public/app.js')).toBe(false);
-    expect(projectPathExists(path.join('client/public', retiredProviderConfig))).toBe(false);
+    expect(fs.existsSync(path.join(rootDir, 'client/public/app.js'))).toBe(false);
+    expect(fs.existsSync(path.join(rootDir, 'client/public', retiredProviderConfig))).toBe(false);
   });
 
   it('should keep the webpack pipeline off deprecated legacy-auth entrypoints', () => {

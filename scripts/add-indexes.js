@@ -55,11 +55,29 @@ async function addIndexes() {
         // Applications Collection Indexes
         console.log('\n2. Applications Collection:');
         try {
-            await db.collection('applications').createIndex({ user: 1, status: 1 }, {
-                name: 'user_status_idx',
-                background: true
-            });
-            console.log('   ✓ user_status_idx created');
+            const applicationIndexes = await db.collection('applications').indexes();
+            if (applicationIndexes.some(index => index.name === 'duty_user_unique_idx')) {
+                await db.collection('applications').dropIndex('duty_user_unique_idx');
+                console.log('   ✓ obsolete duty_user_unique_idx removed');
+            }
+
+            if (applicationIndexes.some(index => index.name === 'user_status_idx')) {
+                await db.collection('applications').dropIndex('user_status_idx');
+                console.log('   ✓ obsolete user_status_idx removed');
+            }
+
+            const hasApplicantStatusIndex = applicationIndexes.some(index =>
+                index.key?.applicant === 1 && index.key?.status === 1
+            );
+            if (!hasApplicantStatusIndex) {
+                await db.collection('applications').createIndex({ applicant: 1, status: 1 }, {
+                    name: 'applicant_status_idx',
+                    background: true
+                });
+                console.log('   ✓ applicant_status_idx created');
+            } else {
+                console.log('   ✓ applicant/status index already exists');
+            }
 
             await db.collection('applications').createIndex({ duty: 1, status: 1 }, {
                 name: 'duty_status_idx',
@@ -67,12 +85,12 @@ async function addIndexes() {
             });
             console.log('   ✓ duty_status_idx created');
 
-            await db.collection('applications').createIndex({ duty: 1, user: 1 }, {
-                name: 'duty_user_unique_idx',
+            await db.collection('applications').createIndex({ duty: 1, applicant: 1 }, {
+                name: 'duty_applicant_unique_idx',
                 unique: true,
                 background: true
             });
-            console.log('   ✓ duty_user_unique_idx created (prevents duplicate applications)');
+            console.log('   ✓ duty_applicant_unique_idx created (prevents duplicate applications)');
 
             await db.collection('applications').createIndex({ createdAt: -1 }, {
                 name: 'createdAt_idx',
@@ -133,6 +151,18 @@ async function addIndexes() {
             console.log('   ⚠ Some notification indexes may already exist:', err.message);
         }
 
+        try {
+            await db.collection('notifications').createIndex({ 'metadata.outboxId': 1 }, {
+                name: 'notification_outbox_dedupe_idx',
+                unique: true,
+                sparse: true,
+                background: true
+            });
+            console.log('   notification_outbox_dedupe_idx created');
+        } catch (err) {
+            console.log('   Notification outbox dedupe index could not be created:', err.message);
+        }
+
         // Users Collection Indexes
         console.log('\n5. Users Collection:');
         try {
@@ -179,9 +209,92 @@ async function addIndexes() {
             console.log('   Some idempotency indexes may already exist:', err.message);
         }
 
+        // Booking completion consistency indexes
+        console.log('\n7. Booking Completion Consistency:');
+        try {
+            await db.collection('healthmetrics').createIndex(
+                { 'source.bookingId': 1, metricType: 1 },
+                {
+                    name: 'booking_metric_type_unique_idx',
+                    unique: true,
+                    partialFilterExpression: { 'source.bookingId': { $exists: true } },
+                    background: true
+                }
+            );
+            await db.collection('healthrecords').createIndex(
+                { 'source.bookingId': 1 },
+                {
+                    name: 'booking_health_record_unique_idx',
+                    unique: true,
+                    partialFilterExpression: {
+                        'source.bookingId': { $exists: true },
+                        recordType: 'BOOKING_CAPTURE'
+                    },
+                    background: true
+                }
+            );
+            await db.collection('bookingcompletionoutboxes').createIndex(
+                { booking: 1 },
+                { name: 'booking_completion_outbox_unique_idx', unique: true, background: true }
+            );
+            console.log('   booking-derived unique indexes created');
+        } catch (err) {
+            console.log('   Booking completion indexes require duplicate cleanup:', err.message);
+        }
+
+        console.log('\n8. Refresh Session Cleanup:');
+        try {
+            await db.collection('refreshsessions').createIndex(
+                { expiresAt: 1 },
+                { expireAfterSeconds: 0, background: true }
+            );
+            await db.collection('refreshsessions').createIndex(
+                { userId: 1, userType: 1, revokedAt: 1 },
+                { background: true }
+            );
+            await db.collection('refreshsessions').createIndex(
+                { familyId: 1, revokedAt: 1 },
+                { background: true }
+            );
+            console.log('   refresh-session TTL and lookup indexes created');
+        } catch (err) {
+            console.log('   Refresh-session indexes could not be created:', err.message);
+        }
+
+        console.log('\n9. Security Notification and WebAuthn Outboxes:');
+        try {
+            await db.collection('securitynotificationoutboxes').createIndex(
+                { status: 1, nextAttemptAt: 1 },
+                { background: true }
+            );
+            await db.collection('securitynotificationoutboxes').createIndex(
+                { purgeAfter: 1 },
+                { expireAfterSeconds: 0, background: true }
+            );
+            await db.collection('webauthnchallenges').createIndex(
+                { expiresAt: 1 },
+                { expireAfterSeconds: 0, background: true }
+            );
+            await db.collection('webauthnchallenges').createIndex(
+                { identityId: 1, identityType: 1, purpose: 1, consumedAt: 1 },
+                { background: true }
+            );
+            await db.collection('webauthnrecoverycodes').createIndex(
+                { identityId: 1, identityType: 1, usedAt: 1, replacedAt: 1 },
+                { background: true }
+            );
+            await db.collection('webauthnrecoverycodes').createIndex(
+                { expiresAt: 1 },
+                { expireAfterSeconds: 0, background: true }
+            );
+            console.log('   security notification outbox, WebAuthn, and recovery-code indexes created');
+        } catch (err) {
+            console.log('   Security notification/WebAuthn indexes could not be created:', err.message);
+        }
+
         // List all indexes
         console.log('\n=== Index Summary ===\n');
-        const collections = ['duties', 'applications', 'earnings', 'notifications', 'users', 'idempotencykeys'];
+        const collections = ['duties', 'applications', 'earnings', 'notifications', 'users', 'idempotencykeys', 'healthmetrics', 'healthrecords', 'bookingcompletionoutboxes', 'refreshsessions', 'securitynotificationoutboxes', 'webauthnchallenges', 'webauthnrecoverycodes'];
 
         for (const collName of collections) {
             try {

@@ -11,10 +11,29 @@
  * - Encryption key validation and IV uniqueness
  */
 
-const { readProjectFile } = require('../validation/projectFileReader');
+const fs = require('fs');
+const path = require('path');
+const { getSensitiveGetRouteViolations } = require('../../helpers/sensitiveGetRouteScanner');
+const sensitiveGetScannerConfig = require('../../fixtures/security/sensitive-get-route-scanner.json');
+
+const ROOT = path.resolve(__dirname, '..', '..', '..');
 
 function readFile(relativePath) {
-  return readProjectFile(relativePath);
+  return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
+}
+
+function listFiles(dir, predicate) {
+  const absoluteDir = path.join(ROOT, dir);
+  const results = [];
+  for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
+    const relative = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...listFiles(relative, predicate));
+    } else if (!predicate || predicate(relative)) {
+      results.push(relative);
+    }
+  }
+  return results;
 }
 
 // Known vulnerable passwords that were hardcoded before fixes
@@ -33,6 +52,109 @@ const KNOWN_LEAKED_KEYS = [
 ];
 
 describe('Security Unit: static analysis guardrails', () => {
+  describe('Sensitive GET route policy', () => {
+    it('pins the scanner against known-bad sensitive GET route fixtures', () => {
+      const fixture = `
+        router.get('/patients/:patientId', (req, res) => res.json({}));
+        router.get('/logs', (req, res) => {
+          const query = req.query;
+          return res.json({ id: query['accessorId'] });
+        });
+        router.get('/tokens', (req, res) => {
+          const { patientId, tokenId: renamedTokenId } = req.query;
+          return res.json({ patientId, renamedTokenId });
+        });
+        router.get('/aliased-query', (req, res) => {
+          const { query } = req;
+          const { patientId } = query;
+          return res.json({ patientId });
+        });
+        router.post('/patients/read', (req, res) => res.json({ patientId: req.body.patientId }));
+      `;
+
+      expect(getSensitiveGetRouteViolations('routes/fixture.js', fixture)).toEqual([
+        'routes/fixture.js GET /patients/:patientId',
+        'routes/fixture.js GET /logs',
+        'routes/fixture.js GET /tokens',
+        'routes/fixture.js GET /aliased-query'
+      ]);
+    });
+
+    it('allows the explicitly governed emergency QR GET route', () => {
+      const fixture = `
+        router.get('/emergency/:qrToken', emergencyQrLimiter, controller.getEmergencyData);
+      `;
+
+      expect(getSensitiveGetRouteViolations('routes/doctorAccess.js', fixture)).toEqual([]);
+    });
+
+    it('supports configured helper wrappers around GET route registration', () => {
+      const fixture = `
+        secureGet('/patients/:patientId', protect, controller.readPatient);
+        safeGet('/safe/status', controller.status);
+      `;
+
+      expect(getSensitiveGetRouteViolations('routes/wrapped.js', fixture, {
+        routeWrapperNames: sensitiveGetScannerConfig.routeWrapperNames
+      })).toEqual([
+        'routes/wrapped.js GET /patients/:patientId'
+      ]);
+    });
+
+    it('rejects sensitive identifiers in GET route paths and query reads', () => {
+      const routeFiles = [
+        ...listFiles('routes', file => file.endsWith('.js')),
+        'app.js'
+      ];
+      const violations = [];
+
+      for (const file of routeFiles) {
+        violations.push(...getSensitiveGetRouteViolations(file, readFile(file)));
+      }
+
+      expect(violations).toEqual([]);
+    });
+  });
+
+  describe('Frontend DOM injection policy', () => {
+    it('keeps raw HTML sinks centralized in AppUi helpers', () => {
+      const jsFiles = listFiles('client/public/js', file => file.endsWith('.js'));
+      const violations = [];
+
+      for (const file of jsFiles) {
+        const source = readFile(file);
+        const normalizedFile = file.replace(/\\/g, '/');
+        if (
+          normalizedFile === 'client/public/js/config.js'
+          || normalizedFile.startsWith('client/public/js/vendor/')
+        ) {
+          continue;
+        }
+
+        if (source.match(/\.innerHTML\s*=/) || source.match(/\.insertAdjacentHTML\s*\(/)) {
+          violations.push(file);
+        }
+      }
+
+      expect(violations).toEqual([]);
+    });
+
+    it('loads DOMPurify before config.js on every maintained frontend page', () => {
+      const htmlFiles = listFiles('client/public', file => file.endsWith('.html'));
+      const pagesWithConfig = htmlFiles.filter(file => readFile(file).includes('js/config.js'));
+      const missingOrMisordered = pagesWithConfig.filter((file) => {
+        const source = readFile(file);
+        const purifierIndex = source.indexOf('/js/vendor/dompurify.min.js');
+        const configIndex = source.indexOf('js/config.js');
+        return purifierIndex < 0 || purifierIndex > configIndex;
+      });
+
+      expect(missingOrMisordered).toEqual([]);
+      expect(readFile('client/public/js/config.js')).toContain('DOMPurify.sanitize');
+      expect(readFile('client/public/js/vendor/dompurify.min.js')).toContain('DOMPurify');
+    });
+  });
+
   // ──────────────────────────────────────────────
   // SEC-001 to SEC-012: Hardcoded Secrets
   // ──────────────────────────────────────────────
@@ -407,9 +529,9 @@ describe('Security Unit: static analysis guardrails', () => {
       // Same plaintext should produce different ciphertext (different IVs)
       expect(enc1).not.toBe(enc2);
 
-      // Extract IVs (format: iv:encrypted)
-      const iv1 = enc1.split(':')[0];
-      const iv2 = enc2.split(':')[0];
+      // Extract IVs (format: version:iv:authTag:encrypted)
+      const iv1 = enc1.split(':')[1];
+      const iv2 = enc2.split(':')[1];
       expect(iv1).not.toBe(iv2);
 
       process.env.ENCRYPTION_KEY = originalKey;

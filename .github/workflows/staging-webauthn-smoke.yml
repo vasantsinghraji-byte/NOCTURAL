@@ -1,0 +1,70 @@
+name: Staging WebAuthn Smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22.x'
+
+jobs:
+  staging-webauthn-smoke:
+    name: WebAuthn Staging HTTPS Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Validate staging smoke secrets
+        env:
+          STAGING_WEBAUTHN_BASE_URL: ${{ secrets.STAGING_WEBAUTHN_BASE_URL }}
+          STAGING_WEBAUTHN_ACCESS_TOKEN: ${{ secrets.STAGING_WEBAUTHN_ACCESS_TOKEN }}
+          STAGING_WEBAUTHN_COOKIE: ${{ secrets.STAGING_WEBAUTHN_COOKIE }}
+          STAGING_TEST_API_SECRET: ${{ secrets.STAGING_TEST_API_SECRET }}
+        run: |
+          if [ -z "$STAGING_WEBAUTHN_BASE_URL" ]; then
+            echo "::error::STAGING_WEBAUTHN_BASE_URL must be configured in the staging GitHub environment."
+            exit 1
+          fi
+          case "$STAGING_WEBAUTHN_BASE_URL" in
+            https://*) ;;
+            *)
+              echo "::error::STAGING_WEBAUTHN_BASE_URL must be a real HTTPS origin."
+              exit 1
+              ;;
+          esac
+          if [ -z "$STAGING_TEST_API_SECRET" ] && [ -z "$STAGING_WEBAUTHN_ACCESS_TOKEN" ] && [ -z "$STAGING_WEBAUTHN_COOKIE" ]; then
+            echo "::error::Configure STAGING_TEST_API_SECRET, STAGING_WEBAUTHN_ACCESS_TOKEN, or STAGING_WEBAUTHN_COOKIE for staging smoke auth."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install Playwright Chromium
+        run: node ./node_modules/playwright/cli.js install --with-deps chromium
+
+      - name: Run staging WebAuthn smoke
+        env:
+          STAGING_WEBAUTHN_BASE_URL: ${{ secrets.STAGING_WEBAUTHN_BASE_URL }}
+          STAGING_WEBAUTHN_ACCESS_TOKEN: ${{ secrets.STAGING_WEBAUTHN_ACCESS_TOKEN }}
+          STAGING_WEBAUTHN_COOKIE: ${{ secrets.STAGING_WEBAUTHN_COOKIE }}
+          STAGING_TEST_API_SECRET: ${{ secrets.STAGING_TEST_API_SECRET }}
+        run: npm run test:e2e:webauthn:staging
+
+      - name: Record cleanup contract
+        if: always()
+        run: |
+          echo "When STAGING_TEST_API_SECRET is configured, the test creates and revokes a temporary smoke account automatically." >> "$GITHUB_STEP_SUMMARY"
+          echo "When token/cookie fallback auth is used, the test only revokes the passkey it creates." >> "$GITHUB_STEP_SUMMARY"

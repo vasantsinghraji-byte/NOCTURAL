@@ -14,17 +14,12 @@ const addMobileTokens = (req, payload, tokens) => {
     return payload;
   }
 
-  const mobileTokens = {
-    accessToken: tokens.token
-  };
-
-  if (tokens.refreshToken) {
-    mobileTokens.refreshToken = tokens.refreshToken;
-  }
-
   return {
     ...payload,
-    tokens: mobileTokens
+    tokens: {
+      accessToken: tokens.token,
+      refreshToken: tokens.refreshToken
+    }
   };
 };
 

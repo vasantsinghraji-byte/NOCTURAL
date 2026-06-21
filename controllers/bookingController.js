@@ -275,6 +275,46 @@ exports.addReview = async (req, res, next) => {
 };
 
 /**
+ * @desc    Update rating and review
+ * @route   PUT /api/bookings/:id/review
+ * @access  Private (Patient)
+ */
+exports.updateReview = async (req, res, next) => {
+  try {
+    const { stars, comment } = req.body;
+
+    if (!stars || stars < 1 || stars > 5) {
+      return responseHelper.sendBadRequest(res, 'Rating must be between 1 and 5 stars');
+    }
+
+    const booking = await bookingService.updateReview(
+      req.params.id,
+      req.user.id,
+      { stars, comment }
+    );
+
+    responseHelper.sendSuccess(res, { booking }, 'Review updated successfully');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+/**
+ * @desc    Delete rating and review
+ * @route   DELETE /api/bookings/:id/review
+ * @access  Private (Patient)
+ */
+exports.deleteReview = async (req, res, next) => {
+  try {
+    const booking = await bookingService.deleteReview(req.params.id, req.user.id);
+
+    responseHelper.sendSuccess(res, { booking }, 'Review deleted successfully');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+/**
  * @desc    Cancel booking
  * @route   PUT /api/bookings/:id/cancel
  * @access  Private (Patient/Provider/Admin)

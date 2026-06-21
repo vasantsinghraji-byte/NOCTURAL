@@ -33,12 +33,12 @@ describe('resolveFrontendStaticDir', () => {
     );
   });
 
-  test('uses client/public in test mode even when dist is present', () => {
+  test('uses client/dist when a built frontend is present', () => {
     process.env.NODE_ENV = 'test';
     localFileSystem.mkdirSync(path.join(projectRoot, DIST_RELATIVE_PATH), { recursive: true });
 
     expect(resolveFrontendStaticDir(projectRoot)).toBe(
-      path.resolve(projectRoot, PUBLIC_RELATIVE_PATH)
+      path.resolve(projectRoot, DIST_RELATIVE_PATH)
     );
   });
 

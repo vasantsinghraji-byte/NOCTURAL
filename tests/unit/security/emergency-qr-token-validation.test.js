@@ -13,8 +13,11 @@ function createSummaryForToken(token, expiresAt = new Date(Date.now() + 60 * 60 
 
 describe('EmergencySummary QR token validation', () => {
   it('accepts a valid unexpired QR token', () => {
-    const token = 'valid-emergency-token';
-    const summary = createSummaryForToken(token);
+    const summary = new EmergencySummary({
+      patient: '507f1f77bcf86cd799439011',
+      patientName: 'Test Patient'
+    });
+    const { token } = summary.generateQRToken(1);
 
     expect(summary.validateToken(token)).toEqual({ valid: true });
   });

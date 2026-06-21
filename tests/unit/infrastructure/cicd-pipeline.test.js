@@ -28,6 +28,11 @@ const warningBudgetScript = fs.readFileSync(
   'utf8'
 );
 
+const stackValidationSrc = fs.readFileSync(
+  path.resolve(__dirname, '..', '..', '..', 'scripts', 'run-stacked-pr-validation.js'),
+  'utf8'
+);
+
 const deployYaml = fs.readFileSync(
   path.join(workflowDir, 'deploy.yml'),
   'utf8'
@@ -77,12 +82,12 @@ describe('Phase 6 — CI/CD Pipeline', () => {
       expect(lintBlock[0]).not.toMatch(/continue-on-error:\s*true/);
     });
 
-    it('should run npm run lint directly (no echo fallback)', () => {
-      expect(ciYaml).toMatch(/run:\s*npm run lint/);
+    it('should run the stack-aware lint validator without a fallback', () => {
+      expect(ciYaml).toMatch(/run:\s*node scripts\/run-stacked-pr-validation\.js lint/);
     });
 
-    it('should enforce an ESLint warning budget', () => {
-      expect(ciYaml).toMatch(/npm run lint:warning-budget/);
+    it('should enforce the repository lint baseline', () => {
+      expect(stackValidationSrc).toMatch(/command\('npm run lint:baseline'\)/);
     });
 
     it('should ratchet the ESLint warning budget downward from the previous baseline', () => {
@@ -101,17 +106,17 @@ describe('Phase 6 — CI/CD Pipeline', () => {
   });
 
   describe('CICD-005: Security audit configured', () => {
-    it('should run npm audit with an audit level', () => {
-      expect(ciYaml).toMatch(/--audit-level=/);
+    it('should run the stack-aware security validator', () => {
+      expect(ciYaml).toMatch(/run:\s*node scripts\/run-stacked-pr-validation\.js security/);
     });
 
-    it('should fail on moderate production audit regressions', () => {
-      expect(ciYaml).toMatch(/npm audit --omit=dev --audit-level=moderate/);
-      expect(ciYaml).not.toMatch(/npm audit --omit=dev --audit-level=high \|\| true/);
+    it('should fail on high production audit regressions', () => {
+      expect(stackValidationSrc).toMatch(/command\('npm audit --audit-level=high'\)/);
+      expect(stackValidationSrc).not.toMatch(/npm audit --audit-level=high \|\| true/);
     });
 
-    it('should fail on moderate client dev-tooling audit regressions', () => {
-      expect(ciYaml).toMatch(/npm --prefix client audit --audit-level=moderate/);
+    it('should fail on high client dev-tooling audit regressions', () => {
+      expect(stackValidationSrc).toMatch(/command\('npm --prefix client audit --audit-level=high'\)/);
     });
   });
 

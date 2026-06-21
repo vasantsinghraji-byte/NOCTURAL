@@ -16,13 +16,24 @@ const emergencySummaryService = require('./emergencySummaryService');
 const logger = require('../utils/logger');
 const { ANALYTICS_PERIODS } = require('../constants/healthConstants');
 const { NotFoundError } = require('../utils/errors');
+const { normalizeObjectId } = require('../utils/safeMongo');
+
+const BOOKING_HISTORY_STATUSES = new Set([
+  'PENDING',
+  'CONFIRMED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+  'NO_SHOW'
+]);
 
 class PatientDashboardService {
   /**
    * Get complete dashboard overview
    */
   async getDashboardOverview(patientId) {
-    const patient = await Patient.findById(patientId);
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const patient = await Patient.findById(safePatientId);
     if (!patient) {
       throw new NotFoundError('Patient', patientId);
     }
@@ -191,13 +202,15 @@ class PatientDashboardService {
    * Get booking history with pagination
    */
   async getBookingHistory(patientId, options = {}) {
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
     const { page = 1, limit = 10, status, startDate, endDate } = options;
     const skip = (page - 1) * limit;
 
-    const query = { patient: patientId };
+    const query = { patient: safePatientId };
 
-    if (status) {
-      query.status = status;
+    const safeStatus = typeof status === 'string' ? status.trim().toUpperCase() : '';
+    if (safeStatus && BOOKING_HISTORY_STATUSES.has(safeStatus)) {
+      query.status = safeStatus;
     }
 
     if (startDate || endDate) {

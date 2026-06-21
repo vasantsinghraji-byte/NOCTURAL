@@ -21,6 +21,16 @@ const {
   USER_TYPES
 } = require('../constants/healthConstants');
 const { NotFoundError, ValidationError, AuthorizationError } = require('../utils/errors');
+const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
+const { normalizeObjectId } = require('../utils/safeMongo');
+
+const withSession = (query, session) => (
+  session && query && typeof query.session === 'function' ? query.session(session) : query
+);
+
+const queryUpdateOptions = (session) => (
+  session ? { ...VALIDATED_QUERY_UPDATE_OPTIONS, session } : VALIDATED_QUERY_UPDATE_OPTIONS
+);
 
 class HealthRecordService {
   /**
@@ -75,8 +85,9 @@ class HealthRecordService {
    * Append an update to health records (creates new version)
    * Uses optimistic concurrency control to prevent orphaned versions
    */
-  async appendUpdate(patientId, updates, source = {}) {
-    const patient = await Patient.findById(patientId);
+  async appendUpdate(patientId, updates, source = {}, options = {}) {
+    const { session } = options;
+    const patient = await withSession(Patient.findById(patientId), session);
     if (!patient) {
       throw new NotFoundError('Patient', patientId);
     }
@@ -85,7 +96,7 @@ class HealthRecordService {
     const expectedVersion = patient.currentHealthRecordVersion || 0;
 
     // Get latest approved record to base the update on
-    const latestRecord = await HealthRecord.getLatestApproved(patientId);
+    const latestRecord = await withSession(HealthRecord.getLatestApproved(patientId), session);
 
     // Merge updates with existing data
     let healthSnapshot;
@@ -110,12 +121,16 @@ class HealthRecordService {
       }
     });
 
-    await record.save();
+    await record.save(session ? { session } : undefined);
 
     // Compute and store changes atomically (avoid double full-save)
-    const changes = await record.computeChanges();
+    const changes = await record.computeChanges({ session });
     if (changes) {
-      await HealthRecord.findByIdAndUpdate(record._id, { $set: { changes } });
+      await HealthRecord.findByIdAndUpdate(
+        record._id,
+        { $set: { changes } },
+        queryUpdateOptions(session)
+      );
       record.changes = changes;
     }
 
@@ -129,20 +144,28 @@ class HealthRecordService {
         ]
       },
       { $set: { currentHealthRecordVersion: record.version } },
-      { new: true }
+      queryUpdateOptions(session)
     );
 
     if (!updatedPatient) {
       // Concurrent update won — roll back the orphaned record
-      await HealthRecord.findByIdAndUpdate(record._id, {
-        $set: { isActive: false, isLatest: false, deletedAt: new Date() }
-      });
+      await HealthRecord.findByIdAndUpdate(
+        record._id,
+        {
+          $set: { isActive: false, isLatest: false, deletedAt: new Date() }
+        },
+        queryUpdateOptions(session)
+      );
 
       // Restore previous record's isLatest flag
       if (record.previousVersion) {
-        await HealthRecord.findByIdAndUpdate(record.previousVersion, {
-          $set: { isLatest: true }
-        });
+        await HealthRecord.findByIdAndUpdate(
+          record.previousVersion,
+          {
+            $set: { isLatest: true }
+          },
+          queryUpdateOptions(session)
+        );
       }
 
       throw new ValidationError(
@@ -151,7 +174,7 @@ class HealthRecordService {
     }
 
     // Update emergency summary
-    await EmergencySummary.updateFromHealthRecord(patientId, record, updatedPatient);
+    await EmergencySummary.updateFromHealthRecord(patientId, record, updatedPatient, { session });
 
     logger.info('Health record updated', {
       patientId,
@@ -253,7 +276,7 @@ class HealthRecordService {
   /**
    * Capture vitals from a booking
    */
-  async captureBookingVitals(patientId, bookingId, serviceReport, providerId) {
+  async captureBookingVitals(patientId, bookingId, serviceReport, providerId, options = {}) {
     // Build health snapshot from service report
     const updates = {};
 
@@ -282,7 +305,7 @@ class HealthRecordService {
         type: DATA_SOURCES.BOOKING,
         bookingId,
         providerId
-      });
+      }, options);
     }
 
     return null;
@@ -413,7 +436,10 @@ class HealthRecordService {
    * Assign doctor to review intake (admin action)
    */
   async assignIntakeReviewer(recordId, doctorId, adminId) {
-    const record = await HealthRecord.findById(recordId);
+    const safeRecordId = normalizeObjectId(recordId, 'health record id');
+    const safeDoctorId = normalizeObjectId(doctorId, 'doctor id');
+    const safeAdminId = normalizeObjectId(adminId, 'admin id');
+    const record = await HealthRecord.findById(safeRecordId);
     if (!record) {
       throw new NotFoundError('HealthRecord', recordId);
     }
@@ -423,7 +449,7 @@ class HealthRecordService {
     }
 
     // Validate assignee is a doctor
-    const doctor = await User.findById(doctorId);
+    const doctor = await User.findById(safeDoctorId);
     if (!doctor) {
       throw new NotFoundError('User', doctorId);
     }
@@ -433,16 +459,16 @@ class HealthRecordService {
 
     record.review = {
       ...record.review,
-      assignedBy: adminId,
+      assignedBy: safeAdminId,
       assignedAt: new Date(),
-      assignedTo: doctorId
+      assignedTo: safeDoctorId
     };
     await record.save();
 
     // Update patient
     const patient = await Patient.findById(record.patient);
     if (patient) {
-      patient.intakeAssignedTo = doctorId;
+      patient.intakeAssignedTo = safeDoctorId;
       patient.intakeAssignedAt = new Date();
       await patient.save();
     }

@@ -27,6 +27,8 @@ const {
   startService,
   completeService,
   addReview,
+  updateReview,
+  deleteReview,
   cancelBooking,
   getBookingStats,
   confirmBooking,
@@ -35,6 +37,17 @@ const {
 
 // Validation rules
 const createBookingValidation = [
+  body('scheduledTimezone')
+    .notEmpty()
+    .withMessage('Scheduled timezone is required')
+    .custom((value) => {
+      try {
+        new Intl.DateTimeFormat('en-US', { timeZone: value }).format(new Date());
+        return true;
+      } catch (_error) {
+        throw new Error('Scheduled timezone must be a valid IANA timezone');
+      }
+    }),
   body('serviceType')
     .notEmpty()
     .withMessage('Service type is required')
@@ -50,6 +63,11 @@ const createBookingValidation = [
     .withMessage('Scheduled time is required')
     .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
     .withMessage('Invalid time format (use HH:MM)'),
+  body('scheduledTimezoneOffsetMinutes')
+    .notEmpty()
+    .withMessage('Scheduled timezone offset is required')
+    .isInt({ min: -840, max: 840 })
+    .withMessage('Scheduled timezone offset must be between -840 and 840 minutes'),
   body('serviceLocation.address.street')
     .trim()
     .notEmpty()
@@ -251,7 +269,25 @@ router.post(
   mongoIdValidation,
   reviewValidation,
   validate,
+  authorize('patient'),
   addReview
+);
+
+router.put(
+  '/:id/review',
+  mongoIdValidation,
+  reviewValidation,
+  validate,
+  authorize('patient'),
+  updateReview
+);
+
+router.delete(
+  '/:id/review',
+  mongoIdValidation,
+  validate,
+  authorize('patient'),
+  deleteReview
 );
 
 // Cancel booking - patient, provider, or admin

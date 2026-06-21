@@ -6,9 +6,18 @@
  */
 
 const Patient = require('../models/patient');
-const { generateToken } = require('../middleware/auth');
+const authTokens = require('../middleware/auth');
 const logger = require('../utils/logger');
+const passwordSecurityService = require('./passwordSecurityService');
+const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
 const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
+const { AuthenticationError } = require('../utils/errors');
+const compromisedPasswordService = require('./compromisedPasswordService');
+
+const generateAccessToken = authTokens.generateAccessToken || authTokens.generateToken;
+const generateRefreshToken = authTokens.generateRefreshToken || authTokens.generateToken;
+const normalizeEmail = email => String(email || '').trim().toLowerCase();
+const normalizePhone = phone => String(phone || '').trim();
 
 class PatientService {
   /**
@@ -17,7 +26,10 @@ class PatientService {
    * @returns {Promise<Object>} Created patient and token
    */
   async register(patientData) {
-    const { name, email, password, phone } = patientData;
+    const { name, password } = patientData;
+    const email = normalizeEmail(patientData.email);
+    const phone = normalizePhone(patientData.phone);
+    await compromisedPasswordService.assertPasswordNotCompromised(password);
 
     // Check if patient exists by email
     const existingPatientByEmail = await Patient.findOne({ email });
@@ -56,8 +68,9 @@ class PatientService {
       };
     }
 
-    // Generate token
-    const token = generateToken(patient._id);
+    // Generate short-lived access token and refresh token for cookie-backed sessions.
+    const token = generateAccessToken(patient._id, authTokens.IDENTITY_TYPES.PATIENT, patient.sessionVersion);
+    const refreshToken = generateRefreshToken(patient._id, authTokens.IDENTITY_TYPES.PATIENT, patient.sessionVersion);
 
     logger.logAuth('patient_register', email, true);
     logger.info('New Patient Registered', {
@@ -68,6 +81,7 @@ class PatientService {
 
     return {
       token,
+      refreshToken,
       patient: {
         id: patient._id,
         name: patient.name,
@@ -86,7 +100,8 @@ class PatientService {
    * @returns {Promise<Object>} Patient and token
    */
   async login(credentials) {
-    const { email, password } = credentials;
+    const email = normalizeEmail(credentials.email);
+    const { password } = credentials;
 
     if (!email || !password) {
       throw {
@@ -96,7 +111,7 @@ class PatientService {
     }
 
     // Find patient and include password
-    const patient = await Patient.findOne({ email }).select('+password');
+    const patient = await Patient.findOne({ email }).select('+password +sessionVersion');
 
     if (!patient) {
       logger.logAuth('patient_login', email, false, ERROR_MESSAGE.USER_NOT_FOUND);
@@ -128,8 +143,9 @@ class PatientService {
       };
     }
 
-    // Generate token
-    const token = generateToken(patient._id);
+    // Generate short-lived access token and refresh token for cookie-backed sessions.
+    const token = generateAccessToken(patient._id, authTokens.IDENTITY_TYPES.PATIENT, patient.sessionVersion);
+    const refreshToken = generateRefreshToken(patient._id, authTokens.IDENTITY_TYPES.PATIENT, patient.sessionVersion);
 
     // Update last active
     patient.lastActive = new Date();
@@ -143,6 +159,7 @@ class PatientService {
 
     return {
       token,
+      refreshToken,
       patient: {
         id: patient._id,
         name: patient.name,
@@ -238,13 +255,13 @@ class PatientService {
       // Atomically clear all existing defaults and push new address
       await Patient.findByIdAndUpdate(patientId, {
         $set: { 'savedAddresses.$[].isDefault': false }
-      });
+      }, VALIDATED_QUERY_UPDATE_OPTIONS);
     }
 
     updatedPatient = await Patient.findByIdAndUpdate(
       patientId,
       { $push: { savedAddresses: addressToSave } },
-      { new: true }
+      VALIDATED_QUERY_UPDATE_OPTIONS
     );
 
     logger.info('Patient Address Added', {
@@ -288,6 +305,7 @@ class PatientService {
       await Patient.findByIdAndUpdate(patientId, {
         $set: { 'savedAddresses.$[other].isDefault': false }
       }, {
+        ...VALIDATED_QUERY_UPDATE_OPTIONS,
         arrayFilters: [{ 'other._id': { $ne: addressId } }]
       });
     }
@@ -301,7 +319,7 @@ class PatientService {
     const updatedPatient = await Patient.findOneAndUpdate(
       { _id: patientId, 'savedAddresses._id': addressId },
       { $set: setFields },
-      { new: true }
+      VALIDATED_QUERY_UPDATE_OPTIONS
     );
 
     logger.info('Patient Address Updated', {
@@ -452,6 +470,30 @@ class PatientService {
     }
 
     return await patient.comparePassword(password);
+  }
+
+  async updatePassword(patientId, currentPassword, newPassword, securityOptions = {}) {
+    const result = await passwordSecurityService.changePassword({
+      IdentityModel: Patient,
+      identityId: patientId,
+      userType: 'patient',
+      currentPassword,
+      newPassword,
+      ...securityOptions,
+      notFoundError: {
+        statusCode: HTTP_STATUS.NOT_FOUND,
+        message: 'Patient not found'
+      },
+      invalidPasswordError: new AuthenticationError('Current password is incorrect')
+    });
+
+    logger.info('Patient Password Updated', {
+      patientId: result.identity._id,
+      email: result.identity.email,
+      revokedSessions: result.revokedSessions
+    });
+
+    return result;
   }
 
   /**

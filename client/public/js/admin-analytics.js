@@ -80,7 +80,7 @@
                 // Show warning if staffing gap exists
                 if (data.predictions.staffingGap > 0) {
                     AppUi.setDisplay(document.getElementById('forecastWarning'), 'block');
-                    displayRecommendations(data.recommendations);
+                    displayRecommendations();
                 }
             }
 
@@ -94,7 +94,7 @@
 
             // Display optimization opportunities
             if (data.optimizationOpportunities && data.optimizationOpportunities.length > 0) {
-                displayOptimization(data.optimizationOpportunities);
+                displayOptimization();
             }
 
             // Display AI applicant ranking

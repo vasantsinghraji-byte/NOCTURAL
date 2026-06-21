@@ -8,6 +8,7 @@
 const HealthMetric = require('../models/healthMetric');
 const Patient = require('../models/patient');
 const logger = require('../utils/logger');
+const { normalizeObjectId, nullProtoObject, setSafeField } = require('../utils/safeMongo');
 const {
   METRIC_TYPES,
   METRIC_UNITS,
@@ -17,13 +18,28 @@ const {
   ANALYTICS_PERIODS
 } = require('../constants/healthConstants');
 const { NotFoundError, ValidationError } = require('../utils/errors');
+const ALLOWED_CONTEXT_FIELDS = new Set(['position', 'fasting', 'activity', 'symptoms', 'notes']);
+
+const withSession = (query, session) => (
+  session && query && typeof query.session === 'function' ? query.session(session) : query
+);
+
+const pickContext = (context = {}) => {
+  const picked = nullProtoObject();
+  Object.entries(context || {}).forEach(([field, value]) => {
+    if (ALLOWED_CONTEXT_FIELDS.has(field)) setSafeField(picked, field, value);
+  });
+  return picked;
+};
 
 class HealthMetricService {
   /**
    * Record a single metric
    */
-  async recordMetric(patientId, metricData, source = {}) {
-    const patient = await Patient.findById(patientId);
+  async recordMetric(patientId, metricData, source = {}, options = {}) {
+    const { session } = options;
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const patient = await withSession(Patient.findById(safePatientId), session);
     if (!patient) {
       throw new NotFoundError('Patient', patientId);
     }
@@ -34,7 +50,7 @@ class HealthMetricService {
     }
 
     const metric = new HealthMetric({
-      patient: patientId,
+      patient: safePatientId,
       metricType: metricData.metricType,
       value: metricData.value,
       unit: metricData.unit || METRIC_UNITS[metricData.metricType],
@@ -44,18 +60,18 @@ class HealthMetricService {
       },
       source: {
         type: source.type || DATA_SOURCES.MANUAL_ENTRY,
-        bookingId: source.bookingId
+        bookingId: source.bookingId ? normalizeObjectId(source.bookingId, 'booking id') : undefined
       },
       notes: metricData.notes,
-      context: metricData.context
+      context: pickContext(metricData.context)
     });
 
-    await metric.save();
+    await metric.save(session ? { session } : undefined);
 
     // Check if abnormal and update patient flag
     if (metric.isAbnormal) {
       patient.hasAbnormalMetrics = true;
-      await patient.save();
+      await patient.save(session ? { session } : undefined);
     }
 
     logger.info('Health metric recorded', {
@@ -71,8 +87,10 @@ class HealthMetricService {
   /**
    * Record multiple metrics at once (e.g., from a booking)
    */
-  async recordMultipleMetrics(patientId, metricsArray, source = {}) {
-    const patient = await Patient.findById(patientId);
+  async recordMultipleMetrics(patientId, metricsArray, source = {}, options = {}) {
+    const { session } = options;
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const patient = await withSession(Patient.findById(safePatientId), session);
     if (!patient) {
       throw new NotFoundError('Patient', patientId);
     }
@@ -84,7 +102,7 @@ class HealthMetricService {
       }
 
       return {
-        patient: patientId,
+        patient: safePatientId,
         metricType: metricData.metricType,
         value: metricData.value,
         unit: metricData.unit || METRIC_UNITS[metricData.metricType],
@@ -94,20 +112,24 @@ class HealthMetricService {
         },
         source: {
           type: source.type || DATA_SOURCES.MANUAL_ENTRY,
-          bookingId: source.bookingId
+          bookingId: source.bookingId ? normalizeObjectId(source.bookingId, 'booking id') : undefined
         },
         notes: metricData.notes,
-        context: metricData.context
+        context: pickContext(metricData.context)
       };
     });
 
     // Batch insert — all succeed or all fail, no silent partial saves
-    const recordedMetrics = await HealthMetric.insertMany(metricDocs);
+    const recordedMetrics = await HealthMetric.insertMany(
+      metricDocs,
+      session ? { session } : undefined
+    );
 
     // Check for abnormal values and update patient flag
     const hasAbnormal = recordedMetrics.some(m => m.isAbnormal);
     if (hasAbnormal) {
-      await Patient.findByIdAndUpdate(patientId, { hasAbnormalMetrics: true });
+      const updateOptions = session ? { session } : undefined;
+      await Patient.findByIdAndUpdate(safePatientId, { hasAbnormalMetrics: true }, updateOptions);
     }
 
     logger.info('Multiple health metrics recorded', {
@@ -130,13 +152,15 @@ class HealthMetricService {
    * Get metrics with filters
    */
   async getMetrics(patientId, filters = {}) {
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
     const { metricType, startDate, endDate, page = 1, limit = 50 } = filters;
     const skip = (page - 1) * limit;
 
-    const query = { patient: patientId };
+    const query = { patient: safePatientId };
 
-    if (metricType) {
-      query.metricType = metricType;
+    const safeMetricType = typeof metricType === 'string' ? metricType.trim().toUpperCase() : '';
+    if (safeMetricType && Object.values(METRIC_TYPES).includes(safeMetricType)) {
+      query.metricType = safeMetricType;
     }
 
     if (startDate || endDate) {

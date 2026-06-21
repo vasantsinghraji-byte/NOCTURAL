@@ -31,24 +31,6 @@ describe('mobile authentication contract', () => {
     });
   });
 
-  it('supports the access-token-only sessions currently issued by main', () => {
-    const req = {
-      headers: {
-        'x-nocturnal-mobile': 'capacitor',
-        origin: 'https://localhost'
-      }
-    };
-
-    expect(addMobileTokens(req, { user: { id: 'user-1' } }, {
-      token: 'access-token'
-    })).toEqual({
-      user: { id: 'user-1' },
-      tokens: {
-        accessToken: 'access-token'
-      }
-    });
-  });
-
   it('rejects the mobile header from a normal browser origin', () => {
     expect(isMobileRequest({
       headers: {

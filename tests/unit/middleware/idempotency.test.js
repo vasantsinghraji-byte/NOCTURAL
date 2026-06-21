@@ -38,12 +38,8 @@ jest.mock('../../../utils/encryptionV2', () => ({
 }));
 
 jest.mock('../../../utils/logger', () => ({ error: jest.fn(), warn: jest.fn(), info: jest.fn() }));
-jest.mock('../../../config/idempotencyIndexes', () => ({
-  isReady: jest.fn(() => true)
-}));
 
 const IdempotencyKey = require('../../../models/idempotencyKey');
-const idempotencyIndexes = require('../../../config/idempotencyIndexes');
 const idempotency = require('../../../middleware/idempotency');
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -69,54 +65,24 @@ const makeRes = () => {
 const KEY = { 'Idempotency-Key': 'key-123' };
 
 describe('idempotency middleware', () => {
-  beforeEach(() => {
-    IdempotencyKey.__store.clear();
-    idempotencyIndexes.isReady.mockReturnValue(true);
-  });
-
-  it('passes through keyless requests when indexes are unavailable', async () => {
-    idempotencyIndexes.isReady.mockReturnValue(false);
-    const res = makeRes();
-    const next = jest.fn();
-
-    await idempotency({ route: 'bookings/create' })(makeReq(), res, next);
-
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(res.sent).toBeNull();
-  });
-
-  it('returns 503 for key-bearing state-creating mutations when indexes are unavailable', async () => {
-    idempotencyIndexes.isReady.mockReturnValue(false);
-    const res = makeRes();
-    const next = jest.fn();
-
-    await idempotency({ route: 'bookings/create' })(makeReq({ headers: KEY }), res, next);
-
-    expect(next).not.toHaveBeenCalled();
-    expect(res.sent.statusCode).toBe(503);
-    expect(res.headers['Retry-After']).toBe('30');
-  });
-
-  it('allows naturally idempotent verification when indexes are unavailable', async () => {
-    idempotencyIndexes.isReady.mockReturnValue(false);
-    const res = makeRes();
-    const next = jest.fn();
-
-    await idempotency({ route: 'payments/verify', failClosed: false })(
-      makeReq({ headers: KEY }),
-      res,
-      next
-    );
-
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(res.sent).toBeNull();
-  });
+  beforeEach(() => IdempotencyKey.__store.clear());
 
   it('passes through when no Idempotency-Key header is present', async () => {
     const next = jest.fn();
     await idempotency({ route: 'bookings/create' })(makeReq(), makeRes(), next);
     expect(next).toHaveBeenCalledTimes(1);
     expect(IdempotencyKey.__store.size).toBe(0);
+  });
+
+  it('rejects a missing Idempotency-Key when the route requires one', async () => {
+    const next = jest.fn();
+    const res = makeRes();
+    await idempotency({ route: 'bookings/complete', required: true })(makeReq(), res, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.sent).toEqual({
+      statusCode: 400,
+      body: { success: false, message: 'Idempotency-Key header is required' }
+    });
   });
 
   it('claims the key, caches the 2xx response, and stores no raw body or PHI', async () => {

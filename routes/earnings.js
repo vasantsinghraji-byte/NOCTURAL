@@ -2,7 +2,24 @@ const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const Earning = require('../models/earning');
+const Duty = require('../models/duty');
+const Application = require('../models/application');
 const { paginate, paginationMiddleware, sendPaginatedResponse } = require('../utils/pagination');
+const { belongsToTenant, getTenantFields, getTenantQuery } = require('../utils/tenantScope');
+const pickAllowedFields = require('../utils/pickAllowedFields');
+
+const EARNING_CREATE_FIELDS = [
+    'user',
+    'duty',
+    'application',
+    'shiftDate',
+    'hoursWorked',
+    'hourlyRate',
+    'totalAmount',
+    'bonuses',
+    'deductions',
+    'expectedPaymentDate'
+];
 
 // Apply pagination middleware
 router.use(paginationMiddleware);
@@ -144,7 +161,47 @@ router.get('/dashboard', protect, authorize('doctor', 'nurse'), async (req, res)
 // @access  Private (Admin only for now)
 router.post('/', protect, authorize('admin'), async (req, res) => {
     try {
-        const earning = new Earning(req.body);
+        // Bind the record to the admin's own hospital so an admin cannot create
+        // earnings under another hospital's name. Fail closed if none is assigned.
+        const tenantQuery = getTenantQuery(req.user);
+        if (!tenantQuery) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized - no hospital assigned to this admin'
+            });
+        }
+
+        const earningData = pickAllowedFields(req.body, EARNING_CREATE_FIELDS);
+
+        // Validate the referenced records belong to the admin's hospital so an
+        // earning cannot reference another hospital's duty/application/user.
+        const duty = await Duty.findById(earningData.duty);
+        if (!belongsToTenant(duty, req.user)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Referenced duty does not belong to your hospital'
+            });
+        }
+
+        const application = await Application.findById(earningData.application);
+        if (!application || application.duty.toString() !== duty._id.toString()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Referenced application does not match the duty'
+            });
+        }
+
+        if (String(application.applicant) !== String(earningData.user)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Referenced user does not match the application'
+            });
+        }
+
+        const earning = new Earning({
+            ...earningData,
+            ...getTenantFields(req.user)
+        });
 
         // Generate invoice number
         earning.generateInvoiceNumber();
@@ -172,7 +229,18 @@ router.put('/:id/payment-status', protect, authorize('admin'), async (req, res) 
     try {
         const { paymentStatus, paymentMethod, paymentDate } = req.body;
 
-        const earning = await Earning.findById(req.params.id);
+        const tenantQuery = getTenantQuery(req.user);
+        if (!tenantQuery) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized - no hospital assigned to this admin'
+            });
+        }
+
+        const earning = await Earning.findOne({
+            _id: req.params.id,
+            ...tenantQuery
+        });
         if (!earning) {
             return res.status(404).json({
                 success: false,

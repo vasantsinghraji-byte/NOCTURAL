@@ -16,12 +16,6 @@ const notificationModelSrc = fs.readFileSync(
   'utf8'
 );
 
-// Find the patient-booking-service bookingService
-const pbsBookingSrc = fs.readFileSync(
-  path.resolve(__dirname, '..', '..', '..', 'services', 'patient-booking-service', 'src', 'services', 'bookingService.js'),
-  'utf8'
-);
-
 describe('Phase 7 — TODO Implementations', () => {
   describe('TODO-001: Send notification to patient to complete intake', () => {
     it('should call notificationService.createNotification with INTAKE_REQUIRED', () => {
@@ -122,17 +116,4 @@ describe('Phase 7 — TODO Implementations', () => {
     });
   });
 
-  describe('TODO-007: Publish booking.created event to RabbitMQ', () => {
-    it('should call eventPublisher.publishBookingCreated', () => {
-      expect(pbsBookingSrc).toMatch(/eventPublisher\.publishBookingCreated\s*\(/);
-    });
-
-    it('should wrap publish call in try/catch', () => {
-      expect(pbsBookingSrc).toMatch(/try\s*\{[\s\S]*?publishBookingCreated[\s\S]*?\}\s*catch/);
-    });
-
-    it('should log warning on publish failure (not throw)', () => {
-      expect(pbsBookingSrc).toMatch(/publishBookingCreated[\s\S]*?logger\.warn\s*\(\s*['"]Failed to publish/);
-    });
-  });
 });

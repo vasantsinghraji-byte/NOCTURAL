@@ -1,24 +1,50 @@
 const MobileDevice = require('../models/mobileDevice');
+const { normalizeObjectId } = require('../utils/safeMongo');
 
 const normalizeOwnerType = (userType) => userType === 'patient' ? 'patient' : 'provider';
+const normalizePlatform = (platform) => {
+  if (platform === 'android' || platform === 'ios') return platform;
+  throw new TypeError('platform is invalid');
+};
+const normalizeQueryValue = (value, field, maxLength) => {
+  if (typeof value !== 'string') {
+    throw new TypeError(`${field} must be a string`);
+  }
 
-const register = ({ owner, userType, token, platform }) => MobileDevice.findOneAndUpdate(
-  { token },
-  {
-    owner,
-    ownerType: normalizeOwnerType(userType),
-    platform,
-    enabled: true,
-    lastSeenAt: new Date()
-  },
-  { new: true, upsert: true, runValidators: true }
-);
+  const normalized = value.trim();
+  if (!normalized || normalized.length > maxLength) {
+    throw new TypeError(`${field} is invalid`);
+  }
+  return normalized;
+};
+
+const findByToken = (token) => MobileDevice.findOne().where('token').equals(token);
+
+const register = async ({ owner, userType, token, platform }) => {
+  const safeToken = normalizeQueryValue(token, 'token', 4096);
+  const safeOwner = normalizeObjectId(owner, 'owner');
+  const safeOwnerType = normalizeOwnerType(userType);
+  const safePlatform = normalizePlatform(platform);
+  let device = await findByToken(safeToken);
+
+  if (!device) {
+    device = new MobileDevice();
+    device.token = safeToken;
+  }
+
+  device.owner = safeOwner;
+  device.ownerType = safeOwnerType;
+  device.platform = safePlatform;
+  device.enabled = true;
+  device.lastSeenAt = new Date();
+  return device.save();
+};
 
 const unregister = ({ owner, userType, token }) => MobileDevice.findOneAndUpdate(
   {
-    owner,
+    owner: normalizeObjectId(owner, 'owner'),
     ownerType: normalizeOwnerType(userType),
-    token
+    token: normalizeQueryValue(token, 'token', 4096)
   },
   {
     enabled: false,
@@ -29,7 +55,7 @@ const unregister = ({ owner, userType, token }) => MobileDevice.findOneAndUpdate
 
 const getEnabledTokens = async ({ owner, userType }) => {
   const devices = await MobileDevice.find({
-    owner,
+    owner: normalizeObjectId(owner, 'owner'),
     ownerType: normalizeOwnerType(userType),
     enabled: true
   }).select('token -_id').lean();
@@ -38,7 +64,7 @@ const getEnabledTokens = async ({ owner, userType }) => {
 };
 
 const disableTokens = (tokens) => MobileDevice.updateMany(
-  { token: { $in: tokens } },
+  { token: { $in: tokens.map(token => normalizeQueryValue(token, 'token', 4096)) } },
   { enabled: false, lastSeenAt: new Date() }
 );
 

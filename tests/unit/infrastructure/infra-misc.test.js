@@ -27,11 +27,12 @@ describe('Phase 6 — Rate Limiting & Miscellaneous', () => {
       'utf8'
     );
 
-    it('should define Redis persistence helpers', () => {
+    it('should define the Redis persistence and restore paths used at runtime', () => {
       expect(src).toMatch(/persistMetricToRedis/);
       expect(src).toMatch(/persistBlockedToRedis/);
-      expect(src).toMatch(/isBlockedInRedis/);
-      expect(src).toMatch(/getMetricFromRedis/);
+      expect(src).toMatch(/restoreBlockedFromRedis/);
+      expect(src).toMatch(/persistMetricToRedis\(type, mapName, key, count\)/);
+      expect(src).toMatch(/persistBlockedToRedis\(ip, blockUntil, blockReason\)/);
     });
 
     it('should use non-critical try-catch for Redis operations', () => {
@@ -150,6 +151,22 @@ describe('Phase 6 — Rate Limiting & Miscellaneous', () => {
     it('should return 408 on timeout', () => {
       expect(src).toMatch(/408/);
       expect(src).toMatch(/Request timed out/);
+    });
+  });
+
+  describe('MISC-006B: HTTP server Slowloris timeouts', () => {
+    const src = fs.readFileSync(
+      path.resolve(__dirname, '..', '..', '..', 'server.js'),
+      'utf8'
+    );
+
+    it('should configure header, request, and keep-alive timeouts on the Node server', () => {
+      expect(src).toMatch(/SERVER_HEADERS_TIMEOUT_MS\s*=\s*10_000/);
+      expect(src).toMatch(/SERVER_REQUEST_TIMEOUT_MS\s*=\s*30_000/);
+      expect(src).toMatch(/SERVER_KEEP_ALIVE_TIMEOUT_MS\s*=\s*5_000/);
+      expect(src).toMatch(/server\.headersTimeout\s*=\s*SERVER_HEADERS_TIMEOUT_MS/);
+      expect(src).toMatch(/server\.requestTimeout\s*=\s*SERVER_REQUEST_TIMEOUT_MS/);
+      expect(src).toMatch(/server\.keepAliveTimeout\s*=\s*SERVER_KEEP_ALIVE_TIMEOUT_MS/);
     });
   });
 

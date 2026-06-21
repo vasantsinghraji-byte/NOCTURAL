@@ -26,58 +26,39 @@ let connectionMetrics = {
 const ensureIdempotencyIndexes = async () => {
   const collection = mongoose.connection.db.collection('idempotencykeys');
 
-  try {
-    // Creating this first also creates the collection on a fresh environment.
-    await collection.createIndex({ scope: 1 }, {
-      name: 'scope_unique_idx',
-      unique: true,
-      background: true
-    });
+  await collection.createIndex({ scope: 1 }, {
+    name: 'scope_unique_idx',
+    unique: true,
+    background: true
+  });
 
-    const existingIndexes = await collection.indexes();
-    const existingTtlIndex = existingIndexes.find((index) => index.name === 'idempotency_ttl_idx');
+  await collection.createIndex({ createdAt: 1 }, {
+    name: 'idempotency_ttl_idx',
+    expireAfterSeconds: IDEMPOTENCY_TTL_SECONDS,
+    background: true
+  });
 
-    // MongoDB rejects createIndex when the same named TTL index exists with a
-    // different expiry. Change TTL intentionally with collMod or the index
-    // migration script before deploying a new IDEMPOTENCY_TTL_SECONDS value.
-    if (existingTtlIndex && existingTtlIndex.expireAfterSeconds !== IDEMPOTENCY_TTL_SECONDS) {
-      throw new Error(
-        `idempotency_ttl_idx retention mismatch: expected ${IDEMPOTENCY_TTL_SECONDS}, ` +
-        `found ${existingTtlIndex.expireAfterSeconds}; update it with collMod before deployment`
-      );
-    }
+  const indexes = await collection.indexes();
+  const scopeIndex = indexes.find((index) => index.name === 'scope_unique_idx');
+  const ttlIndex = indexes.find((index) => index.name === 'idempotency_ttl_idx');
 
-    if (!existingTtlIndex) {
-      await collection.createIndex({ createdAt: 1 }, {
-        name: 'idempotency_ttl_idx',
-        expireAfterSeconds: IDEMPOTENCY_TTL_SECONDS,
-        background: true
-      });
-    }
-
-    const indexes = await collection.indexes();
-    const scopeIndex = indexes.find((index) => index.name === 'scope_unique_idx');
-    const ttlIndex = indexes.find((index) => index.name === 'idempotency_ttl_idx');
-
-    if (!scopeIndex?.unique || ttlIndex?.expireAfterSeconds !== IDEMPOTENCY_TTL_SECONDS) {
-      throw new Error('Idempotency index verification failed');
-    }
-
-    idempotencyIndexes.markReady();
-    logger.info('Idempotency indexes verified', {
-      uniqueScope: true,
-      retentionSeconds: IDEMPOTENCY_TTL_SECONDS
-    });
-  } catch (error) {
-    idempotencyIndexes.markUnavailable(error);
-    throw error;
+  if (!scopeIndex?.unique || ttlIndex?.expireAfterSeconds !== IDEMPOTENCY_TTL_SECONDS) {
+    throw new Error('Idempotency index verification failed');
   }
+
+  idempotencyIndexes.markReady();
+
+  logger.info('Idempotency indexes verified', {
+    uniqueScope: true,
+    retentionSeconds: IDEMPOTENCY_TTL_SECONDS
+  });
 };
 
 const verifyIdempotencyIndexesAvailability = async () => {
   try {
     await ensureIdempotencyIndexes();
   } catch (error) {
+    idempotencyIndexes.markUnavailable(error);
     logger.error('Idempotency indexes unavailable; protected mutations disabled', {
       error: error.message
     });
@@ -164,10 +145,6 @@ const startHealthCheck = () => {
       });
     }
   }, HEALTH_CHECK_INTERVAL);
-
-  if (typeof healthCheckIntervalId.unref === 'function') {
-    healthCheckIntervalId.unref();
-  }
 };
 
 const stopHealthCheck = () => {
@@ -187,10 +164,6 @@ const scheduleReconnect = () => {
     reconnectTimeoutId = null;
     connectDB();
   }, backoffTime);
-
-  if (typeof reconnectTimeoutId.unref === 'function') {
-    reconnectTimeoutId.unref();
-  }
 };
 
 const initializeConnectionMonitoring = () => {
@@ -290,12 +263,14 @@ const connectDB = async () => {
       retryWrites: true,
       retryReads: true,
       writeConcern: { w: 'majority', j: true, wtimeout: 10000 },
-      readPreference: process.env.MONGODB_READ_PREFERENCE || 'secondaryPreferred'
+      // Default to primaryPreferred to match render.yaml and give read-after-write
+      // consistency for health data. Set MONGODB_READ_PREFERENCE=secondaryPreferred
+      // to offload reads on a true replica set when eventual consistency is acceptable.
+      readPreference: process.env.MONGODB_READ_PREFERENCE || 'primaryPreferred'
     };
 
     await mongoose.connect(process.env.MONGODB_URI, options);
-
-    await verifyIdempotencyIndexesAvailability();
+    await ensureIdempotencyIndexes();
 
     isConnected = true;
     reconnectAttempts = 0; // Reset reconnect attempts on successful connection
@@ -309,6 +284,11 @@ const connectDB = async () => {
       environment: process.env.NODE_ENV
     });
   } catch (error) {
+    isConnected = false;
+    if (mongoose.connection.readyState) {
+      await mongoose.connection.close().catch(() => {});
+    }
+
     logger.error('MongoDB connection error', {
       error: error.message,
       stack: error.stack

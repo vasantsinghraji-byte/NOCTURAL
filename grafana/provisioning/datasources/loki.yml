@@ -12,11 +12,14 @@ datasources:
     editable: true
     jsonData:
       maxLines: 1000
+      httpHeaderName1: X-Scope-OrgID
       derivedFields:
         - datasourceUid: loki
           matcherRegex: "traceID=(\\w+)"
           name: TraceID
           url: "$${__value.raw}"
+    secureJsonData:
+      httpHeaderValue1: nocturnal
 
   - name: Elasticsearch
     type: elasticsearch

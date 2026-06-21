@@ -47,7 +47,10 @@ scrape_configs:
         target_label: kubernetes_namespace
       - source_labels: [__meta_kubernetes_pod_name]
         target_label: kubernetes_pod_name
-    metrics_path: '/api/admin/metrics'
+    metrics_path: '/api/v1/admin/metrics'
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/nocturnal-metrics-token
     scrape_interval: 30s
 
   # MongoDB exporter

@@ -107,12 +107,12 @@
             const grid = document.getElementById('vitalsGrid');
 
             if (!vitals || Object.keys(vitals).length === 0) {
-                grid.innerHTML = `
+                AppUi.setSafeHtml(grid, `
                     <div class="empty-state empty-state-full">
                         <div class="icon">📊</div>
                         <p>No vitals recorded yet</p>
                     </div>
-                `;
+                `);
                 return;
             }
 
@@ -152,7 +152,7 @@
                 `;
             }
 
-            grid.innerHTML = html || '<div class="empty-state"><p>No vitals recorded</p></div>';
+            AppUi.setSafeHtml(grid, html || '<div class="empty-state"><p>No vitals recorded</p></div>');
         }
 
         // Display conditions
@@ -160,13 +160,13 @@
             const list = document.getElementById('conditionsList');
 
             if (!conditions || conditions.count === 0) {
-                list.innerHTML = '<div class="empty-state"><p>No conditions recorded</p></div>';
+                AppUi.setSafeHtml(list, '<div class="empty-state"><p>No conditions recorded</p></div>');
                 return;
             }
 
-            list.innerHTML = conditions.items.map(c => `
+            AppUi.setSafeHtml(list, conditions.items.map(c => `
                 <span class="tag condition severity-${(c.severity || 'mild').toLowerCase()}">${c.name}</span>
-            `).join('');
+            `).join(''));
         }
 
         // Display allergies
@@ -174,13 +174,13 @@
             const list = document.getElementById('allergiesList');
 
             if (!allergies || allergies.count === 0) {
-                list.innerHTML = '<div class="empty-state"><p>No allergies recorded</p></div>';
+                AppUi.setSafeHtml(list, '<div class="empty-state"><p>No allergies recorded</p></div>');
                 return;
             }
 
-            list.innerHTML = allergies.items.map(a => `
+            AppUi.setSafeHtml(list, allergies.items.map(a => `
                 <span class="tag allergy severity-${(a.severity || 'mild').toLowerCase()}">${a.allergen}</span>
-            `).join('');
+            `).join(''));
         }
 
         // Display medications
@@ -188,13 +188,13 @@
             const list = document.getElementById('medicationsList');
 
             if (!medications || medications.count === 0) {
-                list.innerHTML = '<div class="empty-state"><p>No medications recorded</p></div>';
+                AppUi.setSafeHtml(list, '<div class="empty-state"><p>No medications recorded</p></div>');
                 return;
             }
 
-            list.innerHTML = medications.items.map(m => `
+            AppUi.setSafeHtml(list, medications.items.map(m => `
                 <span class="tag medication">${m.name} ${m.dosage ? `(${m.dosage})` : ''}</span>
-            `).join('');
+            `).join(''));
         }
 
         // Display emergency card
@@ -204,7 +204,7 @@
 
             AppUi.setDisplay(card, 'block');
 
-            grid.innerHTML = `
+            AppUi.setSafeHtml(grid, `
                 <div class="emergency-item">
                     <div class="label">Blood Group</div>
                     <div class="value">${summary.bloodGroup || 'Not specified'}</div>
@@ -221,7 +221,7 @@
                     <div class="label">Current Medications</div>
                     <div class="value">${summary.medications?.count || 0}</div>
                 </div>
-            `;
+            `);
         }
 
         // Load who has access
@@ -238,7 +238,7 @@
                 document.getElementById('accessCount').textContent = data.accessTokens?.length || 0;
             } catch (error) {
                 console.error('Error loading access info:', error);
-                document.getElementById('accessLog').innerHTML = '<div class="empty-state"><p>Failed to load access information</p></div>';
+                AppUi.setSafeHtml(document.getElementById('accessLog'), '<div class="empty-state"><p>Failed to load access information</p></div>');
             }
         }
 
@@ -247,17 +247,17 @@
             const log = document.getElementById('accessLog');
 
             if (tokens.length === 0) {
-                log.innerHTML = `
+                AppUi.setSafeHtml(log, `
                     <div class="empty-state">
                         <div class="icon">🔒</div>
                         <h4>No one has access</h4>
                         <p>Your health data is private. Access will be granted when you book a service.</p>
                     </div>
-                `;
+                `);
                 return;
             }
 
-            log.innerHTML = tokens.map(t => `
+            AppUi.setSafeHtml(log, tokens.map(t => `
                 <div class="access-item">
                     <div class="access-avatar">${t.grantedTo?.name?.charAt(0) || 'D'}</div>
                     <div class="access-details">
@@ -267,7 +267,7 @@
                     <span class="access-status active">Active</span>
                     <button class="btn-revoke" data-token-id="${t._id}">Revoke</button>
                 </div>
-            `).join('');
+            `).join(''));
         }
 
         // Revoke access

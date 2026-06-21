@@ -5,10 +5,6 @@
         : false;
 
     if (isNative && !windowObject.__NOCTURNAL_API_ORIGIN__) {
-        Object.defineProperty(windowObject, '__NOCTURNAL_API_ORIGIN__', {
-            configurable: true,
-            writable: true,
-            value: 'https://nocturnal-api.onrender.com'
-        });
+        windowObject.__NOCTURNAL_API_ORIGIN__ = 'https://nocturnal-api.onrender.com';
     }
 })(window);

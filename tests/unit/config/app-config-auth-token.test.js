@@ -59,7 +59,7 @@ function loadAppConfig(storageValues = {}) {
 }
 
 describe('AppConfig auth token storage', () => {
-  it('should remove legacy patientToken values because auth now uses httpOnly cookies', () => {
+  it('should remove legacy patientToken values instead of migrating JWTs into localStorage', () => {
     const { AppConfig, localStorage } = loadAppConfig({
       patientToken: 'legacy-patient-token'
     });
@@ -69,7 +69,7 @@ describe('AppConfig auth token storage', () => {
     expect(localStorage.getItem('patientToken')).toBeNull();
   });
 
-  it('should remove legacy providerToken values because auth now uses httpOnly cookies', () => {
+  it('should remove legacy providerToken values instead of migrating JWTs into localStorage', () => {
     const { AppConfig, localStorage } = loadAppConfig({
       providerToken: 'legacy-provider-token'
     });
@@ -79,9 +79,10 @@ describe('AppConfig auth token storage', () => {
     expect(localStorage.getItem('providerToken')).toBeNull();
   });
 
-  it('should report authentication state from stored user metadata, not bearer tokens', () => {
+  it('should report authentication state from non-sensitive profile metadata', () => {
     const authenticated = loadAppConfig({
-      user: JSON.stringify({ id: 'user-1' })
+      userType: 'doctor',
+      userId: 'user123'
     });
     const unauthenticated = loadAppConfig();
 
@@ -101,5 +102,16 @@ describe('AppConfig auth token storage', () => {
     expect(localStorage.getItem('token')).toBeNull();
     expect(localStorage.getItem('patientToken')).toBeNull();
     expect(localStorage.getItem('providerToken')).toBeNull();
+  });
+
+  it('should not add Authorization headers for cookie-backed sessions', () => {
+    const { AppConfig } = loadAppConfig({
+      userType: 'doctor',
+      userId: 'user123'
+    });
+
+    expect(AppConfig.getAuthHeaders()).toEqual({
+      'Content-Type': 'application/json'
+    });
   });
 });

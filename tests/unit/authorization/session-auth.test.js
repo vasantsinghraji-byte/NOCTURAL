@@ -30,38 +30,34 @@ describe('Authorization Unit: session invalidation and login save isolation', ()
   });
 
   describe('AUTH-007: Patient password change (source analysis)', () => {
-    it('source code updatePassword should call patient.save() after setting password', () => {
+    it('delegates password mutation to the shared transactional security service', () => {
       const fs = require('fs');
       const path = require('path');
-      const src = fs.readFileSync(
-        path.resolve(__dirname, '..', '..', '..', 'services', 'patient-booking-service', 'src', 'services', 'patientService.js'),
+      const patientServiceSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'services', 'patientService.js'),
+        'utf8'
+      );
+      const securityServiceSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', 'services', 'passwordSecurityService.js'),
         'utf8'
       );
 
-      // Extract updatePassword method body
-      const methodMatch = src.match(/async updatePassword\b[\s\S]*?(?=\n\s{2}async |\n\s{2}\/\*\*|\n})/);
-      expect(methodMatch).not.toBeNull();
-      const methodBody = methodMatch[0];
-
-      // Should set password and call save
-      expect(methodBody).toContain('patient.password = newPassword');
-      expect(methodBody).toContain('await patient.save()');
+      expect(patientServiceSrc).toContain('passwordSecurityService.changePassword');
+      expect(securityServiceSrc).toContain('identity.password = newPassword');
+      expect(securityServiceSrc).toContain('await identity.save');
+      expect(securityServiceSrc).toContain('session.withTransaction');
     });
 
-    it('source code updatePassword should verify current password before changing', () => {
+    it('shared password security service verifies the current password before changing it', () => {
       const fs = require('fs');
       const path = require('path');
       const src = fs.readFileSync(
-        path.resolve(__dirname, '..', '..', '..', 'services', 'patient-booking-service', 'src', 'services', 'patientService.js'),
+        path.resolve(__dirname, '..', '..', '..', 'services', 'passwordSecurityService.js'),
         'utf8'
       );
 
-      const methodMatch = src.match(/async updatePassword\b[\s\S]*?(?=\n\s{2}async |\n\s{2}\/\*\*|\n})/);
-      expect(methodMatch).not.toBeNull();
-      const methodBody = methodMatch[0];
-
-      // Should verify current password
-      expect(methodBody).toContain('comparePassword');
+      expect(src).toContain('comparePassword(currentPassword)');
+      expect(src.indexOf('comparePassword(currentPassword)')).toBeLessThan(src.indexOf('identity.password = newPassword'));
     });
   });
 

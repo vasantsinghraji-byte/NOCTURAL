@@ -10,19 +10,40 @@
  * - ERR-008: Redis connection waits for 'ready' event with timeout
  */
 
-const { readProjectFile } = require('./projectFileReader');
+/* eslint-disable security/detect-non-literal-fs-filename */
 
-const validateEnvSrc = readProjectFile('config/validateEnv.js');
+const fs = require('fs');
+const path = require('path');
 
-const storageSrc = readProjectFile('config/storage.js');
+const validateEnvSrc = fs.readFileSync(
+  path.resolve(__dirname, '..', '..', '..', 'config', 'validateEnv.js'),
+  'utf8'
+);
 
-const rateLimiterSrc = readProjectFile('middleware/rateLimiter.js');
+const storageSrc = fs.readFileSync(
+  path.resolve(__dirname, '..', '..', '..', 'config', 'storage.js'),
+  'utf8'
+);
 
-const redisSrc = readProjectFile('config/redis.js');
+const rateLimiterSrc = fs.readFileSync(
+  path.resolve(__dirname, '..', '..', '..', 'middleware', 'rateLimiter.js'),
+  'utf8'
+);
 
-const serverSrc = readProjectFile('server.js');
+const redisSrc = fs.readFileSync(
+  path.resolve(__dirname, '..', '..', '..', 'config', 'redis.js'),
+  'utf8'
+);
 
-const appSrc = readProjectFile('app.js');
+const serverSrc = fs.readFileSync(
+  path.resolve(__dirname, '..', '..', '..', 'server.js'),
+  'utf8'
+);
+
+const appSrc = fs.readFileSync(
+  path.resolve(__dirname, '..', '..', '..', 'app.js'),
+  'utf8'
+);
 
 const auditedScriptFiles = [
   'seed.js',
@@ -61,8 +82,9 @@ describe('Config Infrastructure Validation', () => {
   });
 
   describe('VAL-014: Rate limiter key generation', () => {
-    it('should use user ID when available, otherwise IP', () => {
+    it('should use user ID when available, otherwise IPv6-safe IP helper', () => {
       expect(rateLimiterSrc).toMatch(/keyGenerator/);
+      expect(rateLimiterSrc).toMatch(/rateLimitKeyGenerator/);
       expect(rateLimiterSrc).toMatch(/req\.user\?\._id\s*\|\|\s*req\.user\?\.id/);
       expect(rateLimiterSrc).toMatch(/ipKeyGenerator\(req\.ip/);
     });
@@ -115,8 +137,7 @@ describe('Config Infrastructure Validation', () => {
 
   describe('ERR-009: Environment loaded before env-sensitive imports', () => {
     it('should call dotenv.config() before requiring env-sensitive local modules and route bootstrap code', () => {
-      const dotenvMatch = serverSrc.match(/dotenv\.config\([^)]*\)/);
-      const dotenvIndex = dotenvMatch ? dotenvMatch.index : -1;
+      const dotenvIndex = serverSrc.indexOf('dotenv.config(');
       const databaseIndex = serverSrc.indexOf("require('./config/database')");
       const rateLimitIndex = serverSrc.indexOf("require('./config/rateLimit')");
       const appBootstrapIndex = serverSrc.indexOf("require('./app')");
@@ -134,7 +155,10 @@ describe('Config Infrastructure Validation', () => {
     });
 
     it.each(auditedScriptFiles)('should load dotenv early in %s', (relativePath) => {
-      const scriptSrc = readProjectFile(relativePath);
+      const scriptSrc = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', '..', relativePath),
+        'utf8'
+      );
 
       const dotenvIndex = scriptSrc.indexOf("require('dotenv').config()");
       const envIndex = scriptSrc.indexOf('process.env');
