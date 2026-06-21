@@ -45,7 +45,7 @@ function countOpenCodeqlAlerts(repository, ref) {
 
 function resolveCodeqlBaselineRef(baseRef, headRef = '') {
   if (baseRef === 'develop' && headRef === 'release/promote-integration-to-develop') {
-    return 'refs/heads/integration';
+    return 'refs/heads/chore/pr-stack-base-d3ca3d7';
   }
   if (baseRef === 'main' && headRef === 'release/promote-develop-to-main') {
     return 'refs/heads/develop';

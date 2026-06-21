@@ -48,7 +48,7 @@ function makeAlert(number, ruleId, filePath, severity = 'warning', securitySever
 describe('CodeQL alert export helpers', () => {
   it('uses integration as the baseline for integration-to-develop promotion PRs', () => {
     expect(resolveCodeqlBaselineRef('develop', 'release/promote-integration-to-develop'))
-      .toBe('refs/heads/integration');
+      .toBe('refs/heads/chore/pr-stack-base-d3ca3d7');
     expect(resolveCodeqlBaselineRef('main', 'release/promote-develop-to-main'))
       .toBe('refs/heads/develop');
     expect(resolveCodeqlBaselineRef('develop', 'feature/example'))
