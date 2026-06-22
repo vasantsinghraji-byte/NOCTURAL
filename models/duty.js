@@ -251,7 +251,7 @@ const DutySchema = new mongoose.Schema({
 });
 
 // Calculate total compensation, duration, and net payment
-DutySchema.pre('save', function(next) {
+DutySchema.pre('save', function() {
   // Calculate duration if not set
   if (this.startTime && this.endTime && !this.duration) {
     const start = parseInt(this.startTime.split(':')[0]);
@@ -276,7 +276,6 @@ DutySchema.pre('save', function(next) {
     this.netPayment = this.totalCompensation - feeAmount;
   }
 
-  next();
 });
 
 // Method to calculate match score for a doctor

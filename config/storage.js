@@ -49,7 +49,7 @@ if (USE_GCS && process.env.GCS_BUCKET) {
         const errMsg = 'Failed to parse GCS_CREDENTIALS — check that the value is valid Base64-encoded JSON';
         logger.error(errMsg, { error: e.message });
         if (process.env.NODE_ENV === 'production') {
-          throw new Error(errMsg + ': ' + e.message);
+          throw new Error(errMsg + ': ' + e.message, { cause: e });
         }
       }
     }

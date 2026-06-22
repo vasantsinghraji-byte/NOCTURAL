@@ -289,16 +289,15 @@ PatientSchema.methods.comparePassword = async function(candidatePassword) {
   try {
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
-    throw new Error('Password comparison failed');
+    throw new Error('Password comparison failed', { cause: error });
   }
 };
 
 // Generate referral code
-PatientSchema.pre('save', function(next) {
+PatientSchema.pre('save', function() {
   if (!this.referralCode) {
     this.referralCode = 'PAT' + Math.random().toString(36).substring(2, 8).toUpperCase();
   }
-  next();
 });
 
 // Indexes

@@ -7,12 +7,10 @@ const noRawHtmlSinks = require('./tools/eslint-rules/no-raw-html-sinks');
 const commonRules = {
   'no-console': 'warn',
   'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-  // eslint 10 promotes these to errors via recommended; develop's pre-merge
-  // lint treated them as non-blocking. Keep them as warnings (within the lint
-  // warning budget) for the develop->main promotion; tracked for follow-up
-  // (attach `cause` to rethrown errors; drop the dead assignments).
-  'preserve-caught-error': 'warn',
-  'no-useless-assignment': 'warn',
+  // eslint 10 recommended rules — kept as errors now that all violations are
+  // resolved (rethrown errors attach `cause`; no dead assignments).
+  'preserve-caught-error': 'error',
+  'no-useless-assignment': 'error',
   'no-eval': 'error',
   'no-implied-eval': 'error',
   'no-buffer-constructor': 'error',

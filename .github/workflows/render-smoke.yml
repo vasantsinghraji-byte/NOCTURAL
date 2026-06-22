@@ -8,18 +8,25 @@ on:
       - CI - Continuous Integration
     types:
       - completed
+  # Reliable post-deploy trigger: Render runs auto-deploy outside GitHub Actions,
+  # so configure a Render "Deploy succeeded" notification/webhook to POST a
+  # repository_dispatch with event_type "render-deploy-succeeded" (see
+  # docs/ops/render-post-deploy-smoke.md). That fires this smoke against the
+  # freshly deployed instance instead of racing the deploy.
+  repository_dispatch:
+    types: [ render-deploy-succeeded ]
   workflow_dispatch:
     inputs:
       deployed_base_url:
         description: Deployed base URL to smoke test
         required: false
         type: string
-        default: https://nocturnal-api.onrender.com
+        default: https://noctural.onrender.com
       origin:
         description: Browser Origin header to verify
         required: false
         type: string
-        default: https://nocturnal.com
+        default: https://noctural.onrender.com
 
 permissions:
   contents: read

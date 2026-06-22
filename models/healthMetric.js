@@ -139,7 +139,7 @@ HealthMetricSchema.index(
 ); // One derived metric of each type per booking
 
 // Pre-save: Set unit from constant if not provided
-HealthMetricSchema.pre('save', function(next) {
+HealthMetricSchema.pre('save', function() {
   // Set unit from constant if not provided
   if (!this.unit && METRIC_UNITS[this.metricType]) {
     this.unit = METRIC_UNITS[this.metricType];
@@ -171,7 +171,6 @@ HealthMetricSchema.pre('save', function(next) {
     }
   }
 
-  next();
 });
 
 // Static: Record a metric

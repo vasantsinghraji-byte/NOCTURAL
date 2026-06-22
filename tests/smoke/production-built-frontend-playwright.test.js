@@ -120,7 +120,7 @@ describe('Production Smoke: built frontend routes in Playwright', () => {
     } catch (error) {
       if (isBrowserLaunchBlocked(error)) {
         if (shouldRequireBrowserLaunch()) {
-          throw new Error(`Chromium launch was blocked in a strict Playwright environment: ${error.message}`);
+          throw new Error(`Chromium launch was blocked in a strict Playwright environment: ${error.message}`, { cause: error });
         }
 
         browserLaunchBlockedReason = error.message;

@@ -128,8 +128,8 @@
                 const hasDocument = doc.data && doc.data.url;
                 const isVerified = doc.data && doc.data.verified;
 
-                let statusHTML = '';
-                let statusClass = '';
+                let statusHTML;
+                let statusClass;
                 if (hasDocument) {
                     if (isVerified) {
                         statusHTML = '<i class="fas fa-check-circle"></i> Verified';

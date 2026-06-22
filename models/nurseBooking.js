@@ -324,7 +324,7 @@ NurseBookingSchema.index({ createdAt: -1 });
 NurseBookingSchema.index({ status: 1, 'completionAccounting.appliedAt': 1 });
 
 // Pre-save hook to set timestamps
-NurseBookingSchema.pre('save', function(next) {
+NurseBookingSchema.pre('save', function() {
   if (this.isModified('status')) {
     const now = new Date();
     switch(this.status) {
@@ -351,7 +351,6 @@ NurseBookingSchema.pre('save', function(next) {
         break;
     }
   }
-  next();
 });
 
 // Method to calculate total amount
