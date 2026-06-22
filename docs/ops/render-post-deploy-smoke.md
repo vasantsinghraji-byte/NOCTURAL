@@ -43,3 +43,28 @@ gh workflow run render-smoke.yml --ref main \
   -f deployed_base_url=https://noctural.onrender.com \
   -f origin=https://noctural.onrender.com
 ```
+
+## Residue-free production verification
+
+When manually verifying a deploy (e.g. "registration/login work"), **do not use
+`POST /api/v1/auth/register`** — those accounts are permanent and must be deleted
+by hand. Instead use the staging smoke endpoint, which mints a short-lived account
+that **auto-expires via the existing TTL index** on `User.smokeTestExpiresAt`
+(`models/user.js`) and can be revoked immediately:
+
+```
+# enable the gated test API (temporarily) and set a secret on the service:
+#   ENABLE_STAGING_TEST_APIS=true   STAGING_TEST_API_SECRET=<secret>
+
+# create a short-lived account (auto-expires; default TTL via the service)
+curl -X POST https://noctural.onrender.com/api/v1/staging/webauthn-smoke/accounts \
+  -H "x-staging-test-secret: <secret>"
+
+# revoke it immediately when done
+curl -X DELETE https://noctural.onrender.com/api/v1/staging/webauthn-smoke/accounts/<accountId> \
+  -H "x-staging-test-secret: <secret>"
+```
+
+MongoDB's TTL monitor removes any expired account within ~60s, so even an
+un-revoked account leaves no lasting residue. Regular users (no
+`smokeTestExpiresAt`) are never affected.
