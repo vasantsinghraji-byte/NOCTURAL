@@ -114,19 +114,61 @@ services:
   loki:
     image: grafana/loki:2.9.0
     container_name: nocturnal-loki
-    ports:
-      - "3100:3100"
+    expose:
+      - "3100"      # Internal only - access through Grafana/Promtail or loki-auth-proxy
     volumes:
       - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
     networks:
-      - logging-network
+      - loki-network
     healthcheck:
       test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:3100/ready"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  # OIDC session validator for production Loki API access.
+  loki-oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    container_name: nocturnal-loki-oauth2-proxy
+    command:
+      - --http-address=0.0.0.0:4180
+      - --provider=oidc
+      - --oidc-issuer-url=${LOKI_OIDC_ISSUER_URL:?LOKI_OIDC_ISSUER_URL is required}
+      - --client-id=${LOKI_OIDC_CLIENT_ID:?LOKI_OIDC_CLIENT_ID is required}
+      - --client-secret=${LOKI_OIDC_CLIENT_SECRET:?LOKI_OIDC_CLIENT_SECRET is required}
+      - --cookie-secret=${LOKI_OIDC_COOKIE_SECRET:?LOKI_OIDC_COOKIE_SECRET is required}
+      - --cookie-secure=true
+      - --email-domain=${LOKI_OIDC_EMAIL_DOMAINS:-*}
+      - --reverse-proxy=true
+      - --set-xauthrequest=true
+      - --upstream=static://202
+    expose:
+      - "4180"
+    networks:
+      - logging-network
+    restart: unless-stopped
+
+  # Authenticated Loki gateway. OIDC is enforced before NGINX injects the tenant header.
+  loki-auth-proxy:
+    image: nginx:1.25-alpine
+    container_name: nocturnal-loki-auth-proxy
+    ports:
+      - "127.0.0.1:${LOKI_AUTH_PROXY_PORT:-3101}:8080"
+    environment:
+      - LOKI_TENANT_ID=${LOKI_TENANT_ID:-nocturnal}
+    volumes:
+      - ./loki/loki-auth-proxy.conf.template:/etc/nginx/templates/default.conf.template:ro
+    networks:
+      - logging-network
+      - loki-network
+    depends_on:
+      loki:
+        condition: service_healthy
+      loki-oauth2-proxy:
+        condition: service_started
     restart: unless-stopped
 
   # Promtail - Log Collector for Loki
@@ -141,7 +183,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     command: -config.file=/etc/promtail/config.yml
     networks:
-      - logging-network
+      - loki-network
     depends_on:
       loki:
         condition: service_healthy
@@ -164,6 +206,7 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     networks:
       - logging-network
+      - loki-network
     depends_on:
       loki:
         condition: service_healthy
@@ -177,6 +220,9 @@ services:
 networks:
   logging-network:
     driver: bridge
+  loki-network:
+    driver: bridge
+    internal: true
 
 volumes:
   elasticsearch_data:

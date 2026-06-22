@@ -170,6 +170,18 @@ function createBaseContext() {
     window: windowObject,
     navigator: { serviceWorker: { addEventListener: jest.fn() }, onLine: true },
     AppConfig: undefined,
+    AppUi: {
+      setSafeHtml(element, html) {
+        if (element) {
+          element.innerHTML = html;
+        }
+      },
+      appendSafeHtml(element, html) {
+        if (element) {
+          element.innerHTML += html;
+        }
+      }
+    },
     URLSearchParams,
     __documentListeners: documentListeners
   };
@@ -254,11 +266,11 @@ function createElementNode(tagName) {
 
   node.querySelector = function(selector) {
     if (selector === '[data-sw-action="reload"]') {
-      return this.reloadButton || null;
+      return this.reloadButton || this.children.find(child => child.dataset?.swAction === 'reload') || null;
     }
 
     if (selector === '[data-sw-action="dismiss"]') {
-      return this.dismissButton || null;
+      return this.dismissButton || this.children.find(child => child.dataset?.swAction === 'dismiss') || null;
     }
 
     return null;

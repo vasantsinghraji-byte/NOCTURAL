@@ -9,8 +9,6 @@ const tasks = gradleTasks.length > 0 ? gradleTasks : ['assembleDebug'];
 
 const getJavaMajorVersion = (javaHome) => {
   const executable = path.join(javaHome, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
-  // The executable path is derived only from configured/local JDK directories.
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!fs.existsSync(executable)) return null;
 
   const result = spawnSync(executable, ['-version'], { encoding: 'utf8' });

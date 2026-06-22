@@ -48,5 +48,8 @@
     "@babel/core": "$@babel/core",
     "js-yaml": "4.2.0",
     "ws": "7.5.11"
+  },
+  "dependencies": {
+    "dompurify": "^3.4.11"
   }
 }

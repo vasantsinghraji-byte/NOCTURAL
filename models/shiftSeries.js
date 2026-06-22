@@ -126,8 +126,8 @@ shiftSeriesSchema.index({ 'shifts.date': 1 });
 shiftSeriesSchema.index({ hospital: 1 });
 shiftSeriesSchema.index({ hospitalId: 1, createdAt: -1 });
 
-// Pre-save hook to calculate discounted rate and total compensation
-shiftSeriesSchema.pre('save', function(next) {
+// Calculate required derived fields before validation.
+shiftSeriesSchema.pre('validate', function(next) {
     if (this.baseHourlyRate && this.seriesDiscount !== undefined) {
         this.discountedRate = this.baseHourlyRate * (1 - this.seriesDiscount / 100);
     }
@@ -230,6 +230,7 @@ shiftSeriesSchema.statics.createDutiesFromSeries = async function(seriesId) {
         const duty = new Duty({
             title: `${series.title} - Day ${i + 1}`,
             hospital: series.hospital,
+            hospitalId: series.hospitalId,
             specialty: series.specialty,
             description: series.description + `\n\nPart of a ${series.totalShifts}-shift series with ${series.seriesDiscount}% discount.`,
             date: shift.date,

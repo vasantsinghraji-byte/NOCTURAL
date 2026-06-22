@@ -338,6 +338,7 @@ DutySchema.methods.calculateMatchScore = function(doctor) {
 // Database Indexes for Performance
 DutySchema.index({ specialty: 1, date: 1 }); // Finding duties by specialty and date (most common search)
 DutySchema.index({ hospital: 1, status: 1 }); // Hospital's duty management
+DutySchema.index({ hospitalId: 1, status: 1 }); // Immutable tenant-scoped duty management
 DutySchema.index({ status: 1, date: 1 }); // Active duties by date (for listings)
 DutySchema.index({ location: 1, specialty: 1 }); // Location-based duty search
 DutySchema.index({ date: 1, startTime: 1 }); // Chronological duty sorting

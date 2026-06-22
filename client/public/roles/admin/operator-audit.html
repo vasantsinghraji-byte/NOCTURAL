@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operator Security Audit - Nocturnal Admin</title>
+    <link rel="stylesheet" href="/css/pages/roles-admin-admin-settings.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/admin-session.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Nocturnal Admin</div>
+        <div class="nav-links">
+            <a href="/roles/admin/admin-dashboard.html">Dashboard</a>
+            <a href="/roles/admin/admin-post-duty.html">Post Duty</a>
+            <a href="/roles/admin/admin-applications.html">Applications</a>
+            <a href="/roles/admin/admin-analytics.html">Analytics</a>
+            <a href="/roles/admin/admin-waitlist.html">Waitlist</a>
+            <a href="/roles/admin/admin-settings.html">Settings</a>
+            <a href="/roles/admin/operator-audit.html" class="active">Operator Audit</a>
+            <a href="/roles/admin/admin-profile.html">Profile</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <span id="userName">Loading...</span>
+            <button id="logout-btn" class="logout-btn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>Operator Security Audit</h1>
+            <p>Review passkey revocation, recovery-code generation, and lost-device recovery events.</p>
+        </div>
+
+        <section class="settings-section">
+            <h2 class="section-title">Search Filters</h2>
+            <form id="operatorAuditFilters" class="form-grid">
+                <div class="form-group">
+                    <label for="auditEvent">Event</label>
+                    <select id="auditEvent">
+                        <option value="">All WebAuthn recovery events</option>
+                        <option value="webauthn_recovery_codes_generated">Recovery codes generated</option>
+                        <option value="webauthn_lost_device_recovered">Lost-device recovery completed</option>
+                        <option value="webauthn_lost_device_recovery_failed">Lost-device recovery failed</option>
+                        <option value="webauthn_passkey_revoked">Passkey revoked</option>
+                        <option value="security_audit_export_created">Audit export created</option>
+                        <option value="security_audit_export_downloaded">Audit export downloaded</option>
+                        <option value="security_audit_export_cancelled">Audit export cancelled</option>
+                        <option value="security_audit_export_retried">Audit export retried</option>
+                        <option value="security_audit_export_checksum_mismatch">Audit export checksum mismatch</option>
+                        <option value="security_audit_export_cleanup_deleted">Audit export cleanup deleted</option>
+                        <option value="security_audit_export_quarantine_released">Audit export quarantine released</option>
+                        <option value="security_audit_export_quarantine_deleted">Audit export quarantine deleted</option>
+                        <option value="security_audit_export_lifecycle_report_created">Audit export lifecycle report created</option>
+                        <option value="security_audit_export_lifecycle_report_downloaded">Audit export lifecycle report downloaded</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="auditOutcome">Outcome</label>
+                    <select id="auditOutcome">
+                        <option value="">All outcomes</option>
+                        <option value="success">Success</option>
+                        <option value="failure">Failure</option>
+                        <option value="warning">Warning</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="auditActorId">Actor ID</label>
+                    <input type="search" id="auditActorId" maxlength="128" autocomplete="off" placeholder="Exact actor ID">
+                </div>
+                <div class="form-group">
+                    <label for="auditTargetId">Target ID</label>
+                    <input type="search" id="auditTargetId" maxlength="128" autocomplete="off" placeholder="Exact target ID">
+                </div>
+                <div class="form-group">
+                    <label for="auditLimit">Page Size</label>
+                    <select id="auditLimit">
+                        <option value="25">25</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="save-btn">Search</button>
+                    <button type="button" id="exportOperatorAuditCsv" class="save-btn">Export CSV</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="settings-section">
+            <h2 class="section-title">Audit Events</h2>
+            <div id="operatorAuditMessage"></div>
+            <div id="operatorAuditSummary">Audit events not loaded.</div>
+            <div id="operatorAuditList"></div>
+            <div>
+                <button type="button" id="operatorAuditPrev" class="save-btn" disabled>Previous</button>
+                <span id="operatorAuditPage">Page 1</span>
+                <button type="button" id="operatorAuditNext" class="save-btn" disabled>Next</button>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <h2 class="section-title">CSV Export Jobs</h2>
+            <p>Export files expire automatically. Cloud-backed exports open through short-lived signed download URLs.</p>
+            <div id="operatorAuditQuota">Export quota usage not loaded.</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="exportStatusFilter">Export Status</label>
+                    <select id="exportStatusFilter">
+                        <option value="">All statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="running">Running</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="dead_letter">Dead letter</option>
+                        <option value="quarantined">Quarantined</option>
+                        <option value="deleted">Deleted</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="exportStorageFilter">Storage Provider</label>
+                    <select id="exportStorageFilter">
+                        <option value="">All storage providers</option>
+                        <option value="local">Local</option>
+                        <option value="gcs">GCS</option>
+                        <option value="s3">S3</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="exportMissingInvestigationFilter">
+                        Missing investigation note
+                    </label>
+                    <label>
+                        <input type="checkbox" id="exportApprovalQueueFilter">
+                        Needs my release approval
+                    </label>
+                </div>
+            </div>
+            <button type="button" id="refreshOperatorAuditExports" class="save-btn">Refresh Export Jobs</button>
+            <button type="button" id="cleanupOperatorAuditExports" class="save-btn">Cleanup Expired/Cancelled</button>
+            <button type="button" id="dryRunBulkDeleteStaleQuarantinedExports" class="save-btn">Dry Run Stale Quarantine Delete</button>
+            <button type="button" id="bulkDeleteStaleQuarantinedExports" class="save-btn">Bulk Delete Stale Quarantined</button>
+            <div id="operatorAuditRetentionSummary">Retention summary not loaded.</div>
+            <div id="operatorAuditExportJobs">Export jobs not loaded.</div>
+            <div id="operatorAuditExportDetail">Select an export job to view lifecycle events.</div>
+        </section>
+
+        <section id="quarantineActionModal" class="settings-section" role="dialog" aria-modal="true" aria-labelledby="quarantineActionTitle" hidden>
+            <h2 id="quarantineActionTitle" class="section-title">Confirm Quarantine Action</h2>
+            <p id="quarantineActionMessage">Confirm quarantine action.</p>
+            <div class="form-group">
+                <label for="quarantineInvestigationNote">Investigation note</label>
+                <textarea id="quarantineInvestigationNote" maxlength="2000" rows="5" placeholder="Summarize investigation result and approval context"></textarea>
+            </div>
+            <button type="button" id="confirmQuarantineAction" class="save-btn">Confirm</button>
+            <button type="button" id="cancelQuarantineAction" class="save-btn">Cancel</button>
+        </section>
+    </div>
+
+    <script src="/js/operator-audit.js"></script>
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

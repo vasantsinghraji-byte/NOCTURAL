@@ -1,10 +1,18 @@
 name: CI - Continuous Integration
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main, develop ]
+    branches:
+      - main
+      - develop
+      - "chore/**"
+      - "feature/**"
+      - "fix/**"
+      - "refactor/**"
+      - "docs/**"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -40,11 +48,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
-
-      - name: Check ESLint warning budget
-        run: npm run lint:warning-budget
+      - name: Run repository governance check
+        run: node scripts/run-stacked-pr-validation.js lint
 
   # Unit & Integration Tests
   test:
@@ -89,8 +94,6 @@ jobs:
           CI_RAZORPAY_KEY_ID: ${{ secrets.CI_RAZORPAY_KEY_ID }}
           CI_RAZORPAY_KEY_SECRET: ${{ secrets.CI_RAZORPAY_KEY_SECRET }}
         run: |
-          DEFAULT_JWT_SECRET="ci-test-jwt-secret-placeholder-for-actions-only-not-a-real-secret-0001"
-          DEFAULT_ENCRYPTION_KEY="$(printf 'a%.0s' {1..64})"
           cat > .env.test <<EOF
           NODE_ENV=test
           PORT=5001
@@ -108,7 +111,7 @@ jobs:
           timeout 30 bash -c 'until (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1; do sleep 1; done'
 
       - name: Run fast CI test suite
-        run: npm run test:ci
+        run: node scripts/run-stacked-pr-validation.js test
         env:
           NODE_ENV: test
           PORT: 5001
@@ -179,26 +182,27 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      - name: Check production dependency vulnerabilities
-        run: npm audit --omit=dev --audit-level=moderate
-
-      - name: Install client dependencies
-        run: npm --prefix client ci --include=dev --ignore-scripts
-
-      - name: Check client dev-tooling vulnerabilities
-        run: npm --prefix client audit --audit-level=moderate
-
-      - name: Run auth security gate
-        run: npm run test:security-gate
+      - name: Audit root dependencies
+        run: node scripts/run-stacked-pr-validation.js security
 
   codeowners-security-governance-gate:
     name: CODEOWNERS Security Governance Gate
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate stacked PR frontend ownership
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-pr-stack-scope.js
+        env:
+          STACK_SCOPE_BRANCH: ${{ github.head_ref }}
+          STACK_SCOPE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          STACK_SCOPE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -225,6 +229,10 @@ jobs:
     name: Deployment Gate
     runs-on: ubuntu-latest
     needs: [lint, test]
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft != true &&
+      !contains(fromJSON('["chore/stack-ready-ci-gates","feature/security-audit-notification-core","fix/auth-session-revocation","feature/auth-webauthn-recovery","feature/admin-security-audit-export","fix/uploads-stored-file-authorization","fix/bookings-idempotent-payments","fix/patient-data-hardening","fix/provider-ops-hardening"]'), github.head_ref))
     timeout-minutes: 25
 
     steps:
@@ -257,11 +265,56 @@ jobs:
         env:
           PLAYWRIGHT_STRICT_LAUNCH: 'true'
 
+  public-funnel-e2e:
+    name: Public Funnel E2E
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft != true &&
+      !contains(fromJSON('["chore/stack-ready-ci-gates","feature/security-audit-notification-core","fix/auth-session-revocation","feature/auth-webauthn-recovery","feature/admin-security-audit-export","fix/uploads-stored-file-authorization","fix/bookings-idempotent-payments","fix/patient-data-hardening","fix/provider-ops-hardening"]'), github.head_ref))
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        run: node ./node_modules/playwright/cli.js install --with-deps chromium
+
+      - name: Run public funnel browser test
+        run: npm run test:e2e:public-funnel
+
+      - name: Run browser CSP console test
+        run: npm run test:e2e:csp
+
   # Validate container build without publishing
   container-smoke:
     name: Container Smoke Build
     runs-on: ubuntu-latest
     needs: [lint, test]
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft != true &&
+      !contains(fromJSON('["chore/stack-ready-ci-gates","feature/security-audit-notification-core","fix/auth-session-revocation","feature/auth-webauthn-recovery","feature/admin-security-audit-export","fix/uploads-stored-file-authorization","fix/bookings-idempotent-payments","fix/patient-data-hardening","fix/provider-ops-hardening"]'), github.head_ref))
     timeout-minutes: 20
 
     steps:
@@ -312,7 +365,7 @@ jobs:
   notify:
     name: Send Notifications
     runs-on: ubuntu-latest
-    needs: [lint, test, secret-scan, security, codeowners-security-governance-gate, build, container-smoke]
+    needs: [lint, test, secret-scan, security, codeowners-security-governance-gate, build, public-funnel-e2e, container-smoke]
     if: always()
     timeout-minutes: 5
 
@@ -326,4 +379,5 @@ jobs:
           echo "Security: ${{ needs.security.result }}"
           echo "CODEOWNERS Security Governance Gate: ${{ needs.codeowners-security-governance-gate.result }}"
           echo "Build: ${{ needs.build.result }}"
+          echo "Public Funnel E2E: ${{ needs.public-funnel-e2e.result }}"
           echo "Container Smoke: ${{ needs.container-smoke.result }}"

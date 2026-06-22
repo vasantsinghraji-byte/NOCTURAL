@@ -1,39 +1,38 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const logger = require('../utils/logger');
+const funnelAnalyticsService = require('../services/funnelAnalyticsService');
 
 const router = express.Router();
 
-const ALLOWED_EVENTS = [
-  'book_home_care_click',
-  'join_provider_click',
-  'hospital_waitlist_click',
-  'provider_registration_success',
-  'hospital_waitlist_submit_attempt',
-  'hospital_waitlist_submit_success'
+const validateEvent = [
+  body('event')
+    .trim()
+    .notEmpty()
+    .isLength({ max: 80 })
+    .matches(/^[a-z0-9_:-]+$/i),
+  body('path')
+    .optional()
+    .trim()
+    .isLength({ max: 300 }),
+  body('target')
+    .optional()
+    .trim()
+    .isLength({ max: 300 })
 ];
 
-router.post('/', [
-  body('event').isIn(ALLOWED_EVENTS).withMessage('Invalid funnel event'),
-  body('path').optional({ checkFalsy: true }).trim().isLength({ max: 160 }),
-  body('target').optional({ checkFalsy: true }).trim().isLength({ max: 160 }),
-  body('occurredAt').optional({ checkFalsy: true }).isISO8601(),
-  body('metadata').optional().isObject()
-], (req, res) => {
+router.post('/', validateEvent, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(204).end();
+    return res.status(204).send();
   }
 
-  logger.info('Public funnel event', {
+  await funnelAnalyticsService.incrementEvent({
     event: req.body.event,
-    path: req.body.path || '',
-    target: req.body.target || '',
-    metadata: req.body.metadata || {},
-    ip: req.ip
+    path: req.body.path || req.get('referer') || '/',
+    target: req.body.target || ''
   });
 
-  res.status(204).end();
+  return res.status(204).send();
 });
 
 module.exports = router;

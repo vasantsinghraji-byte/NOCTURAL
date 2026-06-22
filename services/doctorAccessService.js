@@ -15,6 +15,7 @@ const Patient = require('../models/patient');
 const User = require('../models/user');
 const NurseBooking = require('../models/nurseBooking');
 const logger = require('../utils/logger');
+const { normalizeObjectId } = require('../utils/safeMongo');
 const {
   ACCESS_LEVELS,
   ALLOWED_RESOURCES,
@@ -40,6 +41,10 @@ class DoctorAccessService {
       expiresAt,
       maxUsage
     } = data;
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const safeDoctorId = normalizeObjectId(doctorId, 'doctor id');
+    const safeAdminId = normalizeObjectId(adminId, 'admin id');
+    const safeBookingId = bookingId ? normalizeObjectId(bookingId, 'booking id') : undefined;
 
     // Validate token constraints
     if (expiresAt !== undefined) {
@@ -59,13 +64,13 @@ class DoctorAccessService {
     }
 
     // Validate patient exists
-    const patient = await Patient.findById(patientId);
+    const patient = await Patient.findById(safePatientId);
     if (!patient) {
       throw new NotFoundError('Patient', patientId);
     }
 
     // Validate doctor exists and has valid role
-    const doctor = await User.findById(doctorId);
+    const doctor = await User.findById(safeDoctorId);
     if (!doctor) {
       throw new NotFoundError('User', doctorId);
     }
@@ -76,7 +81,7 @@ class DoctorAccessService {
     }
 
     // Validate admin
-    const admin = await User.findById(adminId);
+    const admin = await User.findById(safeAdminId);
     if (!admin || admin.role !== 'admin') {
       throw new AuthorizationError('Only admins can grant access');
     }
@@ -86,9 +91,9 @@ class DoctorAccessService {
       // Doctor must belong to the same hospital
       if (doctor.hospital !== admin.hospital) {
         logger.logSecurity('cross_hospital_access_attempt', {
-          adminId,
+          adminId: safeAdminId,
           adminHospital: admin.hospital,
-          doctorId,
+          doctorId: safeDoctorId,
           doctorHospital: doctor.hospital
         });
         throw new AuthorizationError(
@@ -103,15 +108,15 @@ class DoctorAccessService {
       ).lean().then(docs => docs.map(d => d._id));
 
       const patientHasHospitalBooking = await NurseBooking.exists({
-        patient: patientId,
+        patient: safePatientId,
         serviceProvider: { $in: hospitalProviderIds }
       });
 
       if (!patientHasHospitalBooking) {
         logger.logSecurity('cross_hospital_patient_access_attempt', {
-          adminId,
+          adminId: safeAdminId,
           adminHospital: admin.hospital,
-          patientId
+          patientId: safePatientId
         });
         throw new AuthorizationError(
           'Patient has no bookings with your hospital'
@@ -121,15 +126,15 @@ class DoctorAccessService {
 
     // Generate access token
     const tokenData = await HealthAccessToken.generateToken({
-      grantedTo: doctorId,
+      grantedTo: safeDoctorId,
       grantedToRole: doctor.role,
       grantedToName: doctor.name,
-      patient: patientId,
+      patient: safePatientId,
       patientName: patient.name,
-      booking: bookingId,
+      booking: safeBookingId,
       accessLevel,
       allowedResources,
-      grantedBy: adminId,
+      grantedBy: safeAdminId,
       grantedByName: admin.name,
       grantReason,
       expiresAt,
@@ -139,12 +144,12 @@ class DoctorAccessService {
     // Log the access grant
     await this.logAccess({
       accessor: {
-        userId: adminId,
+        userId: safeAdminId,
         userType: USER_TYPES.ADMIN,
         name: admin.name,
         role: admin.role
       },
-      patient: patientId,
+      patient: safePatientId,
       resourceType: ALLOWED_RESOURCES.FULL_HISTORY,
       action: AUDIT_ACTIONS.SHARE,
       accessReason: ACCESS_REASONS.ADMIN_AUDIT,
@@ -153,9 +158,9 @@ class DoctorAccessService {
     });
 
     logger.info('Doctor access granted', {
-      doctorId,
-      patientId,
-      adminId,
+      doctorId: safeDoctorId,
+      patientId: safePatientId,
+      adminId: safeAdminId,
       tokenId: tokenData.tokenId
     });
 
@@ -166,7 +171,9 @@ class DoctorAccessService {
    * Revoke access by admin
    */
   async revokeAccessByAdmin(tokenId, adminId, reason) {
-    const token = await HealthAccessToken.findById(tokenId);
+    const safeTokenId = normalizeObjectId(tokenId, 'access token id');
+    const safeAdminId = normalizeObjectId(adminId, 'admin id');
+    const token = await HealthAccessToken.findById(safeTokenId);
     if (!token) {
       throw new NotFoundError('HealthAccessToken', tokenId);
     }
@@ -175,13 +182,13 @@ class DoctorAccessService {
       throw new ValidationError('Token is already revoked');
     }
 
-    await token.revoke(adminId, 'ADMIN', reason);
+    await token.revoke(safeAdminId, 'ADMIN', reason);
 
     logger.info('Doctor access revoked by admin', {
-      tokenId,
+      tokenId: safeTokenId,
       doctorId: token.grantedTo,
       patientId: token.patient,
-      adminId,
+      adminId: safeAdminId,
       reason
     });
 
@@ -192,13 +199,15 @@ class DoctorAccessService {
    * Revoke access by patient
    */
   async revokeAccessByPatient(tokenId, patientId, reason) {
-    const token = await HealthAccessToken.findById(tokenId);
+    const safeTokenId = normalizeObjectId(tokenId, 'access token id');
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const token = await HealthAccessToken.findById(safeTokenId);
     if (!token) {
       throw new NotFoundError('HealthAccessToken', tokenId);
     }
 
     // Verify token belongs to this patient
-    if (token.patient.toString() !== patientId.toString()) {
+    if (token.patient.toString() !== safePatientId.toString()) {
       throw new AuthorizationError('Not authorized to revoke this token');
     }
 
@@ -206,12 +215,12 @@ class DoctorAccessService {
       throw new ValidationError('Token is already revoked');
     }
 
-    await token.revoke(patientId, 'PATIENT', reason);
+    await token.revoke(safePatientId, 'PATIENT', reason);
 
     logger.info('Doctor access revoked by patient', {
-      tokenId,
+      tokenId: safeTokenId,
       doctorId: token.grantedTo,
-      patientId,
+      patientId: safePatientId,
       reason
     });
 
@@ -229,7 +238,10 @@ class DoctorAccessService {
    * Check if doctor has access to patient data
    */
   async canAccessPatientData(doctorId, patientId) {
-    const token = await HealthAccessToken.hasAccess(doctorId, patientId);
+    const token = await HealthAccessToken.hasAccess(
+      normalizeObjectId(doctorId, 'doctor id'),
+      normalizeObjectId(patientId, 'patient id')
+    );
     return token;
   }
 
@@ -237,8 +249,10 @@ class DoctorAccessService {
    * Get patient data for doctor (with access validation and audit)
    */
   async getPatientDataForDoctor(doctorId, patientId, resourceType, requestContext = {}) {
+    const safeDoctorId = normalizeObjectId(doctorId, 'doctor id');
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
     // Check access
-    const accessToken = await this.canAccessPatientData(doctorId, patientId);
+    const accessToken = await this.canAccessPatientData(safeDoctorId, safePatientId);
     if (!accessToken) {
       throw new AuthorizationError('No valid access token for this patient');
     }
@@ -250,7 +264,7 @@ class DoctorAccessService {
     }
 
     // Get the doctor info for audit
-    const doctor = await User.findById(doctorId);
+    const doctor = await User.findById(safeDoctorId);
 
     // Record usage — don't block authorized access if tracking fails
     let usageRecordFailed = false;
@@ -260,8 +274,8 @@ class DoctorAccessService {
       usageRecordFailed = true;
       logger.error('Failed to record token usage — access still granted', {
         tokenId: accessToken._id,
-        doctorId,
-        patientId,
+        doctorId: safeDoctorId,
+        patientId: safePatientId,
         error: error.message
       });
     }
@@ -269,12 +283,12 @@ class DoctorAccessService {
     // Log access
     await this.logAccess({
       accessor: {
-        userId: doctorId,
+        userId: safeDoctorId,
         userType: USER_TYPES[doctor.role.toUpperCase()] || USER_TYPES.DOCTOR,
         name: doctor.name,
         role: doctor.role
       },
-      patient: patientId,
+      patient: safePatientId,
       resourceType,
       action: AUDIT_ACTIONS.VIEW,
       accessReason: ACCESS_REASONS.BOOKING_ASSIGNMENT,
@@ -291,23 +305,23 @@ class DoctorAccessService {
     let data;
     switch (resourceType) {
       case ALLOWED_RESOURCES.HEALTH_RECORD:
-        data = await HealthRecord.getLatestApproved(patientId);
+        data = await HealthRecord.getLatestApproved(safePatientId);
         break;
       case ALLOWED_RESOURCES.HEALTH_METRIC:
-        data = await HealthMetric.getLatestByType(patientId);
+        data = await HealthMetric.getLatestByType(safePatientId);
         break;
       case ALLOWED_RESOURCES.DOCTOR_NOTE:
-        data = await DoctorNote.getPatientNotes(patientId, { includeConfidential: true });
+        data = await DoctorNote.getPatientNotes(safePatientId, { includeConfidential: true });
         break;
       case ALLOWED_RESOURCES.EMERGENCY_SUMMARY:
-        data = await EmergencySummary.findOne({ patient: patientId });
+        data = await EmergencySummary.findOne({ patient: safePatientId });
         break;
       case ALLOWED_RESOURCES.FULL_HISTORY:
         data = {
-          healthRecord: await HealthRecord.getLatestApproved(patientId),
-          metrics: await HealthMetric.getLatestByType(patientId),
-          notes: await DoctorNote.getPatientNotes(patientId, { includeConfidential: true }),
-          emergencySummary: await EmergencySummary.findOne({ patient: patientId })
+          healthRecord: await HealthRecord.getLatestApproved(safePatientId),
+          metrics: await HealthMetric.getLatestByType(safePatientId),
+          notes: await DoctorNote.getPatientNotes(safePatientId, { includeConfidential: true }),
+          emergencySummary: await EmergencySummary.findOne({ patient: safePatientId })
         };
         break;
       default:

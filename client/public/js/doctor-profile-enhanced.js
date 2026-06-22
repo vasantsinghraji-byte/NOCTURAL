@@ -32,7 +32,7 @@
         function displayProfile(user) {
             // Profile photo
             if (user.profilePhoto && user.profilePhoto.url) {
-                document.getElementById('profilePhoto').innerHTML = `<img class="profile-photo-image" src="${API_URL.replace('/api', '')}${user.profilePhoto.url}" alt="Profile photo">`;
+                AppUi.setSafeHtml(document.getElementById('profilePhoto'), `<img class="profile-photo-image" src="${API_URL.replace('/api', '')}${user.profilePhoto.url}" alt="Profile photo">`);
             }
 
             // Basic info
@@ -61,29 +61,29 @@
 
                 // Skills
                 const skillsGrid = document.getElementById('skillsGrid');
-                skillsGrid.innerHTML = '';
+                AppUi.setSafeHtml(skillsGrid, '');
                 if (user.professional.proceduralSkills && user.professional.proceduralSkills.length > 0) {
                     user.professional.proceduralSkills.forEach(skill => {
-                        skillsGrid.innerHTML += `
+                        AppUi.appendSafeHtml(skillsGrid, `
                             <div class="skill-tag">
                                 <i class="fas fa-check-circle"></i>
                                 ${skill}
                             </div>
-                        `;
+                        `);
                     });
                 } else {
-                    skillsGrid.innerHTML = '<p class="muted-text">No skills added yet</p>';
+                    AppUi.setSafeHtml(skillsGrid, '<p class="muted-text">No skills added yet</p>');
                 }
 
                 // Preferences
                 const preferencesGrid = document.getElementById('preferencesGrid');
-                preferencesGrid.innerHTML = '';
+                AppUi.setSafeHtml(preferencesGrid, '');
                 if (user.professional.preferredShiftTimes && user.professional.preferredShiftTimes.length > 0) {
                     user.professional.preferredShiftTimes.forEach(time => {
-                        preferencesGrid.innerHTML += `<div class="preference-chip">${time}</div>`;
+                        AppUi.appendSafeHtml(preferencesGrid, `<div class="preference-chip">${time}</div>`);
                     });
                 } else {
-                    preferencesGrid.innerHTML = '<p class="muted-text">No preferences set</p>';
+                    AppUi.setSafeHtml(preferencesGrid, '<p class="muted-text">No preferences set</p>');
                 }
             }
 
@@ -123,7 +123,7 @@
                 }
             ];
 
-            documentsList.innerHTML = '';
+            AppUi.setSafeHtml(documentsList, '');
             documents.forEach(doc => {
                 const hasDocument = doc.data && doc.data.url;
                 const isVerified = doc.data && doc.data.verified;
@@ -143,7 +143,7 @@
                     statusClass = 'status-missing';
                 }
 
-                documentsList.innerHTML += `
+                AppUi.appendSafeHtml(documentsList, `
                     <div class="document-item">
                         <div class="document-info">
                             <div class="document-icon">
@@ -165,7 +165,7 @@
                             </button>
                         </div>
                     </div>
-                `;
+                `);
             });
         }
 
@@ -182,6 +182,9 @@
                 NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('uploads.profilePhoto', {
                     method: 'POST',
                     parseJson: true,
+                    headers: {
+                        'Idempotency-Key': AppConfig.createIdempotencyKey()
+                    },
                     body: formData
                 }), 'Upload failed');
                 showAlert('Profile photo updated successfully!', 'success');
@@ -209,6 +212,9 @@
                     NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('uploads.document', {
                         method: 'POST',
                         parseJson: true,
+                        headers: {
+                            'Idempotency-Key': AppConfig.createIdempotencyKey()
+                        },
                         body: formData
                     }, {
                         params: { documentType: docType }
@@ -246,7 +252,7 @@
         function showAlert(message, type) {
             const alert = document.getElementById('alert');
             alert.className = `alert alert-${type} show`;
-            alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`;
+            AppUi.setSafeHtml(alert, `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`);
             setTimeout(() => {
                 alert.classList.remove('show');
             }, 5000);

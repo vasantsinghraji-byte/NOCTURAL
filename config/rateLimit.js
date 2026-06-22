@@ -133,7 +133,7 @@ const persistMetricToRedis = async (type, mapName, key, count) => {
   try {
     await redisClient.hSet(`${REDIS_METRICS_PREFIX}${type}:${mapName}`, key, count.toString());
     await redisClient.expire(`${REDIS_METRICS_PREFIX}${type}:${mapName}`, 3600); // 1h TTL
-  } catch {
+  } catch (err) {
     // Non-critical — fall back to in-memory
   }
 };
@@ -146,32 +146,8 @@ const persistBlockedToRedis = async (key, until, reason) => {
     if (ttl > 0) {
       await redisClient.set(`${REDIS_BLOCKED_PREFIX}${key}`, JSON.stringify({ until, reason }), { EX: ttl });
     }
-  } catch {
+  } catch (err) {
     // Non-critical — fall back to in-memory
-  }
-};
-
-const isBlockedInRedis = async (key) => {
-  const redisClient = await getActiveRedisClient();
-  if (!redisClient) return false;
-  try {
-    const data = await redisClient.get(`${REDIS_BLOCKED_PREFIX}${key}`);
-    if (!data) return false;
-    const parsed = JSON.parse(data);
-    return parsed.until > Date.now();
-  } catch {
-    return false;
-  }
-};
-
-const getMetricFromRedis = async (type, mapName, key) => {
-  const redisClient = await getActiveRedisClient();
-  if (!redisClient) return 0;
-  try {
-    const val = await redisClient.hGet(`${REDIS_METRICS_PREFIX}${type}:${mapName}`, key);
-    return val ? parseInt(val, 10) : 0;
-  } catch {
-    return 0;
   }
 };
 
@@ -264,7 +240,7 @@ const createRateLimitHandler = (type) => {
     const metrics = rateLimitMetrics[type];
     metrics.blocked++;
     setMetricEntry(metrics.ips, ip, 1, type, 'ips');
-    if (userId !== 'anonymous') {
+    if (userId !== 'anonymous' && metrics.userIds) {
       setMetricEntry(metrics.userIds, userId, 1, type, 'userIds');
     }
     if (type === 'api') {
@@ -310,11 +286,18 @@ const createRateLimitHandler = (type) => {
 // Determine if Redis is available for distributed rate limiting
 // Create base limiter with monitoring
 const createMonitoredLimiter = (options) => {
-  const { type, window, message } = options;
+  const { type, window, max, message, keyGenerator, skipLoopback = true } = options;
 
   const limiterConfig = {
     windowMs: window,
     max: (req) => {
+      if (typeof max === 'function') {
+        return max(req);
+      }
+      const explicitMax = Number(max);
+      if (Number.isFinite(explicitMax) && explicitMax > 0) {
+        return explicitMax;
+      }
       // Use IP address for checking strict mode (since we're using default keyGenerator)
       const key = req.ip;
       const baseMax = isInStrictMode(key, type) ?
@@ -333,12 +316,15 @@ const createMonitoredLimiter = (options) => {
     handler: createRateLimitHandler(type),
     skip: (req) => {
       // Skip for loopback or whitelisted IPs (validated at startup)
-      return req.ip === '127.0.0.1' || req.ip === '::1' || whitelistedIPs.includes(req.ip);
+      return (skipLoopback && (req.ip === '127.0.0.1' || req.ip === '::1')) || whitelistedIPs.includes(req.ip);
     },
     // Use default keyGenerator which handles IPv6 correctly
     standardHeaders: true,
     legacyHeaders: false
   };
+  if (keyGenerator) {
+    limiterConfig.keyGenerator = keyGenerator;
+  }
 
   // Use Redis store if available (for distributed rate limiting across multiple instances)
   if (isRedisEnabled()) {
@@ -392,6 +378,7 @@ const rateLimiters = {
   // Custom limiter for specific routes
   custom: (options) => createMonitoredLimiter({
     type: 'api',
+    skipLoopback: false,
     ...options
   })
 };
@@ -427,7 +414,7 @@ const cleanupInterval = setInterval(() => {
 
   // Clean up old metric entries
   let totalRemoved = 0;
-  Object.values(rateLimitMetrics).forEach((metric) => {
+  Object.entries(rateLimitMetrics).forEach(([type, metric]) => {
     if (metric && metric.ips) {
       totalRemoved += cleanupOldEntries(metric.ips, CLEANUP_CONFIG.entryMaxAge);
     }
@@ -510,8 +497,6 @@ const cleanup = () => {
 module.exports = {
   rateLimiters,
   getRateLimitMetrics,
-  getMetricFromRedis,
-  isBlockedInRedis,
   isInStrictMode,
   cleanup
 };

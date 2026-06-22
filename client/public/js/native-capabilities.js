@@ -101,14 +101,12 @@
         if (!isNative || !responsePayload) return;
         const payload = responsePayload.data || responsePayload;
         const tokens = payload.tokens;
-        if (!tokens || !tokens.accessToken) return;
+        if (!tokens || !tokens.accessToken || !tokens.refreshToken) return;
 
-        await setStoredValue(ACCESS_TOKEN_KEY, tokens.accessToken);
-        if (tokens.refreshToken) {
-            await setStoredValue(REFRESH_TOKEN_KEY, tokens.refreshToken);
-        } else {
-            await removeStoredValue(REFRESH_TOKEN_KEY);
-        }
+        await Promise.all([
+            setStoredValue(ACCESS_TOKEN_KEY, tokens.accessToken),
+            setStoredValue(REFRESH_TOKEN_KEY, tokens.refreshToken)
+        ]);
     };
 
     const clearAuth = async () => {
@@ -160,7 +158,7 @@
         const photoResponse = await fetch(photo.webPath);
         const photoBlob = await photoResponse.blob();
         formData.append(fieldName, photoBlob, `camera-${Date.now()}.${photo.format || 'jpeg'}`);
-        return windowObject.AppConfig.fetch(endpoint, {
+        return windowObject.AppConfig.fetchRoute(endpoint, {
             method: 'POST',
             body: formData,
             parseJson: true
@@ -246,7 +244,7 @@
         }
 
         await pushNotifications.addListener('registration', async (registration) => {
-            await windowObject.AppConfig.fetch('mobile-devices', {
+            await windowObject.AppConfig.fetchRoute('mobileDevices.root', {
                 method: 'POST',
                 body: JSON.stringify({
                     token: registration.value,
@@ -287,10 +285,7 @@
         }
     };
 
-    Object.defineProperty(windowObject, 'NocturnalNative', {
-        configurable: true,
-        writable: true,
-        value: Object.freeze({
+    windowObject.NocturnalNative = Object.freeze({
         isNative,
         authenticate,
         capturePhoto,
@@ -309,7 +304,6 @@
         clearDiagnosticLogs,
         getAccessToken: () => getStoredValue(ACCESS_TOKEN_KEY),
         getRefreshToken: () => getStoredValue(REFRESH_TOKEN_KEY)
-        })
     });
 
     windowObject.addEventListener('DOMContentLoaded', () => {

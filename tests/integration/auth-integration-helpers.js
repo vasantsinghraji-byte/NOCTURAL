@@ -1,8 +1,23 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 jest.mock('../../models/user', () => ({
   findById: jest.fn(),
   findOne: jest.fn()
+}));
+
+jest.mock('../../models/refreshSession', () => ({
+  create: jest.fn().mockResolvedValue({}),
+  findOneAndUpdate: jest.fn().mockResolvedValue(null),
+  updateOne: jest.fn().mockResolvedValue({}),
+  updateMany: jest.fn().mockResolvedValue({})
+}));
+
+jest.mock('../../models/idempotencyKey', () => ({
+  create: jest.fn().mockResolvedValue({}),
+  findOne: jest.fn().mockResolvedValue(null),
+  updateOne: jest.fn().mockResolvedValue({}),
+  deleteOne: jest.fn().mockResolvedValue({})
 }));
 
 jest.mock('../../utils/logger', () => ({
@@ -14,13 +29,24 @@ jest.mock('../../utils/logger', () => ({
 }));
 
 const User = require('../../models/user');
-const { generateToken } = require('../../middleware/auth');
+const {
+  generateToken,
+  JWT_ACCESS_SIGN_OPTIONS
+} = require('../../middleware/auth');
 
 const mockUserStore = new Map();
 
+const toTestObjectId = (value) => {
+  const candidate = String(value || '');
+  if (/^[a-f\d]{24}$/i.test(candidate)) {
+    return candidate;
+  }
+  return crypto.createHash('sha256').update(candidate).digest('hex').slice(0, 24);
+};
+
 function createPersistedUser(overrides = {}) {
   const baseUser = {
-    _id: overrides._id || global.testUtils.randomString(24),
+    _id: toTestObjectId(overrides._id || global.testUtils.randomString(24)),
     name: 'Test User',
     email: global.testUtils.randomEmail(),
     phone: '+919876543210',
@@ -77,7 +103,7 @@ function createPersistedUser(overrides = {}) {
     }
   };
 
-  const user = Object.assign(baseUser, overrides);
+  const user = Object.assign(baseUser, overrides, { _id: baseUser._id });
   user.id = user._id;
   user._lastSavedPassword = user.password;
   mockUserStore.set(user._id, user);
@@ -129,6 +155,7 @@ function setupAuthIntegrationHarness() {
 module.exports = {
   jwt,
   generateToken,
+  JWT_ACCESS_SIGN_OPTIONS,
   createPersistedUser,
   setupAuthIntegrationHarness
 };

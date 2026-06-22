@@ -132,21 +132,20 @@ paymentSchema.index({ createdAt: -1 }); // Recent payments
 paymentSchema.index({ dueDate: 1, status: 1 }); // Overdue payment identification
 
 // Generate invoice number
-paymentSchema.pre('save', async function(next) {
+paymentSchema.pre('save', async function() {
   if (this.isNew && !this.invoiceNumber) {
     const count = await mongoose.model('Payment').countDocuments();
     const year = new Date().getFullYear();
     const month = String(new Date().getMonth() + 1).padStart(2, '0');
     this.invoiceNumber = `INV-${year}${month}-${String(count + 1).padStart(6, '0')}`;
   }
-  next();
 });
 
 // Static method to get doctor earnings summary
 paymentSchema.statics.getDoctorEarnings = async function(doctorId, options = {}) {
   const { startDate, endDate } = options;
 
-  const matchQuery = { doctor: mongoose.Types.ObjectId(doctorId) };
+  const matchQuery = { doctor: new mongoose.Types.ObjectId(doctorId) };
 
   if (startDate || endDate) {
     matchQuery.shiftDate = {};
@@ -200,7 +199,7 @@ paymentSchema.statics.getMonthlyEarnings = async function(doctorId, year) {
   const result = await this.aggregate([
     {
       $match: {
-        doctor: mongoose.Types.ObjectId(doctorId),
+        doctor: new mongoose.Types.ObjectId(doctorId),
         shiftDate: {
           $gte: new Date(`${year}-01-01`),
           $lte: new Date(`${year}-12-31`)

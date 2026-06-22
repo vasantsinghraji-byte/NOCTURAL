@@ -6,6 +6,7 @@
  */
 
 const Notification = require('../models/notification');
+const sanitizeHtml = require('sanitize-html');
 const logger = require('../utils/logger');
 const { HTTP_STATUS } = require('../constants');
 const pushNotificationService = require('./pushNotificationService');
@@ -145,26 +146,27 @@ class NotificationService {
    */
   async createNotification(notificationData) {
     const VALID_RECIPIENT_MODELS = ['User', 'Patient'];
-    const normalizedNotificationData = {
-      ...notificationData,
-      user: notificationData.user || notificationData.recipient
-    };
 
-    if (normalizedNotificationData.recipientModel && !VALID_RECIPIENT_MODELS.includes(normalizedNotificationData.recipientModel)) {
+    if (notificationData.recipientModel && !VALID_RECIPIENT_MODELS.includes(notificationData.recipientModel)) {
       throw {
         statusCode: HTTP_STATUS.BAD_REQUEST,
-        message: `Invalid recipientModel: "${normalizedNotificationData.recipientModel}". Must be one of: ${VALID_RECIPIENT_MODELS.join(', ')}`
+        message: `Invalid recipientModel: "${notificationData.recipientModel}". Must be one of: ${VALID_RECIPIENT_MODELS.join(', ')}`
       };
     }
 
-    if (!normalizedNotificationData.user) {
+    // Normalize: callers may pass 'recipient' instead of 'user'
+    if (notificationData.recipient && !notificationData.user) {
+      notificationData.user = notificationData.recipient;
+    }
+
+    if (!notificationData.user) {
       throw {
         statusCode: HTTP_STATUS.BAD_REQUEST,
         message: 'Notification recipient (user) is required'
       };
     }
 
-    if (!normalizedNotificationData.type) {
+    if (!notificationData.type) {
       throw {
         statusCode: HTTP_STATUS.BAD_REQUEST,
         message: 'Notification type is required'
@@ -174,11 +176,11 @@ class NotificationService {
     // Defense-in-depth: neutralize markup in free-text fields and reject external
     // action URLs so a notification cannot carry XSS or open-redirect payloads into
     // any renderer, regardless of how the client displays it.
-    normalizedNotificationData.title = this.sanitizeText(normalizedNotificationData.title);
-    normalizedNotificationData.message = this.sanitizeText(normalizedNotificationData.message);
-    normalizedNotificationData.actionUrl = this.sanitizeActionUrl(normalizedNotificationData.actionUrl);
+    notificationData.title = this.sanitizeText(notificationData.title);
+    notificationData.message = this.sanitizeText(notificationData.message);
+    notificationData.actionUrl = this.sanitizeActionUrl(notificationData.actionUrl);
 
-    const notification = await Notification.createNotification(normalizedNotificationData);
+    const notification = await Notification.createNotification(notificationData);
 
     if (notificationData.channels?.push) {
       try {
@@ -210,8 +212,8 @@ class NotificationService {
 
     logger.info('Notification created', {
       notificationId: notification._id,
-      userId: normalizedNotificationData.user,
-      type: normalizedNotificationData.type
+      userId: notificationData.user,
+      type: notificationData.type
     });
 
     return notification;
@@ -299,18 +301,10 @@ class NotificationService {
       return value;
     }
 
-    let sanitized = value.replace(/\0/g, ''); // remove null bytes
-
-    // Strip HTML tags, repeating until the string stops changing. A single pass
-    // can leave fragments that re-form a tag (e.g. "<scr<script>ipt>" -> "<script>"),
-    // so loop to a fixed point (CodeQL js/incomplete-multi-character-sanitization).
-    let previous;
-    do {
-      previous = sanitized;
-      sanitized = sanitized.replace(/<[^>]*>/g, '');
-    } while (sanitized !== previous);
-
-    return sanitized.trim();
+    return sanitizeHtml(value.replace(/\0/g, ''), {
+      allowedTags: [],
+      allowedAttributes: {}
+    }).trim();
   }
 
   /**

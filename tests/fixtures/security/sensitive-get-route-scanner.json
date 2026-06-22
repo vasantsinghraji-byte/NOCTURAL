@@ -1,0 +1,6 @@
+{
+  "routeWrapperNames": [
+    "secureGet",
+    "safeGet"
+  ]
+}

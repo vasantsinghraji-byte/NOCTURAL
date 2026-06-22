@@ -1,0 +1,230 @@
+# Production Loki OIDC access path.
+# Assumes a Loki Service named "loki" exists in the nocturnal namespace on port 3100.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: loki-oauth2-proxy-secrets
+  namespace: nocturnal
+type: Opaque
+stringData:
+  client-id: "${LOKI_OIDC_CLIENT_ID}"
+  client-secret: "${LOKI_OIDC_CLIENT_SECRET}"
+  cookie-secret: "${LOKI_OIDC_COOKIE_SECRET}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki-oauth2-proxy
+  namespace: nocturnal
+  labels:
+    app: loki-oauth2-proxy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: loki-oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: loki-oauth2-proxy
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 2000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: oauth2-proxy
+        image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+        args:
+        - --http-address=0.0.0.0:4180
+        - --provider=oidc
+        - --oidc-issuer-url=$(LOKI_OIDC_ISSUER_URL)
+        - --cookie-secure=true
+        - --email-domain=$(LOKI_OIDC_EMAIL_DOMAINS)
+        - --reverse-proxy=true
+        - --set-xauthrequest=true
+        - --upstream=static://202
+        env:
+        - name: LOKI_OIDC_ISSUER_URL
+          value: "${LOKI_OIDC_ISSUER_URL}"
+        - name: LOKI_OIDC_EMAIL_DOMAINS
+          value: "${LOKI_OIDC_EMAIL_DOMAINS:-*}"
+        - name: OAUTH2_PROXY_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: loki-oauth2-proxy-secrets
+              key: client-id
+        - name: OAUTH2_PROXY_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: loki-oauth2-proxy-secrets
+              key: client-secret
+        - name: OAUTH2_PROXY_COOKIE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: loki-oauth2-proxy-secrets
+              key: cookie-secret
+        ports:
+        - containerPort: 4180
+          name: http
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-oauth2-proxy
+  namespace: nocturnal
+  labels:
+    app: loki-oauth2-proxy
+spec:
+  type: ClusterIP
+  ports:
+  - port: 4180
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: loki-oauth2-proxy
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: loki-oauth2-ingress
+  namespace: nocturnal
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "${CLUSTER_ISSUER:-letsencrypt-prod}"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - loki.${DOMAIN:-nocturnal.com}
+    secretName: loki-tls
+  rules:
+  - host: loki.${DOMAIN:-nocturnal.com}
+    http:
+      paths:
+      - path: /oauth2
+        pathType: Prefix
+        backend:
+          service:
+            name: loki-oauth2-proxy
+            port:
+              number: 4180
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: loki-auth-ingress
+  namespace: nocturnal
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "${CLUSTER_ISSUER:-letsencrypt-prod}"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/auth-url: "https://$host/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://$host/oauth2/start?rd=$escaped_request_uri"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header X-Scope-OrgID nocturnal;
+spec:
+  tls:
+  - hosts:
+    - loki.${DOMAIN:-nocturnal.com}
+    secretName: loki-tls
+  rules:
+  - host: loki.${DOMAIN:-nocturnal.com}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: loki
+            port:
+              number: 3100
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-loki-authenticated-access
+  namespace: nocturnal
+spec:
+  podSelector:
+    matchLabels:
+      app: loki
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+    - podSelector:
+        matchLabels:
+          app: grafana
+    - podSelector:
+        matchLabels:
+          app: promtail
+    ports:
+    - protocol: TCP
+      port: 3100
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-loki-oauth2-proxy
+  namespace: nocturnal
+spec:
+  podSelector:
+    matchLabels:
+      app: loki-oauth2-proxy
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 4180
+  egress:
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports:
+    - protocol: TCP
+      port: 443

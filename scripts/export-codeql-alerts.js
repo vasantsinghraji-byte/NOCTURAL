@@ -1,4 +1,4 @@
-/* eslint-disable security/detect-non-literal-fs-filename */
+/* eslint-disable no-console, security/detect-non-literal-fs-filename */
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -348,14 +348,12 @@ function appendTrendEntry(trendPath, entry) {
 }
 
 function copyDashboardArtifact(outputDir) {
-  fs.mkdirSync(outputDir, { recursive: true });
-  try {
-    fs.copyFileSync(DASHBOARD_SOURCE_PATH, path.join(outputDir, 'codeql-alert-dashboard.html'));
-  } catch (error) {
-    if (error.code !== 'ENOENT') {
-      throw error;
-    }
+  if (!fs.existsSync(DASHBOARD_SOURCE_PATH)) {
+    return;
   }
+
+  fs.mkdirSync(outputDir, { recursive: true });
+  fs.copyFileSync(DASHBOARD_SOURCE_PATH, path.join(outputDir, 'codeql-alert-dashboard.html'));
 }
 
 function main() {

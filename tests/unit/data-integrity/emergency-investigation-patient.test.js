@@ -4,8 +4,12 @@
  * Verifies:
  * - RACE-004: revokeQRToken uses atomic findOneAndUpdate with $unset
  * - RACE-007: pickReportFromQueue uses findOneAndUpdate with unassigned guard
- * - RACE-008: updateAddress atomically unsets other defaults before setting new
+ * - RACE-008: patient address query updates validate nested payloads atomically
  */
+
+const mongoose = require('mongoose');
+const REPORT_ID = '000000000000000000000001';
+const DOCTOR_ID = '000000000000000000000002';
 
 jest.mock('../../../models/emergencySummary');
 jest.mock('../../../models/investigationReport');
@@ -89,25 +93,25 @@ describe('Phase 2 — Emergency, Investigation & Patient', () => {
 
   describe('RACE-007: pickReportFromQueue atomic guard', () => {
     it('should use findOneAndUpdate with unassigned guard', async () => {
-      User.findById.mockResolvedValue({ _id: 'doctor1', role: 'doctor' });
+      User.findById.mockResolvedValue({ _id: DOCTOR_ID, role: 'doctor' });
 
       const mockReport = {
-        _id: 'report1',
+        _id: REPORT_ID,
         doctorReview: {
           assignmentType: 'AUTO_QUEUE',
-          assignedTo: 'doctor1'
+          assignedTo: DOCTOR_ID
         }
       };
       InvestigationReport.findOneAndUpdate.mockResolvedValue(mockReport);
 
-      await pickReportFromQueue('report1', 'doctor1');
+      await pickReportFromQueue(REPORT_ID, DOCTOR_ID);
 
       expect(InvestigationReport.findOneAndUpdate).toHaveBeenCalledTimes(1);
       const [filter, update, options] = InvestigationReport.findOneAndUpdate.mock.calls[0];
 
       // Guard: auto-queue, not yet assigned, pending review
       expect(filter).toEqual(expect.objectContaining({
-        _id: 'report1',
+        _id: new mongoose.Types.ObjectId(REPORT_ID),
         'doctorReview.assignmentType': 'AUTO_QUEUE',
         'doctorReview.assignedTo': { $exists: false },
         status: 'PENDING_DOCTOR_REVIEW'
@@ -115,23 +119,80 @@ describe('Phase 2 — Emergency, Investigation & Patient', () => {
 
       // Should assign the doctor
       expect(update.$set).toEqual(expect.objectContaining({
-        'doctorReview.assignedTo': 'doctor1'
+        'doctorReview.assignedTo': new mongoose.Types.ObjectId(DOCTOR_ID)
       }));
 
       expect(options).toEqual(expect.objectContaining({ new: true }));
     });
 
     it('should throw when report already picked (findOneAndUpdate returns null)', async () => {
-      User.findById.mockResolvedValue({ _id: 'doctor1', role: 'doctor' });
+      User.findById.mockResolvedValue({ _id: DOCTOR_ID, role: 'doctor' });
       InvestigationReport.findOneAndUpdate.mockResolvedValue(null);
 
       await expect(
-        pickReportFromQueue('report1', 'doctor1')
+        pickReportFromQueue(REPORT_ID, DOCTOR_ID)
       ).rejects.toThrow(/not available or already picked/);
     });
   });
 
   describe('RACE-008: updateAddress atomic default flag management', () => {
+    it('should add a new default address with validated query-update options', async () => {
+      Patient.findById.mockResolvedValue({
+        _id: 'patient1',
+        savedAddresses: [
+          { _id: 'addr1', isDefault: true }
+        ]
+      });
+
+      Patient.findByIdAndUpdate
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce({
+          _id: 'patient1',
+          savedAddresses: [
+            { _id: 'addr1', isDefault: false },
+            { _id: 'addr2', isDefault: true, label: 'Work' }
+          ]
+        });
+
+      await patientService.addAddress('patient1', {
+        label: 'Work',
+        isDefault: true,
+        city: 'Kolkata'
+      });
+
+      expect(Patient.findByIdAndUpdate).toHaveBeenNthCalledWith(
+        1,
+        'patient1',
+        {
+          $set: { 'savedAddresses.$[].isDefault': false }
+        },
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
+      );
+
+      expect(Patient.findByIdAndUpdate).toHaveBeenNthCalledWith(
+        2,
+        'patient1',
+        {
+          $push: {
+            savedAddresses: expect.objectContaining({
+              label: 'Work',
+              city: 'Kolkata',
+              isDefault: true
+            })
+          }
+        },
+        {
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
+      );
+    });
+
     it('should atomically unset other defaults before setting new default', async () => {
       Patient.findOne.mockResolvedValue({
         _id: 'patient1',
@@ -161,6 +222,11 @@ describe('Phase 2 — Emergency, Investigation & Patient', () => {
       expect(updateArg.$set).toEqual(expect.objectContaining({
         'savedAddresses.$[other].isDefault': false
       }));
+      expect(updateOptions).toEqual(expect.objectContaining({
+        new: true,
+        runValidators: true,
+        context: 'query'
+      }));
       expect(updateOptions.arrayFilters).toEqual([
         { 'other._id': { $ne: 'addr2' } }
       ]);
@@ -172,10 +238,16 @@ describe('Phase 2 — Emergency, Investigation & Patient', () => {
         _id: 'patient1',
         'savedAddresses._id': 'addr2'
       }));
+      const updateOneOptions = Patient.findOneAndUpdate.mock.calls[0][2];
       // Should use positional $ for field updates
       expect(findUpdate.$set).toEqual(expect.objectContaining({
         'savedAddresses.$.isDefault': true,
         'savedAddresses.$.label': 'Work'
+      }));
+      expect(updateOneOptions).toEqual(expect.objectContaining({
+        new: true,
+        runValidators: true,
+        context: 'query'
       }));
     });
   });

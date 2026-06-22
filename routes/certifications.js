@@ -4,6 +4,21 @@ const { protect, authorize } = require('../middleware/auth');
 const { ROLES } = require('../constants/roles');
 const Certification = require('../models/certification');
 const { paginate, paginationMiddleware, sendPaginatedResponse } = require('../utils/pagination');
+const pickAllowedFields = require('../utils/pickAllowedFields');
+const { normalizeObjectId } = require('../utils/safeMongo');
+
+const CERTIFICATION_WRITE_FIELDS = [
+    'name',
+    'type',
+    'issuingAuthority',
+    'licenseNumber',
+    'issueDate',
+    'expiryDate',
+    'documentUrl',
+    'renewalUrl',
+    'notes'
+];
+const CERTIFICATION_VERIFICATION_STATUSES = ['VERIFIED', 'REJECTED'];
 
 // Apply pagination middleware
 router.use(paginationMiddleware);
@@ -61,7 +76,7 @@ router.get('/expiring', protect, async (req, res) => {
 router.post('/', protect, async (req, res) => {
     try {
         const certificationData = {
-            ...req.body,
+            ...pickAllowedFields(req.body, CERTIFICATION_WRITE_FIELDS),
             user: req.user._id
         };
 
@@ -87,8 +102,9 @@ router.post('/', protect, async (req, res) => {
 // @access  Private
 router.put('/:id', protect, async (req, res) => {
     try {
+        const certificationId = normalizeObjectId(req.params.id, 'certification id');
         const certification = await Certification.findOne({
-            _id: req.params.id,
+            _id: certificationId,
             user: req.user._id
         });
 
@@ -99,7 +115,16 @@ router.put('/:id', protect, async (req, res) => {
             });
         }
 
-        Object.assign(certification, req.body);
+        const updates = pickAllowedFields(req.body, CERTIFICATION_WRITE_FIELDS);
+        if (Object.keys(updates).length > 0) {
+            certification.set(updates);
+
+            // Any provider-controlled content change invalidates the prior
+            // verification decision until a platform admin reviews it again.
+            certification.verificationStatus = 'PENDING';
+            certification.verifiedBy = undefined;
+            certification.verifiedAt = undefined;
+        }
         await certification.save();
 
         res.json({
@@ -121,8 +146,9 @@ router.put('/:id', protect, async (req, res) => {
 // @access  Private
 router.delete('/:id', protect, async (req, res) => {
     try {
+        const certificationId = normalizeObjectId(req.params.id, 'certification id');
         const certification = await Certification.findOneAndDelete({
-            _id: req.params.id,
+            _id: certificationId,
             user: req.user._id
         });
 
@@ -154,9 +180,16 @@ router.delete('/:id', protect, async (req, res) => {
 // prevent one hospital admin from verifying arbitrary providers' credentials.
 router.post('/:id/verify', protect, authorize(ROLES.PLATFORM_ADMIN), async (req, res) => {
     try {
+        const certificationId = normalizeObjectId(req.params.id, 'certification id');
         const { verificationStatus } = req.body;
+        if (!CERTIFICATION_VERIFICATION_STATUSES.includes(verificationStatus)) {
+            return res.status(400).json({
+                success: false,
+                message: 'verificationStatus must be VERIFIED or REJECTED'
+            });
+        }
 
-        const certification = await Certification.findById(req.params.id);
+        const certification = await Certification.findById(certificationId);
         if (!certification) {
             return res.status(404).json({
                 success: false,

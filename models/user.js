@@ -226,7 +226,34 @@ const UserSchema = new mongoose.Schema({
   lastActive: Date,
 
   // Security
-  passwordChangedAt: Date
+  passwordChangedAt: Date,
+  sessionVersion: {
+    type: Number,
+    default: 0,
+    min: 0,
+    select: false
+  },
+  webAuthnCredentials: {
+    type: [{
+      credentialId: { type: String, required: true },
+      publicKey: { type: String, required: true },
+      counter: { type: Number, default: 0 },
+      transports: [String],
+      deviceType: String,
+      backedUp: Boolean,
+      name: String,
+      createdAt: { type: Date, default: Date.now },
+      lastUsedAt: Date
+    }],
+    default: [],
+    select: false
+  },
+
+  // Staging smoke accounts are auto-expired by TTL as a CI interruption safety net.
+  smokeTestExpiresAt: {
+    type: Date,
+    select: false
+  }
 
 }, {
   timestamps: true
@@ -294,35 +321,29 @@ UserSchema.methods.getMissingFields = function() {
 };
 
 // COMBINED pre-save hook: Handle password hashing AND bank details encryption
-UserSchema.pre('save', async function(next) {
-  try {
-    // 1. Hash password if modified
-    if (this.isModified('password')) {
-      const salt = await bcrypt.genSalt(10);
-      this.password = await bcrypt.hash(this.password, salt);
-      if (!this.isNew) {
-        this.passwordChangedAt = new Date();
-      }
+UserSchema.pre('save', async function() {
+  // 1. Hash password if modified
+  if (this.isModified('password')) {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    if (!this.isNew) {
+      this.passwordChangedAt = new Date();
     }
+  }
 
-    // 2. Encrypt bank account number if modified
-    if (this.isModified('bankDetails.accountNumber') && this.bankDetails && this.bankDetails.accountNumber) {
-      // Only encrypt if not already encrypted (check format)
-      if (!this.bankDetails.accountNumber.includes(':')) {
-        this.bankDetails.accountNumber = encrypt(this.bankDetails.accountNumber);
-      }
+  // 2. Encrypt bank account number if modified
+  if (this.isModified('bankDetails.accountNumber') && this.bankDetails && this.bankDetails.accountNumber) {
+    // Only encrypt if not already encrypted (check format)
+    if (!this.bankDetails.accountNumber.includes(':')) {
+      this.bankDetails.accountNumber = encrypt(this.bankDetails.accountNumber);
     }
+  }
 
-    // 3. Encrypt PAN card if modified
-    if (this.isModified('bankDetails.panCard') && this.bankDetails && this.bankDetails.panCard) {
-      if (!this.bankDetails.panCard.includes(':')) {
-        this.bankDetails.panCard = encrypt(this.bankDetails.panCard);
-      }
+  // 3. Encrypt PAN card if modified
+  if (this.isModified('bankDetails.panCard') && this.bankDetails && this.bankDetails.panCard) {
+    if (!this.bankDetails.panCard.includes(':')) {
+      this.bankDetails.panCard = encrypt(this.bankDetails.panCard);
     }
-
-    next();
-  } catch (error) {
-    next(error);
   }
 });
 
@@ -381,5 +402,6 @@ UserSchema.index({ 'location.city': 1, 'location.state': 1, role: 1 }); // Locat
 UserSchema.index({ role: 1, rating: -1, completedDuties: -1 }); // Top-rated doctors
 UserSchema.index({ role: 1, isAvailableForShifts: 1, isActive: 1 }); // Available doctors
 UserSchema.index({ lastActive: -1 }); // Recent activity tracking
+UserSchema.index({ smokeTestExpiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema);

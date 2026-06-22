@@ -107,8 +107,8 @@ earningSchema.index({ user: 1, createdAt: -1 }); // Recent earnings
 earningSchema.index({ hospital: 1, shiftDate: -1 }); // Hospital's payment tracking
 earningSchema.index({ hospitalId: 1, shiftDate: -1 }); // Immutable tenant-scoped payment tracking
 
-// Pre-save hook to calculate net amount
-earningSchema.pre('save', function(next) {
+// Calculate required derived fields before validation.
+earningSchema.pre('validate', function(next) {
     let bonusTotal = 0;
     let deductionTotal = 0;
 
@@ -141,7 +141,7 @@ earningSchema.statics.getMonthlyEarnings = async function(userId, year, month) {
     const earnings = await this.aggregate([
         {
             $match: {
-                user: mongoose.Types.ObjectId(userId),
+                user: new mongoose.Types.ObjectId(userId),
                 shiftDate: { $gte: startDate, $lte: endDate }
             }
         },

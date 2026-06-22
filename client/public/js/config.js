@@ -45,8 +45,8 @@ const API_CONFIG = {
 // Helper to build API URLs
 const getApiUrl = (endpoint) => {
     // Remove leading slash if present
-    const normalizedEndpoint = endpoint.replace(/^\//, '');
-    return `${API_CONFIG.BASE_URL}/api/${API_CONFIG.API_VERSION}/${normalizedEndpoint}`;
+    endpoint = endpoint.replace(/^\//, '');
+    return `${API_CONFIG.BASE_URL}/api/${API_CONFIG.API_VERSION}/${endpoint}`;
 };
 
 // Full API URL (for backward compatibility)
@@ -80,6 +80,7 @@ const ROUTE_CONFIG = Object.freeze({
         analytics: '/roles/admin/admin-analytics.html',
         waitlist: '/roles/admin/admin-waitlist.html',
         settings: '/roles/admin/admin-settings.html',
+        operatorAudit: '/roles/admin/operator-audit.html',
         profile: '/roles/admin/admin-profile.html'
     },
     patient: {
@@ -324,7 +325,9 @@ const API_ROUTE_CONFIG = Object.freeze({
         register: 'auth/register',
         refresh: 'auth/refresh',
         logout: 'auth/logout',
-        me: 'auth/me'
+        me: 'auth/me',
+        sessions: 'auth/sessions',
+        session: ({ sessionId }) => `auth/sessions/${sessionId}`
     },
     analytics: {
         hospitalDashboard: 'analytics/hospital/dashboard'
@@ -359,6 +362,20 @@ const API_ROUTE_CONFIG = Object.freeze({
     hospitalSettings: {
         root: 'hospital-settings'
     },
+    mobileDevices: {
+        root: 'mobile-devices'
+    },
+    webauthn: {
+        credentials: 'webauthn/credentials',
+        credential: ({ credentialId }) => `webauthn/credentials/${encodeURIComponent(credentialId)}`,
+        registrationOptions: 'webauthn/registration/options',
+        registrationVerify: 'webauthn/registration/verify',
+        passwordOptions: 'webauthn/password-change/options',
+        passwordVerify: 'webauthn/password-change/verify',
+        recoveryCodes: 'webauthn/recovery-codes',
+        recoveryCodeStatus: 'webauthn/recovery-codes/status',
+        lostDeviceRecover: 'webauthn/lost-device/recover'
+    },
     uploads: {
         profilePhoto: 'uploads/profile-photo',
         document: ({ documentType }) => buildUploadDocumentEndpoint(documentType)
@@ -366,7 +383,9 @@ const API_ROUTE_CONFIG = Object.freeze({
     patients: {
         login: 'patients/login',
         register: 'patients/register',
-        stats: 'patients/me/stats'
+        stats: 'patients/me/stats',
+        sessions: 'patients/me/sessions',
+        session: ({ sessionId }) => `patients/me/sessions/${sessionId}`
     },
     funnelEvents: {
         create: 'funnel-events'
@@ -379,6 +398,33 @@ const API_ROUTE_CONFIG = Object.freeze({
         waitlist: 'admin/funnel/waitlist',
         waitlistExport: 'admin/funnel/waitlist/export',
         waitlistStatus: ({ leadId }) => `admin/funnel/waitlist/${leadId}/status`
+    },
+    adminSecurityAudit: {
+        webauthn: 'admin/security-audit',
+        webauthnExports: 'admin/security-audit/exports',
+        webauthnExportQuota: 'admin/security-audit/exports/quota',
+        webauthnExportRetentionSummary: 'admin/security-audit/exports/retention-summary',
+        webauthnExportCleanup: 'admin/security-audit/exports/cleanup',
+        webauthnExportBulkDeleteStaleQuarantine: 'admin/security-audit/exports/quarantine/stale/delete',
+        webauthnExportJob: ({ jobId }) => `admin/security-audit/exports/${jobId}`,
+        webauthnExportAuditEvents: ({ jobId }) => `admin/security-audit/exports/${jobId}/audit-events`,
+        webauthnExportAuditEventsCsv: ({ jobId }) => `admin/security-audit/exports/${jobId}/audit-events/export`,
+        webauthnExportQuarantineApprovalHistoryCsv: ({ jobId }) => `admin/security-audit/exports/${jobId}/quarantine/approval-history/export`,
+        webauthnExportQuarantineApprovalHistoryReport: ({ jobId }) => `admin/security-audit/exports/${jobId}/quarantine/approval-history/report`,
+        webauthnExportQuarantineApprovalHistoryReportJob: ({ jobId, reportJobId }) => `admin/security-audit/exports/${jobId}/quarantine/approval-history/report/${reportJobId}`,
+        webauthnExportQuarantineApprovalHistoryReportDownload: ({ jobId, reportJobId }) => `admin/security-audit/exports/${jobId}/quarantine/approval-history/report/${reportJobId}/download`,
+        webauthnExportAuditReport: ({ jobId }) => `admin/security-audit/exports/${jobId}/audit-events/report`,
+        webauthnExportAuditReportJob: ({ jobId, reportJobId }) => `admin/security-audit/exports/${jobId}/audit-events/report/${reportJobId}`,
+        webauthnExportAuditReportDownload: ({ jobId, reportJobId }) => `admin/security-audit/exports/${jobId}/audit-events/report/${reportJobId}/download`,
+        webauthnExportCancel: ({ jobId }) => `admin/security-audit/exports/${jobId}/cancel`,
+        webauthnExportRetry: ({ jobId }) => `admin/security-audit/exports/${jobId}/retry`,
+        webauthnExportQuarantineRelease: ({ jobId }) => `admin/security-audit/exports/${jobId}/quarantine/release`,
+        webauthnExportQuarantineReleaseApprove: ({ jobId }) => `admin/security-audit/exports/${jobId}/quarantine/release/approve`,
+        webauthnExportQuarantineDelete: ({ jobId }) => `admin/security-audit/exports/${jobId}/quarantine`,
+        webauthnExportDownload: ({ jobId }) => `admin/security-audit/exports/${jobId}/download`
+    },
+    adminMetrics: {
+        rateLimits: 'admin/metrics/rate-limits'
     },
     bookings: {
         list: 'bookings',
@@ -495,7 +541,7 @@ const AppConfig = {
         );
     },
 
-    setToken: function(_token) {
+    setToken: function(token) {
         this.clearToken();
     },
 
@@ -564,10 +610,7 @@ const AppConfig = {
                 }
                 return result;
             } catch (error) {
-                const isRetriableWarmingError =
-                    error &&
-                    (error.isRetriableNetworkError || error.isRetriableServerWarming);
-                if (isRetriableWarmingError && canRetry && attempt < MAX_ATTEMPTS) {
+                if (error && error.isRetriableNetworkError && canRetry && attempt < MAX_ATTEMPTS) {
                     warmingStarted = true;
                     this._dispatchRetryEvent('nocturnal:server-warming', {
                         attempt: attempt + 1,
@@ -692,10 +735,6 @@ const AppConfig = {
                 const requestError = new Error((data && data.message) || 'Request failed');
                 requestError.status = response.status;
                 requestError.payload = data;
-                requestError.isRetriableServerWarming =
-                    response.status === 503 &&
-                    response.headers &&
-                    response.headers.get('Retry-After') !== null;
                 throw requestError;
             }
 
@@ -737,6 +776,51 @@ const AppConfig = {
 };
 
 const AppUi = {
+    sanitizeUrl: function(value) {
+        if (typeof value !== 'string') return '';
+        const trimmed = value.trim();
+        if (!trimmed) return '';
+        try {
+            const parsed = new URL(trimmed, window.location.origin);
+            if (!['http:', 'https:'].includes(parsed.protocol) || parsed.origin !== window.location.origin) {
+                return '';
+            }
+            return parsed.href;
+        } catch (_error) {
+            return '';
+        }
+    },
+
+    sanitizeHtml: function(html) {
+        if (typeof DOMPurify === 'undefined') {
+            throw new Error('DOMPurify must be loaded before config.js');
+        }
+        return DOMPurify.sanitize(String(html || ''), {
+            ALLOW_DATA_ATTR: true,
+            ALLOW_UNKNOWN_PROTOCOLS: false,
+            FORBID_ATTR: ['srcdoc', 'style'],
+            FORBID_TAGS: ['base', 'embed', 'iframe', 'link', 'meta', 'object', 'script']
+        });
+    },
+
+    setSafeHtml: function(element, html) {
+        if (!element) return;
+        const target = element;
+        target.innerHTML = AppUi.sanitizeHtml(html);
+    },
+
+    appendSafeHtml: function(element, html) {
+        if (!element) return;
+        const target = element;
+        target.insertAdjacentHTML('beforeend', AppUi.sanitizeHtml(html));
+    },
+
+    clearChildren: function(element) {
+        if (!element) return;
+        const target = element;
+        target.textContent = '';
+    },
+
     ensureStylesheet: function(href) {
         if (
             typeof document === 'undefined'

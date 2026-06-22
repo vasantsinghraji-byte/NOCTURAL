@@ -1,0 +1,9 @@
+groups:
+  - name: nocturnal_audit_export_recording_rules
+    interval: 30s
+    rules:
+      - record: nocturnal:security_audit_export_failure_ratio:15m
+        expr: |
+          increase(nocturnal_security_audit_exports_failed_total[15m])
+          /
+          clamp_min(increase(nocturnal_security_audit_export_attempts_total[15m]), 1)

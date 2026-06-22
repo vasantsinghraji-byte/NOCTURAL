@@ -45,9 +45,8 @@ function loadBookings() {
         displayBookings(currentStatus);
     }).catch(function (error) {
         console.error('Error loading bookings:', error);
-        document.getElementById('bookingsList').innerHTML =
-            '<div class="empty-state"><div class="empty-state-icon">😕</div>' +
-            '<h3>Failed to load bookings</h3><p>Please try again later</p></div>';
+        AppUi.setSafeHtml(document.getElementById('bookingsList'), '<div class="empty-state"><div class="empty-state-icon">😕</div>' +
+            '<h3>Failed to load bookings</h3><p>Please try again later</p></div>');
     });
 }
 
@@ -86,12 +85,11 @@ function displayBookings(status) {
     var list = document.getElementById('bookingsList');
 
     if (filtered.length === 0) {
-        list.innerHTML =
-            '<div class="empty-state">' +
+        AppUi.setSafeHtml(list, '<div class="empty-state">' +
             '<div class="empty-state-icon">📭</div>' +
             '<h3>No ' + status.toLowerCase().replace('_', ' ') + ' bookings</h3>' +
             '<p>You\'re all caught up!</p>' +
-            '</div>';
+            '</div>');
         return;
     }
 
@@ -138,7 +136,7 @@ function displayBookings(status) {
             '</div>' +
             '</div>';
     }
-    list.innerHTML = html;
+    AppUi.setSafeHtml(list, html);
 }
 
 function getActionButtons(booking) {
@@ -184,7 +182,8 @@ function confirmBooking(bookingId) {
         method: 'PUT',
         parseJson: true,
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Idempotency-Key': AppConfig.createIdempotencyKey()
         }
     }, {
         params: { bookingId: bookingId }
@@ -240,7 +239,8 @@ function completeService(bookingId) {
         method: 'PUT',
         parseJson: true,
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Idempotency-Key': AppConfig.createIdempotencyKey()
         }
     }, {
         params: { bookingId: bookingId }
@@ -258,10 +258,10 @@ function showMessage(text, type) {
     var div = document.createElement('div');
     div.className = 'message ' + type;
     div.textContent = text;
-    messageDiv.innerHTML = '';
+    AppUi.setSafeHtml(messageDiv, '');
     messageDiv.appendChild(div);
     setTimeout(function () {
-        messageDiv.innerHTML = '';
+        AppUi.setSafeHtml(messageDiv, '');
     }, 5000);
 }
 

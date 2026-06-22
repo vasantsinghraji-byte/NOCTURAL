@@ -9,7 +9,7 @@ services:
     runtime: node
     region: singapore  # Change to your preferred region
     plan: free  # Use 'starter' for production
-    buildCommand: npm install --legacy-peer-deps && npm --prefix client install --include=dev && npm --prefix client run build
+    buildCommand: npm install --legacy-peer-deps
     startCommand: npm start
     healthCheckPath: /api/v1/health
     envVars:
@@ -35,12 +35,19 @@ services:
       # Security
       - key: JWT_SECRET
         sync: false  # Set manually in Render dashboard
-      - key: JWT_EXPIRE
+      # Token lifetimes consumed by middleware/auth.js (the live signing path).
+      # JWT_EXPIRE was removed: it only fed config/environments.js, which is not
+      # imported by the runtime auth path, so it had no effect on issued tokens.
+      - key: JWT_ACCESS_EXPIRE
+        value: 15m
+      - key: JWT_REFRESH_EXPIRE
         value: 7d
       - key: ENCRYPTION_KEY
         sync: false  # Set manually in Render dashboard
       - key: APP_URL
         value: https://nocturnal-api.onrender.com
+      # Set this to the final custom frontend domain when chosen.
+      # middleware/security.js automatically adds it to the production CORS allowlist.
       - key: FRONTEND_URL
         value: https://nocturnal.com
       - key: ALLOWED_ORIGINS
@@ -48,6 +55,32 @@ services:
       # Optional Services
       - key: REDIS_ENABLED
         value: false
+      # Optional email webhook used by hospital waitlist notifications.
+      # Set EMAIL_WEBHOOK_URL and EMAIL_WEBHOOK_TOKEN manually in Render.
+      - key: EMAIL_WEBHOOK_URL
+        sync: false
+      - key: EMAIL_WEBHOOK_TOKEN
+        sync: false
+      - key: EMAIL_FROM
+        value: Nocturnal <no-reply@nocturnal.com>
+      - key: SECURITY_NOTIFICATION_OUTBOX_ENABLED
+        value: true
+      - key: WEBAUTHN_RP_NAME
+        value: Nocturnal
+      - key: WEBAUTHN_RP_ID
+        value: nocturnal.com
+      - key: WEBAUTHN_ORIGIN
+        value: https://nocturnal.com
+      - key: COMPROMISED_PASSWORD_CHECK_ENABLED
+        value: true
+      - key: COMPROMISED_PASSWORD_CHECK_FAIL_OPEN
+        value: false
+      # Only populate this with known immediate reverse-proxy IPs. Location
+      # headers are ignored when the request does not originate from this list.
+      - key: TRUSTED_LOCATION_PROXY_IPS
+        sync: false
+      - key: WAITLIST_ADMIN_EMAIL
+        sync: false
       - key: LOG_LEVEL
         value: warn
     autoDeploy: true

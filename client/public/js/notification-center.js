@@ -67,7 +67,7 @@ class NotificationCenter {
         const existingContainer = document.getElementById('notificationCenter');
         const container = existingContainer || document.createElement('div');
         container.id = 'notificationCenter';
-        container.innerHTML = `
+        AppUi.setSafeHtml(container, `
             <div class="notification-bell" id="notificationBell">
                 <i class="fas fa-bell"></i>
                 <span class="notification-badge is-hidden" id="notificationBadge">0</span>
@@ -90,7 +90,7 @@ class NotificationCenter {
                     </button>
                 </div>
             </div>
-        `;
+        `);
 
         if (!existingContainer) {
             // Find nav bar and append
@@ -318,13 +318,27 @@ class NotificationCenter {
             return '';
         }
 
-        // Must be a root-relative path ("/...") but not protocol-relative ("//host"),
-        // and must not contain backslashes some browsers treat as a host separator.
-        if (actionUrl[0] !== '/' || actionUrl[1] === '/' || actionUrl.includes('\\')) {
+        const internalBase = 'https://internal.invalid';
+        const allowedPathPrefixes = ['/roles/', '/patient/', '/doctor/', '/admin/'];
+
+        try {
+            const parsed = new URL(actionUrl, internalBase);
+            const decodedPath = decodeURIComponent(parsed.pathname);
+            const allowedPath = allowedPathPrefixes.some(prefix => parsed.pathname.startsWith(prefix));
+
+            if (
+                parsed.origin !== internalBase ||
+                decodedPath.startsWith('//') ||
+                decodedPath.includes('\\') ||
+                !allowedPath
+            ) {
+                return '';
+            }
+
+            return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        } catch (_error) {
             return '';
         }
-
-        return actionUrl;
     }
 
     async markAsRead(notificationId) {

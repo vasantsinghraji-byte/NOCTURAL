@@ -6,8 +6,10 @@
  */
 
 const User = require('../models/user');
-const { generateToken } = require('../middleware/auth');
+const authTokens = require('../middleware/auth');
 const logger = require('../utils/logger');
+const passwordSecurityService = require('./passwordSecurityService');
+const compromisedPasswordService = require('./compromisedPasswordService');
 const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
 const { AuthenticationError, AuthorizationError } = require('../utils/errors');
 
@@ -42,6 +44,9 @@ const BLOCKED_PROFILE_FIELDS = new Set([
 ]);
 
 const getAllowedProfileFields = (role) => PROFILE_FIELDS_BY_ROLE[role] || COMMON_PROFILE_FIELDS;
+const generateAccessToken = authTokens.generateAccessToken || authTokens.generateToken;
+const generateRefreshToken = authTokens.generateRefreshToken || authTokens.generateToken;
+const normalizeEmail = email => String(email || '').trim().toLowerCase();
 
 const getDisallowedProfileFields = (updateData, role) => {
   const allowedFields = new Set(getAllowedProfileFields(role));
@@ -59,19 +64,9 @@ class AuthService {
    * @returns {Promise<Object>} Created user and token
    */
   async register(userData) {
-    const {
-      name,
-      email,
-      password,
-      role,
-      specialty,
-      hospital,
-      location,
-      phone,
-      professional,
-      bankDetails,
-      onboardingCompleted
-    } = userData;
+    const { name, password, role, specialty, hospital, location, phone } = userData;
+    const email = normalizeEmail(userData.email);
+    await compromisedPasswordService.assertPasswordNotCompromised(password);
 
     // Check if user exists
     const existingUser = await User.findOne({ email });
@@ -94,10 +89,7 @@ class AuthService {
         specialty,
         hospital,
         location,
-        phone,
-        professional,
-        bankDetails,
-        onboardingCompleted
+        phone
       });
     } catch (error) {
       logger.error('User creation error', { email, error: error.message, stack: error.stack });
@@ -107,8 +99,9 @@ class AuthService {
       };
     }
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Generate short-lived access token and refresh token for cookie-backed sessions.
+    const token = generateAccessToken(user._id, undefined, user.sessionVersion);
+    const refreshToken = generateRefreshToken(user._id, undefined, user.sessionVersion);
 
     logger.logAuth('register', email, true);
     logger.info('New User Registered', {
@@ -119,6 +112,7 @@ class AuthService {
 
     return {
       token,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
@@ -138,7 +132,8 @@ class AuthService {
    * @returns {Promise<Object>} User and token
    */
   async login(credentials) {
-    const { email, password } = credentials;
+    const email = normalizeEmail(credentials.email);
+    const { password } = credentials;
 
     if (!email || !password) {
       throw {
@@ -148,7 +143,7 @@ class AuthService {
     }
 
     // Find user and include password
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select('+password +sessionVersion');
 
     if (!user) {
       logger.logAuth('login', email, false, ERROR_MESSAGE.USER_NOT_FOUND);
@@ -171,8 +166,9 @@ class AuthService {
       };
     }
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Generate short-lived access token and refresh token for cookie-backed sessions.
+    const token = generateAccessToken(user._id, undefined, user.sessionVersion);
+    const refreshToken = generateRefreshToken(user._id, undefined, user.sessionVersion);
 
     // Update last active — don't block login if this fails
     try {
@@ -194,6 +190,7 @@ class AuthService {
 
     return {
       token,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
@@ -281,30 +278,28 @@ class AuthService {
    * @param {String} newPassword - New password to persist
    * @returns {Promise<Boolean>} True when the password is updated
    */
-  async updatePassword(userId, currentPassword, newPassword) {
-    const user = await User.findById(userId).select('+password');
-
-    if (!user) {
-      throw {
+  async updatePassword(userId, currentPassword, newPassword, securityOptions = {}) {
+    const result = await passwordSecurityService.changePassword({
+      IdentityModel: User,
+      identityId: userId,
+      userType: 'user',
+      currentPassword,
+      newPassword,
+      ...securityOptions,
+      notFoundError: {
         statusCode: HTTP_STATUS.NOT_FOUND,
         message: ERROR_MESSAGE.USER_NOT_FOUND
-      };
-    }
-
-    const isPasswordValid = await user.comparePassword(currentPassword);
-    if (!isPasswordValid) {
-      throw new AuthenticationError('Current password is incorrect');
-    }
-
-    user.password = newPassword;
-    await user.save();
-
-    logger.info('Password Updated', {
-      userId: user._id,
-      email: user.email
+      },
+      invalidPasswordError: new AuthenticationError('Current password is incorrect')
     });
 
-    return true;
+    logger.info('Password Updated', {
+      userId: result.identity._id,
+      email: result.identity.email,
+      revokedSessions: result.revokedSessions
+    });
+
+    return result;
   }
 
   /**

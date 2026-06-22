@@ -292,17 +292,30 @@ HealthRecordSchema.index({ patient: 1, version: -1 });
 HealthRecordSchema.index({ patient: 1, isLatest: 1 });
 HealthRecordSchema.index({ patient: 1, recordType: 1, createdAt: -1 });
 HealthRecordSchema.index({ status: 1, createdAt: 1 }); // Pending review queue
-HealthRecordSchema.index({ 'source.bookingId': 1 });
+HealthRecordSchema.index(
+  { 'source.bookingId': 1 },
+  {
+    unique: true,
+    name: 'booking_health_record_unique_idx',
+    partialFilterExpression: {
+      'source.bookingId': { $exists: true },
+      recordType: RECORD_TYPES.BOOKING_CAPTURE
+    }
+  }
+);
 HealthRecordSchema.index({ 'review.assignedTo': 1, status: 1 }); // Doctor's review queue
 
 // Pre-save: Auto-increment version and manage isLatest
-HealthRecordSchema.pre('save', async function(next) {
+HealthRecordSchema.pre('save', async function() {
   if (this.isNew) {
+    const session = typeof this.$session === 'function' ? this.$session() : null;
     // Get the latest version for this patient
-    const latestRecord = await this.constructor.findOne({
+    let latestRecordQuery = this.constructor.findOne({
       patient: this.patient,
       isLatest: true
     }).sort({ version: -1 });
+    if (session) latestRecordQuery = latestRecordQuery.session(session);
+    const latestRecord = await latestRecordQuery;
 
     if (latestRecord) {
       // Set version and link to previous
@@ -312,13 +325,13 @@ HealthRecordSchema.pre('save', async function(next) {
       // Mark previous as not latest
       await this.constructor.updateOne(
         { _id: latestRecord._id },
-        { isLatest: false }
+        { isLatest: false },
+        session ? { session } : undefined
       );
     } else {
       this.version = 1;
     }
   }
-  next();
 });
 
 // Static: Get latest approved record for a patient
@@ -431,12 +444,14 @@ HealthRecordSchema.statics.getAllPendingIntakes = async function(options = {}) {
 };
 
 // Instance: Compute changes from previous version
-HealthRecordSchema.methods.computeChanges = async function() {
+HealthRecordSchema.methods.computeChanges = async function(options = {}) {
   if (!this.previousVersion) {
     return null;
   }
 
-  const previous = await this.constructor.findById(this.previousVersion);
+  let previousQuery = this.constructor.findById(this.previousVersion);
+  if (options.session) previousQuery = previousQuery.session(options.session);
+  const previous = await previousQuery;
   if (!previous) {
     return null;
   }

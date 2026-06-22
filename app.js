@@ -7,10 +7,8 @@ const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
 const path = require('path');
-const fs = require('fs');
-const mime = require('mime-types');
 const logger = require('./utils/logger');
-const { resolveFrontendStaticDir } = require('./utils/frontendStatic');
+const { resolveFrontendStaticDir, PUBLIC_RELATIVE_PATH } = require('./utils/frontendStatic');
 const metricsRouter = require('./routes/admin/metrics');
 
 // Enhanced security imports
@@ -49,6 +47,7 @@ const { MAX_CONTENT_LENGTH } = require('./config/requestLimits');
 const { wrapResponseMethod } = require('./utils/responseOverride');
 
 const app = express();
+app.set('case sensitive routing', true);
 
 // Render and similar managed platforms terminate TLS and forward client IPs
 // through X-Forwarded-* headers. express-rate-limit validates this setup and
@@ -241,6 +240,7 @@ if (!isTest) {
 
 // Prefer optimized frontend assets in production containers, but keep local/public fallback.
 const frontendStaticDir = resolveFrontendStaticDir();
+const publicStaticDir = path.resolve(__dirname, PUBLIC_RELATIVE_PATH);
 
 app.get('/service-worker.js', (req, res, next) => {
   res.set({
@@ -257,6 +257,9 @@ app.get('/service-worker.js', (req, res, next) => {
 });
 
 app.use(express.static(frontendStaticDir));
+if (frontendStaticDir !== publicStaticDir) {
+  app.use(express.static(publicStaticDir));
+}
 
 // Compatibility for older/public links that pointed at a root registration page.
 app.get('/register.html', (req, res) => {
@@ -271,51 +274,11 @@ app.get('/register.html', (req, res) => {
 // Authenticated file access middleware
 const authenticatedFileAccess = require('./middleware/auth').protect;
 
-// Secure file access route with authentication
-app.get('/uploads/:type/:filename', authenticatedFileAccess, async (req, res) => {
-  try {
-    const { type, filename } = req.params;
-
-    const validTypes = ['profile-photos', 'documents'];
-    if (!validTypes.includes(type)) {
-      return res.status(404).send('Not found');
-    }
-
-    const safePath = path.normalize(filename).replace(/^(\.\.(\/|\\|$))+/, '');
-    const filePath = path.join(__dirname, 'uploads', type, safePath);
-
-    // The path is constrained to the authenticated uploads directory above.
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).send('File not found');
-    }
-
-    if (type === 'profile-photos') {
-      const fileUserId = filename.split('_')[0];
-      const requestUserId = req.user?._id?.toString();
-
-      const isOwner = fileUserId === requestUserId;
-      const isAdmin = req.user?.role === 'admin';
-
-      if (!isOwner && !isAdmin) {
-        logger.warn('Unauthorized file access attempt', {
-          requestedFile: filename,
-          requestUser: requestUserId,
-          fileOwner: fileUserId
-        });
-        return res.status(403).send('Unauthorized');
-      }
-    }
-
-    const contentType = mime.lookup(filePath) || 'application/octet-stream';
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', 'inline');
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    fs.createReadStream(filePath).pipe(res);
-  } catch (error) {
-    logger.error('File access error', { error: error.message, path: req.path });
-    res.status(500).send('Error accessing file');
-  }
+// Legacy links must pass through stored-record authorization.
+app.get('/uploads/*path', authenticatedFileAccess, (req, res) => {
+  const pathParts = Array.isArray(req.params.path) ? req.params.path : [req.params.path];
+  const key = pathParts.filter(Boolean).join('/');
+  res.redirect(302, `/api/v1/uploads/file?key=${encodeURIComponent(key)}`);
 });
 
 // ============================================================================

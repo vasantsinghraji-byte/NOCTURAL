@@ -302,7 +302,7 @@ InvestigationReportSchema.index({ 'doctorReview.requiredSpecialization': 1, stat
 InvestigationReportSchema.index({ status: 1, createdAt: 1 }); // For queue processing
 
 // Pre-save: Generate report number
-InvestigationReportSchema.pre('save', async function(next) {
+InvestigationReportSchema.pre('save', async function() {
   if (this.isNew && !this.reportNumber) {
     const date = new Date();
     const prefix = `INV${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -311,7 +311,6 @@ InvestigationReportSchema.pre('save', async function(next) {
     });
     this.reportNumber = `${prefix}${String(count + 1).padStart(6, '0')}`;
   }
-  next();
 });
 
 // Static: Get reports for patient with pagination

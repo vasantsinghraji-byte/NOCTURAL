@@ -26,8 +26,7 @@
 
             const dutyId = getDutyId();
             if (!dutyId) {
-                document.getElementById('dutyContent').innerHTML = 
-                    '<div class="loading">Invalid duty ID</div>';
+                AppUi.setSafeHtml(document.getElementById('dutyContent'), '<div class="loading">Invalid duty ID</div>');
                 return;
             }
 
@@ -57,8 +56,7 @@
                 displayDutyDetails(duty, isApplied);
             } catch (error) {
                 console.error('Error fetching duty details:', error);
-                document.getElementById('dutyContent').innerHTML = 
-                    '<div class="loading">Error loading duty details. Please try again.</div>';
+                AppUi.setSafeHtml(document.getElementById('dutyContent'), '<div class="loading">Error loading duty details. Please try again.</div>');
             }
         }
 
@@ -174,7 +172,7 @@
                 </div>
             `;
 
-            document.getElementById('dutyContent').innerHTML = html;
+            AppUi.setSafeHtml(document.getElementById('dutyContent'), html);
         }
         function bindUiEvents() {
             document.getElementById('backBtn')?.addEventListener('click', goBack);

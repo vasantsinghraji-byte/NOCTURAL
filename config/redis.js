@@ -9,6 +9,8 @@ let isConnected = false;
  * Provides caching layer for frequently accessed data
  */
 
+const REDIS_URL = process.env.REDIS_URL;
+
 const REDIS_CONFIG = {
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT) || 6379,
@@ -43,6 +45,20 @@ const REDIS_CONFIG = {
   }
 };
 
+const createRedisClient = () => {
+  if (REDIS_URL) {
+    const urlOptions = { ...REDIS_CONFIG };
+    delete urlOptions.host;
+    delete urlOptions.port;
+    delete urlOptions.password;
+    delete urlOptions.db;
+
+    return new Redis(REDIS_URL, urlOptions);
+  }
+
+  return new Redis(REDIS_CONFIG);
+};
+
 /**
  * Initialize Redis connection
  */
@@ -54,7 +70,7 @@ const connectRedis = async () => {
       return null;
     }
 
-    redisClient = new Redis(REDIS_CONFIG);
+    redisClient = createRedisClient();
 
     // Wait for initial connection before returning
     await new Promise((resolve, reject) => {

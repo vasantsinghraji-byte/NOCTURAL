@@ -143,7 +143,7 @@ function addSecondaryComplaint() {
         + '<div class="form-group"><label>Complaint</label><input type="text" placeholder="Describe the complaint"></div>'
         + '<div class="form-group"><label>Duration</label><input type="text" placeholder="e.g., 3 days"></div>'
         + '</div></div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, html);
 }
 
 function addTreatmentTried() {
@@ -161,7 +161,7 @@ function addTreatmentTried() {
         + '<option value="ADVERSE">Adverse reaction</option>'
         + '</select></div>'
         + '</div></div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, html);
 }
 
 function addChronicCondition() {
@@ -178,7 +178,7 @@ function addChronicCondition() {
         + '<option value="CHRONIC">Chronic</option>'
         + '</select></div>'
         + '</div></div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, html);
 }
 
 function addSurgery() {
@@ -193,7 +193,7 @@ function addSurgery() {
         + '</div>'
         + '<div class="form-group"><label>Complications</label><input type="text" placeholder="Any complications or issues"></div>'
         + '</div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, html);
 }
 
 function addMedication() {
@@ -216,7 +216,7 @@ function addMedication() {
         + '</select></div>'
         + '<div class="form-group"><label>Indication</label><input type="text" placeholder="What is it for?"></div>'
         + '</div></div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, html);
 }
 
 function addAllergy() {
@@ -242,7 +242,7 @@ function addAllergy() {
         + '</div>'
         + '<div class="form-group"><label>Details</label><input type="text" placeholder="Additional details about the reaction"></div>'
         + '</div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, html);
 }
 
 function addDifferentialDiagnosis() {
@@ -255,7 +255,7 @@ function addDifferentialDiagnosis() {
         + '<div class="form-group"><label>Reasoning</label>'
         + '<textarea rows="2" placeholder="Why consider this? How to differentiate from primary?"></textarea></div>'
         + '</div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, html);
 }
 
 function addPrescribedMedication() {
@@ -272,7 +272,7 @@ function addPrescribedMedication() {
         + '<div class="form-group"><label>Duration</label><input type="text" placeholder="e.g., 7 days"></div>'
         + '<div class="form-group"><label>Indication</label><input type="text" placeholder="What is it for?"></div>'
         + '</div></div>';
-    list.insertAdjacentHTML('beforeend', html);
+    AppUi.appendSafeHtml(list, html);
 }
 
 function removeItem(id) {
@@ -301,7 +301,7 @@ function generateReviewSummary() {
         + 'To review specific sections, use the navigation on the left sidebar.'
         + '</p>';
 
-    summary.innerHTML = html;
+    AppUi.setSafeHtml(summary, html);
 }
 
 // Data collection and submission

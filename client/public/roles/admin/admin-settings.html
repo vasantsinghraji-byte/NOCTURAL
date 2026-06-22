@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics Settings - Nocturnal Admin</title>
     <link rel="stylesheet" href="/css/pages/roles-admin-admin-settings.css">
-    <script src="/js/config.js"></script>
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
     <script src="/js/frontend-session.js"></script>
     <script src="/js/admin-session.js"></script>
 </head>
@@ -19,6 +19,7 @@
             <a href="/roles/admin/admin-analytics.html">Analytics</a>
             <a href="/roles/admin/admin-waitlist.html">Waitlist</a>
             <a href="/roles/admin/admin-settings.html" class="active">Settings</a>
+            <a href="/roles/admin/operator-audit.html">Operator Audit</a>
             <a href="/roles/admin/admin-profile.html">Profile</a>
         </div>
         <div class="user-info">
@@ -186,6 +187,35 @@
 
             <button type="submit" class="save-btn" id="saveBtn">Save All Settings</button>
         </form>
+
+        <section class="settings-section">
+            <h2 class="section-title">Security Audit</h2>
+            <p>Platform operators can review passkey, recovery-code, and lost-device recovery events here.</p>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="securityAuditEvent">Event</label>
+                    <select id="securityAuditEvent">
+                        <option value="">All WebAuthn recovery events</option>
+                        <option value="webauthn_recovery_codes_generated">Recovery codes generated</option>
+                        <option value="webauthn_lost_device_recovered">Lost-device recovery completed</option>
+                        <option value="webauthn_lost_device_recovery_failed">Lost-device recovery failed</option>
+                        <option value="webauthn_passkey_revoked">Passkey revoked</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="securityAuditOutcome">Outcome</label>
+                    <select id="securityAuditOutcome">
+                        <option value="">All outcomes</option>
+                        <option value="success">Success</option>
+                        <option value="failure">Failure</option>
+                        <option value="warning">Warning</option>
+                    </select>
+                </div>
+            </div>
+            <button type="button" id="refreshSecurityAudit" class="save-btn">Refresh Audit Events</button>
+            <div id="securityAuditMessage"></div>
+            <div id="securityAuditList">Security audit events not loaded.</div>
+        </section>
     </div>
 
     <script src="/js/admin-settings.js"></script>

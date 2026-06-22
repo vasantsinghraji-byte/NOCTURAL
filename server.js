@@ -7,12 +7,21 @@ const app = require('./app');
 const logger = require('./utils/logger');
 const monitoring = require('./utils/monitoring');
 const metricsRouter = require('./routes/admin/metrics');
+const paymentService = require('./services/paymentService');
 const { connectDB, disconnectDB } = require('./config/database');
 const { cleanup: cleanupRateLimits } = require('./config/rateLimit');
 const { validateEnvironment } = require('./config/validateEnv');
+const securityNotificationOutboxService = require('./services/securityNotificationOutboxService');
+const auditExportCleanupScheduler = require('./services/auditExportCleanupScheduler');
+const auditLifecycleReportCleanupScheduler = require('./services/auditLifecycleReportCleanupScheduler');
+const reconciliationScheduler = require('./services/reconciliationScheduler');
 
 let server = null;
 let processHandlersRegistered = false;
+
+const SERVER_HEADERS_TIMEOUT_MS = 10_000;
+const SERVER_REQUEST_TIMEOUT_MS = 30_000;
+const SERVER_KEEP_ALIVE_TIMEOUT_MS = 5_000;
 
 function validateStartupEnvironment() {
   try {
@@ -26,9 +35,14 @@ function validateStartupEnvironment() {
 }
 
 async function stopServer() {
+  paymentService.stopRefundOutboxWorker();
   cleanupRateLimits();
   monitoring.cleanup();
   metricsRouter.cleanup();
+  securityNotificationOutboxService.stop();
+  auditExportCleanupScheduler.stop();
+  auditLifecycleReportCleanupScheduler.stop();
+  reconciliationScheduler.stop();
 
   if (!server) {
     await disconnectDB();
@@ -142,6 +156,16 @@ function startServer(options = {}) {
       console.log('PM2 ready signal sent');
     }
   });
+
+  server.headersTimeout = SERVER_HEADERS_TIMEOUT_MS;
+  server.requestTimeout = SERVER_REQUEST_TIMEOUT_MS;
+  server.keepAliveTimeout = SERVER_KEEP_ALIVE_TIMEOUT_MS;
+
+  paymentService.startRefundOutboxWorker();
+  securityNotificationOutboxService.start();
+  auditExportCleanupScheduler.start();
+  auditLifecycleReportCleanupScheduler.start();
+  reconciliationScheduler.start();
 
   server.on('close', () => {
     server = null;

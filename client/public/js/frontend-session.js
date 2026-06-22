@@ -7,7 +7,7 @@ if (typeof AppConfig === 'undefined') {
   console.error('frontend-session.js: AppConfig not loaded - ensure config.js is included before this script');
 }
 
-(function initFrontendSession() {
+(function initFrontendSession(window) {
   var appRoutes = typeof AppConfig !== 'undefined' && AppConfig.routes ? AppConfig.routes : null;
   var DEFAULT_ROUTES = {
     doctorDashboard: appRoutes ? appRoutes.page('doctor.dashboard') : '/roles/doctor/doctor-dashboard.html',
@@ -49,20 +49,6 @@ if (typeof AppConfig === 'undefined') {
     localStorage.removeItem('userId');
   }
 
-  function navigateTo(url) {
-    window.location.href = url;
-  }
-
-  function navigateAfterDelay(url, delayMs) {
-    window.setTimeout(function () {
-      navigateTo(url);
-    }, delayMs);
-  }
-
-  function registerSessionApi(api) {
-    window.NocturnalSession = api;
-  }
-
   function logout(options) {
     var config = Object.assign({
       clearAll: false,
@@ -89,7 +75,7 @@ if (typeof AppConfig === 'undefined') {
     }
 
     if (config.redirectUrl) {
-      navigateTo(config.redirectUrl);
+      window.location.href = config.redirectUrl;
     }
   }
 
@@ -159,7 +145,7 @@ if (typeof AppConfig === 'undefined') {
     if (typeof config.onUnauthorized === 'function') {
       config.onUnauthorized(config);
     } else if (config.redirectUrl) {
-      navigateTo(config.redirectUrl);
+      window.location.href = config.redirectUrl;
     }
 
     return null;
@@ -347,21 +333,21 @@ if (typeof AppConfig === 'undefined') {
 
     if (user.role === 'doctor' || user.role === 'nurse' || user.role === 'physiotherapist') {
       persistSession(user, 'doctor');
-      navigateTo(user.onboardingCompleted
+      window.location.href = user.onboardingCompleted
         ? routes.doctorDashboard
-        : routes.doctorOnboarding);
+        : routes.doctorOnboarding;
       return true;
     }
 
     if (user.role === 'admin') {
       persistSession(user, 'hospital');
-      navigateTo(routes.adminDashboard);
+      window.location.href = routes.adminDashboard;
       return true;
     }
 
     if (user.role === 'patient') {
       persistSession(user, 'patient');
-      navigateTo(routes.patientDashboard);
+      window.location.href = routes.patientDashboard;
       return true;
     }
 
@@ -387,13 +373,12 @@ if (typeof AppConfig === 'undefined') {
     if (!container) {
       return;
     }
-    var targetContainer = container;
 
     var config = Object.assign({
       className: 'error-message'
     }, options || {});
 
-    targetContainer.innerHTML = '<div class="' + config.className + '">' + message + '</div>';
+    AppUi.setSafeHtml(container, '<div class="' + config.className + '">' + message + '</div>');
   }
 
   function renderSuccessMessage(container, message, options) {
@@ -406,8 +391,7 @@ if (typeof AppConfig === 'undefined') {
 
   function clearFormMessage(container) {
     if (container) {
-      var targetContainer = container;
-      targetContainer.innerHTML = '';
+      AppUi.setSafeHtml(container, '');
     }
   }
 
@@ -415,27 +399,22 @@ if (typeof AppConfig === 'undefined') {
     if (!button) {
       return;
     }
-    var targetButton = button;
 
     var config = Object.assign({
       clearText: false
     }, options || {});
 
-    if (!targetButton.dataset.originalText) {
-      targetButton.dataset.originalText = targetButton.textContent;
+    if (!button.dataset.originalText) {
+      button.dataset.originalText = button.textContent;
     }
 
-    if (!targetButton.dataset.originalHtml) {
-      targetButton.dataset.originalHtml = targetButton.innerHTML;
-    }
-
-    targetButton.classList.add('loading');
-    targetButton.disabled = true;
+    button.classList.add('loading');
+    button.disabled = true;
 
     if (config.loadingHtml) {
-      targetButton.innerHTML = config.loadingHtml;
+      AppUi.setSafeHtml(button, config.loadingHtml);
     } else if (config.clearText) {
-      targetButton.textContent = '';
+      button.textContent = '';
     }
   }
 
@@ -443,31 +422,25 @@ if (typeof AppConfig === 'undefined') {
     if (!button) {
       return;
     }
-    var targetButton = button;
 
     var config = Object.assign({
-      textContent: targetButton.dataset.originalText || targetButton.textContent
+      textContent: button.dataset.originalText || button.textContent
     }, options || {});
 
-    targetButton.classList.remove('loading');
-    targetButton.disabled = false;
+    button.classList.remove('loading');
+    button.disabled = false;
 
     if (config.htmlContent) {
-      targetButton.innerHTML = config.htmlContent;
+      AppUi.setSafeHtml(button, config.htmlContent);
       return;
     }
 
     if (config.textContent !== undefined && config.textContent !== null) {
-      targetButton.textContent = config.textContent;
+      button.textContent = config.textContent;
       return;
     }
 
-    if (targetButton.dataset.originalHtml) {
-      targetButton.innerHTML = targetButton.dataset.originalHtml;
-      return;
-    }
-
-    targetButton.textContent = targetButton.dataset.originalText || targetButton.textContent;
+    button.textContent = button.dataset.originalText || button.textContent;
   }
 
   function handleValidationFailure(container, message, config) {
@@ -828,13 +801,12 @@ if (typeof AppConfig === 'undefined') {
     var button = resolveActionButton(event, config.buttonId);
 
     if (button) {
-      var loadingButton = button;
-      setButtonLoading(loadingButton, {
+      setButtonLoading(button, {
         loadingHtml: config.loadingHtml
       });
 
       if (config.loadingText) {
-        loadingButton.textContent = config.loadingText;
+        button.textContent = config.loadingText;
       }
     }
 
@@ -842,14 +814,13 @@ if (typeof AppConfig === 'undefined') {
       await applyForDuty(dutyId, config);
 
       if (button) {
-        var targetButton = button;
-        targetButton.classList.remove('loading');
-        targetButton.disabled = true;
+        button.classList.remove('loading');
+        button.disabled = true;
 
         if (config.successHtml) {
-          targetButton.innerHTML = config.successHtml;
+          AppUi.setSafeHtml(button, config.successHtml);
         } else if (config.successText) {
-          targetButton.textContent = config.successText;
+          button.textContent = config.successText;
         }
       }
 
@@ -864,7 +835,9 @@ if (typeof AppConfig === 'undefined') {
       }
 
       if (config.redirectUrl) {
-        navigateAfterDelay(config.redirectUrl, config.redirectDelayMs);
+        window.setTimeout(function() {
+          window.location.href = config.redirectUrl;
+        }, config.redirectDelayMs);
       }
 
       return true;
@@ -900,8 +873,6 @@ if (typeof AppConfig === 'undefined') {
       onInvalid: null
     }, options || {});
 
-    // Client-side confirmation is a UX check; server-side auth remains authoritative.
-    // eslint-disable-next-line security/detect-possible-timing-attacks
     if (password === confirmPassword) {
       return true;
     }
@@ -1013,12 +984,12 @@ if (typeof AppConfig === 'undefined') {
 
     if (config.redirectUrl) {
       setTimeout(function () {
-        navigateTo(config.redirectUrl);
+        window.location.href = config.redirectUrl;
       }, config.redirectDelayMs);
     }
   }
 
-  registerSessionApi({
+  window.NocturnalSession = {
     persistSession: persistSession,
     clearSession: clearSession,
       logout: logout,
@@ -1059,5 +1030,5 @@ if (typeof AppConfig === 'undefined') {
     validatePasswordStrength: validatePasswordStrength,
     completeAuthSuccess: completeAuthSuccess,
     routes: Object.assign({}, DEFAULT_ROUTES)
-  });
-}());
+  };
+})(window);

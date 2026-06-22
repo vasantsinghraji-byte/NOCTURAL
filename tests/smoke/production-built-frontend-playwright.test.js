@@ -103,10 +103,11 @@ describe('Production Smoke: built frontend routes in Playwright', () => {
     jest.resetModules();
 
     const serverModule = require(path.join(rootDir, 'server.js'));
-    server = serverModule.startServer({
+    server = await serverModule.startServer({
       port,
       registerProcessHandlers: false,
-      connectDatabase: false
+      connectDatabase: false,
+      connectCache: false
     });
     stopServer = serverModule.stopServer;
 

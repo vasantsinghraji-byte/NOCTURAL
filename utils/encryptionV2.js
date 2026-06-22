@@ -13,6 +13,32 @@ const logger = require('./logger');
 const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32; // 256 bits
 const IV_LENGTH = 12;  // 96 bits for GCM
+const KDF_ALGORITHM = 'pbkdf2';
+const KDF_DIGEST = 'sha256';
+
+/**
+ * KDF versioning for password-derived keys.
+ * v1 is retained only for legacy ciphertexts/metadata that used 100k rounds.
+ * New derivations use OWASP 2023 PBKDF2-HMAC-SHA256 guidance: 600k rounds.
+ */
+const KDF_VERSIONS = Object.freeze({
+  v1: Object.freeze({
+    version: 'v1',
+    algorithm: KDF_ALGORITHM,
+    digest: KDF_DIGEST,
+    iterations: 100000,
+    deprecated: true
+  }),
+  v2: Object.freeze({
+    version: 'v2',
+    algorithm: KDF_ALGORITHM,
+    digest: KDF_DIGEST,
+    iterations: 600000,
+    deprecated: false
+  })
+});
+
+const CURRENT_KDF_VERSION = 'v2';
 
 /**
  * Key versioning for rotation support
@@ -221,10 +247,13 @@ function reencrypt(ciphertext, options = {}) {
 }
 
 /**
- * Hash sensitive data (one-way, cannot be decrypted)
- * Uses SHA-256 with optional salt
+ * Generate a deterministic checksum for non-password data.
+ *
+ * NOT for passwords. Password hashing must use bcrypt.hash() or argon2.hash().
+ * Uses SHA-256 with optional salt and iterations for integrity/deduplication
+ * style checks only.
  */
-function hash(text, options = {}) {
+function checksum(text, options = {}) {
   if (!text) return null;
 
   const {
@@ -234,32 +263,99 @@ function hash(text, options = {}) {
   } = options;
 
   try {
-    let hash = text.toString() + salt;
+    let digest = text.toString() + salt;
 
     for (let i = 0; i < iterations; i++) {
-      hash = crypto.createHash(algorithm).update(hash).digest('hex');
+      digest = crypto.createHash(algorithm).update(digest).digest('hex');
     }
 
-    return hash;
+    return digest;
 
   } catch (error) {
-    logger.error('Hashing error', { error: error.message });
-    throw new Error('Failed to hash data');
+    logger.error('Checksum error', { error: error.message });
+    throw new Error('Failed to checksum data');
   }
 }
 
 /**
- * Derive key from password using PBKDF2
+ * Resolve PBKDF2 parameters while preserving backward compatibility with the
+ * old deriveKey(password, salt, iterations) call shape.
+ */
+function resolveKdfOptions(options = {}) {
+  if (typeof options === 'number') {
+    return {
+      version: options === KDF_VERSIONS.v1.iterations ? 'v1' : 'custom',
+      algorithm: KDF_ALGORITHM,
+      digest: KDF_DIGEST,
+      iterations: options,
+      deprecated: options < KDF_VERSIONS.v2.iterations
+    };
+  }
+
+  const requestedVersion = options.version || options.kdfVersion || CURRENT_KDF_VERSION;
+  const versionConfig = KDF_VERSIONS[requestedVersion];
+
+  if (!versionConfig) {
+    if (options.iterations && options.digest) {
+      return {
+        version: requestedVersion,
+        algorithm: options.algorithm || KDF_ALGORITHM,
+        digest: options.digest,
+        iterations: options.iterations,
+        deprecated: options.iterations < KDF_VERSIONS.v2.iterations
+      };
+    }
+
+    throw new Error(`Unknown KDF version: ${requestedVersion}`);
+  }
+
+  return {
+    ...versionConfig,
+    iterations: options.iterations || versionConfig.iterations,
+    digest: options.digest || versionConfig.digest
+  };
+}
+
+/**
+ * Derive key from password using versioned PBKDF2-HMAC-SHA256 parameters.
  * For password-based encryption
  */
-function deriveKey(password, salt, iterations = 100000) {
+function deriveKey(password, salt, options = {}) {
+  const kdf = resolveKdfOptions(options);
+
   return crypto.pbkdf2Sync(
     password,
     salt,
-    iterations,
+    kdf.iterations,
     KEY_LENGTH,
-    'sha256'
+    kdf.digest
   );
+}
+
+/**
+ * Derive a password key with metadata that can be stored beside ciphertext.
+ * Persisting this metadata allows old v1 payloads to remain decryptable while
+ * new payloads use the stronger current KDF parameters.
+ */
+function deriveKeyWithMetadata(password, salt, options = {}) {
+  const kdf = resolveKdfOptions(options);
+
+  return {
+    key: deriveKey(password, salt, kdf),
+    kdf: {
+      version: kdf.version,
+      algorithm: kdf.algorithm,
+      digest: kdf.digest,
+      iterations: kdf.iterations
+    }
+  };
+}
+
+/**
+ * Re-derive a password key using stored KDF metadata from an existing payload.
+ */
+function deriveKeyFromMetadata(password, salt, metadata = {}) {
+  return deriveKey(password, salt, metadata);
 }
 
 /**
@@ -270,19 +366,22 @@ function generateToken(length = 32) {
 }
 
 /**
- * Compare hash with plaintext (constant-time comparison)
+ * Compare checksum with plaintext (constant-time comparison).
+ *
+ * NOT for passwords. Password verification must use bcrypt.compare() or
+ * argon2.verify().
  */
-function compareHash(plaintext, hash, options = {}) {
-  const computed = this.hash(plaintext, options);
+function compareHash(plaintext, expectedChecksum, options = {}) {
+  const computed = checksum(plaintext, options);
 
   // Use timingSafeEqual to prevent timing attacks
-  if (computed.length !== hash.length) {
+  if (computed.length !== expectedChecksum.length) {
     return false;
   }
 
   return crypto.timingSafeEqual(
     Buffer.from(computed),
-    Buffer.from(hash)
+    Buffer.from(expectedChecksum)
   );
 }
 
@@ -321,6 +420,8 @@ function getKeyInfo() {
   return {
     currentVersion: CURRENT_KEY_VERSION,
     algorithm: ALGORITHM,
+    currentKdfVersion: CURRENT_KDF_VERSION,
+    kdf: KDF_VERSIONS[CURRENT_KDF_VERSION],
     versions: Object.keys(KEY_VERSIONS).map(v => ({
       version: v,
       deprecated: KEY_VERSIONS[v].deprecated,
@@ -333,11 +434,14 @@ module.exports = {
   // Core functions
   encrypt,
   decrypt,
-  hash,
+  checksum,
 
   // Advanced functions
   reencrypt,
   deriveKey,
+  deriveKeyWithMetadata,
+  deriveKeyFromMetadata,
+  resolveKdfOptions,
   generateToken,
   compareHash,
 
@@ -353,5 +457,7 @@ module.exports = {
 
   // Constants
   ALGORITHM,
-  CURRENT_KEY_VERSION
+  CURRENT_KEY_VERSION,
+  KDF_VERSIONS,
+  CURRENT_KDF_VERSION
 };

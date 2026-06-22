@@ -84,16 +84,17 @@ describe('Production Smoke: GET /api/v1/health via server.js entrypoint', () => 
       NODE_ENV: 'production',
       PORT: String(port),
       RENDER_GIT_COMMIT: 'production-smoke-commit',
-      ALLOWED_ORIGINS: `https://127.0.0.1:${port}`
+      ALLOWED_ORIGINS: `https://127.0.0.1:${port},http://127.0.0.1:${port}`
     }));
 
     jest.resetModules();
 
     const { startServer, stopServer } = require(path.join(rootDir, 'server.js'));
-    const server = startServer({
+    const server = await startServer({
       port,
       registerProcessHandlers: false,
-      connectDatabase: false
+      connectDatabase: false,
+      connectCache: false
     });
 
     try {

@@ -3,6 +3,21 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const Review = require('../models/review');
 const { paginate, paginationMiddleware } = require('../utils/pagination');
+const pickAllowedFields = require('../utils/pickAllowedFields');
+const Duty = require('../models/duty');
+const Application = require('../models/application');
+const { getTenantQuery } = require('../utils/tenantScope');
+const { normalizeObjectId } = require('../utils/safeMongo');
+
+const REVIEW_CREATE_FIELDS = [
+    'duty',
+    'reviewedUser',
+    'rating',
+    'ratings',
+    'comment',
+    'performanceMetrics',
+    'tags'
+];
 
 // Apply pagination middleware
 router.use(paginationMiddleware);
@@ -12,11 +27,12 @@ router.use(paginationMiddleware);
 // @access  Public
 router.get('/user/:userId', async (req, res) => {
     try {
+        const reviewedUserId = normalizeObjectId(req.params.userId, 'reviewed user id');
         const result = await paginate(
             Review,
             {
-                reviewedUser: req.params.userId,
-                visibility: { $in: ['PUBLIC', 'HOSPITAL_ONLY'] }
+                reviewedUser: reviewedUserId,
+                visibility: 'PUBLIC'
             },
             {
                 ...req.pagination,
@@ -26,7 +42,7 @@ router.get('/user/:userId', async (req, res) => {
         );
 
         // Get average ratings
-        const avgRatings = await Review.getUserAverageRating(req.params.userId);
+        const avgRatings = await Review.getUserAverageRating(reviewedUserId, { visibility: 'PUBLIC' });
 
         res.json({
             success: true,
@@ -80,10 +96,29 @@ router.get('/my-reviews', protect, async (req, res) => {
 // @access  Private
 router.post('/', protect, authorize('admin'), async (req, res) => {
     try {
+        const tenantQuery = getTenantQuery(req.user);
+        if (!tenantQuery) {
+            return res.status(403).json({ success: false, message: 'Hospital assignment required' });
+        }
+
         const reviewData = {
-            ...req.body,
+            ...pickAllowedFields(req.body, REVIEW_CREATE_FIELDS),
             reviewer: req.user._id
         };
+        reviewData.duty = normalizeObjectId(reviewData.duty, 'duty id');
+        reviewData.reviewedUser = normalizeObjectId(reviewData.reviewedUser, 'reviewed user id');
+        const duty = await Duty.findOne({ _id: reviewData.duty, ...tenantQuery }).select('_id');
+        const acceptedApplication = duty && await Application.exists({
+            duty: duty._id,
+            applicant: reviewData.reviewedUser,
+            status: 'ACCEPTED'
+        });
+        if (!duty || !acceptedApplication) {
+            return res.status(403).json({
+                success: false,
+                message: 'Reviews require an accepted application for your hospital duty'
+            });
+        }
 
         const review = new Review(reviewData);
         await review.save();
@@ -114,10 +149,11 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
 // @access  Private
 router.put('/:id/respond', protect, async (req, res) => {
     try {
+        const reviewId = normalizeObjectId(req.params.id, 'review id');
         const { comment } = req.body;
 
         const review = await Review.findOne({
-            _id: req.params.id,
+            _id: reviewId,
             reviewedUser: req.user._id
         });
 
@@ -154,7 +190,8 @@ router.put('/:id/respond', protect, async (req, res) => {
 // @access  Private
 router.post('/:id/helpful', protect, async (req, res) => {
     try {
-        const review = await Review.findById(req.params.id);
+        const reviewId = normalizeObjectId(req.params.id, 'review id');
+        const review = await Review.findById(reviewId);
         if (!review) {
             return res.status(404).json({
                 success: false,

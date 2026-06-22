@@ -20,9 +20,9 @@ describe('Admin Route Contract', () => {
     expect(bookingRoutesSrc).toContain("'/:id/assign'");
   });
 
-  it('should keep the retired detailed rate-limit analytics page route absent until the dashboard is owned', () => {
-    expect(adminMetricsRoutesSrc).not.toContain("'/dashboard/analytics'");
-    expect(adminMetricsRoutesSrc).not.toContain("'/rate-limits/detailed'");
-    expect(adminMetricsRoutesSrc).not.toContain("'/dashboard/rate-limits'");
+  it('should protect the owned rate-limit analytics routes with admin authorization', () => {
+    expect(adminMetricsRoutesSrc).toMatch(/router\.get\('\/dashboard\/analytics',\s*protect,\s*authorize\('admin'\)/);
+    expect(adminMetricsRoutesSrc).toMatch(/router\.get\('\/rate-limits\/detailed',\s*protect,\s*authorize\('admin'\)/);
+    expect(adminMetricsRoutesSrc).toMatch(/router\.get\('\/dashboard\/rate-limits',\s*protect,\s*authorize\('admin'\)/);
   });
 });
