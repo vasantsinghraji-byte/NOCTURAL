@@ -499,7 +499,7 @@
                 } else {
                     showToast(result?.message || 'Failed to request review', 'error');
                 }
-            } catch (e) {
+            } catch {
                 showToast('Failed to request review', 'error');
             } finally {
                 btn.disabled = false;
@@ -532,7 +532,7 @@
                 } else {
                     showToast(result?.message || 'Failed to submit question', 'error');
                 }
-            } catch (e) {
+            } catch {
                 showToast('Failed to submit question', 'error');
             } finally {
                 btn.disabled = false;
@@ -547,7 +547,7 @@
                     showToast('Report acknowledged', 'success');
                     loadReport();
                 }
-            } catch (e) {
+            } catch {
                 showToast('Failed to acknowledge', 'error');
             }
         }
@@ -559,7 +559,7 @@
                     showToast('Analysis restarted', 'success');
                     loadReport();
                 }
-            } catch (e) {
+            } catch {
                 showToast('Failed to retry', 'error');
             }
         }
@@ -577,7 +577,7 @@
                     showToast('Report deleted', 'success');
                     setTimeout(() => window.location.href = AppConfig.routes.page('patient.analytics'), 1500);
                 }
-            } catch (e) {
+            } catch {
                 showToast('Failed to delete', 'error');
             }
         }

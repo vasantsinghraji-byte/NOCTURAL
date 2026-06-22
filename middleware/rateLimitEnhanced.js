@@ -252,6 +252,20 @@ const ddosProtection = (() => {
   const BLACKLIST_DURATION = 60 * 60 * 1000; // 1 hour
 
   return (req, res, next) => {
+    // Skip DDoS gating for static asset/page GETs (served by express.static) and
+    // health checks. These are high-frequency monitoring / CI / static-serving
+    // traffic, not attack surface, and the in-memory per-IP blacklist
+    // false-positives shared CI/proxy egress IPs (e.g. GitHub Actions runners
+    // running many smoke jobs in parallel), failing the deployed smoke test and
+    // blanket-blocking the page. API and non-GET requests are still gated.
+    if (
+      req.path === '/api/v1/health' ||
+      req.path === '/api/health' ||
+      (req.method === 'GET' && !req.path.startsWith('/api'))
+    ) {
+      return next();
+    }
+
     const ip = req.ip || req.connection.remoteAddress;
 
     // Check if IP is blacklisted

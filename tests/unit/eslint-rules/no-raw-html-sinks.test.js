@@ -2,7 +2,7 @@ const { RuleTester } = require('eslint');
 const rule = require('../../../tools/eslint-rules/no-raw-html-sinks');
 
 const ruleTester = new RuleTester({
-  parserOptions: {
+  languageOptions: {
     ecmaVersion: 2022,
     sourceType: 'script'
   }

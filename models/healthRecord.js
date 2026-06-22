@@ -306,7 +306,7 @@ HealthRecordSchema.index(
 HealthRecordSchema.index({ 'review.assignedTo': 1, status: 1 }); // Doctor's review queue
 
 // Pre-save: Auto-increment version and manage isLatest
-HealthRecordSchema.pre('save', async function(next) {
+HealthRecordSchema.pre('save', async function() {
   if (this.isNew) {
     const session = typeof this.$session === 'function' ? this.$session() : null;
     // Get the latest version for this patient
@@ -332,7 +332,6 @@ HealthRecordSchema.pre('save', async function(next) {
       this.version = 1;
     }
   }
-  next();
 });
 
 // Static: Get latest approved record for a patient

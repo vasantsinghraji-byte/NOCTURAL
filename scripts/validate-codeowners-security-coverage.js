@@ -11,25 +11,19 @@ const REQUIRED_SECURITY_GOVERNANCE_PATHS = [
   '.github/workflows/ci.yml',
   '.github/workflows/codeql.yml',
   '.github/workflows/render-smoke.yml',
-  '.github/workflows/security-governance-audit.yml',
+  '.github/workflows/security-governance-drift-audit.yml',
+  '.github/workflows/security-governance-key-rotation-reminder.yml',
   '.github/workflows/security-governance-protection-bootstrap.yml',
   '.github/workflows/security-governance-protection-rollback.yml',
-  'docs/security/codeql-alert-tracker.csv',
-  'docs/security/codeql-alert-tracker.md',
-  'docs/security/codeql-alert-dashboard.html',
-  'docs/security/sensitive-get-route-policy.md',
+  'docs/security/branch-protection-governance.md',
   'scripts/check-codeql-alert-threshold.js',
-  'scripts/dismiss-codeql-false-positives.js',
   'scripts/export-codeql-alerts.js',
   'scripts/manage-security-governance-protection.js',
   'scripts/post-codeql-pr-comment.js',
+  'scripts/render-security-governance-drift-issue.js',
   'scripts/validate-codeowners-security-coverage.js',
-  'tests/fixtures/security/sensitive-get-route-scanner.json',
-  'tests/helpers/sensitiveGetRouteScanner.js',
-  'tests/unit/security/codeowners-security-coverage.test.js',
-  'tests/unit/security/codeql-alert-export.test.js',
-  'tests/unit/security/static-analysis.test.js',
-  'tools/eslint-rules/'
+  'tests/fixtures/security/governance-drift-audit-issue.json',
+  'tests/unit/security/codeowners-security-coverage.test.js'
 ];
 
 function normalizePath(value) {
@@ -247,7 +241,7 @@ async function validateCodeownersOwnerExistence(entries, options = {}) {
 function loadYamlParser() {
   try {
     return require('js-yaml');
-  } catch (error) {
+  } catch {
     throw new Error('js-yaml is required to validate workflow status-check names. Run npm ci first.');
   }
 }

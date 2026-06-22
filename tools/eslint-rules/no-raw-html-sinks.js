@@ -8,7 +8,8 @@
 
 'use strict';
 
-const getSourceText = (context, node) => context.getSourceCode().getText(node);
+// eslint 9+/10: prefer context.sourceCode; fall back to the removed getSourceCode() for older versions
+const getSourceText = (context, node) => (context.sourceCode || context.getSourceCode()).getText(node);
 
 module.exports = {
     meta: {
