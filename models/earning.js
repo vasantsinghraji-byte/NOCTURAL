@@ -108,7 +108,7 @@ earningSchema.index({ hospital: 1, shiftDate: -1 }); // Hospital's payment track
 earningSchema.index({ hospitalId: 1, shiftDate: -1 }); // Immutable tenant-scoped payment tracking
 
 // Calculate required derived fields before validation.
-earningSchema.pre('validate', function(next) {
+earningSchema.pre('validate', function() {
     let bonusTotal = 0;
     let deductionTotal = 0;
 
@@ -122,7 +122,6 @@ earningSchema.pre('validate', function(next) {
 
     this.netAmount = this.totalAmount + bonusTotal - deductionTotal;
 
-    next();
 });
 
 // Method to generate invoice number

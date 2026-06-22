@@ -168,7 +168,7 @@ DoctorNoteSchema.index({ patient: 1, noteType: 1, createdAt: -1 });
 DoctorNoteSchema.index({ patient: 1, isConfidential: 1, isActive: 1 });
 
 // Pre-save: Encrypt content if needed
-DoctorNoteSchema.pre('save', function(next) {
+DoctorNoteSchema.pre('save', function() {
   // Encrypt sensitive content for confidential notes
   if (this.isModified('content') && this.isConfidential && !this.contentEncrypted) {
     try {
@@ -179,7 +179,6 @@ DoctorNoteSchema.pre('save', function(next) {
       logger.error('Failed to encrypt doctor note content', { error: err.message });
     }
   }
-  next();
 });
 
 // Instance method: Get decrypted content

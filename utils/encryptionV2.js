@@ -137,7 +137,7 @@ function encrypt(plaintext, options = {}) {
       keyVersion,
       stack: error.stack
     });
-    throw new Error('Failed to encrypt data');
+    throw new Error('Failed to encrypt data', { cause: error });
   }
 }
 
@@ -273,7 +273,7 @@ function checksum(text, options = {}) {
 
   } catch (error) {
     logger.error('Checksum error', { error: error.message });
-    throw new Error('Failed to checksum data');
+    throw new Error('Failed to checksum data', { cause: error });
   }
 }
 

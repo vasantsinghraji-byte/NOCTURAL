@@ -45,7 +45,7 @@ const createBookingValidation = [
         new Intl.DateTimeFormat('en-US', { timeZone: value }).format(new Date());
         return true;
       } catch (_error) {
-        throw new Error('Scheduled timezone must be a valid IANA timezone');
+        throw new Error('Scheduled timezone must be a valid IANA timezone', { cause: _error });
       }
     }),
   body('serviceType')

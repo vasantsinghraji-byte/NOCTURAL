@@ -86,7 +86,7 @@ const paginate = async (model, query = {}, options = {}) => {
             }
         };
     } catch (error) {
-        throw new Error(`Pagination error: ${error.message}`);
+        throw new Error(`Pagination error: ${error.message}`, { cause: error });
     }
 };
 
@@ -180,7 +180,7 @@ const paginateCursor = async (model, query = {}, options = {}) => {
             }
         };
     } catch (error) {
-        throw new Error(`Cursor pagination error: ${error.message}`);
+        throw new Error(`Cursor pagination error: ${error.message}`, { cause: error });
     }
 };
 

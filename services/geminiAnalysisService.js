@@ -135,7 +135,7 @@ const analyzeReport = async (filePath, mimeType) => {
     try {
       analysis = JSON.parse(jsonMatch[0]);
     } catch (parseError) {
-      throw new Error('Failed to parse JSON from Gemini response: ' + parseError.message);
+      throw new Error('Failed to parse JSON from Gemini response: ' + parseError.message, { cause: parseError });
     }
 
     return {
@@ -192,7 +192,7 @@ const analyzeMultipleFiles = async (files) => {
     try {
       analysis = JSON.parse(jsonMatch[0]);
     } catch (parseError) {
-      throw new Error('Failed to parse JSON from Gemini response: ' + parseError.message);
+      throw new Error('Failed to parse JSON from Gemini response: ' + parseError.message, { cause: parseError });
     }
 
     return {
@@ -272,7 +272,7 @@ const analyzeFromUrl = async (url, mimeType) => {
     try {
       analysis = JSON.parse(jsonMatch[0]);
     } catch (parseError) {
-      throw new Error('Failed to parse JSON from Gemini response: ' + parseError.message);
+      throw new Error('Failed to parse JSON from Gemini response: ' + parseError.message, { cause: parseError });
     }
 
     return {
