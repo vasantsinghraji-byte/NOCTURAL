@@ -61,7 +61,7 @@ class VaultManager {
       });
 
       if (process.env.NODE_ENV === 'production') {
-        throw new Error('Vault is required in production');
+        throw new Error('Vault is required in production', { cause: error });
       }
 
       logger.warn('Falling back to environment variables');

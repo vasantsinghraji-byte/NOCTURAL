@@ -33,7 +33,7 @@ exports.encrypt = (text) => {
       error: error.message,
       stack: error.stack
     });
-    throw new Error('Failed to encrypt data');
+    throw new Error('Failed to encrypt data', { cause: error });
   }
 };
 

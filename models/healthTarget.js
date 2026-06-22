@@ -115,11 +115,10 @@ const HealthTargetSchema = new mongoose.Schema({
 HealthTargetSchema.index({ patient: 1, trackerType: 1 }, { unique: true });
 
 // Pre-save: Initialize default targets if not set
-HealthTargetSchema.pre('save', function(next) {
+HealthTargetSchema.pre('save', function() {
   if (this.isNew && (!this.targets || this.targets.length === 0)) {
     this.targets = getDefaultTargets(this.trackerType);
   }
-  next();
 });
 
 // Helper function to get default targets based on tracker type

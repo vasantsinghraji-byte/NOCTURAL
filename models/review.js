@@ -87,7 +87,7 @@ reviewSchema.index({ rating: 1 });
 reviewSchema.index({ duty: 1, reviewedUser: 1, reviewer: 1 }, { unique: true });
 
 // Pre-save hook to calculate overall rating from detailed ratings
-reviewSchema.pre('save', function(next) {
+reviewSchema.pre('save', function() {
     if (this.ratings && Object.keys(this.ratings).length > 0) {
         const ratingValues = Object.values(this.ratings).filter(r => r != null);
         if (ratingValues.length > 0) {
@@ -95,7 +95,6 @@ reviewSchema.pre('save', function(next) {
             this.rating = Math.round((sum / ratingValues.length) * 10) / 10; // Round to 1 decimal
         }
     }
-    next();
 });
 
 // Static method to calculate user's average rating

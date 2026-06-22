@@ -42,7 +42,7 @@ function decryptWithOldKey(encryptedText, oldKey) {
 
     return decrypted;
   } catch (error) {
-    throw new Error(`Decryption failed: ${error.message}`);
+    throw new Error(`Decryption failed: ${error.message}`, { cause: error });
   }
 }
 
@@ -60,7 +60,7 @@ function encryptWithNewKey(text, newKey) {
 
     return `${iv.toString('hex')}:${encrypted}`;
   } catch (error) {
-    throw new Error(`Encryption failed: ${error.message}`);
+    throw new Error(`Encryption failed: ${error.message}`, { cause: error });
   }
 }
 

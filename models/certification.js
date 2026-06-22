@@ -62,7 +62,7 @@ certificationSchema.index({ user: 1, expiryDate: 1 });
 certificationSchema.index({ expiryDate: 1 });
 
 // Pre-save hook to update status based on expiry date
-certificationSchema.pre('save', function(next) {
+certificationSchema.pre('save', function() {
     if (this.expiryDate) {
         const now = new Date();
         const expiryDate = new Date(this.expiryDate);
@@ -77,7 +77,6 @@ certificationSchema.pre('save', function(next) {
             this.status = 'ACTIVE';
         }
     }
-    next();
 });
 
 // Method to check if renewal reminder should be sent

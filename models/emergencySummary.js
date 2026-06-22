@@ -242,7 +242,7 @@ const EmergencySummarySchema = new mongoose.Schema({
 EmergencySummarySchema.index({ qrTokenHash: 1, qrTokenExpiry: 1 });
 
 // Pre-save: Compute age from DOB
-EmergencySummarySchema.pre('save', function(next) {
+EmergencySummarySchema.pre('save', function() {
   if (this.dateOfBirth) {
     const today = new Date();
     const birthDate = new Date(this.dateOfBirth);
@@ -253,7 +253,6 @@ EmergencySummarySchema.pre('save', function(next) {
     }
     this.age = age;
   }
-  next();
 });
 
 // Instance method: Generate QR token
