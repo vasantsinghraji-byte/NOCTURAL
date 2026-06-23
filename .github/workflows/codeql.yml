@@ -89,7 +89,7 @@ jobs:
 
       - name: Upload CodeQL alert summary artifact
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: codeql-open-alert-summary
           path: |
