@@ -80,3 +80,19 @@ jobs:
         env:
           DEPLOYED_BASE_URL: ${{ github.event.inputs.deployed_base_url || vars.RENDER_SMOKE_BASE_URL || 'https://nocturnal-api.onrender.com' }}
         run: npm run smoke:deployed-csp
+
+      # Make the (otherwise silent) scheduled/post-deploy smoke actionable: alert
+      # Slack only on failure. No-ops cleanly until SLACK_WEBHOOK_URL is configured.
+      - name: Notify Slack on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not set — skipping failure alert"
+            exit 0
+          fi
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sf -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\":rotating_light: Post-deploy Render smoke FAILED (${{ github.event_name }}) — ${run_url}\"}" \
+            "$SLACK_WEBHOOK_URL"
