@@ -79,7 +79,7 @@ jobs:
 
       - name: Checkout code
         if: steps.preflight.outputs.skip_backup != 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install MongoDB Database Tools
         if: steps.preflight.outputs.skip_backup != 'true'
