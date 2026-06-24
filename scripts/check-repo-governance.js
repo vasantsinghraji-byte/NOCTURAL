@@ -86,11 +86,17 @@ function checkBranch() {
 
   const protectedBranch = /^(main|develop)$/;
   const workingBranch = /^(feature|fix|bugfix|hotfix|refactor|docs|chore|experiment|release)\/[a-z0-9._-]+$/;
+  // Automated dependency-update branches (Dependabot et al.) are bot-generated
+  // and follow their own naming (dependabot/<ecosystem>/...). They aren't
+  // subject to the team naming convention, so exempt them instead of failing.
+  const automatedBranch = /^dependabot\//;
 
   if (protectedBranch.test(branch)) {
     pass(`Current branch is protected branch ${branch}; use pull requests for changes.`);
   } else if (workingBranch.test(branch)) {
     pass(`Current branch name follows the team convention (${branch})`);
+  } else if (automatedBranch.test(branch)) {
+    pass(`Current branch is an automated dependency branch (${branch}); naming convention check skipped.`);
   } else {
     fail(`Current branch name "${branch}" does not match the team convention.`);
   }
