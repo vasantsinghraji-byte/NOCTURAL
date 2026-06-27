@@ -16,6 +16,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      # Bundle backend major bumps into a single PR too (still separate from
+      # minor/patch so the riskier majors can be reviewed together).
+      backend-major:
+        update-types:
+          - "major"
 
   # Frontend client npm dependencies
   - package-ecosystem: "npm"
@@ -31,6 +36,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      # Bundle frontend major bumps into a single PR too (separate from
+      # minor/patch for easier review of the riskier majors).
+      frontend-major:
+        update-types:
+          - "major"
 
   # GitHub Actions workflow dependencies
   - package-ecosystem: "github-actions"
