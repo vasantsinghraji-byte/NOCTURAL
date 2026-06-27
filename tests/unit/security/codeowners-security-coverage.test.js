@@ -98,7 +98,10 @@ describe('CODEOWNERS security-governance validator', () => {
       // Test fixtures are fixed repository-relative workflow paths.
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       const workflowSource = fs.readFileSync(path.join(ROOT, workflowFile), 'utf8');
-      expect(workflowSource).toContain('actions/create-github-app-token@v2');
+      // Match any major version so Dependabot bumps (e.g. @v2 -> @v3) don't
+      // fail this security contract — the requirement is that the pinned app
+      // token action is used, not a specific major.
+      expect(workflowSource).toMatch(/actions\/create-github-app-token@v\d+/);
       expect(workflowSource).toContain('secrets.BRANCH_PROTECTION_APP_ID');
       expect(workflowSource).toContain('secrets.BRANCH_PROTECTION_APP_PRIVATE_KEY');
       expect(workflowSource).toContain('steps.branch-protection-app-token.outputs.token');

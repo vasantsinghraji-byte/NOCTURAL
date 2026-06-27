@@ -1,0 +1,50 @@
+name: Dependabot Auto-merge
+
+# Auto-merges GREEN Dependabot minor/patch PRs so routine updates merge
+# themselves. This workflow is DORMANT until you opt in — see
+# docs/ops/dependabot-workflow-token.md. Activation requires ALL of:
+#   1. A merge GitHub App with Contents/PR/Workflows write, installed on the repo,
+#      with secrets MERGE_APP_ID and MERGE_APP_PRIVATE_KEY set.
+#   2. The App added to .github/CODEOWNERS so its approval satisfies the required
+#      code-owner review (otherwise auto-merge waits forever).
+#   3. Repo variable DEPENDABOT_AUTOMERGE_ENABLED = "true".
+# Until (3) is set, the job is skipped on every run.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  automerge:
+    # Only Dependabot PRs, and only when explicitly enabled via the repo variable.
+    if: ${{ github.actor == 'dependabot[bot]' && vars.DEPENDABOT_AUTOMERGE_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint merge App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.MERGE_APP_ID }}
+          private-key: ${{ secrets.MERGE_APP_PRIVATE_KEY }}
+
+      - name: Read Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+
+      # Auto-merge only the low-risk update types. Majors are intentionally
+      # excluded so they're reviewed by a human.
+      - name: Approve and enable auto-merge (minor/patch only)
+        if: ${{ steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor' }}
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          # Approve (satisfies required review when the App is a code owner) and
+          # enable native auto-merge — GitHub merges once required checks pass.
+          gh pr review --approve "$PR_URL"
+          gh pr merge --auto --merge "$PR_URL"
