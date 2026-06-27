@@ -6,6 +6,9 @@ updates:
   # Backend (root) npm dependencies
   - package-ecosystem: "npm"
     directory: "/"
+    # Target develop so dependency PRs ride the normal develop -> main promotion
+    # instead of landing on main directly (which caused main/develop divergence).
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
@@ -25,6 +28,7 @@ updates:
   # Frontend client npm dependencies
   - package-ecosystem: "npm"
     directory: "/client"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
@@ -45,6 +49,7 @@ updates:
   # GitHub Actions workflow dependencies
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
