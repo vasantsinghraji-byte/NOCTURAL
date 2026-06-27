@@ -55,3 +55,21 @@ Use this if a workflow/bot should merge these PRs unattended.
 - After grouping Actions updates (see `.github/dependabot.yml`) and ignoring
   Action majors, the volume of workflow-touching Dependabot PRs drops to ~one
   grouped minor/patch PR per week, so Option A is usually sufficient.
+
+## Activating auto-merge for routine updates
+
+`.github/workflows/dependabot-automerge.yml` will auto-merge **green
+minor/patch** Dependabot PRs (majors are left for a human). It ships **dormant**
+and only runs once all of the following are in place:
+
+1. **Merge App** (Option B above) installed, with `MERGE_APP_ID` and
+   `MERGE_APP_PRIVATE_KEY` secrets set.
+2. **App added to `.github/CODEOWNERS`** (e.g. `* @your-merge-app[bot]` or a
+   scoped entry) so the App's approval satisfies the required **code-owner
+   review** — otherwise `--auto` merge waits indefinitely for a review.
+3. **Repo variable** `DEPENDABOT_AUTOMERGE_ENABLED = true`
+   (Settings → Secrets and variables → Actions → Variables). Until this is set,
+   the workflow job is skipped on every run.
+
+To pause auto-merge later, set the variable to anything other than `true` (or
+delete it) — no need to remove the workflow.
