@@ -124,7 +124,7 @@ jobs:
 
       - name: Upload test coverage artifact
         if: success() && env.ACT != 'true'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage/
@@ -153,7 +153,7 @@ jobs:
 
       - name: Upload Gitleaks SARIF artifact
         if: always() && env.ACT != 'true'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: gitleaks-results
           path: gitleaks-results.sarif
