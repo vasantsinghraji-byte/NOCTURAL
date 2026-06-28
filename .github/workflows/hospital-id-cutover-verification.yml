@@ -1,0 +1,45 @@
+name: HospitalId Cutover Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: GitHub environment containing the target MONGODB_URI secret
+        required: true
+        type: choice
+        default: production
+        options:
+          - production
+          - staging
+
+jobs:
+  verify:
+    name: Verify hospitalId cutover (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 10
+    env:
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      NODE_ENV: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure MongoDB secret is configured
+        run: |
+          if [ -z "$MONGODB_URI" ]; then
+            echo "::error::MONGODB_URI is not configured for the '${{ inputs.environment }}' environment."
+            exit 1
+          fi
+
+      - name: Verify hospitalId cutover
+        run: npm run db:verify-hospital-id-cutover -- --label=${{ inputs.environment }}
