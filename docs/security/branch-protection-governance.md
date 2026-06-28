@@ -49,10 +49,14 @@ Rotation procedure:
 ## Expected Fully Enforced State
 
 Both `main` and `develop` must require:
-- `Required Post-Deploy Render Smoke`
 - `CODEOWNERS Security Governance Gate`
 - `CodeQL Alert Gate`
 - Code-owner reviews enabled
+
+`main` additionally requires:
+- `Required Post-Deploy Render Smoke`
+
+> `Required Post-Deploy Render Smoke` is **main-only**: `render-smoke.yml` triggers on `pull_request → main` and smokes the deployed `main` instance, so the check can never run/pass on `develop` PRs. Requiring it on `develop` only forced manual admin merges without adding protection, so it is enforced on `main` alone.
 
 ## Drift Audit
 

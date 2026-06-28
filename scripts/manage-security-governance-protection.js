@@ -2,12 +2,30 @@
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 
-const BOOTSTRAP_CONTEXTS = ['Required Post-Deploy Render Smoke'];
+const SMOKE_CONTEXT = 'Required Post-Deploy Render Smoke';
+const BOOTSTRAP_CONTEXTS = [SMOKE_CONTEXT];
 const ENFORCED_CONTEXTS = [
-  'Required Post-Deploy Render Smoke',
+  SMOKE_CONTEXT,
   'CODEOWNERS Security Governance Gate',
   'CodeQL Alert Gate'
 ];
+
+// The post-deploy smoke check (render-smoke.yml) only runs on PRs to main and
+// against the deployed main instance, so it can never go green on develop PRs —
+// requiring it there just forced admin merges without catching anything. Require
+// it on main only; develop enforces the governance checks that actually run
+// there. Branch defaults to the full (main) set when unspecified.
+function enforcedContextsFor(branch) {
+  return branch === 'develop'
+    ? ENFORCED_CONTEXTS.filter(context => context !== SMOKE_CONTEXT)
+    : ENFORCED_CONTEXTS;
+}
+
+function bootstrapContextsFor(branch) {
+  return branch === 'develop'
+    ? BOOTSTRAP_CONTEXTS.filter(context => context !== SMOKE_CONTEXT)
+    : BOOTSTRAP_CONTEXTS;
+}
 
 function getArgValue(name, fallback) {
   const prefix = `--${name}=`;
@@ -93,8 +111,8 @@ function getProtectionStatus(repository, branch) {
 
 function classifyStatus(status) {
   const contexts = [...status.contexts].sort();
-  const enforcedContexts = [...ENFORCED_CONTEXTS].sort();
-  const bootstrapContexts = [...BOOTSTRAP_CONTEXTS].sort();
+  const enforcedContexts = [...enforcedContextsFor(status.branch)].sort();
+  const bootstrapContexts = [...bootstrapContextsFor(status.branch)].sort();
 
   if (
     status.requireCodeOwnerReviews
@@ -174,7 +192,7 @@ function enforce(repository, branches) {
   }
 
   for (const branch of branches) {
-    patchRequiredChecks(repository, branch, ENFORCED_CONTEXTS);
+    patchRequiredChecks(repository, branch, enforcedContextsFor(branch));
     patchReviewProtection(repository, branch, true);
     console.log(`Enabled fully-enforced governance protection for ${branch}.`);
   }
@@ -182,7 +200,7 @@ function enforce(repository, branches) {
 
 function rollback(repository, branches) {
   for (const branch of branches) {
-    patchRequiredChecks(repository, branch, BOOTSTRAP_CONTEXTS);
+    patchRequiredChecks(repository, branch, bootstrapContextsFor(branch));
     patchReviewProtection(repository, branch, false);
     console.log(`Restored bootstrap-safe governance protection for ${branch}.`);
   }
