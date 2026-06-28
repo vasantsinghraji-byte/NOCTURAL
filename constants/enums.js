@@ -14,8 +14,8 @@
 // is a cross-tenant operator for platform-level actions (e.g. credential verification).
 const STAFF_ROLES = ['doctor', 'nurse', 'physiotherapist', 'admin', 'platform_admin'];
 
-/** Roles allowed during self-registration (no admin) */
-const REGISTRATION_ROLES = ['doctor', 'nurse', 'physiotherapist', 'patient'];
+/** Staff roles allowed during /auth/register self-registration (no admin). Patients use /patients/register. */
+const REGISTRATION_ROLES = ['doctor', 'nurse', 'physiotherapist'];
 
 // ── Medical Specializations ────────────────────────────────────────────
 

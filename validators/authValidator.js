@@ -101,7 +101,15 @@ const validateRegister = [
 
   body('role')
     .notEmpty().withMessage('Role is required')
-    .isIn(REGISTRATION_ROLES).withMessage('Invalid role'),
+    .custom((value) => {
+      if (value === 'patient') {
+        throw new Error('Patients must register through /api/v1/patients/register');
+      }
+      if (!REGISTRATION_ROLES.includes(value)) {
+        throw new Error('Invalid role');
+      }
+      return true;
+    }),
 
   body('dateOfBirth')
     .optional()

@@ -3,7 +3,7 @@ const rateLimit = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis');
 const logger = require('../utils/logger');
 const monitoring = require('../utils/monitoring');
-const { getRedisClient } = require('../config/redis');
+const { getRedisClient, scanKeys } = require('../config/redis');
 
 // Parse and validate whitelisted IPs at startup
 const whitelistedIPs = (() => {
@@ -156,7 +156,7 @@ const restoreBlockedFromRedis = async () => {
   const redisClient = await getActiveRedisClient();
   if (!redisClient) return;
   try {
-    const keys = await redisClient.keys(`${REDIS_BLOCKED_PREFIX}*`);
+    const keys = await scanKeys(redisClient, `${REDIS_BLOCKED_PREFIX}*`);
     for (const redisKey of keys) {
       const entity = redisKey.replace(REDIS_BLOCKED_PREFIX, '');
       const data = await redisClient.get(redisKey);

@@ -4,13 +4,22 @@
  */
 
 const rateLimit = require('express-rate-limit');
-const RedisStore = require('rate-limit-redis');
+const { ipKeyGenerator } = rateLimit;
+const rateLimitRedis = require('rate-limit-redis');
+const RedisStore = rateLimitRedis.RedisStore || rateLimitRedis.default || rateLimitRedis;
 const Redis = require('ioredis');
+const { scanKeys } = require('../config/redis');
 const logger = require('../utils/logger');
 const monitoring = require('../utils/monitoring');
 
 // Redis client (shared across rate limiters)
 let redisClient = null;
+const isRateLimitingDisabled = process.env.RATE_LIMIT_ENABLED === 'false';
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction && !isRateLimitingDisabled && !process.env.REDIS_URL) {
+  throw new Error('REDIS_URL is required for production rate limiting');
+}
 
 // Initialize Redis if available
 if (process.env.REDIS_URL) {
@@ -28,6 +37,20 @@ if (process.env.REDIS_URL) {
   });
 }
 
+const getAuthenticatedUserId = (req) => {
+  const userId = req.user?.id || req.user?._id;
+  return typeof userId?.toString === 'function' ? userId.toString() : userId;
+};
+
+const scopedUserOrIpKey = (scope) => (req) => {
+  const userId = getAuthenticatedUserId(req);
+  if (userId) {
+    return `${scope}:user:${userId}`;
+  }
+
+  return `${scope}:ip:${ipKeyGenerator(req.ip)}`;
+};
+
 /**
  * Base rate limiter configuration
  */
@@ -38,6 +61,7 @@ const createRateLimiter = (options) => {
     message,
     skipSuccessfulRequests = false,
     skipFailedRequests = false,
+    keyGenerator,
     handler = null,
     onLimitReached = null
   } = options;
@@ -50,10 +74,6 @@ const createRateLimiter = (options) => {
     legacyHeaders: false, // Disable `X-RateLimit-*` headers
     skipSuccessfulRequests,
     skipFailedRequests,
-
-    // Custom key generator (default: IP address)
-    // Note: Not using custom keyGenerator to avoid IPv6 issues
-    // express-rate-limit handles IP extraction automatically
 
     // Custom handler when limit is reached
     handler: handler || ((req, res) => {
@@ -85,6 +105,10 @@ const createRateLimiter = (options) => {
       });
     })
   };
+
+  if (keyGenerator) {
+    config.keyGenerator = keyGenerator;
+  }
 
   // Use Redis store if available
   if (redisClient) {
@@ -167,10 +191,7 @@ const apiRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: 'API rate limit exceeded',
-  keyGenerator: (req) => {
-    // Use user ID if authenticated, otherwise IP
-    return req.user?.id || req.ip;
-  }
+  keyGenerator: scopedUserOrIpKey('api')
 });
 
 /**
@@ -181,9 +202,7 @@ const uploadRateLimiter = createRateLimiter({
   windowMs: 60 * 60 * 1000,
   max: 10,
   message: 'Too many file uploads, please try again later',
-  keyGenerator: (req) => {
-    return req.user?.id || req.ip;
-  }
+  keyGenerator: scopedUserOrIpKey('upload')
 });
 
 /**
@@ -194,9 +213,7 @@ const searchRateLimiter = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
   max: 30,
   message: 'Too many search requests',
-  keyGenerator: (req) => {
-    return req.user?.id || req.ip;
-  }
+  keyGenerator: scopedUserOrIpKey('search')
 });
 
 /**
@@ -207,9 +224,7 @@ const paymentRateLimiter = createRateLimiter({
   windowMs: 60 * 60 * 1000,
   max: 3,
   message: 'Too many payment attempts, please contact support',
-  keyGenerator: (req) => {
-    return req.user?.id || req.ip;
-  }
+  keyGenerator: scopedUserOrIpKey('payment')
 });
 
 /**
@@ -235,7 +250,9 @@ const adaptiveRateLimiter = (req, res, next) => {
     max: userLimit.max,
     message: 'Rate limit exceeded for your account tier',
     keyGenerator: (req) => {
-      return `${req.user?.id || req.ip}:${req.user?.role || 'guest'}`;
+      const userId = getAuthenticatedUserId(req);
+      const actorKey = userId ? `user:${userId}` : `ip:${ipKeyGenerator(req.ip)}`;
+      return `${actorKey}:${req.user?.role || 'guest'}`;
     }
   });
 
@@ -391,7 +408,7 @@ const getRateLimitStats = async () => {
   }
 
   try {
-    const keys = await redisClient.keys('rl:*');
+    const keys = await scanKeys(redisClient, 'rl:*');
 
     return {
       enabled: true,

@@ -7,7 +7,8 @@ describe('Query Cache Redis Integration', () => {
 
     jest.isolateModules(() => {
       jest.doMock('../../../config/redis', () => ({
-        getRedisClient: jest.fn(async () => mockRedisClient)
+        getRedisClient: jest.fn(async () => mockRedisClient),
+        scanKeys: jest.fn(async (_client, pattern) => mockRedisClient.__scanKeys(pattern))
       }));
 
       jest.doMock('../../../utils/logger', () => ({
@@ -33,7 +34,7 @@ describe('Query Cache Redis Integration', () => {
       status: 'ready',
       get: jest.fn(),
       setex: jest.fn(),
-      keys: jest.fn(),
+      __scanKeys: jest.fn(),
       del: jest.fn(),
       info: jest.fn()
     };
@@ -68,18 +69,18 @@ describe('Query Cache Redis Integration', () => {
       status: 'ready',
       get: jest.fn(),
       setex: jest.fn(),
-      keys: jest.fn(),
+      __scanKeys: jest.fn(),
       del: jest.fn(),
       info: jest.fn()
     };
     const { invalidateCache } = loadQueryCacheModule(mockRedisClient);
 
-    mockRedisClient.keys.mockResolvedValue(['query:GET:/bookings:1', 'query:GET:/bookings:2']);
+    mockRedisClient.__scanKeys.mockResolvedValue(['query:GET:/bookings:1', 'query:GET:/bookings:2']);
     mockRedisClient.del.mockResolvedValue(2);
 
     await invalidateCache('*:/api/bookings*');
 
-    expect(mockRedisClient.keys).toHaveBeenCalledWith('query:*:/api/bookings**');
+    expect(mockRedisClient.__scanKeys).toHaveBeenCalledWith('query:*:/api/bookings**');
     expect(mockRedisClient.del).toHaveBeenCalledWith('query:GET:/bookings:1', 'query:GET:/bookings:2');
   });
 });
