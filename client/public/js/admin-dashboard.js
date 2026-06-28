@@ -45,6 +45,14 @@ function formatLocation(location) {
   return parts.join(', ');
 }
 
+function formatHospitalName(user) {
+  if (user && user.hospitalId && typeof user.hospitalId === 'object') {
+    return user.hospitalId.name || '';
+  }
+
+  return '';
+}
+
 async function loadHospitalInfo() {
   try {
     var data = NocturnalSession.expectJsonSuccess(await AppConfig.fetchRoute('auth.me', {
@@ -54,8 +62,10 @@ async function loadHospitalInfo() {
         return !!(payload && payload.success && payload.user);
       }
     });
+    var hospitalName = formatHospitalName(data.user);
+    var locationName = formatLocation(data.user.location);
     document.getElementById('hospitalInfo').textContent =
-      (data.user.hospital || '') + ' \u2022 ' + (formatLocation(data.user.location) || '');
+      [hospitalName, locationName].filter(Boolean).join(' \u2022 ');
   } catch (error) {
     console.error('Error loading hospital info:', error);
   }

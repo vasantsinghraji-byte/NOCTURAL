@@ -65,6 +65,14 @@
             createEarningsChart(data);
         }
 
+        function getHospitalName(record) {
+            const hospital = record && record.hospitalId;
+            if (hospital && typeof hospital === 'object') {
+                return hospital.name || 'Hospital';
+            }
+            return 'Hospital';
+        }
+
         function displayPaymentTimeline(timeline) {
             const timelineEl = document.getElementById('paymentTimeline');
             let html = '';
@@ -75,7 +83,7 @@
                     html += `
                         <div class="timeline-item overdue">
                             <div class="timeline-date">Due: ${AppFormat.date(payment.expectedPaymentDate)}</div>
-                            <div class="timeline-title">${payment.hospital}</div>
+                            <div class="timeline-title">${getHospitalName(payment)}</div>
                             <div class="timeline-amount">${AppFormat.currencyWhole(payment.netAmount)}</div>
                             <button class="btn btn-danger btn-sm-spaced" data-action="dispute-payment" data-earning-id="${payment._id}">
                                 <i class="fas fa-exclamation-circle"></i> Raise Dispute
@@ -91,7 +99,7 @@
                     html += `
                         <div class="timeline-item pending">
                             <div class="timeline-date">Expected: ${AppFormat.date(payment.expectedPaymentDate)}</div>
-                            <div class="timeline-title">${payment.hospital}</div>
+                            <div class="timeline-title">${getHospitalName(payment)}</div>
                             <div class="timeline-amount">${AppFormat.currencyWhole(payment.netAmount)}</div>
                         </div>
                     `;
@@ -177,7 +185,7 @@
                             <div class="suggestion-pay">${AppFormat.currencyWhole(duty.totalCompensation)}</div>
                         </div>
                         <div class="suggestion-details">
-                            ${duty.hospital} • ${AppFormat.date(duty.date)} • ${duty.startTime} - ${duty.endTime}
+                            ${getHospitalName(duty)} • ${AppFormat.date(duty.date)} • ${duty.startTime} - ${duty.endTime}
                         </div>
                         <button class="btn btn-success btn-sm-spaced" data-action="view-duty-details" data-duty-id="${duty._id}">
                             View Details

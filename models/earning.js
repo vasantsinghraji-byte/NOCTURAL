@@ -16,14 +16,10 @@ const earningSchema = new mongoose.Schema({
         ref: 'Application',
         required: true
     },
-    hospital: {
-        type: String,
-        required: true
-    },
-    // Structured tenant reference (backfilled from `hospital` by scripts/migrate-hospitals-to-objectid.js)
     hospitalId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Hospital'
+        ref: 'Hospital',
+        required: true
     },
     shiftDate: {
         type: Date,
@@ -104,8 +100,7 @@ earningSchema.index({ shiftDate: 1 }); // Earnings by shift date
 earningSchema.index({ duty: 1 }); // Earnings by duty
 earningSchema.index({ paymentStatus: 1, expectedPaymentDate: 1 }); // Overdue payment identification
 earningSchema.index({ user: 1, createdAt: -1 }); // Recent earnings
-earningSchema.index({ hospital: 1, shiftDate: -1 }); // Hospital's payment tracking
-earningSchema.index({ hospitalId: 1, shiftDate: -1 }); // Immutable tenant-scoped payment tracking
+earningSchema.index({ hospitalId: 1, shiftDate: -1 }); // Tenant-scoped payment tracking
 
 // Calculate required derived fields before validation.
 earningSchema.pre('validate', function() {

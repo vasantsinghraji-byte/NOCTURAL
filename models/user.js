@@ -167,15 +167,13 @@ const UserSchema = new mongoose.Schema({
     default: 0
   },
 
-  // For Hospital/Admin
-  hospital: {
-    type: String
-  },
-  hospitalName: String,
-  // Structured tenant reference (backfilled from `hospital` by scripts/migrate-hospitals-to-objectid.js)
+  // Structured tenant reference for hospital-scoped admins.
   hospitalId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Hospital'
+    ref: 'Hospital',
+    required: function() {
+      return this.role === 'admin';
+    }
   },
 
   // Location

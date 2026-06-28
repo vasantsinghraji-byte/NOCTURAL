@@ -9,14 +9,10 @@ const shiftSeriesSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    hospital: {
-        type: String,
-        required: true
-    },
-    // Structured tenant reference (backfilled from `hospital` by scripts/migrate-hospitals-to-objectid.js)
     hospitalId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Hospital'
+        ref: 'Hospital',
+        required: true
     },
     postedBy: {
         type: mongoose.Schema.Types.ObjectId,
@@ -123,7 +119,6 @@ const shiftSeriesSchema = new mongoose.Schema({
 shiftSeriesSchema.index({ postedBy: 1, createdAt: -1 });
 shiftSeriesSchema.index({ status: 1 });
 shiftSeriesSchema.index({ 'shifts.date': 1 });
-shiftSeriesSchema.index({ hospital: 1 });
 shiftSeriesSchema.index({ hospitalId: 1, createdAt: -1 });
 
 // Calculate required derived fields before validation.
@@ -229,7 +224,6 @@ shiftSeriesSchema.statics.createDutiesFromSeries = async function(seriesId) {
 
         const duty = new Duty({
             title: `${series.title} - Day ${i + 1}`,
-            hospital: series.hospital,
             hospitalId: series.hospitalId,
             specialty: series.specialty,
             description: series.description + `\n\nPart of a ${series.totalShifts}-shift series with ${series.seriesDiscount}% discount.`,

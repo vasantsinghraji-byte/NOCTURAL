@@ -9,7 +9,7 @@ const {
   disconnectTestDB,
   clearCollection
 } = require('../../helpers');
-const { doctorFactory, userFactory } = require('../../factories');
+const { doctorFactory, hospitalFactory, userFactory } = require('../../factories');
 
 // Connect to test database
 beforeAll(async () => {
@@ -537,8 +537,7 @@ describe('User Model - getMissingFields Method', () => {
   });
 
   test('should only check doctor-specific fields for doctor role', async () => {
-    const userData = userFactory({
-      role: 'admin',
+    const userData = hospitalFactory({
       profilePhoto: undefined
     });
     const user = new User(userData);

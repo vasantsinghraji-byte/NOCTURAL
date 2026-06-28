@@ -17,7 +17,7 @@ const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions'
 const { getTenantFields } = require('../utils/tenantScope');
 const { normalizeObjectId, nullProtoObject, setSafeField } = require('../utils/safeMongo');
 
-const ALLOWED_DUTY_FILTERS = new Set(['status', 'specialty', 'department', 'hospital', 'postedBy', 'urgency', 'date']);
+const ALLOWED_DUTY_FILTERS = new Set(['status', 'specialty', 'department', 'hospitalId', 'postedBy', 'urgency', 'date']);
 const ALLOWED_DUTY_UPDATE_FIELDS = new Set([
   'title',
   'description',
@@ -38,7 +38,7 @@ const safeDutyFilters = (filters = {}) => {
   const query = nullProtoObject();
   Object.entries(filters || {}).forEach(([field, value]) => {
     if (!ALLOWED_DUTY_FILTERS.has(field)) return;
-    if (['hospital', 'postedBy'].includes(field)) {
+    if (['hospitalId', 'postedBy'].includes(field)) {
       setSafeField(query, field, normalizeObjectId(value, field));
       return;
     }
@@ -73,7 +73,8 @@ class DutyService {
 
     const query = safeDutyFilters(filters);
     const duties = await Duty.find(query)
-      .populate(populate, 'name hospital')
+      .populate(populate, 'name hospitalId')
+      .populate('hospitalId', 'name location')
       .sort(sort)
       .limit(limit)
       .skip((page - 1) * limit)
@@ -100,7 +101,8 @@ class DutyService {
   async getDutyById(dutyId) {
     const safeDutyId = normalizeObjectId(dutyId, 'duty id');
     const duty = await Duty.findById(safeDutyId)
-      .populate('postedBy', 'name hospital email phone');
+      .populate('postedBy', 'name hospitalId email phone')
+      .populate('hospitalId', 'name location');
 
     if (!duty) {
       throw {
@@ -124,7 +126,14 @@ class DutyService {
     createData.postedBy = user._id;
 
     if (user.role === 'admin') {
-      Object.assign(createData, getTenantFields(user));
+      const tenantFields = getTenantFields(user);
+      if (!tenantFields.hospitalId) {
+        throw {
+          statusCode: HTTP_STATUS.FORBIDDEN,
+          message: 'Not authorized - no hospital assigned to this admin'
+        };
+      }
+      Object.assign(createData, tenantFields);
     }
 
     const duty = await Duty.create(createData);

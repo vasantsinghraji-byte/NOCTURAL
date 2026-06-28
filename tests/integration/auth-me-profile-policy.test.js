@@ -66,17 +66,17 @@ describe('Auth Integration: PUT /api/v1/auth/me', () => {
     expect(forbiddenUpdateResponse.body.errors).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          message: 'Hospital cannot be modified for your account type'
+          message: 'Hospital cannot be modified via profile update'
         })
       ])
     );
   });
 
-  it('should allow admin-only fields for admins and reject provider-only fields over HTTP', async () => {
+  it('should allow admin profile fields and reject tenant/provider fields over HTTP', async () => {
     const admin = createPersistedUser({
       _id: 'admin-user-001',
       role: 'admin',
-      hospital: 'Old Hospital'
+      hospitalId: '507f1f77bcf86cd799439011'
     });
     const token = generateToken(admin._id);
 
@@ -84,7 +84,6 @@ describe('Auth Integration: PUT /api/v1/auth/me', () => {
       .put('/api/v1/auth/me')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        hospital: 'New Hospital',
         name: 'Admin User',
         location: {
           city: 'Mumbai',
@@ -94,7 +93,7 @@ describe('Auth Integration: PUT /api/v1/auth/me', () => {
 
     expect(updateResponse.status).toBe(200);
     expect(updateResponse.body.success).toBe(true);
-    expect(updateResponse.body.user.hospital).toBe('New Hospital');
+    expect(updateResponse.body.user.hospitalId).toBe('507f1f77bcf86cd799439011');
     expect(updateResponse.body.user.location).toEqual({
       city: 'Mumbai',
       state: 'MH'
@@ -113,6 +112,23 @@ describe('Auth Integration: PUT /api/v1/auth/me', () => {
       expect.arrayContaining([
         expect.objectContaining({
           message: 'Specialty cannot be modified for your account type'
+        })
+      ])
+    );
+
+    const forbiddenTenantUpdateResponse = await request(getApp())
+      .put('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        hospitalId: '507f1f77bcf86cd799439012'
+      });
+
+    expect(forbiddenTenantUpdateResponse.status).toBe(400);
+    expect(forbiddenTenantUpdateResponse.body.success).toBe(false);
+    expect(forbiddenTenantUpdateResponse.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: 'Hospital cannot be modified via profile update'
         })
       ])
     );

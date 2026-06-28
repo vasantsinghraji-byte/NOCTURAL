@@ -52,7 +52,7 @@ class AnalyticsService {
    */
   async getApplicationInsights(dutyId, user) {
     const duty = await Duty.findById(dutyId)
-      .populate('postedBy', 'hospital')
+      .populate('postedBy', 'hospitalId')
       .lean();
 
     if (!duty) {
@@ -214,7 +214,7 @@ class AnalyticsService {
       Application.find({ applicant: userId })
         .sort({ createdAt: -1 })
         .limit(5)
-        .populate('duty', 'title hospital startDate')
+        .populate('duty', 'title hospitalId startDate')
         .lean(),
       Duty.find({
         assignedTo: userId,
