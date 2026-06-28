@@ -37,6 +37,7 @@ const {
 // Import API versioning
 const { redirectToLatestVersion, getVersions } = require('./middleware/apiVersion');
 const v1Routes = require('./routes/v1');
+const { protect } = require('./middleware/auth');
 
 // Import error handler
 const errorHandler = require('./middleware/errorHandler');
@@ -64,6 +65,7 @@ if (process.env.TRUST_PROXY === 'false') {
 
 // Skip heavy middleware in test environment
 const isTest = process.env.NODE_ENV === 'test';
+const shouldApplyRateLimits = !isTest && process.env.RATE_LIMIT_ENABLED !== 'false';
 const isHealthCheckPath = (req) => {
   const requestPath = (req.originalUrl || req.path || '').split('?')[0];
   return requestPath === '/api/v1/health' || requestPath === '/api/health';
@@ -95,8 +97,8 @@ const applyApiCors = (req, res, next) => {
 
   return cors(corsOptions)(req, res, next);
 };
-app.use('/api', applyApiCors);
-app.options(/^\/api\/.*/, applyApiCors);
+app.use(/^\/api(?:\/|$)/i, applyApiCors);
+app.options(/^\/api(?:\/|$).*/i, applyApiCors);
 
 // 2. Enforce HTTPS in production (redirect HTTP to HTTPS)
 if (!isTest) {
@@ -125,7 +127,7 @@ if (!isTest) {
 app.use(preventParameterPollution);
 
 // 7. Global rate limiting (applies to all routes) - skip in tests
-if (!isTest) {
+if (shouldApplyRateLimits) {
   app.use(globalRateLimiter);
 }
 
@@ -133,8 +135,8 @@ if (!isTest) {
 // ENHANCED RATE LIMITING - Endpoint-Specific Protection (skip in tests)
 // ============================================================================
 
-if (!isTest) {
-  // API routes - General rate limiting
+if (shouldApplyRateLimits) {
+  // API routes - General IP fallback safety net for public and authenticated APIs.
   app.use('/api/', apiRateLimiter);
 
   // Auth routes - Strict limits to prevent brute force attacks
@@ -144,17 +146,17 @@ if (!isTest) {
   app.use('/api/v1/auth/forgot-password', passwordResetRateLimiter);
   app.use('/api/v1/auth/reset-password', passwordResetRateLimiter);
 
-  // Upload endpoints - Prevent abuse
-  app.use('/api/v1/uploads', uploadRateLimiter);
-  app.use('/api/v1/users/upload-document', uploadRateLimiter);
+  // Authenticated user-scoped endpoints - authenticate before calculating the rate-limit key.
+  app.use('/api/v1/uploads', protect, uploadRateLimiter);
+  app.use('/api/v1/users/upload-document', protect, uploadRateLimiter);
 
-  // Search endpoints - Prevent scraping
-  app.use('/api/v1/duties/search', searchRateLimiter);
-  app.use('/api/v1/users/search', searchRateLimiter);
+  // Search endpoints - Prevent scraping by authenticated user instead of shared IP.
+  app.use('/api/v1/duties/search', protect, searchRateLimiter);
+  app.use('/api/v1/users/search', protect, searchRateLimiter);
 
-  // Payment endpoints - Critical protection
-  app.use('/api/v1/payments', paymentRateLimiter);
-  app.use('/api/v1/earnings', paymentRateLimiter);
+  // Payment endpoints - Critical protection by authenticated user instead of shared IP.
+  app.use('/api/v1/payments', protect, paymentRateLimiter);
+  app.use('/api/v1/earnings', protect, paymentRateLimiter);
 
   // Admin routes - Strict rate limiting
   app.use('/api/v1/admin', strictRateLimiter);

@@ -1,6 +1,8 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
+const { ROLES } = require('../constants/roles');
 const { DoctorAnalytics, HospitalAnalytics } = require('../models/analytics');
 const Application = require('../models/application');
 const Duty = require('../models/duty');
@@ -39,7 +41,7 @@ router.get('/doctor', protect, authorize('doctor', 'nurse'), async (req, res) =>
 router.get('/application-insights/:dutyId', protect, async (req, res) => {
     try {
         const duty = await Duty.findById(req.params.dutyId)
-            .populate('postedBy', 'hospital')
+            .populate('postedBy', 'hospitalId')
             .lean(); // Use lean for read-only data
 
         if (!duty) {
@@ -165,19 +167,28 @@ router.get('/hospital', protect, authorize('admin'), async (req, res) => {
 
 // @route   POST /api/analytics/update-doctor
 // @desc    Update doctor analytics (called after events)
-// @access  Private
-router.post('/update-doctor/:userId', protect, async (req, res) => {
+// @access  Private (Platform Admin)
+router.post('/update-doctor/:userId', protect, authorize(ROLES.PLATFORM_ADMIN), async (req, res) => {
     try {
         const userId = req.params.userId;
 
-        let analytics = await DoctorAnalytics.findOne({ user: userId });
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user ID'
+            });
+        }
+
+        const userObjectId = new mongoose.Types.ObjectId(userId);
+
+        let analytics = await DoctorAnalytics.findOne({ user: userObjectId });
         if (!analytics) {
-            analytics = new DoctorAnalytics({ user: userId });
+            analytics = new DoctorAnalytics({ user: userObjectId });
         }
 
         // OPTIMIZED: Use aggregation pipeline instead of fetching all and filtering in JS
         const applicationStats = await Application.aggregate([
-            { $match: { applicant: userId } },
+            { $match: { applicant: userObjectId } },
             {
                 $facet: {
                     statusCounts: [

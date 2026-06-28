@@ -6,7 +6,8 @@ jest.mock('../../../utils/logger', () => ({
 }));
 
 jest.mock('../../../config/redis', () => ({
-  getRedisClient: jest.fn()
+  getRedisClient: jest.fn(),
+  scanKeys: jest.fn()
 }));
 
 const { rateLimitKeyGenerator } = require('../../../middleware/rateLimiter');

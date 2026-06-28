@@ -237,7 +237,9 @@ const initializeConnectionMonitoring = () => {
   });
 };
 
-const connectDB = async () => {
+const connectDB = async (options = {}) => {
+  const { failFast = false } = options;
+
   try {
     if (!process.env.MONGODB_URI) {
       throw new Error('MONGODB_URI environment variable is not set');
@@ -283,6 +285,7 @@ const connectDB = async () => {
       minPoolSize: options.minPoolSize,
       environment: process.env.NODE_ENV
     });
+    return true;
   } catch (error) {
     isConnected = false;
     if (mongoose.connection.readyState) {
@@ -295,8 +298,13 @@ const connectDB = async () => {
     });
     monitoring.trackError('database', error);
 
+    if (failFast) {
+      throw error;
+    }
+
     // Retry connection
     scheduleReconnect();
+    return false;
   }
 };
 

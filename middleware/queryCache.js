@@ -3,7 +3,7 @@
  * Caches MongoDB query results in Redis for improved performance
  */
 
-const { getRedisClient } = require('../config/redis');
+const { getRedisClient, scanKeys } = require('../config/redis');
 const logger = require('../utils/logger');
 
 // Default cache TTL (Time To Live) in seconds
@@ -188,7 +188,7 @@ const invalidateCache = async (pattern) => {
   }
 
   try {
-    const keys = await redisClient.keys(`${CACHE_PREFIX}${pattern}*`);
+    const keys = await scanKeys(redisClient, `${CACHE_PREFIX}${pattern}*`);
 
     if (keys.length > 0) {
       await redisClient.del(...keys);
@@ -230,7 +230,7 @@ const clearAllCache = async () => {
   }
 
   try {
-    const keys = await redisClient.keys(`${CACHE_PREFIX}*`);
+    const keys = await scanKeys(redisClient, `${CACHE_PREFIX}*`);
 
     if (keys.length > 0) {
       await redisClient.del(...keys);
@@ -256,7 +256,7 @@ const getCacheStats = async () => {
   }
 
   try {
-    const keys = await redisClient.keys(`${CACHE_PREFIX}*`);
+    const keys = await scanKeys(redisClient, `${CACHE_PREFIX}*`);
     const info = await redisClient.info('stats');
 
     return {

@@ -124,7 +124,7 @@ function registerProcessHandlers() {
   });
 }
 
-function startServer(options = {}) {
+async function startServer(options = {}) {
   const config = Object.assign({
     port: process.env.PORT || 5000,
     registerProcessHandlers: true,
@@ -138,23 +138,29 @@ function startServer(options = {}) {
   validateStartupEnvironment();
 
   if (config.connectDatabase) {
-    connectDB();
+    await connectDB({ failFast: true });
   }
 
-  server = app.listen(config.port, () => {
-    logger.info('Server Started Successfully', {
-      port: config.port,
-      environment: process.env.NODE_ENV || 'development',
-      nodeVersion: process.version,
-      processId: process.pid
-    });
-    console.log(`Server running on port ${config.port} - Logs: ./logs/`);
-    console.log(`Process ID: ${process.pid}`);
+  server = await new Promise((resolve, reject) => {
+    const listeningServer = app.listen(config.port, () => {
+      logger.info('Server Started Successfully', {
+        port: config.port,
+        environment: process.env.NODE_ENV || 'development',
+        nodeVersion: process.version,
+        processId: process.pid
+      });
+      console.log(`Server running on port ${config.port} - Logs: ./logs/`);
+      console.log(`Process ID: ${process.pid}`);
 
-    if (process.send) {
-      process.send('ready');
-      console.log('PM2 ready signal sent');
-    }
+      if (process.send) {
+        process.send('ready');
+        console.log('PM2 ready signal sent');
+      }
+
+      resolve(listeningServer);
+    });
+
+    listeningServer.once('error', reject);
   });
 
   server.headersTimeout = SERVER_HEADERS_TIMEOUT_MS;
@@ -186,5 +192,11 @@ module.exports = {
 };
 
 if (require.main === module) {
-  startServer();
+  startServer().catch((error) => {
+    logger.error('Server startup failed', {
+      error: error.message,
+      stack: error.stack
+    });
+    process.exit(1);
+  });
 }
