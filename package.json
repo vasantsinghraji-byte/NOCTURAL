@@ -36,6 +36,7 @@
     "reconcile:data:write": "node scripts/reconcile-data-integrity.js --write",
     "db:backfill-upload-urls": "node scripts/backfill-upload-file-urls.js",
     "db:backfill-upload-urls:write": "node scripts/backfill-upload-file-urls.js --write",
+    "db:verify-hospital-id-cutover": "node scripts/verify-hospital-id-cutover.js",
     "lint": "eslint .",
     "lint:baseline": "node scripts/check-lint-warning-baseline.js",
     "lint:fix": "eslint . --fix",
