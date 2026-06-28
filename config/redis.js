@@ -210,6 +210,19 @@ const deleteFromCache = async (key) => {
   }
 };
 
+const scanKeys = async (client, pattern, count = 100) => {
+  const keys = [];
+  let cursor = '0';
+
+  do {
+    const [nextCursor, batch] = await client.scan(cursor, 'MATCH', pattern, 'COUNT', count);
+    cursor = nextCursor;
+    keys.push(...batch);
+  } while (cursor !== '0');
+
+  return keys;
+};
+
 /**
  * Delete multiple keys matching pattern
  */
@@ -219,7 +232,7 @@ const deletePattern = async (pattern) => {
   }
 
   try {
-    const keys = await redisClient.keys(pattern);
+    const keys = await scanKeys(redisClient, pattern);
     if (keys.length > 0) {
       await redisClient.del(...keys);
       logger.debug('Cache pattern deleted', { pattern, count: keys.length });
@@ -300,6 +313,7 @@ module.exports = {
   getFromCache,
   setToCache,
   deleteFromCache,
+  scanKeys,
   deletePattern,
   clearCache,
   getCacheStats

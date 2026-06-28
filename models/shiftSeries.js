@@ -1,5 +1,10 @@
 const mongoose = require('mongoose');
 
+const timeToMinutes = (time) => {
+    const [hours, minutes] = time.split(':').map(part => parseInt(part, 10));
+    return (hours * 60) + minutes;
+};
+
 const shiftSeriesSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -122,7 +127,7 @@ shiftSeriesSchema.index({ 'shifts.date': 1 });
 shiftSeriesSchema.index({ hospitalId: 1, createdAt: -1 });
 
 // Calculate required derived fields before validation.
-shiftSeriesSchema.pre('validate', function(next) {
+shiftSeriesSchema.pre('validate', function() {
     if (this.baseHourlyRate && this.seriesDiscount !== undefined) {
         this.discountedRate = this.baseHourlyRate * (1 - this.seriesDiscount / 100);
     }
@@ -131,10 +136,13 @@ shiftSeriesSchema.pre('validate', function(next) {
     if (this.shifts && this.shifts.length > 0) {
         let total = 0;
         this.shifts.forEach(shift => {
-            const start = shift.startTime.split(':');
-            const end = shift.endTime.split(':');
-            const startMinutes = parseInt(start[0]) * 60 + parseInt(start[1]);
-            const endMinutes = parseInt(end[0]) * 60 + parseInt(end[1]);
+            const startMinutes = timeToMinutes(shift.startTime);
+            let endMinutes = timeToMinutes(shift.endTime);
+
+            if (endMinutes < startMinutes) {
+                endMinutes += 24 * 60;
+            }
+
             const hours = (endMinutes - startMinutes) / 60;
             total += hours * this.discountedRate;
         });
@@ -146,7 +154,6 @@ shiftSeriesSchema.pre('validate', function(next) {
         this.filledShifts = this.shifts.filter(s => s.status === 'FILLED').length;
     }
 
-    next();
 });
 
 // Method to apply for series
