@@ -64,6 +64,32 @@ describe('CODEOWNERS security-governance validator', () => {
     ])).toEqual([]);
   });
 
+  it('treats the post-deploy smoke check as main-only', () => {
+    // render-smoke.yml only runs on PRs to main and against the deployed main
+    // instance, so it can never pass on develop PRs. develop is fully-enforced
+    // with just the governance checks; main still requires the smoke check.
+    expect(classifyStatus({
+      branch: 'develop',
+      contexts: ['CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
+      requireCodeOwnerReviews: true
+    })).toBe('fully-enforced');
+
+    expect(classifyStatus({
+      branch: 'main',
+      contexts: ['CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
+      requireCodeOwnerReviews: true
+    })).toBe('custom-or-drifted');
+
+    // A develop branch fully-enforced without the smoke check is not drift.
+    expect(getDriftedBranches([
+      {
+        branch: 'develop',
+        contexts: ['CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
+        requireCodeOwnerReviews: true
+      }
+    ])).toEqual([]);
+  });
+
   it('renders the drift-audit issue body from the negative workflow fixture', () => {
     const fixture = JSON.parse(fs.readFileSync(
       path.join(ROOT, 'tests/fixtures/security/governance-drift-audit-issue.json'),
