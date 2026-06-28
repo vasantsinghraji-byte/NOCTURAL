@@ -14,6 +14,9 @@ fi
 
 PROTECTED_BRANCH_PATTERN='^(main|develop)$'
 WORKING_BRANCH_PATTERN='^(feature|fix|bugfix|hotfix|refactor|docs|chore|experiment|release)/[a-z0-9._-]+$'
+# Automated dependency branches (Dependabot et al.) are bot-generated and follow
+# their own naming; exempt them from the team convention so they can be pushed to.
+AUTOMATED_BRANCH_PATTERN='^dependabot/'
 
 if echo "$CURRENT_BRANCH" | grep -Eq "$PROTECTED_BRANCH_PATTERN"; then
   cat <<EOF
@@ -26,7 +29,8 @@ EOF
   exit 1
 fi
 
-if ! echo "$CURRENT_BRANCH" | grep -Eq "$WORKING_BRANCH_PATTERN"; then
+if ! echo "$CURRENT_BRANCH" | grep -Eq "$WORKING_BRANCH_PATTERN" \
+  && ! echo "$CURRENT_BRANCH" | grep -Eq "$AUTOMATED_BRANCH_PATTERN"; then
   cat <<EOF
 Branch name '$CURRENT_BRANCH' does not match the team convention.
 
