@@ -35,7 +35,7 @@ class NotificationService {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
-        .populate('relatedDuty', 'title hospital date specialty')
+        .populate('relatedDuty', 'title hospitalId date specialty')
         .populate('relatedApplication', 'status')
         .lean(),
       Notification.countDocuments(query),

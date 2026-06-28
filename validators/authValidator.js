@@ -333,21 +333,10 @@ const validateUpdateProfile = [
     .matches(FIELD_LIMITS.PHONE_E164).withMessage('Invalid phone number format'),
 
   body('hospital')
-    .optional()
-    .custom((value, { req }) => {
-      ensureRoleCanUpdateField(req, ['admin'], 'Hospital');
+    .not().exists().withMessage('Hospital cannot be modified via profile update'),
 
-      if (typeof value !== 'string') {
-        throw new Error('Hospital name must be a string');
-      }
-
-      const trimmed = value.trim();
-      if (trimmed.length < 1 || trimmed.length > 200) {
-        throw new Error('Hospital name must be between 1 and 200 characters');
-      }
-
-      return true;
-    }),
+  body('hospitalId')
+    .not().exists().withMessage('Hospital cannot be modified via profile update'),
 
   body('location')
     .optional()

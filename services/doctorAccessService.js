@@ -87,14 +87,14 @@ class DoctorAccessService {
     }
 
     // Hospital boundary enforcement for hospital-scoped admins
-    if (admin.hospital) {
+    if (admin.hospitalId) {
       // Doctor must belong to the same hospital
-      if (doctor.hospital !== admin.hospital) {
+      if (!doctor.hospitalId || doctor.hospitalId.toString() !== admin.hospitalId.toString()) {
         logger.logSecurity('cross_hospital_access_attempt', {
           adminId: safeAdminId,
-          adminHospital: admin.hospital,
+          adminHospitalId: admin.hospitalId,
           doctorId: safeDoctorId,
-          doctorHospital: doctor.hospital
+          doctorHospitalId: doctor.hospitalId
         });
         throw new AuthorizationError(
           'Cannot grant access to a doctor outside your hospital'
@@ -103,7 +103,7 @@ class DoctorAccessService {
 
       // Patient must have at least one booking with a provider from this hospital
       const hospitalProviderIds = await User.find(
-        { hospital: admin.hospital, role: { $in: validRoles } },
+        { hospitalId: admin.hospitalId, role: { $in: validRoles } },
         { _id: 1 }
       ).lean().then(docs => docs.map(d => d._id));
 
@@ -115,7 +115,7 @@ class DoctorAccessService {
       if (!patientHasHospitalBooking) {
         logger.logSecurity('cross_hospital_patient_access_attempt', {
           adminId: safeAdminId,
-          adminHospital: admin.hospital,
+          adminHospitalId: admin.hospitalId,
           patientId: safePatientId
         });
         throw new AuthorizationError(

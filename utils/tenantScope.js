@@ -1,26 +1,9 @@
 function getTenantQuery(user) {
-  if (user?.hospitalId) {
-    return { hospitalId: user.hospitalId };
-  }
-
-  if (user?.hospital) {
-    return { hospital: user.hospital };
-  }
-
-  return null;
+  return user?.hospitalId ? { hospitalId: user.hospitalId } : null;
 }
 
 function getTenantFields(user) {
-  const fields = {};
-
-  if (user?.hospital) {
-    fields.hospital = user.hospital;
-  }
-  if (user?.hospitalId) {
-    fields.hospitalId = user.hospitalId;
-  }
-
-  return fields;
+  return user?.hospitalId ? { hospitalId: user.hospitalId } : {};
 }
 
 function belongsToTenant(record, user) {
@@ -28,11 +11,7 @@ function belongsToTenant(record, user) {
     return false;
   }
 
-  if (user?.hospitalId) {
-    return Boolean(record.hospitalId) && String(record.hospitalId) === String(user.hospitalId);
-  }
-
-  return Boolean(user?.hospital) && record.hospital === user.hospital;
+  return Boolean(user?.hospitalId && record.hospitalId) && String(record.hospitalId) === String(user.hospitalId);
 }
 
 module.exports = {

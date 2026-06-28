@@ -22,6 +22,18 @@ function formatLocationValue(location) {
   return [location.city, location.state].filter(Boolean).join(', ');
 }
 
+function formatHospitalName(source) {
+  if (!source) {
+    return '';
+  }
+
+  if (source.hospitalId && typeof source.hospitalId === 'object') {
+    return source.hospitalId.name || '';
+  }
+
+  return '';
+}
+
 function buildLocationUpdatePayload(rawLocation) {
   var normalizedLocation = rawLocation.trim();
   var originalLocation = originalData.location;
@@ -72,7 +84,7 @@ async function loadProfile() {
     var user = data.user;
     originalData = Object.assign({}, user);
 
-    document.getElementById('hospitalName').value = user.hospital || '';
+    document.getElementById('hospitalName').value = formatHospitalName(user);
     document.getElementById('location').value = formatLocationValue(user.location);
     document.getElementById('adminName').value = user.name || '';
     document.getElementById('phone').value = user.phone || '';
@@ -91,6 +103,7 @@ function toggleEditMode(editing) {
     var formInput = input;
     formInput.disabled = !editing;
   });
+  document.getElementById('hospitalName').disabled = true;
 
   document.getElementById('editBtn').classList.toggle('is-hidden', editing);
   document.getElementById('cancelBtn').classList.toggle('is-hidden', !editing);
@@ -98,7 +111,7 @@ function toggleEditMode(editing) {
 }
 
 function cancelEdit() {
-  document.getElementById('hospitalName').value = originalData.hospital || '';
+  document.getElementById('hospitalName').value = formatHospitalName(originalData);
   document.getElementById('location').value = formatLocationValue(originalData.location);
   document.getElementById('adminName').value = originalData.name || '';
   document.getElementById('phone').value = originalData.phone || '';
@@ -114,14 +127,13 @@ async function saveProfile(event) {
   if (!token) return;
 
   var formData = {
-    hospital: document.getElementById('hospitalName').value.trim(),
     location: buildLocationUpdatePayload(document.getElementById('location').value),
     name: document.getElementById('adminName').value.trim(),
     phone: document.getElementById('phone').value.trim()
   };
 
-  if (!formData.hospital || !formData.location || !formData.name) {
-    showMessage('Please fill in all required fields (Hospital Name, Location, Administrator Name)', 'error');
+  if (!formData.location || !formData.name) {
+    showMessage('Please fill in all required fields (Location, Administrator Name)', 'error');
     return;
   }
 
@@ -135,7 +147,7 @@ async function saveProfile(event) {
       parseJson: true,
       body: JSON.stringify(formData)
     }), 'Failed to update profile');
-    originalData = Object.assign({}, formData);
+    originalData = Object.assign({}, originalData, formData);
 
     localStorage.setItem('userName', formData.name);
     loadUserInfo();

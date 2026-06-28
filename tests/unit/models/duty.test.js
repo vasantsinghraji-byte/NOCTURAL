@@ -44,15 +44,8 @@ describe('Duty Model - Schema Validation', () => {
       await expect(duty.validate()).rejects.toThrow();
     });
 
-    test('should require hospital', async () => {
-      const dutyData = dutyFactory(hospital._id, { hospital: undefined });
-      const duty = new Duty(dutyData);
-
-      await expect(duty.validate()).rejects.toThrow();
-    });
-
-    test('should require hospitalName', async () => {
-      const dutyData = dutyFactory(hospital._id, { hospitalName: undefined });
+    test('should require hospitalId', async () => {
+      const dutyData = dutyFactory(hospital, { hospitalId: undefined });
       const duty = new Duty(dutyData);
 
       await expect(duty.validate()).rejects.toThrow();

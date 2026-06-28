@@ -180,7 +180,6 @@ describe('sensitive model mass-assignment allowlists', () => {
       duty: 'duty-1',
       application: 'application-1',
       totalAmount: 1000,
-      hospital: 'Hospital A',
       hospitalId: 'hospital-a'
     });
   });
@@ -221,7 +220,6 @@ describe('sensitive model mass-assignment allowlists', () => {
         hourlyRate: 100
       }],
       totalShifts: 1,
-      hospital: 'Hospital A',
       hospitalId: 'hospital-a',
       postedBy: 'admin-1'
     });
@@ -233,7 +231,7 @@ describe('sensitive model mass-assignment allowlists', () => {
     const dutyId = 'bbbbbbbbbbbbbbbbbbbbbbbb';
     const reviewedUserId = 'cccccccccccccccccccccccc';
     const req = mockRequest({
-      user: { _id: 'admin-1', hospital: 'Hospital A' },
+      user: { _id: 'admin-1', hospitalId: 'hospital-a' },
       body: {
         duty: dutyId,
         reviewedUser: reviewedUserId,

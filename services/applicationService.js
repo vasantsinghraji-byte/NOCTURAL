@@ -33,7 +33,7 @@ class ApplicationService {
         page: options.page || 1,
         limit: options.limit || 20,
         sort: options.sort || { appliedAt: -1 },
-        populate: { path: 'duty', select: 'title hospitalName date startTime endTime specialty status location.city compensation.totalAmount urgency' }
+        populate: { path: 'duty', select: 'title hospitalId date startTime endTime specialty status location.city compensation.totalAmount urgency' }
       }
     );
 
@@ -119,7 +119,7 @@ class ApplicationService {
           { path: 'applicant', select: 'name email specialty rating completedDuties' },
           {
             path: 'duty',
-            select: 'title date startTime endTime status totalCompensation netPayment hourlyRate hospital hospitalName'
+            select: 'title date startTime endTime status totalCompensation netPayment hourlyRate hospitalId'
           }
         ]
       }

@@ -316,6 +316,14 @@
             document.getElementById('statsScope').textContent = displayed.scopeLabel;
         }
 
+        function getHospitalName(record) {
+            const hospital = record && record.hospitalId;
+            if (hospital && typeof hospital === 'object') {
+                return hospital.name || 'Hospital';
+            }
+            return 'Hospital';
+        }
+
         // Display applications
         function displayApplications(applications) {
             const container = document.getElementById('applicationsContainer');
@@ -347,7 +355,7 @@
                                 <h3>${duty.title || duty.specialty || 'General Medicine'}</h3>
                                 <div class="hospital">
                                     <span>🏥</span>
-                                    <span>${duty.hospitalName || 'Hospital'}</span>
+                                    <span>${getHospitalName(duty)}</span>
                                 </div>
                             </div>
                             <span class="status-badge ${NocturnalSession.getApplicationStatusClass(app.status)}">${NocturnalSession.normalizeApplicationStatus(app.status)}</span>

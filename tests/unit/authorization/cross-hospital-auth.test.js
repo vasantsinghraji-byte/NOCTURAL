@@ -3,9 +3,9 @@
  *
  * Verifies tenant-scoping on admin mutations so one hospital admin cannot
  * read, alter, or reference another hospital's records:
- * - ShiftSeries create binds hospital server-side; mutations scope by hospital
- * - Earning create binds hospital and validates referenced duty/application/user
- * - Earning payment-status is scoped to the admin's hospital
+ * - ShiftSeries create binds hospitalId server-side; mutations scope by hospitalId
+ * - Earning create binds hospitalId and validates referenced duty/application/user
+ * - Earning payment-status is scoped to the admin's hospitalId
  *
  * Route handlers are invoked directly (no DB) using the mock req/res helpers.
  * Mock implementations are (re)set in beforeEach because jest is configured
@@ -67,10 +67,10 @@ describe('Cross-hospital authorization on admin mutations', () => {
   describe('ShiftSeries POST / (create)', () => {
     const handler = getHandler(shiftSeriesRouter, 'post', '/');
 
-    it('binds the new series to the admin\'s hospital, ignoring the request body', async () => {
+    it('binds the new series to the admin\'s hospitalId, ignoring the request body', async () => {
       const req = mockRequest({
         body: { hospital: 'Hospital EVIL', hospitalId: 'hospital-evil', title: 'Series' },
-        user: { _id: 'adminA', hospital: 'Hospital A', hospitalId: 'hospital-a' }
+        user: { _id: 'adminA', hospitalId: 'hospital-a' }
       });
       const res = mockResponse();
 
@@ -78,7 +78,6 @@ describe('Cross-hospital authorization on admin mutations', () => {
 
       expect(ShiftSeries).toHaveBeenCalledWith(
         expect.objectContaining({
-          hospital: 'Hospital A',
           hospitalId: 'hospital-a',
           postedBy: 'adminA'
         })
@@ -106,7 +105,7 @@ describe('Cross-hospital authorization on admin mutations', () => {
       const req = mockRequest({
         params: { id: 'series1', appId: 'app1' },
         body: { status: 'ACCEPTED' },
-        user: { _id: 'adminB', hospital: 'Same Hospital Name', hospitalId: 'hospital-b' }
+        user: { _id: 'adminB', hospitalId: 'hospital-b' }
       });
       const res = mockResponse();
 
@@ -139,7 +138,7 @@ describe('Cross-hospital authorization on admin mutations', () => {
 
       const req = mockRequest({
         params: { id: 'series1' },
-        user: { _id: 'adminB', hospital: 'Same Hospital Name', hospitalId: 'hospital-b' }
+        user: { _id: 'adminB', hospitalId: 'hospital-b' }
       });
       const res = mockResponse();
 
@@ -165,8 +164,8 @@ describe('Cross-hospital authorization on admin mutations', () => {
   describe('Earning POST / (create)', () => {
     const handler = getHandler(earningsRouter, 'post', '/');
 
-    it('binds hospital and creates when all referenced records belong to the hospital', async () => {
-      Duty.findById.mockResolvedValue({ _id: 'duty1', hospital: 'Hospital A', hospitalId: 'hospital-a' });
+    it('binds hospitalId and creates when all referenced records belong to the hospital', async () => {
+      Duty.findById.mockResolvedValue({ _id: 'duty1', hospitalId: 'hospital-a' });
       Application.findById.mockResolvedValue({ duty: 'duty1', applicant: 'user1' });
 
       const req = mockRequest({
@@ -178,14 +177,13 @@ describe('Cross-hospital authorization on admin mutations', () => {
           user: 'user1',
           totalAmount: 100
         },
-        user: { _id: 'adminA', hospital: 'Hospital A', hospitalId: 'hospital-a' }
+        user: { _id: 'adminA', hospitalId: 'hospital-a' }
       });
       const res = mockResponse();
 
       await handler(req, res, mockNext());
 
       expect(Earning).toHaveBeenCalledWith(expect.objectContaining({
-        hospital: 'Hospital A',
         hospitalId: 'hospital-a'
       }));
       expect(res.status).toHaveBeenCalledWith(201);
@@ -194,13 +192,12 @@ describe('Cross-hospital authorization on admin mutations', () => {
     it('returns 403 when the referenced duty belongs to another hospital', async () => {
       Duty.findById.mockResolvedValue({
         _id: 'duty1',
-        hospital: 'Same Hospital Name',
         hospitalId: 'hospital-b'
       });
 
       const req = mockRequest({
         body: { duty: 'duty1', application: 'app1', user: 'user1' },
-        user: { _id: 'adminA', hospital: 'Same Hospital Name', hospitalId: 'hospital-a' }
+        user: { _id: 'adminA', hospitalId: 'hospital-a' }
       });
       const res = mockResponse();
 
@@ -211,12 +208,12 @@ describe('Cross-hospital authorization on admin mutations', () => {
     });
 
     it('returns 400 when the referenced user does not match the application', async () => {
-      Duty.findById.mockResolvedValue({ _id: 'duty1', hospital: 'Hospital A', hospitalId: 'hospital-a' });
+      Duty.findById.mockResolvedValue({ _id: 'duty1', hospitalId: 'hospital-a' });
       Application.findById.mockResolvedValue({ duty: 'duty1', applicant: 'someoneElse' });
 
       const req = mockRequest({
         body: { duty: 'duty1', application: 'app1', user: 'user1' },
-        user: { _id: 'adminA', hospital: 'Hospital A', hospitalId: 'hospital-a' }
+        user: { _id: 'adminA', hospitalId: 'hospital-a' }
       });
       const res = mockResponse();
 
@@ -250,7 +247,7 @@ describe('Cross-hospital authorization on admin mutations', () => {
       const req = mockRequest({
         params: { id: 'e1' },
         body: { paymentStatus: 'PAID' },
-        user: { _id: 'adminA', hospital: 'Same Hospital Name', hospitalId: 'hospital-a' }
+        user: { _id: 'adminA', hospitalId: 'hospital-a' }
       });
       const res = mockResponse();
 
@@ -264,7 +261,6 @@ describe('Cross-hospital authorization on admin mutations', () => {
       const save = jest.fn().mockResolvedValue(true);
       Earning.findOne.mockResolvedValue({
         _id: 'e1',
-        hospital: 'Hospital A',
         hospitalId: 'hospital-a',
         paymentReminders: [],
         save
@@ -273,7 +269,7 @@ describe('Cross-hospital authorization on admin mutations', () => {
       const req = mockRequest({
         params: { id: 'e1' },
         body: { paymentStatus: 'PAID' },
-        user: { _id: 'adminA', hospital: 'Hospital A', hospitalId: 'hospital-a' }
+        user: { _id: 'adminA', hospitalId: 'hospital-a' }
       });
       const res = mockResponse();
 

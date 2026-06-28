@@ -1,29 +1,28 @@
 const { belongsToTenant, getTenantFields, getTenantQuery } = require('../../../utils/tenantScope');
 
 describe('tenant scope utilities', () => {
-  it('prefers immutable hospitalId over a matching display name', () => {
-    const user = { hospital: 'Same Hospital', hospitalId: 'hospital-a' };
-    const record = { hospital: 'Same Hospital', hospitalId: 'hospital-b' };
+  it('scopes tenant queries by hospitalId only', () => {
+    const user = { hospitalId: 'hospital-a' };
+    const record = { hospitalId: 'hospital-b' };
 
     expect(getTenantQuery(user)).toEqual({ hospitalId: 'hospital-a' });
     expect(belongsToTenant(record, user)).toBe(false);
   });
 
-  it('binds trusted tenant fields and ignores caller-supplied values when spread last', () => {
+  it('binds trusted hospitalId and ignores caller-supplied values when spread last', () => {
     expect({
-      hospital: 'Attacker Hospital',
       hospitalId: 'attacker-id',
-      ...getTenantFields({ hospital: 'Hospital A', hospitalId: 'hospital-a' })
+      ...getTenantFields({ hospitalId: 'hospital-a' })
     }).toEqual({
-      hospital: 'Hospital A',
       hospitalId: 'hospital-a'
     });
   });
 
-  it('supports legacy hospital-name scoping only when hospitalId is unavailable', () => {
+  it('fails closed instead of falling back to legacy hospital names', () => {
     const user = { hospital: 'Legacy Hospital' };
 
-    expect(getTenantQuery(user)).toEqual({ hospital: 'Legacy Hospital' });
-    expect(belongsToTenant({ hospital: 'Legacy Hospital' }, user)).toBe(true);
+    expect(getTenantQuery(user)).toBeNull();
+    expect(getTenantFields(user)).toEqual({});
+    expect(belongsToTenant({ hospital: 'Legacy Hospital' }, user)).toBe(false);
   });
 });
