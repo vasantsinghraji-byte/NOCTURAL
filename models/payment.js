@@ -1,5 +1,26 @@
 const mongoose = require('mongoose');
 
+const counterSchema = new mongoose.Schema({
+  _id: String,
+  seq: {
+    type: Number,
+    default: 0
+  }
+}, {
+  timestamps: true
+});
+
+const Counter = mongoose.models.Counter || mongoose.model('Counter', counterSchema);
+
+const nextInvoiceSequence = async () => {
+  const counter = await Counter.findByIdAndUpdate(
+    'payment.invoiceNumber',
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+  return counter.seq;
+};
+
 const paymentSchema = new mongoose.Schema({
   // Related entities
   duty: {
@@ -134,10 +155,10 @@ paymentSchema.index({ dueDate: 1, status: 1 }); // Overdue payment identificatio
 // Generate invoice number
 paymentSchema.pre('save', async function() {
   if (this.isNew && !this.invoiceNumber) {
-    const count = await mongoose.model('Payment').countDocuments();
+    const sequence = await nextInvoiceSequence();
     const year = new Date().getFullYear();
     const month = String(new Date().getMonth() + 1).padStart(2, '0');
-    this.invoiceNumber = `INV-${year}${month}-${String(count + 1).padStart(6, '0')}`;
+    this.invoiceNumber = `INV-${year}${month}-${String(sequence).padStart(6, '0')}`;
   }
 });
 

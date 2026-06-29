@@ -37,7 +37,7 @@ router.get('/user/:userId', async (req, res) => {
             {
                 ...req.pagination,
                 sort: req.pagination.sort || { createdAt: -1 },
-                populate: 'reviewer:name hospital duty:title date hospital'
+                populate: 'reviewer:name hospitalId duty:title date hospitalId'
             }
         );
 
@@ -59,6 +59,54 @@ router.get('/user/:userId', async (req, res) => {
     }
 });
 
+// @route   GET /api/reviews/hospital/user/:userId
+// @desc    Get hospital-only reviews for a specific user within current hospital scope
+// @access  Private (Hospital Admin)
+router.get('/hospital/user/:userId', protect, authorize('admin'), async (req, res) => {
+    try {
+        const tenantQuery = getTenantQuery(req.user);
+        if (!tenantQuery) {
+            return res.status(403).json({
+                success: false,
+                message: 'Hospital assignment required'
+            });
+        }
+
+        const reviewedUserId = normalizeObjectId(req.params.userId, 'reviewed user id');
+        const dutyIds = await Duty.find(tenantQuery).distinct('_id');
+        const hospitalOnlyFilter = {
+            reviewedUser: reviewedUserId,
+            visibility: 'HOSPITAL_ONLY',
+            duty: { $in: dutyIds }
+        };
+
+        const result = await paginate(
+            Review,
+            hospitalOnlyFilter,
+            {
+                ...req.pagination,
+                sort: req.pagination.sort || { createdAt: -1 },
+                populate: 'reviewer:name hospitalId duty:title date hospitalId'
+            }
+        );
+
+        const avgRatings = await Review.getUserAverageRating(reviewedUserId, hospitalOnlyFilter);
+
+        res.json({
+            success: true,
+            data: result.data,
+            summary: avgRatings,
+            pagination: result.pagination
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching hospital reviews',
+            error: error.message
+        });
+    }
+});
+
 // @route   GET /api/reviews/my-reviews
 // @desc    Get reviews for current user with pagination
 // @access  Private
@@ -70,7 +118,7 @@ router.get('/my-reviews', protect, async (req, res) => {
             {
                 ...req.pagination,
                 sort: req.pagination.sort || { createdAt: -1 },
-                populate: 'reviewer:name hospital duty:title date hospital'
+                populate: 'reviewer:name hospitalId duty:title date hospitalId'
             }
         );
 

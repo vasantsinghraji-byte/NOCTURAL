@@ -3,12 +3,9 @@ const mongoose = require('mongoose');
 /**
  * Hospital / Org entity.
  *
- * Structured tenant identity that replaces the free-text `hospital` string used
- * across User, Duty, ShiftSeries and Earning. Records carry an optional
- * `hospitalId` reference to this collection, backfilled from their `hospital`
- * string by scripts/migrate-hospitals-to-objectid.js (expand phase). Route
- * scoping continues to use the `hospital` string until the data is migrated in
- * every environment, after which the scoping can be cut over to `hospitalId`.
+ * Structured tenant identity for hospital-scoped data. User, Duty, ShiftSeries
+ * and Earning records use `hospitalId` for tenant scoping after the hospital
+ * string backfill/cutover.
  */
 const hospitalSchema = new mongoose.Schema({
   name: {

@@ -1,8 +1,62 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const { protect } = require('../middleware/auth');
 const { Message, Conversation } = require('../models/message');
+const Application = require('../models/application');
+const Duty = require('../models/duty');
+const User = require('../models/user');
 const { paginate, paginateCursor, paginationMiddleware } = require('../utils/pagination');
+
+const toObjectId = (value) => {
+    if (!mongoose.Types.ObjectId.isValid(value)) {
+        return null;
+    }
+    return new mongoose.Types.ObjectId(value);
+};
+
+const findAcceptedApplicationDuty = async (applicantId, posterId, dutyId = null) => {
+    const dutyQuery = { postedBy: posterId };
+    if (dutyId) {
+        dutyQuery._id = dutyId;
+    }
+
+    const dutyIds = await Duty.find(dutyQuery).distinct('_id');
+    if (dutyIds.length === 0) {
+        return null;
+    }
+
+    const application = await Application.findOne({
+        duty: { $in: dutyIds },
+        applicant: applicantId,
+        status: 'ACCEPTED'
+    }).select('duty').lean();
+
+    return application?.duty || null;
+};
+
+const findAssignedDuty = async (doctorId, posterId, dutyId = null) => {
+    const query = {
+        postedBy: posterId,
+        'assignedDoctors.doctor': doctorId
+    };
+
+    if (dutyId) {
+        query._id = dutyId;
+    }
+
+    const duty = await Duty.findOne(query).select('_id').lean();
+    return duty?._id || null;
+};
+
+const findPermittedMessagingDuty = async (senderId, recipientId, dutyId = null) => {
+    return (
+        await findAcceptedApplicationDuty(recipientId, senderId, dutyId) ||
+        await findAcceptedApplicationDuty(senderId, recipientId, dutyId) ||
+        await findAssignedDuty(recipientId, senderId, dutyId) ||
+        await findAssignedDuty(senderId, recipientId, dutyId)
+    );
+};
 
 // Apply pagination middleware
 router.use(paginationMiddleware);
@@ -21,7 +75,7 @@ router.get('/conversations', protect, async (req, res) => {
             {
                 ...req.pagination,
                 sort: req.pagination.sort || { lastMessageAt: -1 },
-                populate: 'participants:name email role hospital lastMessage dutyRelated:title hospital date'
+                populate: 'participants:name email role hospitalId lastMessage dutyRelated:title hospitalId date'
             }
         );
 
@@ -75,7 +129,7 @@ router.get('/conversation/:conversationId', protect, async (req, res) => {
                 limit: parseInt(req.query.limit) || 50,
                 sort: { createdAt: -1 },
                 cursorField: '_id',
-                populate: 'sender:name role hospital recipient:name role'
+                populate: 'sender:name role hospitalId recipient:name role'
             }
         );
 
@@ -103,16 +157,49 @@ router.get('/conversation/:conversationId', protect, async (req, res) => {
 router.post('/send', protect, async (req, res) => {
     try {
         const { recipientId, content, messageType, templateType, dutyId } = req.body;
+        const senderObjectId = toObjectId(req.user._id);
+        const recipientObjectId = toObjectId(recipientId);
+        const dutyObjectId = dutyId ? toObjectId(dutyId) : null;
+
+        if (!senderObjectId || !recipientObjectId || (dutyId && !dutyObjectId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid sender, recipient, or duty ID'
+            });
+        }
+
+        if (String(senderObjectId) === String(recipientObjectId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot send a message to yourself'
+            });
+        }
+
+        const recipientExists = await User.exists({ _id: recipientObjectId });
+        if (!recipientExists) {
+            return res.status(404).json({
+                success: false,
+                message: 'Recipient not found'
+            });
+        }
+
+        const permittedDutyId = await findPermittedMessagingDuty(senderObjectId, recipientObjectId, dutyObjectId);
+        if (!permittedDutyId) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to message this recipient'
+            });
+        }
 
         // Find or create conversation
         let conversation = await Conversation.findOne({
-            participants: { $all: [req.user._id, recipientId] }
+            participants: { $all: [senderObjectId, recipientObjectId] }
         });
 
         if (!conversation) {
             conversation = new Conversation({
-                participants: [req.user._id, recipientId],
-                dutyRelated: dutyId || null
+                participants: [senderObjectId, recipientObjectId],
+                dutyRelated: dutyObjectId || permittedDutyId
             });
             await conversation.save();
         }
@@ -120,12 +207,12 @@ router.post('/send', protect, async (req, res) => {
         // Create message
         const message = new Message({
             conversation: conversation._id,
-            sender: req.user._id,
-            recipient: recipientId,
+            sender: senderObjectId,
+            recipient: recipientObjectId,
             content,
             messageType: messageType || 'TEXT',
             templateType,
-            relatedDuty: dutyId || null
+            relatedDuty: dutyObjectId || permittedDutyId
         });
 
         await message.save();
@@ -133,12 +220,12 @@ router.post('/send', protect, async (req, res) => {
         // Update conversation
         conversation.lastMessage = message._id;
         conversation.lastMessageAt = new Date();
-        await conversation.incrementUnread(recipientId);
+        await conversation.incrementUnread(recipientObjectId);
 
         await conversation.save();
 
         // Populate sender info
-        await message.populate('sender', 'name role hospital');
+        await message.populate('sender', 'name role hospitalId');
 
         res.status(201).json({
             success: true,

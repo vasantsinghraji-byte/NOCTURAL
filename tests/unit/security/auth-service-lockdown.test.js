@@ -34,7 +34,7 @@ describe('Security Unit: auth service profile-field lockdown', () => {
       name: 'Updated Name',
       role: 'admin',
       isVerified: true,
-      hospital: 'Other Hospital'
+      hospitalId: '507f1f77bcf86cd799439011'
     })).rejects.toMatchObject({
       statusCode: 403
     });
@@ -102,11 +102,11 @@ describe('Security Unit: auth service profile-field lockdown', () => {
     expect(mockUser.save).toHaveBeenCalledTimes(1);
   });
 
-  it('should allow admins to update hospital-scoped profile fields', async () => {
+  it('should allow admins to update non-tenant profile fields', async () => {
     const mockUser = {
       _id: 'admin1',
       role: 'admin',
-      hospital: 'Old Hospital',
+      hospitalId: '507f1f77bcf86cd799439011',
       location: { city: 'Old City' },
       name: 'Admin Name',
       phone: '1111111111',
@@ -117,13 +117,12 @@ describe('Security Unit: auth service profile-field lockdown', () => {
     User.findById = jest.fn().mockResolvedValue(mockUser);
 
     const result = await authService.updateProfile('admin1', {
-      hospital: 'New Hospital',
       location: { city: 'New City' },
       name: 'Updated Admin',
       phone: '9999999999'
     });
 
-    expect(result.hospital).toBe('New Hospital');
+    expect(result.hospitalId).toBe('507f1f77bcf86cd799439011');
     expect(result.location).toEqual({ city: 'New City' });
     expect(result.name).toBe('Updated Admin');
     expect(result.phone).toBe('9999999999');

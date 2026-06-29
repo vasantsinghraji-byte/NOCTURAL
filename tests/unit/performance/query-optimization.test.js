@@ -24,7 +24,7 @@ describe('Phase 5 — Query Optimization', () => {
 
     it('should use field selection in duty populate', () => {
       expect(src).toMatch(/populate.*duty.*select/s);
-      expect(src).toMatch(/title\s+hospitalName\s+date\s+startTime\s+endTime/);
+      expect(src).toMatch(/title\s+hospitalId\s+date\s+startTime\s+endTime/);
     });
 
     it('should use object-form populate with path and select for paginated query', () => {

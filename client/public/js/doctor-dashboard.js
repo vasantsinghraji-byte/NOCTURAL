@@ -71,6 +71,14 @@
             return prefs.length > 0 ? prefs.join(' | ') : 'Not set';
         }
 
+        function getHospitalName(record) {
+            const hospital = record && record.hospitalId;
+            if (hospital && typeof hospital === 'object') {
+                return hospital.name || 'Hospital';
+            }
+            return 'Hospital';
+        }
+
         // Fetch and display full user profile
         async function fetchUserProfile() {
             const token = checkAuth();
@@ -92,7 +100,7 @@
 
                     // Update profile information section
                     document.getElementById('userSpecialty').textContent = user.specialty || professional.primarySpecialization || 'Not specified';
-                    document.getElementById('userHospital').textContent = user.hospital || user.hospitalName || 'Not specified';
+                    document.getElementById('userHospital').textContent = getHospitalName(user);
                     document.getElementById('userLocation').textContent = formatLocation(user.location);
                     document.getElementById('userExperience').textContent = professional.yearsOfExperience ? `${professional.yearsOfExperience} years` : 'Not specified';
                     document.getElementById('userQualifications').textContent = qualifications;
@@ -189,7 +197,7 @@
             AppUi.setSafeHtml(container, applications.map(app => `
                 <div class="application-item">
                     <div class="application-info">
-                        <h3>${app.duty?.hospitalName || 'Hospital'} - ${app.duty?.specialty || 'General'}</h3>
+                        <h3>${getHospitalName(app.duty || {})} - ${app.duty?.specialty || 'General'}</h3>
                         <p>📅 ${app.duty?.date ? AppFormat.date(app.duty.date) : 'TBD'} | ⏰ ${app.duty?.startTime || 'TBD'} | 💰 ${AppFormat.currencyWhole(app.duty?.compensation?.totalAmount || 0)}</p>
                     </div>
                     <span class="status-badge ${NocturnalSession.getApplicationStatusClass(app.status)}">${NocturnalSession.normalizeApplicationStatus(app.status)}</span>

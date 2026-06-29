@@ -69,9 +69,9 @@ router.get('/history', protect, async (req, res) => {
       .sort({ shiftDate: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .populate('duty', 'title hospital date specialty')
+      .populate('duty', 'title hospitalId date specialty')
       .populate('doctor', 'name email phone')
-      .populate('hospital', 'name hospitalName')
+      .populate('hospital', 'name hospitalId')
       .lean();
 
     const total = await Payment.countDocuments(query);
@@ -100,7 +100,7 @@ router.get('/:id', protect, async (req, res) => {
     const payment = await Payment.findById(req.params.id)
       .populate('duty')
       .populate('doctor', 'name email phone professional.mciNumber')
-      .populate('hospital', 'name hospitalName');
+      .populate('hospital', 'name hospitalId');
 
     if (!payment) {
       return res.status(404).json({ success: false, message: 'Payment not found' });

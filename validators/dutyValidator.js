@@ -18,14 +18,13 @@ const validateCreateDuty = [
     .escape(),
 
   body('hospital')
-    .trim()
-    .notEmpty().withMessage('Hospital is required')
-    .isLength({ max: 200 }).withMessage('Hospital name too long'),
+    .not().exists().withMessage('Hospital is assigned from the authenticated admin'),
 
   body('hospitalName')
-    .trim()
-    .notEmpty().withMessage('Hospital name is required')
-    .isLength({ max: 200 }).withMessage('Hospital name too long'),
+    .not().exists().withMessage('Hospital name is resolved from hospitalId'),
+
+  body('hospitalId')
+    .not().exists().withMessage('Hospital ID is assigned from the authenticated admin'),
 
   body('department')
     .notEmpty().withMessage('Department is required')

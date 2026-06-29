@@ -42,7 +42,7 @@ router.get('/', protect, authorize('doctor', 'nurse'), async (req, res) => {
             {
                 ...req.pagination,
                 sort: req.pagination.sort || { createdAt: -1 },
-                populate: 'postedBy:name hospital'
+                populate: 'postedBy:name hospitalId'
             }
         );
 
@@ -62,7 +62,7 @@ router.get('/', protect, authorize('doctor', 'nurse'), async (req, res) => {
 router.get('/:id', protect, async (req, res) => {
     try {
         const series = await ShiftSeries.findById(req.params.id)
-            .populate('postedBy', 'name hospital email phone')
+            .populate('postedBy', 'name hospitalId email phone')
             .populate('applicants.user', 'name rating specialty completedDuties');
 
         if (!series) {
@@ -90,8 +90,7 @@ router.get('/:id', protect, async (req, res) => {
 // @access  Private
 router.post('/', protect, authorize('admin'), async (req, res) => {
     try {
-        // Bind the series to the admin's own hospital so it cannot be created under
-        // another hospital's name. Fail closed if no hospital is assigned.
+        // Bind the series to the admin's own hospitalId. Fail closed if none is assigned.
         const tenantQuery = getTenantQuery(req.user);
         if (!tenantQuery) {
             return res.status(403).json({
@@ -179,7 +178,7 @@ router.put('/:id/applications/:appId', protect, authorize('admin'), async (req, 
     try {
         const { status } = req.body;
 
-        // Scope to the owning hospital so one hospital cannot alter another's series.
+        // Scope to the owning hospitalId so one hospital cannot alter another's series.
         // Fail closed if the admin has no hospital assigned.
         const tenantQuery = getTenantQuery(req.user);
         if (!tenantQuery) {
@@ -228,7 +227,7 @@ router.put('/:id/applications/:appId', protect, authorize('admin'), async (req, 
 // @access  Private
 router.post('/:id/create-duties', protect, authorize('admin'), async (req, res) => {
     try {
-        // Scope to the owning hospital so one hospital cannot alter another's series.
+        // Scope to the owning hospitalId so one hospital cannot alter another's series.
         // Fail closed if the admin has no hospital assigned.
         const tenantQuery = getTenantQuery(req.user);
         if (!tenantQuery) {

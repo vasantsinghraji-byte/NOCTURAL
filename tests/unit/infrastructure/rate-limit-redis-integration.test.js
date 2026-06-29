@@ -23,7 +23,8 @@ jest.mock('../../../utils/monitoring', () => ({
 }));
 
 jest.mock('../../../config/redis', () => ({
-  getRedisClient: jest.fn(async () => mockRedisClient)
+  getRedisClient: jest.fn(async () => mockRedisClient),
+  scanKeys: jest.fn()
 }));
 
 const rateLimitFactory = jest.fn((config) => config);

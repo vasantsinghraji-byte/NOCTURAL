@@ -49,7 +49,7 @@ router.get('/', protect, authorize('doctor', 'nurse'), async (req, res) => {
             {
                 ...req.pagination,
                 sort: req.pagination.sort || { shiftDate: -1 },
-                populate: 'duty:title hospital specialty'
+                populate: 'duty:title hospitalId specialty'
             }
         );
 
@@ -112,13 +112,18 @@ router.get('/dashboard', protect, authorize('doctor', 'nurse'), async (req, res)
             user: req.user._id,
             paymentStatus: { $in: ['PENDING', 'PROCESSING'] },
             expectedPaymentDate: { $gte: now }
-        }).sort({ expectedPaymentDate: 1 }).limit(5);
+        })
+            .populate('hospitalId', 'name location')
+            .sort({ expectedPaymentDate: 1 })
+            .limit(5);
 
         const overduePayments = await Earning.find({
             user: req.user._id,
             paymentStatus: { $in: ['PENDING', 'OVERDUE'] },
             expectedPaymentDate: { $lt: now }
-        }).sort({ expectedPaymentDate: 1 });
+        })
+            .populate('hospitalId', 'name location')
+            .sort({ expectedPaymentDate: 1 });
 
         res.json({
             success: true,
@@ -161,8 +166,7 @@ router.get('/dashboard', protect, authorize('doctor', 'nurse'), async (req, res)
 // @access  Private (Admin only for now)
 router.post('/', protect, authorize('admin'), async (req, res) => {
     try {
-        // Bind the record to the admin's own hospital so an admin cannot create
-        // earnings under another hospital's name. Fail closed if none is assigned.
+        // Bind the record to the admin's own hospitalId. Fail closed if none is assigned.
         const tenantQuery = getTenantQuery(req.user);
         if (!tenantQuery) {
             return res.status(403).json({
@@ -173,7 +177,7 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
 
         const earningData = pickAllowedFields(req.body, EARNING_CREATE_FIELDS);
 
-        // Validate the referenced records belong to the admin's hospital so an
+        // Validate the referenced records belong to the admin's hospitalId so an
         // earning cannot reference another hospital's duty/application/user.
         const duty = await Duty.findById(earningData.duty);
         if (!belongsToTenant(duty, req.user)) {
@@ -360,7 +364,7 @@ router.get('/rate-intelligence/:dutyId', protect, async (req, res) => {
         const hospitalAvg = await Earning.aggregate([
             {
                 $match: {
-                    hospital: duty.hospital
+                    hospitalId: duty.hospitalId
                 }
             },
             {
@@ -428,7 +432,10 @@ router.get('/optimizer', protect, authorize('doctor', 'nurse'), async (req, res)
             date: { $gte: startOfWeek, $lte: endOfWeek },
             status: 'OPEN',
             specialty: req.user.specialty
-        }).sort({ hourlyRate: -1 }).limit(5);
+        })
+            .populate('hospitalId', 'name location')
+            .sort({ hourlyRate: -1 })
+            .limit(5);
 
         // Calculate current week stats
         const weekEarnings = await Earning.getMonthlyEarnings(

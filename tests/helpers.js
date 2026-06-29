@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const Duty = require('../models/duty');
 const Application = require('../models/application');
+const Hospital = require('../models/hospital');
 
 /**
  * Database Helpers
@@ -81,21 +82,32 @@ async function createTestUsers(count = 3, role = 'doctor') {
 
 // Create admin user
 async function createAdminUser() {
+  const hospital = await Hospital.create({
+    name: 'Admin Test Hospital',
+    location: 'Test City'
+  });
+
   return createTestUser({
     name: 'Admin User',
     email: 'admin@test.com',
     role: 'admin',
+    hospitalId: hospital._id,
     permissions: ['all']
   });
 }
 
 // Create hospital user
 async function createHospitalUser() {
+  const hospital = await Hospital.create({
+    name: 'Test Hospital',
+    location: 'Test City'
+  });
+
   return createTestUser({
     name: 'Hospital Admin',
     email: 'hospital@test.com',
     role: 'admin',
-    hospital: 'Test Hospital',
+    hospitalId: hospital._id,
     hospitalVerified: true
   });
 }
@@ -133,12 +145,13 @@ async function getAuthToken(user) {
 
 // Create a test duty/shift
 async function createTestDuty(hospital, overrides = {}) {
+  const postedBy = hospital._id || hospital;
+  const hospitalId = hospital.hospitalId || hospital._id || hospital;
   const defaultDuty = {
     title: 'Night Shift - ER',
     department: 'Emergency',
     specialty: 'Emergency Medicine',
-    hospital: hospital._id || hospital,
-    hospitalName: hospital.name || hospital.hospital || 'Test Hospital',
+    hospitalId,
     location: '123 Test St, Test City, CA 12345',
     coordinates: { lat: 37.7749, lng: -122.4194 },
     date: global.testUtils.futureDate(7),
@@ -154,7 +167,7 @@ async function createTestDuty(hospital, overrides = {}) {
     },
     description: 'Test duty description',
     status: 'OPEN',
-    postedBy: hospital._id || hospital
+    postedBy
   };
 
   const dutyData = { ...defaultDuty, ...overrides };

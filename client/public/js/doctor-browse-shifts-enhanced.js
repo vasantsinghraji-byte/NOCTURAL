@@ -129,6 +129,14 @@
         }
 
         // Display shifts
+        function getHospitalName(record) {
+            const hospital = record && record.hospitalId;
+            if (hospital && typeof hospital === 'object') {
+                return hospital.name || 'Hospital';
+            }
+            return 'Hospital';
+        }
+
         function displayShifts(shifts) {
             const grid = document.getElementById('shiftsGrid');
             const noResults = document.getElementById('noResults');
@@ -165,7 +173,7 @@
                          data-shift-id="${shift._id}">
                         <div class="shift-header">
                             <div class="hospital-info">
-                                <div class="hospital-name">${shift.hospitalName || shift.hospital}</div>
+                                <div class="hospital-name">${getHospitalName(shift)}</div>
                                 <div class="hospital-rating">
                                     <span class="stars">⭐ 4.8</span>
                                     <span>• 📍 2.3 km away</span>

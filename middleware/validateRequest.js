@@ -1,6 +1,37 @@
 const { validationResult, matchedData, body } = require('express-validator');
 const logger = require('../utils/logger');
 
+const SENSITIVE_FIELD_PATTERN = /(password|token|secret|authorization|cookie|session|otp|mfa|credential|api[_-]?key|encryption[_-]?key|accountnumber|ifsc|pancard|gstnumber|bankdetails)/i;
+
+const redactSensitive = (value, depth = 0) => {
+  if (value === null || value === undefined || depth > 6) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(item => redactSensitive(item, depth + 1));
+  }
+
+  if (typeof value === 'object') {
+    return Object.entries(value).reduce((redacted, [key, entryValue]) => {
+      redacted[key] = SENSITIVE_FIELD_PATTERN.test(key)
+        ? '[REDACTED]'
+        : redactSensitive(entryValue, depth + 1);
+      return redacted;
+    }, {});
+  }
+
+  return value;
+};
+
+const redactValidationErrors = (errors) => errors.map(error => {
+  const fieldPath = error.path || error.param || '';
+  return {
+    ...error,
+    value: SENSITIVE_FIELD_PATTERN.test(fieldPath) ? '[REDACTED]' : redactSensitive(error.value)
+  };
+});
+
 /**
  * Middleware to validate request data using express-validator rules
  * @param {Array} validations - Array of express-validator validation chains
@@ -13,17 +44,18 @@ const validateRequest = (validations, sanitize = true) => {
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      const safeErrors = redactValidationErrors(errors.array());
       logger.warn('Request validation failed', {
         path: req.path,
-        errors: errors.array(),
-        body: req.body,
+        errors: safeErrors,
+        body: redactSensitive(req.body),
         userId: req.user ? req.user._id : 'anonymous'
       });
 
       return res.status(400).json({
         success: false,
         message: 'Invalid request data',
-        errors: errors.array()
+        errors: safeErrors
       });
     }
 
@@ -93,5 +125,6 @@ const commonValidations = {
 
 module.exports = {
   validateRequest,
-  commonValidations
+  commonValidations,
+  redactSensitive
 };
