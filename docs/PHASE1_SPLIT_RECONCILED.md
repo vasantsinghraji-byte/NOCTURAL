@@ -13,22 +13,22 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | In Execution — Phase 0 complete |
-| Version | v1.1 |
+| Status | In Execution — Phase 1 in progress |
+| Version | v1.2 |
 | Owner | VASANT SINGH RAJI |
 | Last Updated | 2026-07-02 |
-| Next Review Date | At Phase 1 approval |
-| Approved For Execution | Phase 0 only (executed 2026-07-02). **Phase 1 NOT yet approved** — see Approval Record. |
+| Next Review Date | At Phase 2 approval |
+| Approved For Execution | Phases 0–1 (Phase 1 approved 2026-07-02). **Phase 2+ NOT yet approved** — see Approval Record. |
 
 ## Current Phase Tracker
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 0 — Complete (2026-07-02) |
-| Execution Status | Phase 0 done on branch `restructure/phase1-split`; Phase 1 blocked pending approval |
+| Current Phase | Phase 1 — In Progress (started 2026-07-02) |
+| Execution Status | Phase 0 complete; Phase 1 approved and underway on branch `restructure/phase1-split` |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | `git status` clean; baseline recorded in `docs/PHASE0_BASELINE.md` |
-| Next Required Approval | Tech Lead approval for Phase 1 start |
+| Last Validation Result | Phase 0: `git status` clean; baseline recorded in `docs/PHASE0_BASELINE.md` |
+| Next Required Approval | Tech Lead approval for Phase 2 start |
 
 ## Approval Record
 
@@ -36,7 +36,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 
 | Gate | Status | Date | Approver |
 |---|---|---|---|
-| Phase 1 Start (Tech Lead) | **Pending** | — | — |
+| Phase 1 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner) — instructed start of Phase 1 |
 | Phase 3 Start (Tech Lead) | Pending | — | — |
 | Phase 5 Start (Product Owner — duty-shift dormancy) | Pending | — | — |
 | Phase 6 Start (Tech Lead / Owner — deletion batches) | Pending | — | — |
@@ -45,7 +45,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 
 | Question | Impact | Owner | Status |
 |---|---|---|---|
-| Which lazy export mechanism will be used? | Affects Phase 1 implementation | Tech Lead | Open |
+| Which lazy export mechanism will be used? | Affects Phase 1 implementation | Tech Lead | **Resolved 2026-07-02: lazy getters** (see `docs/PHASE1_IMPLEMENTATION_NOTES.md`) |
 | Are duty-shift routes safe to park? | Affects Phase 5 | Product Owner | Open |
 
 ## PR Strategy
@@ -319,12 +319,12 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **After Completion:** Record branch/status, confirm exit criteria, and request Phase 1 approval.
 
 **Phase 0 Checklist:**
-- [ ] Confirm active repo is `D:\NOCTURNAL\NOCTURAL`.
-- [ ] Run `git fetch origin`.
-- [ ] Branch from fresh `origin/develop`.
-- [ ] Confirm `git status` is clean.
-- [ ] Record current route mounts, scripts, frontend paths, and discrepancies.
-- [ ] Confirm validation commands to use in later phases.
+- [x] Confirm active repo is `D:\NOCTURNAL\NOCTURAL`.
+- [x] Run `git fetch origin`.
+- [x] Branch from fresh `origin/develop`.
+- [x] Confirm `git status` is clean.
+- [x] Record current route mounts, scripts, frontend paths, and discrepancies.
+- [x] Confirm validation commands to use in later phases.
 
 **Why:** Prevent work in the wrong checkout or on an unsafe branch.
 **What to do:**
