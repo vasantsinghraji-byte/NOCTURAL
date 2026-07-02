@@ -4,9 +4,9 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 # NOCTURNAL Restructure Roadmap
 
-> Status: **PHASE 1 COMPLETE — Phase 2+ blocked pending approval.**
+> Status: **PHASE 2 COMPLETE — Phase 3+ blocked pending approval.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
-> Branch at time of writing: `restructure/phase1-split`, Phase 1 complete.
+> Branch at time of writing: `restructure/phase1-split`, Phase 2 complete.
 
 ## Document Control
 
@@ -14,10 +14,10 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
 | Status | In Execution — Phase 1 complete |
-| Version | v1.3 |
+| Version | v1.4 |
 | Owner | VASANT SINGH RAJI |
 | Last Updated | 2026-07-02 |
-| Next Review Date | At Phase 2 approval |
+| Next Review Date | At Phase 3 approval |
 | Approved For Execution | Phases 0–2 (Phase 2 approved 2026-07-02). **Phase 3+ NOT yet approved** — see Approval Record. |
 
 ## Current Phase Tracker
@@ -27,7 +27,7 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Current Phase | Phase 2 — Complete (2026-07-02) |
 | Execution Status | Phases 0–2 complete on branch `restructure/phase1-split`; Phase 3 blocked pending approval |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | Phase 2: `require('@nocturnal/shared')` resolves by name with 27 lazy exports (only the facade file cached); lockfile diff reviewed — 12 insertions, 0 deletions, workspace linkage only, no version changes; `npm test` 930 passed / 144 suites |
+| Last Validation Result | Phase 2: `require('@nocturnal/shared')` resolves by name with 27 lazy exports (only the facade file cached); lockfile diff reviewed — 12 insertions, 0 deletions, workspace linkage only, no version changes; no-eager-load Jest regression passed; `npm test` 931 passed / 145 suites |
 | Next Required Approval | Tech Lead approval for Phase 3 start |
 
 ## Approval Record
@@ -62,7 +62,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 
 **Objective:** Convert NOCTURNAL into a clean monorepo without breaking the existing app.
 
-**Current Mode:** Phase 1 complete. Phase 2+ remains blocked until approval.
+**Current Mode:** Phase 2 complete. Phase 3+ remains blocked until approval.
 
 **Core Strategy:** Copy first, verify, then cut over later.
 
@@ -398,14 +398,14 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **After Completion:** Review lockfile diff, run package-name import validation, and request Phase 3 approval.
 
 **Phase 2 Checklist:**
-- [ ] Add root `workspaces`.
-- [ ] Run install once.
-- [ ] Confirm no dependency version changes in `package.json`.
-- [ ] Review `package-lock.json` for workspace linkage only.
-- [ ] Fix stale `CLAUDE.md` workspace/service text.
-- [ ] Add focused Jest regression test for `@nocturnal/shared` no-eager-load invariant.
-- [ ] Run `node -e "require('@nocturnal/shared')"`.
-- [ ] Run `npm test`.
+- [x] Add root `workspaces`.
+- [x] Run install once.
+- [x] Confirm no dependency version changes in `package.json`.
+- [x] Review `package-lock.json` for workspace linkage only.
+- [x] Fix stale `CLAUDE.md` workspace/service text.
+- [x] Add focused Jest regression test for `@nocturnal/shared` no-eager-load invariant.
+- [x] Run `node -e "require('@nocturnal/shared')"`.
+- [x] Run `npm test`.
 
 **Why:** The repo needs official workspace wiring before apps can live under `apps/*`.
 **What to do:**

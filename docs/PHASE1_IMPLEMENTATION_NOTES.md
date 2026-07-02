@@ -77,10 +77,11 @@ Results:
 - Lazy-load cache assertion: passed; requiring the package loaded only the package index, accessing `logger` loaded logger, and storage/upload/notification/WebAuthn modules stayed unloaded.
 - Patient-owned exclusion check: passed; excluded module names appear only in the explanatory comment, not as `require()` exports.
 - Monolith load check: passed; `require('./app')` returned an Express app. The validation process was manually stopped afterward because app-level handles kept Node open after the successful load.
-- `npm test` (fast suite): passed — 144 suites / 930 tests passed, 4 suites / 5 tests skipped (expected fast-config skips), 2 snapshots passed.
+- `npm test -- --runTestsByPath tests/unit/infrastructure/shared-package-lazy-load.test.js`: passed — 1 suite / 1 test passed.
+- `npm test` (fast suite, after Phase 2 hardening test was added): passed — 145 suites / 931 tests passed, 4 suites / 5 tests skipped (expected fast-config skips), 2 snapshots passed.
 - `npm run lint:baseline`: passed — 0 errors, 119 warnings (baseline maximum 294).
 - `npx eslint packages/shared/src/index.js`: clean.
 
-## Deferred Hardening
+## Phase 2 Hardening
 
-- Phase 2+: add a focused Jest regression test that asserts the lazy-load invariant for `@nocturnal/shared`. The test should fail if the facade is changed from lazy getters to eager top-level `require()` calls, and should prove that requiring the package does not initialize storage, upload, Redis-backed cache, notification, or WebAuthn-related modules. This was not added in Phase 1 because Phase 1 allowed only the shared package files and implementation notes.
+- Completed in Phase 2: added `tests/unit/infrastructure/shared-package-lazy-load.test.js`, a focused Jest regression test that asserts the lazy-load invariant for `@nocturnal/shared`. The test fails if requiring the workspace package loads anything beyond `packages/shared/src/index.js`, and it confirms accessing `logger` does not initialize storage, upload, Redis-backed cache, notification, or WebAuthn-related modules.
