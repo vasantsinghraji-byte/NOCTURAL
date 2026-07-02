@@ -26,7 +26,7 @@
 
 ## Known Discrepancies
 
-- **`CLAUDE.md` is stale**: it claims npm workspaces (`packages/*`, `services/*`) and a `services/patient-booking-service` workspace with its own package.json/Dockerfile/Jest config. Neither exists in this checkout. Scheduled for correction in Phase 2 (per blueprint).
+- **`CLAUDE.md` was stale** (claimed `packages/*`/`services/*` workspaces and a `services/patient-booking-service` workspace that didn't exist). **Corrected in Phase 2 (2026-07-02)** — workspaces are now real (`packages/*`, `apps/*`) and the section describes the actual layout.
 - Folder name `NOCTURAL` is an intentional typo — do not rename.
 
 ## Route Mounts (baseline)

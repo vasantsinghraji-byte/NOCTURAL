@@ -18,17 +18,17 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Owner | VASANT SINGH RAJI |
 | Last Updated | 2026-07-02 |
 | Next Review Date | At Phase 2 approval |
-| Approved For Execution | Phases 0–1 (Phase 1 approved 2026-07-02). **Phase 2+ NOT yet approved** — see Approval Record. |
+| Approved For Execution | Phases 0–2 (Phase 2 approved 2026-07-02). **Phase 3+ NOT yet approved** — see Approval Record. |
 
 ## Current Phase Tracker
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 1 — Complete (2026-07-02) |
-| Execution Status | Phase 0 complete; Phase 1 shared package foundation complete on branch `restructure/phase1-split`; Phase 2 blocked pending approval |
+| Current Phase | Phase 2 — Complete (2026-07-02) |
+| Execution Status | Phases 0–2 complete on branch `restructure/phase1-split`; Phase 3 blocked pending approval |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | Phase 1: `node --check packages\shared\src\index.js`, `require('./packages/shared')`, lazy-load cache assertion, excluded-module check, and `require('./app')` load check passed; `npm test` 930 passed / 144 suites; `lint:baseline` 0 errors, 119 warnings (max 294) |
-| Next Required Approval | Tech Lead approval for Phase 2 start |
+| Last Validation Result | Phase 2: `require('@nocturnal/shared')` resolves by name with 27 lazy exports (only the facade file cached); lockfile diff reviewed — 12 insertions, 0 deletions, workspace linkage only, no version changes; `npm test` 930 passed / 144 suites |
+| Next Required Approval | Tech Lead approval for Phase 3 start |
 
 ## Approval Record
 
@@ -37,6 +37,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 | Gate | Status | Date | Approver |
 |---|---|---|---|
 | Phase 1 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed start of Phase 1 |
+| Phase 2 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed start of Phase 2 (workspaces) |
 | Phase 3 Start (Tech Lead) | Pending | — | — |
 | Phase 5 Start (Product Owner — duty-shift dormancy) | Pending | — | — |
 | Phase 6 Start (Tech Lead / Owner — deletion batches) | Pending | — | — |
@@ -402,6 +403,7 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 - [ ] Confirm no dependency version changes in `package.json`.
 - [ ] Review `package-lock.json` for workspace linkage only.
 - [ ] Fix stale `CLAUDE.md` workspace/service text.
+- [ ] Add focused Jest regression test for `@nocturnal/shared` no-eager-load invariant.
 - [ ] Run `node -e "require('@nocturnal/shared')"`.
 - [ ] Run `npm test`.
 

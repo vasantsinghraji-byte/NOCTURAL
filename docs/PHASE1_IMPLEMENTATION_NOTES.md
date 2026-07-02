@@ -80,3 +80,7 @@ Results:
 - `npm test` (fast suite): passed — 144 suites / 930 tests passed, 4 suites / 5 tests skipped (expected fast-config skips), 2 snapshots passed.
 - `npm run lint:baseline`: passed — 0 errors, 119 warnings (baseline maximum 294).
 - `npx eslint packages/shared/src/index.js`: clean.
+
+## Deferred Hardening
+
+- Phase 2+: add a focused Jest regression test that asserts the lazy-load invariant for `@nocturnal/shared`. The test should fail if the facade is changed from lazy getters to eager top-level `require()` calls, and should prove that requiring the package does not initialize storage, upload, Redis-backed cache, notification, or WebAuthn-related modules. This was not added in Phase 1 because Phase 1 allowed only the shared package files and implementation notes.
