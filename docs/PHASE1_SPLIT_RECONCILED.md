@@ -24,10 +24,10 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 0 |
-| Execution Status | Not Started |
-| Current Owner | TBD |
-| Last Validation Result | Not run |
+| Current Phase | Phase 0 — Complete (2026-07-02) |
+| Execution Status | Phase 0 done on branch `restructure/phase1-split`; Phase 1 blocked pending approval |
+| Current Owner | VASANT SINGH RAJI |
+| Last Validation Result | `git status` clean; baseline recorded in `docs/PHASE0_BASELINE.md` |
 | Next Required Approval | Tech Lead approval for Phase 1 start |
 
 ## Open Questions
