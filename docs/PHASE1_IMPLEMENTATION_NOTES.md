@@ -60,4 +60,23 @@ Also note: `packages/shared/src/utils/localFileSystem.js` (the pre-existing lone
 
 ## Validation Results
 
-_To be appended when Phase 1 validation runs._
+Validation run on 2026-07-02:
+
+```powershell
+node --check packages\shared\src\index.js
+node -e "const shared=require('./packages/shared'); console.log(Object.keys(shared).length);"
+node -e "<lazy-load cache assertion>"
+rg -n "patientAuth|healthDataAccess|bookingCompletionOutbox|refundOutbox|bookingReviewAggregate" packages\shared\src\index.js
+node -e "const app=require('./app'); if (!app || typeof app.use !== 'function') throw new Error('app did not load as Express app'); console.log('app loaded');"
+```
+
+Results:
+
+- `node --check packages\shared\src\index.js`: passed.
+- `require('./packages/shared')`: passed; exported 27 lazy properties.
+- Lazy-load cache assertion: passed; requiring the package loaded only the package index, accessing `logger` loaded logger, and storage/upload/notification/WebAuthn modules stayed unloaded.
+- Patient-owned exclusion check: passed; excluded module names appear only in the explanatory comment, not as `require()` exports.
+- Monolith load check: passed; `require('./app')` returned an Express app. The validation process was manually stopped afterward because app-level handles kept Node open after the successful load.
+- `npm test` (fast suite): passed — 144 suites / 930 tests passed, 4 suites / 5 tests skipped (expected fast-config skips), 2 snapshots passed.
+- `npm run lint:baseline`: passed — 0 errors, 119 warnings (baseline maximum 294).
+- `npx eslint packages/shared/src/index.js`: clean.

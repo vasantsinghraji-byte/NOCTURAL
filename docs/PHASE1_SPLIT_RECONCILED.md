@@ -4,17 +4,17 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 # NOCTURNAL Restructure Roadmap
 
-> Status: **PLAN ONLY — no code will be changed until approved.**
+> Status: **PHASE 1 COMPLETE — Phase 2+ blocked pending approval.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
-> Branch at time of writing: `safety-hardening-unsplit-synced-20260628`, working tree clean.
+> Branch at time of writing: `restructure/phase1-split`, Phase 1 complete.
 
 ## Document Control
 
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | In Execution — Phase 1 in progress |
-| Version | v1.2 |
+| Status | In Execution — Phase 1 complete |
+| Version | v1.3 |
 | Owner | VASANT SINGH RAJI |
 | Last Updated | 2026-07-02 |
 | Next Review Date | At Phase 2 approval |
@@ -24,10 +24,10 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 1 — In Progress (started 2026-07-02) |
-| Execution Status | Phase 0 complete; Phase 1 approved and underway on branch `restructure/phase1-split` |
+| Current Phase | Phase 1 — Complete (2026-07-02) |
+| Execution Status | Phase 0 complete; Phase 1 shared package foundation complete on branch `restructure/phase1-split`; Phase 2 blocked pending approval |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | Phase 0: `git status` clean; baseline recorded in `docs/PHASE0_BASELINE.md` |
+| Last Validation Result | Phase 1: `node --check packages\shared\src\index.js`, `require('./packages/shared')`, lazy-load cache assertion, excluded-module check, and `require('./app')` load check passed; `npm test` 930 passed / 144 suites; `lint:baseline` 0 errors, 119 warnings (max 294) |
 | Next Required Approval | Tech Lead approval for Phase 2 start |
 
 ## Approval Record
@@ -36,7 +36,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 
 | Gate | Status | Date | Approver |
 |---|---|---|---|
-| Phase 1 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner) — instructed start of Phase 1 |
+| Phase 1 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed start of Phase 1 |
 | Phase 3 Start (Tech Lead) | Pending | — | — |
 | Phase 5 Start (Product Owner — duty-shift dormancy) | Pending | — | — |
 | Phase 6 Start (Tech Lead / Owner — deletion batches) | Pending | — | — |
@@ -61,7 +61,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 
 **Objective:** Convert NOCTURNAL into a clean monorepo without breaking the existing app.
 
-**Current Mode:** Planning only. No code changes until approval.
+**Current Mode:** Phase 1 complete. Phase 2+ remains blocked until approval.
 
 **Core Strategy:** Copy first, verify, then cut over later.
 
@@ -355,16 +355,16 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **After Completion:** Run import validation, document export mechanism, and request Phase 2 approval.
 
 **Phase 1 Checklist:**
-- [ ] Confirm branch is correct.
-- [ ] Record chosen lazy-export mechanism before coding.
-- [ ] Create `packages/shared/package.json`.
-- [ ] Create shared export structure.
-- [ ] Use correct `../../../` re-export depth from `packages/shared/src/index.js`.
-- [ ] Confirm no eager loading.
-- [ ] Exclude patient-specific modules.
-- [ ] Run `node -e "require('./packages/shared')"`.
-- [ ] Confirm monolith still runs.
-- [ ] Record implementation notes.
+- [x] Confirm branch is correct.
+- [x] Record chosen lazy-export mechanism before coding.
+- [x] Create `packages/shared/package.json`.
+- [x] Create shared export structure.
+- [x] Use correct `../../../` re-export depth from `packages/shared/src/index.js`.
+- [x] Confirm no eager loading.
+- [x] Exclude patient-specific modules.
+- [x] Run `node -e "require('./packages/shared')"`.
+- [x] Confirm monolith still runs.
+- [x] Record implementation notes.
 
 **Why:** Patient-health files cannot safely import `@nocturnal/shared` until that package exists and exports the correct modules.
 **What to do:**
