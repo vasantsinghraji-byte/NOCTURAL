@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Dashboard - Nocturnal Healthcare</title>
+    <link rel="stylesheet" href="/css/pages/roles-patient-patient-health-dashboard.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/patient-session.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <h1>Nocturnal Healthcare</h1>
+            </div>
+            <div class="user-menu">
+                <span class="user-name" id="userName">Patient</span>
+                <button class="btn-logout" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab" data-route="patient-dashboard.html">Services</button>
+            <button class="nav-tab active">Health Dashboard</button>
+            <button class="nav-tab" data-route="patient-analytics.html">Analytics</button>
+        </div>
+
+        <!-- Intake Banner -->
+        <div class="intake-banner" id="intakeBanner">
+            <div>
+                <h3 id="intakeTitle">Complete Your Health Profile</h3>
+                <p id="intakeMessage">Help us serve you better by sharing your health information</p>
+            </div>
+            <div class="intake-actions">
+                <button class="btn-intake" id="quickIntakeBtn">Quick Intake</button>
+                <button class="btn-intake" id="intakeBtn">Complete Medical History</button>
+            </div>
+        </div>
+
+        <!-- Stats Overview -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="icon">📋</div>
+                <h3 id="recordsCount">0</h3>
+                <p>Health Records</p>
+            </div>
+            <div class="stat-card">
+                <div class="icon">💉</div>
+                <h3 id="metricsCount">0</h3>
+                <p>Vitals Recorded</p>
+            </div>
+            <div class="stat-card" id="alertCard">
+                <div class="icon">⚠️</div>
+                <h3 id="alertsCount">0</h3>
+                <p>Health Alerts</p>
+            </div>
+            <div class="stat-card">
+                <div class="icon">👨‍⚕️</div>
+                <h3 id="accessCount">0</h3>
+                <p>Providers with Access</p>
+            </div>
+        </div>
+
+        <!-- Health Summary -->
+        <h2 class="section-title">❤️ Health Summary</h2>
+        <div class="health-grid">
+            <!-- Latest Vitals -->
+            <div class="health-card">
+                <h3>📊 Latest Vitals</h3>
+                <div class="vitals-grid" id="vitalsGrid">
+                    <div class="loading">Loading vitals...</div>
+                </div>
+            </div>
+
+            <!-- Conditions & Allergies -->
+            <div class="health-card">
+                <h3>🏥 Medical Conditions</h3>
+                <div class="tag-list" id="conditionsList">
+                    <div class="empty-state">
+                        <p>No conditions recorded</p>
+                    </div>
+                </div>
+
+                <h3 class="section-spacing-top">⚠️ Allergies</h3>
+                <div class="tag-list" id="allergiesList">
+                    <div class="empty-state">
+                        <p>No allergies recorded</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Medications -->
+        <div class="health-card health-card-spaced">
+            <h3>💊 Current Medications</h3>
+            <div class="tag-list" id="medicationsList">
+                <div class="empty-state">
+                    <p>No medications recorded</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Emergency Card -->
+        <div class="emergency-card is-hidden" id="emergencyCard">
+            <h3>🆘 Emergency Health Card</h3>
+            <div class="emergency-grid" id="emergencyGrid">
+                <!-- Populated dynamically -->
+            </div>
+            <button class="btn-qr" id="generateQrBtn">Generate QR Code</button>
+        </div>
+
+        <!-- Who Has Access -->
+        <h2 class="section-title">🔐 Who Has Access to My Data</h2>
+        <div class="access-log" id="accessLog">
+            <div class="loading">Loading access information...</div>
+        </div>
+    </div>
+
+    <script src="/js/patient-health-dashboard.js"></script>
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

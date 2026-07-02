@@ -24,11 +24,11 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 3 — In Progress (started 2026-07-02) |
-| Execution Status | Phases 0–2 complete (PR #141 into develop); Phase 3 approved, underway on branch `refactor/restructure-phase3-patient-health` |
+| Current Phase | Phase 3 — Complete (2026-07-02) |
+| Execution Status | Phases 0–2 complete (PR #141 into develop); Phase 3 complete on branch `refactor/restructure-phase3-patient-health`; Phase 4 blocked pending approval |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | Phase 2: `require('@nocturnal/shared')` resolves by name with 27 lazy exports (only the facade file cached); lockfile diff reviewed — 12 insertions, 0 deletions, workspace linkage only, no version changes; no-eager-load Jest regression passed; `npm test` 931 passed / 145 suites |
-| Next Required Approval | Tech Lead approval for Phase 3 start |
+| Last Validation Result | Phase 3: 78 mirrored copies + 3 wiring files; 85 shared-import rewrites; 0 unresolved imports; all 9 route modules load; isolated boot on :5001 with DB connected, `/api/v1/health` HTTP 200; monolith loads; `npm test` 931 passed / 145 suites; eslint 0 errors; `lint:baseline` 121 warnings (max 294) |
+| Next Required Approval | Tech Lead approval for Phase 4 start |
 
 ## Approval Record
 
@@ -151,6 +151,7 @@ npm run lint:baseline
 | 2026-06-29 | Keep duty-shift parked, not deleted | Preserve Phase 2 work | User |
 | 2026-06-29 | Use lazy exports or sub-barrels for shared package | Avoid import-time side effects | User |
 | 2026-06-29 | Keep `mobileDevices.js` and `webAuthn.js` root-owned during Phase 1 | They use `protectBoth` from root `patientAuth` | User |
+| 2026-07-02 | Add `spamTrap`, `authTokens`, `localFileSystem` to `@nocturnal/shared` (30 exports) | Phase 3 dependency trace surfaced them; root usage shows they are genuinely shared; app-local copies would duplicate shared security code | Owner / Tech Lead (Phase 3 execution) |
 
 ## Glossary
 

@@ -37,6 +37,11 @@ lazyExport('number', () => require('../../../utils/number'));
 lazyExport('pagination', () => require('../../../utils/pagination'));
 lazyExport('tenantScope', () => require('../../../utils/tenantScope'));
 lazyExport('pickAllowedFields', () => require('../../../utils/pickAllowedFields'));
+// Added in Phase 3: surfaced by the patient-health dependency trace; shared per
+// root usage (spamTrap: auth/waitlist/patient routes; authTokens: auth +
+// patientAuth middleware; localFileSystem: uploadEnhanced + geminiAnalysis).
+lazyExport('authTokens', () => require('../../../utils/authTokens'));
+lazyExport('localFileSystem', () => require('../../../utils/localFileSystem'));
 
 // middleware
 lazyExport('auth', () => require('../../../middleware/auth'));
@@ -45,6 +50,7 @@ lazyExport('queryCache', () => require('../../../middleware/queryCache'));
 lazyExport('rateLimiter', () => require('../../../middleware/rateLimiter'));
 lazyExport('idempotency', () => require('../../../middleware/idempotency'));
 lazyExport('upload', () => require('../../../middleware/upload'));
+lazyExport('spamTrap', () => require('../../../middleware/spamTrap'));
 
 // config
 lazyExport('storage', () => require('../../../config/storage'));

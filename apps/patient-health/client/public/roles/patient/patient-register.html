@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Registration - Nocturnal Healthcare</title>
+    <link rel="stylesheet" href="/css/pages/roles-patient-patient-register.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <a href="/index.html" class="logo-link">
+                <h1>Nocturnal Healthcare</h1>
+                <p>Book Nurses & Physiotherapists at Home</p>
+            </a>
+        </div>
+
+        <div class="features">
+            <h3>Why Register with Us?</h3>
+            <ul>
+                <li>Verified healthcare professionals</li>
+                <li>Services at your doorstep</li>
+                <li>Transparent pricing starting at ₹299</li>
+                <li>Track your bookings in real-time</li>
+            </ul>
+        </div>
+
+        <form id="registerForm">
+            <div id="errorDiv"></div>
+            <div class="honeypot-field" aria-hidden="true">
+                <label for="website">Website</label>
+                <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+            </div>
+
+            <div class="form-group">
+                <label for="name">Full Name *</label>
+                <input type="text" id="name" name="name" required placeholder="Enter your full name">
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone Number *</label>
+                <input type="tel" id="phone" name="phone" required
+                       placeholder="10-digit mobile number"
+                       pattern="[6-9][0-9]{9}"
+                       maxlength="10">
+                <div class="password-requirements">We'll send booking updates via SMS</div>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address *</label>
+                <input type="email" id="email" name="email" required placeholder="your.email@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password *</label>
+                <input type="password" id="password" name="password" required
+                       placeholder="Create a strong password" minlength="8">
+                <div class="password-requirements">
+                    Min 8 characters with uppercase, lowercase, number & special character
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password *</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" required
+                       placeholder="Re-enter your password">
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">Create Account</button>
+        </form>
+
+        <div class="login-link">
+            Already have an account? <a href="/roles/patient/patient-login.html">Login here</a>
+        </div>
+    </div>
+
+    <script src="/js/patient-register.js"></script>
+</body>
+</html>
