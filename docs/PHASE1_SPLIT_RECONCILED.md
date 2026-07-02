@@ -13,12 +13,12 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | Plan Only |
-| Version | v1.0 |
+| Status | In Execution — Phase 0 complete |
+| Version | v1.1 |
 | Owner | VASANT SINGH RAJI |
-| Last Updated | 2026-06-29 |
-| Next Review Date | TBD |
-| Approved For Execution | No |
+| Last Updated | 2026-07-02 |
+| Next Review Date | At Phase 1 approval |
+| Approved For Execution | Phase 0 only (executed 2026-07-02). **Phase 1 NOT yet approved** — see Approval Record. |
 
 ## Current Phase Tracker
 
@@ -29,6 +29,17 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Current Owner | VASANT SINGH RAJI |
 | Last Validation Result | `git status` clean; baseline recorded in `docs/PHASE0_BASELINE.md` |
 | Next Required Approval | Tech Lead approval for Phase 1 start |
+
+## Approval Record
+
+Canonical record of gate approvals. A phase may not start until its row says **Approved** with a date and approver. "Phase N complete" never implies "Phase N+1 approved" — check this table.
+
+| Gate | Status | Date | Approver |
+|---|---|---|---|
+| Phase 1 Start (Tech Lead) | **Pending** | — | — |
+| Phase 3 Start (Tech Lead) | Pending | — | — |
+| Phase 5 Start (Product Owner — duty-shift dormancy) | Pending | — | — |
+| Phase 6 Start (Tech Lead / Owner — deletion batches) | Pending | — | — |
 
 ## Open Questions
 
