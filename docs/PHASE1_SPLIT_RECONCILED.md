@@ -15,7 +15,7 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Document Name | NOCTURNAL Restructure Roadmap |
 | Status | Plan Only |
 | Version | v1.0 |
-| Owner | TBD |
+| Owner | VASANT SINGH RAJI |
 | Last Updated | 2026-06-29 |
 | Next Review Date | TBD |
 | Approved For Execution | No |
@@ -579,13 +579,5 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 - Any obsolete file is reported first and deleted only after explicit approval.
 - `services/patient-booking-service` is excluded because it is not present in the current checkout.
 
-## Execution Command
-
-Follow this blueprint exactly.
-Work on one phase only.
-Do not move to the next phase without approval.
-Do not make assumptions beyond this document.
-If reality differs from the blueprint, stop and report.
-
-### Working rule for every future session
+## Working rule for every future session
 > "Edit or move only the exact files named in the current phase. Do **not** create `enhanced`/`v2`/`fixed`/`backup`/duplicate files. Do **not** delete duty-shift code. If shared code is needed, route it through `packages/shared`. If a file seems obsolete or missing, **stop and report** — do not invent or delete it."
