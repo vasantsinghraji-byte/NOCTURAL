@@ -6,7 +6,7 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 > Status: **PHASE 2 COMPLETE — Phase 3+ blocked pending approval.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
-> Branch at time of writing: `restructure/phase1-split`, Phase 2 complete.
+> Branch at time of writing: `refactor/restructure-phase1-split`, Phase 2 complete.
 
 ## Document Control
 
@@ -25,7 +25,7 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Field | Value |
 |---|---|
 | Current Phase | Phase 2 — Complete (2026-07-02) |
-| Execution Status | Phases 0–2 complete on branch `restructure/phase1-split`; Phase 3 blocked pending approval |
+| Execution Status | Phases 0–2 complete on branch `refactor/restructure-phase1-split`; Phase 3 blocked pending approval |
 | Current Owner | VASANT SINGH RAJI |
 | Last Validation Result | Phase 2: `require('@nocturnal/shared')` resolves by name with 27 lazy exports (only the facade file cached); lockfile diff reviewed — 12 insertions, 0 deletions, workspace linkage only, no version changes; no-eager-load Jest regression passed; `npm test` 931 passed / 145 suites |
 | Next Required Approval | Tech Lead approval for Phase 3 start |
@@ -330,7 +330,7 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **Why:** Prevent work in the wrong checkout or on an unsafe branch.
 **What to do:**
 - Work only inside `D:\NOCTURNAL\NOCTURAL`.
-- **`git fetch` first, then branch from `origin/develop`** (not the possibly-stale local `develop`, which is checked out in another worktree): `git fetch origin && git checkout -b restructure/phase1-split origin/develop`. If branching from local `develop` instead, first verify it equals `origin/develop`.
+- **`git fetch` first, then branch from `origin/develop`** (not the possibly-stale local `develop`, which is checked out in another worktree): `git fetch origin && git checkout -b refactor/restructure-phase1-split origin/develop`. If branching from local `develop` instead, first verify it equals `origin/develop`.
 - Record current route mounts, package scripts, frontend paths, and known discrepancies.
 - Confirm current tests and lint commands before changing structure.
 

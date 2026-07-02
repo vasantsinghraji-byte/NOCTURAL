@@ -11,7 +11,7 @@
 | Active repo | `D:\NOCTURNAL\NOCTURAL` (confirmed via `git rev-parse --show-toplevel`) |
 | Remote | `origin = https://github.com/vasantsinghraji-byte/NOCTURAL.git` |
 | Base ref | `origin/develop` @ `df5ec6c` (merge of PR #138, the split blueprint) — fetched fresh before branching |
-| Working branch | `restructure/phase1-split` (created from `origin/develop`) |
+| Working branch | `refactor/restructure-phase1-split` (created from `origin/develop`; originally `restructure/phase1-split`, renamed 2026-07-02 because the pre-push hook only allows `feature/fix/bugfix/hotfix/refactor/docs/chore/experiment/release` branch prefixes) |
 | Working tree | Clean at branch creation (`git status --short --branch`) |
 | Prior branch note | `safety-hardening-unsplit-synced-20260628` was fully merged into develop except one docs-only commit, which was cherry-picked onto this branch (`bb914d0`) |
 
@@ -110,7 +110,7 @@ File verification performed: every file named in the Phase 1 shared-export list,
 
 | Item | Value | Note |
 |---|---|---|
-| Branch verified | Yes | `restructure/phase1-split` from `origin/develop` @ `df5ec6c` |
+| Branch verified | Yes | `refactor/restructure-phase1-split` from `origin/develop` @ `df5ec6c` |
 | Working tree clean | Yes | Clean after Phase 0 docs commits |
 | Required files confirmed | Yes | All 29 shared-candidate files exist (verified 2026-07-02) |
 | Rollback approach known | Yes | Revert only `packages/shared` files; confirm monolith loads |
