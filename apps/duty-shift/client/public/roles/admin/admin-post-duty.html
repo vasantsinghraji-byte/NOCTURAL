@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Duty - Admin Dashboard</title>
+    <link rel="stylesheet" href="/css/pages/roles-admin-admin-post-duty.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/admin-session.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🏥 Nocturnal Admin</div>
+        <div class="nav-links">
+            <a href="/roles/admin/admin-dashboard.html">Dashboard</a>
+            <a href="/roles/admin/admin-post-duty.html" class="active">Post Duty</a>
+            <a href="/roles/admin/admin-applications.html">Applications</a>
+            <a href="/roles/admin/admin-analytics.html">Analytics</a>
+            <a href="/roles/admin/admin-waitlist.html">Waitlist</a>
+            <a href="/roles/admin/admin-settings.html">Settings</a>
+            <a href="/roles/admin/admin-profile.html">Profile</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <span id="userName">Loading...</span>
+            <button id="logout-btn" class="logout-btn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="form-section">
+            <h1>📋 Post New Duty</h1>
+
+            <div id="success-msg" class="success-msg"></div>
+            <div id="error-msg" class="error-msg"></div>
+
+            <form id="post-duty-form">
+                <div class="form-group">
+                    <label>Duty Title *</label>
+                    <input type="text" id="duty-title" required placeholder="e.g., Night Shift ER Doctor">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Specialty Required *</label>
+                        <select id="duty-specialty" required>
+                            <option value="">Select specialty</option>
+                            <option value="Emergency Medicine">Emergency Medicine</option>
+                            <option value="Internal Medicine">Internal Medicine</option>
+                            <option value="Pediatrics">Pediatrics</option>
+                            <option value="Surgery">Surgery</option>
+                            <option value="ICU">ICU</option>
+                            <option value="Anesthesiology">Anesthesiology</option>
+                            <option value="General Practice">General Practice</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Urgency Level *</label>
+                        <select id="duty-urgency" required>
+                            <option value="NORMAL">Normal</option>
+                            <option value="URGENT">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Description *</label>
+                    <textarea id="duty-description" rows="4" required placeholder="Describe the duty requirements, qualifications needed, etc."></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Date *</label>
+                        <input type="date" id="duty-date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Shift *</label>
+                        <select id="duty-shift" required>
+                            <option value="Day">Day Shift (8AM - 5PM)</option>
+                            <option value="Night">Night Shift (8PM - 6AM)</option>
+                            <option value="Full">Full Day (24 hours)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Time *</label>
+                        <input type="time" id="duty-start-time" required value="20:00">
+                    </div>
+
+                    <div class="form-group">
+                        <label>End Time *</label>
+                        <input type="time" id="duty-end-time" required value="06:00">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Hourly Rate (₹) *</label>
+                    <input type="number" id="duty-rate" required min="500" placeholder="2000" step="100">
+                </div>
+
+                <button type="submit" class="btn">Post Duty</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/admin-post-duty.js"></script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Achievements & Leaderboard - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/pages/roles-doctor-achievements.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">🌙 Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/doctor/doctor-dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html"><i class="fas fa-briefcase"></i> Browse</a>
+            <a href="/roles/doctor/calendar.html"><i class="fas fa-calendar"></i> Calendar</a>
+            <a href="/roles/doctor/earnings.html"><i class="fas fa-dollar-sign"></i> Earnings</a>
+            <a href="/roles/doctor/achievements.html" class="active"><i class="fas fa-trophy"></i> Achievements</a>
+            <a href="#" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-trophy"></i> Achievements & Leaderboard</h1>
+            <p>Track your progress and compete with other doctors</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="achievements">
+                <i class="fas fa-medal"></i> My Achievements
+            </button>
+            <button class="tab" data-tab="leaderboard">
+                <i class="fas fa-trophy"></i> Leaderboard
+            </button>
+        </div>
+
+        <!-- Achievements Tab -->
+        <div id="achievementsTab" class="tab-content active">
+            <div class="achievements-grid" id="achievementsList"></div>
+        </div>
+
+        <!-- Leaderboard Tab -->
+        <div id="leaderboardTab" class="tab-content">
+            <div class="your-rank-card">
+                <h3>Your Current Rank</h3>
+                <div class="rank-display">#<span id="yourRank">-</span></div>
+                <p class="rank-encouragement">Keep up the great work!</p>
+            </div>
+
+            <div class="leaderboard-controls">
+                <div class="filter-group">
+                    <button class="filter-btn active" data-category="shifts">Most Shifts</button>
+                    <button class="filter-btn" data-category="earnings">Top Earners</button>
+                    <button class="filter-btn" data-category="rating">Highest Rated</button>
+                </div>
+                <div class="filter-group">
+                    <button class="filter-btn active" data-period="month">This Month</button>
+                    <button class="filter-btn" data-period="alltime">All Time</button>
+                </div>
+            </div>
+
+            <div class="leaderboard">
+                <div class="leaderboard-header">
+                    <div>Rank</div>
+                    <div>Doctor</div>
+                    <div>Shifts</div>
+                    <div>Earnings</div>
+                    <div>Badges</div>
+                </div>
+                <div id="leaderboardList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/doctor-achievements.js"></script>
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

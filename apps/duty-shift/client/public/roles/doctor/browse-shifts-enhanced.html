@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Shifts - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/pages/roles-doctor-browse-shifts-enhanced.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🌙 Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/doctor/doctor-dashboard.html">Dashboard</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html" class="active">Browse Shifts</a>
+            <a href="/roles/doctor/calendar.html">Calendar</a>
+            <a href="/roles/doctor/my-applications.html">Applications</a>
+            <a href="/roles/doctor/doctor-profile-enhanced.html">Profile</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-search"></i> Find Shifts</h1>
+            <p>Discover and apply for shifts that match your specialty and preferences</p>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-card">
+            <div class="filters-header">
+                <h2 class="filters-title">
+                    <i class="fas fa-filter"></i>
+                    Filters
+                </h2>
+                <button class="btn-secondary" id="clearFiltersTopBtn">
+                    <i class="fas fa-redo"></i> Clear All
+                </button>
+            </div>
+
+            <!-- Quick Filters -->
+            <div class="quick-filters">
+                <button class="quick-filter-btn active" data-date="all">All Dates</button>
+                <button class="quick-filter-btn" data-date="today">Today</button>
+                <button class="quick-filter-btn" data-date="tomorrow">Tomorrow</button>
+                <button class="quick-filter-btn" data-date="week">This Week</button>
+                <button class="quick-filter-btn" data-date="custom">Custom Date</button>
+            </div>
+
+            <!-- Advanced Filters -->
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label><i class="fas fa-stethoscope"></i> Specialty</label>
+                    <select id="specialtyFilter" class="filter-control">
+                        <option value="">All Specialties</option>
+                        <option value="Internal Medicine">Internal Medicine</option>
+                        <option value="Emergency Medicine">Emergency Medicine</option>
+                        <option value="General Surgery">General Surgery</option>
+                        <option value="Anaesthesiology">Anaesthesiology</option>
+                        <option value="Intensive Care / Critical Care Medicine">ICU / Critical Care</option>
+                        <option value="Obstetrics & Gynaecology">Obstetrics & Gynaecology</option>
+                        <option value="Orthopaedics">Orthopaedics</option>
+                        <option value="Radiology">Radiology</option>
+                        <option value="General Paediatrics">Paediatrics</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-clock"></i> Shift Time</label>
+                    <select id="timeFilter" class="filter-control">
+                        <option value="">All Times</option>
+                        <option value="morning">Morning (6AM-2PM)</option>
+                        <option value="evening">Evening (2PM-10PM)</option>
+                        <option value="night">Night (10PM-6AM)</option>
+                        <option value="24hr">24 Hour</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-map-marker-alt"></i> Distance (km)</label>
+                    <select id="distanceFilter" class="filter-control">
+                        <option value="">Any Distance</option>
+                        <option value="5">Within 5km</option>
+                        <option value="10">Within 10km</option>
+                        <option value="20">Within 20km</option>
+                        <option value="50">Within 50km</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-rupee-sign"></i> Min. Pay (₹/hour)</label>
+                    <input type="number" id="minPayFilter" class="filter-control" placeholder="e.g., 1500" min="0" step="100">
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-star"></i> Hospital Rating</label>
+                    <select id="ratingFilter" class="filter-control">
+                        <option value="">Any Rating</option>
+                        <option value="4.5">4.5+ Stars</option>
+                        <option value="4.0">4.0+ Stars</option>
+                        <option value="3.5">3.5+ Stars</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-calendar"></i> Custom Date</label>
+                    <input type="date" id="customDateFilter" class="filter-control">
+                </div>
+            </div>
+
+            <div class="filter-actions">
+                <button class="btn btn-primary" id="applyFiltersBtn">
+                    <i class="fas fa-check"></i> Apply Filters
+                </button>
+                <button class="btn btn-secondary" id="clearFiltersBtn">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="results-header">
+            <div class="results-count">
+                <strong id="resultsCount">0</strong> shifts found
+            </div>
+            <div class="sort-controls">
+                <label>Sort By:</label>
+                <select id="sortBy">
+                    <option value="match">Best Match</option>
+                    <option value="nearest">Nearest</option>
+                    <option value="highest-paid">Highest Paid</option>
+                    <option value="urgent">Urgent First</option>
+                    <option value="date">Soonest Date</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="shifts-grid" id="shiftsGrid">
+            <!-- Will be populated by JavaScript -->
+        </div>
+
+        <div class="no-results is-hidden" id="noResults">
+            <i class="fas fa-search"></i>
+            <h3>No shifts found</h3>
+            <p>Try adjusting your filters to see more results</p>
+        </div>
+    </div>
+
+    <script src="/js/doctor-browse-shifts-enhanced.js"></script>
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

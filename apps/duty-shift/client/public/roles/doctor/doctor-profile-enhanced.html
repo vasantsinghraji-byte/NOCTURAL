@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/pages/roles-doctor-doctor-profile-enhanced.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🌙 Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/doctor/doctor-dashboard.html">Dashboard</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html">Browse Duties</a>
+            <a href="/roles/doctor/calendar.html">Calendar</a>
+            <a href="/roles/doctor/earnings.html">Earnings</a>
+            <a href="/roles/doctor/doctor-profile-enhanced.html" class="active">Profile</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div id="alert" class="alert"></div>
+
+        <div class="profile-grid">
+            <!-- Sidebar -->
+            <div class="profile-sidebar">
+                <!-- Profile Card -->
+                <div class="profile-card">
+                    <div class="profile-photo-container">
+                        <div class="profile-photo" id="profilePhoto">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <label class="photo-upload-btn" for="photoInput" title="Upload Photo">
+                            <i class="fas fa-camera"></i>
+                            <input type="file" id="photoInput" accept="image/*">
+                        </label>
+                    </div>
+
+                    <div class="profile-name" id="profileName">Dr. John Doe</div>
+                    <div class="profile-specialty" id="profileSpecialty">Emergency Medicine</div>
+
+                    <div class="profile-strength">
+                        <div class="strength-label">
+                            <span>Profile Strength</span>
+                            <span id="strengthValue">0%</span>
+                        </div>
+                        <div class="strength-bar">
+                            <div class="strength-fill strength-fill-empty" id="strengthFill"></div>
+                        </div>
+                    </div>
+
+                    <div class="profile-stats">
+                        <div class="stat-item">
+                            <div class="stat-value" id="statRating">0.0</div>
+                            <div class="stat-label">Rating</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statShifts">0</div>
+                            <div class="stat-label">Shifts</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statRate">0%</div>
+                            <div class="stat-label">Completion</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documents Card -->
+                <div class="documents-card">
+                    <h3><i class="fas fa-file-alt"></i> Documents</h3>
+                    <div id="documentsList">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="profile-main">
+                <!-- Professional Details -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <i class="fas fa-stethoscope"></i>
+                            Professional Details
+                        </h2>
+                        <button class="btn-edit" data-section="professional">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                    </div>
+
+                    <form id="professionalForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>MCI Registration Number</label>
+                                <input type="text" id="mciNumber" class="form-control" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label>State Medical Council</label>
+                                <input type="text" id="stateMedicalCouncil" class="form-control" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label>Primary Specialization</label>
+                                <input type="text" id="primarySpecialization" class="form-control" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label>Years of Experience</label>
+                                <input type="number" id="yearsOfExperience" class="form-control" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label>Employment Status</label>
+                                <input type="text" id="employmentStatus" class="form-control" disabled>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-save btn-save-spaced is-hidden">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Skills & Expertise -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <i class="fas fa-tools"></i>
+                            Skills & Expertise
+                        </h2>
+                    </div>
+                    <div class="skills-grid" id="skillsGrid">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Preferences -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <i class="fas fa-clock"></i>
+                            Shift Preferences
+                        </h2>
+                    </div>
+                    <div class="preferences-grid" id="preferencesGrid">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+
+                    <div class="form-grid form-grid-spaced">
+                        <div class="form-group">
+                            <label>Service Radius</label>
+                            <input type="text" id="serviceRadius" class="form-control" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Minimum Rate (₹/hour)</label>
+                            <input type="text" id="minimumRate" class="form-control" disabled>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bank Details -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <i class="fas fa-university"></i>
+                            Bank Account Details
+                        </h2>
+                        <button class="btn-edit" data-section="bank">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                    </div>
+
+                    <form id="bankForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Account Holder Name</label>
+                                <input type="text" id="accountHolderName" class="form-control" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label>Account Number</label>
+                                <input type="text" id="accountNumber" class="form-control" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label>IFSC Code</label>
+                                <input type="text" id="ifscCode" class="form-control" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label>Bank Name</label>
+                                <input type="text" id="bankName" class="form-control" disabled>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-save btn-save-spaced is-hidden">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/doctor-profile-enhanced.js"></script>
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

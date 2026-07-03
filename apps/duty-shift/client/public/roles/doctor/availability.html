@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Availability Settings - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/pages/roles-doctor-availability.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">🌙 Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/doctor/doctor-dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html"><i class="fas fa-briefcase"></i> Browse</a>
+            <a href="/roles/doctor/calendar.html"><i class="fas fa-calendar"></i> Calendar</a>
+            <a href="/roles/doctor/earnings.html"><i class="fas fa-dollar-sign"></i> Earnings</a>
+            <a href="#" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-calendar-times"></i> Availability Settings</h1>
+            <p>Manage your schedule and set when you're unavailable</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="recurring">
+                <i class="fas fa-redo"></i> Recurring
+            </button>
+            <button class="tab" data-tab="vacation">
+                <i class="fas fa-umbrella-beach"></i> Vacation Mode
+            </button>
+            <button class="tab" data-tab="preferences">
+                <i class="fas fa-sliders-h"></i> Preferences
+            </button>
+            <button class="tab" data-tab="current">
+                <i class="fas fa-list"></i> Current Settings
+            </button>
+        </div>
+
+        <!-- Recurring Unavailability Tab -->
+        <div id="recurringTab" class="tab-content active">
+            <div class="card">
+                <h3><i class="fas fa-redo"></i> Set Recurring Unavailability</h3>
+                <div class="info-box">
+                    <p><i class="fas fa-info-circle"></i> Block specific days of the week when you're unavailable</p>
+                </div>
+                <form id="recurringForm">
+                    <div class="form-group">
+                        <label>Select Days You're Unavailable</label>
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="day0" value="0">
+                                <label for="day0">Sunday</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="day1" value="1">
+                                <label for="day1">Monday</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="day2" value="2">
+                                <label for="day2">Tuesday</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="day3" value="3">
+                                <label for="day3">Wednesday</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="day4" value="4">
+                                <label for="day4">Thursday</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="day5" value="5">
+                                <label for="day5">Friday</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="day6" value="6">
+                                <label for="day6">Saturday</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="autoRejectRecurring"> Auto-reject duties during these times
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Save Recurring Unavailability</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Vacation Mode Tab -->
+        <div id="vacationTab" class="tab-content">
+            <div class="card">
+                <h3><i class="fas fa-umbrella-beach"></i> Vacation Mode</h3>
+                <div class="info-box">
+                    <p><i class="fas fa-info-circle"></i> Block a date range when you're on vacation</p>
+                </div>
+                <form id="vacationForm">
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" id="vacationStart" required>
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" id="vacationEnd" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Reason (Optional)</label>
+                        <textarea id="vacationReason" rows="3" placeholder="e.g., Family vacation, Personal time"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="autoRejectVacation" checked> Auto-reject all duties during this period
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-block">Activate Vacation Mode</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Preferences Tab -->
+        <div id="preferencesTab" class="tab-content">
+            <div class="card">
+                <h3><i class="fas fa-sliders-h"></i> Working Preferences</h3>
+                <div class="info-box">
+                    <p><i class="fas fa-info-circle"></i> Set your preferred working hours and shift limits</p>
+                </div>
+                <form id="preferencesForm">
+                    <h4 class="section-subheading">Preferred Working Hours</h4>
+                    <div class="form-group">
+                        <label>Earliest Start Time</label>
+                        <input type="time" id="earliestStart" value="09:00">
+                    </div>
+                    <div class="form-group">
+                        <label>Latest End Time</label>
+                        <input type="time" id="latestEnd" value="17:00">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="flexible"> I'm flexible with these hours if needed
+                        </label>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <h4 class="section-subheading">Shift Limits</h4>
+                    <div class="form-group">
+                        <label>Max Shifts Per Week</label>
+                        <input type="number" id="maxShiftsWeek" min="1" max="7" value="5">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Shifts Per Month</label>
+                        <input type="number" id="maxShiftsMonth" min="1" max="31" value="20">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Hours Per Week</label>
+                        <input type="number" id="maxHoursWeek" min="1" max="168" value="60">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block">Save Preferences</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Current Settings Tab -->
+        <div id="currentTab" class="tab-content">
+            <div class="card">
+                <h3><i class="fas fa-list"></i> Current Availability Settings</h3>
+                <div id="availabilityList" class="availability-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/doctor-availability.js"></script>
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

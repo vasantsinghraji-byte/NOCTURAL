@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Admin Dashboard - Nocturnal</title>
+    <link rel="stylesheet" href="/css/pages/roles-admin-admin-dashboard.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/admin-session.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🏥 Nocturnal Admin</div>
+        <div class="nav-links">
+            <a href="/roles/admin/admin-dashboard.html" class="active">Dashboard</a>
+            <a href="/roles/admin/admin-post-duty.html">Post Duty</a>
+            <a href="/roles/admin/admin-applications.html">Applications</a>
+            <a href="/roles/admin/admin-analytics.html">Analytics</a>
+            <a href="/roles/admin/admin-waitlist.html">Waitlist</a>
+            <a href="/roles/admin/admin-settings.html">Settings</a>
+            <a href="/roles/admin/admin-profile.html">Profile</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <span id="userName">Loading...</span>
+            <button id="logout-btn" class="logout-btn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="welcome-section">
+            <h1>Welcome back, <span id="welcomeName">Administrator</span>! 👋</h1>
+            <p id="hospitalInfo">Loading hospital information...</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card blue">
+                <div class="icon">📋</div>
+                <h3>Open Duties</h3>
+                <div class="number" id="openDuties">-</div>
+            </div>
+            <div class="stat-card yellow">
+                <div class="icon">⏳</div>
+                <h3>Pending Applications</h3>
+                <div class="number" id="pendingApps">-</div>
+            </div>
+            <div class="stat-card green">
+                <div class="icon">✓</div>
+                <h3>Total Duties Posted</h3>
+                <div class="number" id="totalDuties">-</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="icon">👥</div>
+                <h3>Total Applications</h3>
+                <div class="number" id="totalApps">-</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Quick Actions</h2>
+            <div class="quick-actions">
+                <a href="/roles/admin/admin-post-duty.html" class="action-card">
+                    <div class="icon">➕</div>
+                    <h3>Post New Duty</h3>
+                </a>
+                <a href="/roles/admin/admin-applications.html" class="action-card">
+                    <div class="icon">📝</div>
+                    <h3>View Applications</h3>
+                </a>
+                <a href="/roles/admin/admin-waitlist.html" class="action-card">
+                    <div class="icon">Leads</div>
+                    <h3>Hospital Waitlist</h3>
+                </a>
+                <a href="/roles/admin/admin-profile.html" class="action-card">
+                    <div class="icon">⚙️</div>
+                    <h3>Hospital Settings</h3>
+                </a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Booking Assignment</h2>
+            <p class="assignment-summary" id="bookingAssignmentSummary">Loading pending bookings and provider roster...</p>
+            <div class="assignment-list" id="bookingAssignmentList">
+                <div class="loading">Loading booking assignment panel...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/admin-dashboard.js"></script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

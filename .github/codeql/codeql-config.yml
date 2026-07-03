@@ -1,0 +1,17 @@
+# CodeQL configuration for NOCTURNAL.
+#
+# paths-ignore rationale — apps/duty-shift (restructure Phase 4, see
+# docs/PHASE1_SPLIT_RECONCILED.md):
+# That folder is a PARKED, copy-only mirror of root duty-shift code. Its files
+# must remain hash-identical to the root originals, so security findings there
+# cannot be fixed in place without breaking the mirror guarantee. The root
+# originals remain fully scanned by CodeQL; any alert is fixed at the root and
+# the fix flows into the mirror at the (separately approved) cutover, or the
+# mirror is refreshed. Approved by Owner/Tech Lead 2026-07-03 (Decision Log).
+name: "NOCTURNAL CodeQL configuration"
+
+queries:
+  - uses: security-and-quality
+
+paths-ignore:
+  - apps/duty-shift/**

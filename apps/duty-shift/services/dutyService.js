@@ -1,0 +1,308 @@
+/**
+ * Duty Service
+ *
+ * Business logic layer for duty management operations
+ * Abstracts database operations from controllers
+ */
+
+const Duty = require('../models/duty');
+const { invalidateCache } = require('../middleware/queryCache');
+const {  HTTP_STATUS,
+  DUTY_STATUS,
+  ERROR_MESSAGE,
+  PAGINATION
+} = require('../constants');
+const logger = require('../utils/logger');
+const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
+const { getTenantFields } = require('../utils/tenantScope');
+const { normalizeObjectId, nullProtoObject, setSafeField } = require('../utils/safeMongo');
+
+const ALLOWED_DUTY_FILTERS = new Set(['status', 'specialty', 'department', 'hospitalId', 'postedBy', 'urgency', 'date']);
+const ALLOWED_DUTY_UPDATE_FIELDS = new Set([
+  'title',
+  'description',
+  'department',
+  'specialty',
+  'date',
+  'startTime',
+  'endTime',
+  'hourlyRate',
+  'totalCompensation',
+  'location',
+  'requirements',
+  'urgency',
+  'status'
+]);
+
+const safeDutyFilters = (filters = {}) => {
+  const query = nullProtoObject();
+  Object.entries(filters || {}).forEach(([field, value]) => {
+    if (!ALLOWED_DUTY_FILTERS.has(field)) return;
+    if (['hospitalId', 'postedBy'].includes(field)) {
+      setSafeField(query, field, normalizeObjectId(value, field));
+      return;
+    }
+    setSafeField(query, field, value);
+  });
+  return query;
+};
+
+const pickDutyUpdates = (updates = {}) => {
+  const picked = nullProtoObject();
+  Object.entries(updates || {}).forEach(([field, value]) => {
+    if (ALLOWED_DUTY_UPDATE_FIELDS.has(field)) setSafeField(picked, field, value);
+  });
+  return picked;
+};
+
+class DutyService {
+  /**
+   * Get all duties with optional filters
+   * @param {Object} filters - Query filters
+   * @param {Object} options - Query options (pagination, sort)
+   * @returns {Promise<Array>} List of duties
+   */
+  async getAllDuties(filters = {}, options = {}) {
+    const {
+      sort = { urgency: -1, date: 1 },
+      populate = 'postedBy'
+    } = options;
+
+    const page = Math.max(PAGINATION.DEFAULT_PAGE, Math.floor(Number(options.page) || PAGINATION.DEFAULT_PAGE));
+    const limit = Math.min(PAGINATION.MAX_LIMIT, Math.max(PAGINATION.MIN_LIMIT, Math.floor(Number(options.limit) || PAGINATION.DEFAULT_LIMIT)));
+
+    const query = safeDutyFilters(filters);
+    const duties = await Duty.find(query)
+      .populate(populate, 'name hospitalId')
+      .populate('hospitalId', 'name location')
+      .sort(sort)
+      .limit(limit)
+      .skip((page - 1) * limit)
+      .lean();
+
+    const total = await Duty.countDocuments(query);
+
+    return {
+      duties,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+        limit
+      }
+    };
+  }
+
+  /**
+   * Get single duty by ID
+   * @param {String} dutyId - Duty ID
+   * @returns {Promise<Object>} Duty details
+   */
+  async getDutyById(dutyId) {
+    const safeDutyId = normalizeObjectId(dutyId, 'duty id');
+    const duty = await Duty.findById(safeDutyId)
+      .populate('postedBy', 'name hospitalId email phone')
+      .populate('hospitalId', 'name location');
+
+    if (!duty) {
+      throw {
+        statusCode: HTTP_STATUS.NOT_FOUND,
+        message: ERROR_MESSAGE.DUTY_NOT_FOUND
+      };
+    }
+
+    return duty;
+  }
+
+  /**
+   * Create a new duty
+   * @param {Object} dutyData - Duty data
+   * @param {Object} user - User creating the duty
+   * @returns {Promise<Object>} Created duty
+   */
+  async createDuty(dutyData, user) {
+    const createData = pickDutyUpdates(dutyData);
+    // Add user data
+    createData.postedBy = user._id;
+
+    if (user.role === 'admin') {
+      const tenantFields = getTenantFields(user);
+      if (!tenantFields.hospitalId) {
+        throw {
+          statusCode: HTTP_STATUS.FORBIDDEN,
+          message: 'Not authorized - no hospital assigned to this admin'
+        };
+      }
+      Object.assign(createData, tenantFields);
+    }
+
+    const duty = await Duty.create(createData);
+
+    // Invalidate duty list cache
+    await invalidateCache('*:/api/duties*');
+
+    logger.info('Duty Created', {
+      dutyId: duty._id,
+      postedBy: user._id,
+      title: duty.title
+    });
+
+    return duty;
+  }
+
+  /**
+   * Update a duty
+   * @param {String} dutyId - Duty ID
+   * @param {Object} updateData - Data to update
+   * @param {Object} user - User updating the duty
+   * @returns {Promise<Object>} Updated duty
+   */
+  async updateDuty(dutyId, updateData, user) {
+    const safeDutyId = normalizeObjectId(dutyId, 'duty id');
+    let duty = await Duty.findById(safeDutyId);
+
+    if (!duty) {
+      throw {
+        statusCode: HTTP_STATUS.NOT_FOUND,
+        message: ERROR_MESSAGE.DUTY_NOT_FOUND
+      };
+    }
+
+    // Check authorization
+    if (duty.postedBy.toString() !== user._id.toString()) {
+      throw {
+        statusCode: HTTP_STATUS.FORBIDDEN,
+        message: ERROR_MESSAGE.UNAUTHORIZED
+      };
+    }
+
+    duty = await Duty.findByIdAndUpdate(safeDutyId, pickDutyUpdates(updateData), {
+      ...VALIDATED_QUERY_UPDATE_OPTIONS
+    });
+
+    // Invalidate cache
+    await invalidateCache('*:/api/duties*');
+
+    logger.info('Duty Updated', {
+      dutyId: duty._id,
+      updatedBy: user._id,
+      title: duty.title
+    });
+
+    return duty;
+  }
+
+  /**
+   * Delete a duty
+   * @param {String} dutyId - Duty ID
+   * @param {Object} user - User deleting the duty
+   * @returns {Promise<void>}
+   */
+  async deleteDuty(dutyId, user) {
+    const safeDutyId = normalizeObjectId(dutyId, 'duty id');
+    const duty = await Duty.findById(safeDutyId);
+
+    if (!duty) {
+      throw {
+        statusCode: HTTP_STATUS.NOT_FOUND,
+        message: ERROR_MESSAGE.DUTY_NOT_FOUND
+      };
+    }
+
+    // Check authorization
+    if (duty.postedBy.toString() !== user._id.toString()) {
+      throw {
+        statusCode: HTTP_STATUS.FORBIDDEN,
+        message: ERROR_MESSAGE.UNAUTHORIZED
+      };
+    }
+
+    await duty.deleteOne();
+
+    // Invalidate cache
+    await invalidateCache('*:/api/duties*');
+
+    logger.info('Duty Deleted', {
+      dutyId: duty._id,
+      deletedBy: user._id,
+      title: duty.title
+    });
+  }
+
+  /**
+   * Get duties posted by a specific hospital
+   * @param {String} hospitalId - Hospital user ID
+   * @param {Object} options - Query options
+   * @returns {Promise<Array>} List of duties
+   */
+  async getDutiesByHospital(hospitalId, options = {}) {
+    return this.getAllDuties({ postedBy: hospitalId }, options);
+  }
+
+  /**
+   * Get open duties (available for application)
+   * @param {Object} options - Query options
+   * @returns {Promise<Array>} List of open duties
+   */
+  async getOpenDuties(options = {}) {
+    return this.getAllDuties({ status: DUTY_STATUS.OPEN }, options);
+  }
+
+  /**
+   * Calculate match score for a duty and doctor
+   * @param {String} dutyId - Duty ID
+   * @param {Object} doctor - Doctor object
+   * @returns {Promise<Number>} Match score (0-100)
+   */
+  async calculateMatchScore(dutyId, doctor) {
+    const safeDutyId = normalizeObjectId(dutyId, 'duty id');
+    const duty = await Duty.findById(safeDutyId);
+
+    if (!duty) {
+      throw {
+        statusCode: HTTP_STATUS.NOT_FOUND,
+        message: ERROR_MESSAGE.DUTY_NOT_FOUND
+      };
+    }
+
+    return duty.calculateMatchScore(doctor);
+  }
+
+  /**
+   * Get duties matching doctor's specialization
+   * @param {Object} doctor - Doctor object
+   * @param {Object} options - Query options
+   * @returns {Promise<Array>} Matching duties
+   */
+  async getMatchingDuties(doctor, options = {}) {
+    const filters = {
+      status: DUTY_STATUS.OPEN,
+      specialty: { $in: [doctor.professional?.primarySpecialization, ...(doctor.professional?.secondarySpecializations || [])] }
+    };
+
+    return this.getAllDuties(filters, options);
+  }
+
+  /**
+   * Update duty status
+   * @param {String} dutyId - Duty ID
+   * @param {String} status - New status
+   * @param {Object} user - User updating the status
+   * @returns {Promise<Object>} Updated duty
+   */
+  async updateDutyStatus(dutyId, status, user) {
+    return this.updateDuty(dutyId, { status }, user);
+  }
+
+  /**
+   * Increment view count for a duty
+   * @param {String} dutyId - Duty ID
+   * @returns {Promise<void>}
+   */
+  async incrementViewCount(dutyId) {
+    const safeDutyId = normalizeObjectId(dutyId, 'duty id');
+    await Duty.findByIdAndUpdate(safeDutyId, { $inc: { viewCount: 1 } });
+  }
+}
+
+module.exports = new DutyService();
