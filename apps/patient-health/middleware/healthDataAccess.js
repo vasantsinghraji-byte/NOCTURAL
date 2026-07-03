@@ -161,7 +161,7 @@ exports.auditHealthAccess = (resourceType, action) => {
           if (!user) return;
 
           // Determine patient ID
-          let patientId = req.params?.patientId;
+          let patientId = healthAccess.patientId;
           if (!patientId && req.userType === 'patient') {
             patientId = user._id;
           }

@@ -46,18 +46,14 @@ exports.createOrder = async (req, res, next) => {
  */
 exports.verifyPayment = async (req, res, next) => {
   try {
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      bookingId
-    } = req.body;
+    const paymentData = {
+      razorpay_order_id: req.body.razorpay_order_id,
+      razorpay_payment_id: req.body.razorpay_payment_id,
+      razorpay_signature: req.body.razorpay_signature,
+      bookingId: req.body.bookingId
+    };
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !bookingId) {
-      return responseHelper.sendBadRequest(res, 'Missing payment verification details');
-    }
-
-    const result = await paymentService.verifyPayment(req.body, req.user.id);
+    const result = await paymentService.verifyPayment(paymentData, req.user.id);
     responseHelper.sendSuccess(res, result, 'Payment verified successfully');
   } catch (error) {
     if (!error.statusCode) {

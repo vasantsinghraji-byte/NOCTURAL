@@ -218,13 +218,7 @@ exports.getBookingStats = async (req, res, next) => {
  */
 exports.verifyPassword = async (req, res, next) => {
   try {
-    const { password } = req.body;
-
-    if (!password) {
-      return responseHelper.sendBadRequest(res, 'Password is required');
-    }
-
-    const isValid = await patientService.verifyPassword(req.user.id, password);
+    const isValid = await patientService.verifyPassword(req.user.id, req.body.password);
 
     responseHelper.sendSuccess(res, { isValid }, 'Password verification completed');
   } catch (error) {
