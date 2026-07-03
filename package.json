@@ -4,6 +4,10 @@
   "description": "Nocturnal Healthcare Platform - Microservices Architecture",
   "main": "server.js",
   "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=9.0.0"

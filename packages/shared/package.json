@@ -1,0 +1,7 @@
+{
+  "name": "@nocturnal/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared NOCTURNAL toolkit. Phase 1: lazy re-export facade over existing root modules; nothing is physically relocated.",
+  "main": "src/index.js"
+}

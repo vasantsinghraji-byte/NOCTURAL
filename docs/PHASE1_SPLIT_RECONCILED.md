@@ -4,37 +4,49 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 # NOCTURNAL Restructure Roadmap
 
-> Status: **PLAN ONLY — no code will be changed until approved.**
+> Status: **PHASE 2 COMPLETE — Phase 3+ blocked pending approval.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
-> Branch at time of writing: `safety-hardening-unsplit-synced-20260628`, working tree clean.
+> Branch at time of writing: `refactor/restructure-phase1-split`, Phase 2 complete.
 
 ## Document Control
 
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | Plan Only |
-| Version | v1.0 |
-| Owner | TBD |
-| Last Updated | 2026-06-29 |
-| Next Review Date | TBD |
-| Approved For Execution | No |
+| Status | In Execution — Phase 1 complete |
+| Version | v1.4 |
+| Owner | VASANT SINGH RAJI |
+| Last Updated | 2026-07-02 |
+| Next Review Date | At Phase 3 approval |
+| Approved For Execution | Phases 0–2 (Phase 2 approved 2026-07-02). **Phase 3+ NOT yet approved** — see Approval Record. |
 
 ## Current Phase Tracker
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 0 |
-| Execution Status | Not Started |
-| Current Owner | TBD |
-| Last Validation Result | Not run |
-| Next Required Approval | Tech Lead approval for Phase 1 start |
+| Current Phase | Phase 2 — Complete (2026-07-02) |
+| Execution Status | Phases 0–2 complete on branch `refactor/restructure-phase1-split`; Phase 3 blocked pending approval |
+| Current Owner | VASANT SINGH RAJI |
+| Last Validation Result | Phase 2: `require('@nocturnal/shared')` resolves by name with 27 lazy exports (only the facade file cached); lockfile diff reviewed — 12 insertions, 0 deletions, workspace linkage only, no version changes; no-eager-load Jest regression passed; `npm test` 931 passed / 145 suites |
+| Next Required Approval | Tech Lead approval for Phase 3 start |
+
+## Approval Record
+
+Canonical record of gate approvals. A phase may not start until its row says **Approved** with a date and approver. "Phase N complete" never implies "Phase N+1 approved" — check this table.
+
+| Gate | Status | Date | Approver |
+|---|---|---|---|
+| Phase 1 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed start of Phase 1 |
+| Phase 2 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed start of Phase 2 (workspaces) |
+| Phase 3 Start (Tech Lead) | Pending | — | — |
+| Phase 5 Start (Product Owner — duty-shift dormancy) | Pending | — | — |
+| Phase 6 Start (Tech Lead / Owner — deletion batches) | Pending | — | — |
 
 ## Open Questions
 
 | Question | Impact | Owner | Status |
 |---|---|---|---|
-| Which lazy export mechanism will be used? | Affects Phase 1 implementation | Tech Lead | Open |
+| Which lazy export mechanism will be used? | Affects Phase 1 implementation | Tech Lead | **Resolved 2026-07-02: lazy getters** (see `docs/PHASE1_IMPLEMENTATION_NOTES.md`) |
 | Are duty-shift routes safe to park? | Affects Phase 5 | Product Owner | Open |
 
 ## PR Strategy
@@ -50,7 +62,7 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 **Objective:** Convert NOCTURNAL into a clean monorepo without breaking the existing app.
 
-**Current Mode:** Planning only. No code changes until approval.
+**Current Mode:** Phase 2 complete. Phase 3+ remains blocked until approval.
 
 **Core Strategy:** Copy first, verify, then cut over later.
 
@@ -308,17 +320,17 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **After Completion:** Record branch/status, confirm exit criteria, and request Phase 1 approval.
 
 **Phase 0 Checklist:**
-- [ ] Confirm active repo is `D:\NOCTURNAL\NOCTURAL`.
-- [ ] Run `git fetch origin`.
-- [ ] Branch from fresh `origin/develop`.
-- [ ] Confirm `git status` is clean.
-- [ ] Record current route mounts, scripts, frontend paths, and discrepancies.
-- [ ] Confirm validation commands to use in later phases.
+- [x] Confirm active repo is `D:\NOCTURNAL\NOCTURAL`.
+- [x] Run `git fetch origin`.
+- [x] Branch from fresh `origin/develop`.
+- [x] Confirm `git status` is clean.
+- [x] Record current route mounts, scripts, frontend paths, and discrepancies.
+- [x] Confirm validation commands to use in later phases.
 
 **Why:** Prevent work in the wrong checkout or on an unsafe branch.
 **What to do:**
 - Work only inside `D:\NOCTURNAL\NOCTURAL`.
-- **`git fetch` first, then branch from `origin/develop`** (not the possibly-stale local `develop`, which is checked out in another worktree): `git fetch origin && git checkout -b restructure/phase1-split origin/develop`. If branching from local `develop` instead, first verify it equals `origin/develop`.
+- **`git fetch` first, then branch from `origin/develop`** (not the possibly-stale local `develop`, which is checked out in another worktree): `git fetch origin && git checkout -b refactor/restructure-phase1-split origin/develop`. If branching from local `develop` instead, first verify it equals `origin/develop`.
 - Record current route mounts, package scripts, frontend paths, and known discrepancies.
 - Confirm current tests and lint commands before changing structure.
 
@@ -344,16 +356,16 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **After Completion:** Run import validation, document export mechanism, and request Phase 2 approval.
 
 **Phase 1 Checklist:**
-- [ ] Confirm branch is correct.
-- [ ] Record chosen lazy-export mechanism before coding.
-- [ ] Create `packages/shared/package.json`.
-- [ ] Create shared export structure.
-- [ ] Use correct `../../../` re-export depth from `packages/shared/src/index.js`.
-- [ ] Confirm no eager loading.
-- [ ] Exclude patient-specific modules.
-- [ ] Run `node -e "require('./packages/shared')"`.
-- [ ] Confirm monolith still runs.
-- [ ] Record implementation notes.
+- [x] Confirm branch is correct.
+- [x] Record chosen lazy-export mechanism before coding.
+- [x] Create `packages/shared/package.json`.
+- [x] Create shared export structure.
+- [x] Use correct `../../../` re-export depth from `packages/shared/src/index.js`.
+- [x] Confirm no eager loading.
+- [x] Exclude patient-specific modules.
+- [x] Run `node -e "require('./packages/shared')"`.
+- [x] Confirm monolith still runs.
+- [x] Record implementation notes.
 
 **Why:** Patient-health files cannot safely import `@nocturnal/shared` until that package exists and exports the correct modules.
 **What to do:**
@@ -386,13 +398,14 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **After Completion:** Review lockfile diff, run package-name import validation, and request Phase 3 approval.
 
 **Phase 2 Checklist:**
-- [ ] Add root `workspaces`.
-- [ ] Run install once.
-- [ ] Confirm no dependency version changes in `package.json`.
-- [ ] Review `package-lock.json` for workspace linkage only.
-- [ ] Fix stale `CLAUDE.md` workspace/service text.
-- [ ] Run `node -e "require('@nocturnal/shared')"`.
-- [ ] Run `npm test`.
+- [x] Add root `workspaces`.
+- [x] Run install once.
+- [x] Confirm no dependency version changes in `package.json`.
+- [x] Review `package-lock.json` for workspace linkage only.
+- [x] Fix stale `CLAUDE.md` workspace/service text.
+- [x] Add focused Jest regression test for `@nocturnal/shared` no-eager-load invariant.
+- [x] Run `node -e "require('@nocturnal/shared')"`.
+- [x] Run `npm test`.
 
 **Why:** The repo needs official workspace wiring before apps can live under `apps/*`.
 **What to do:**
@@ -579,13 +592,5 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 - Any obsolete file is reported first and deleted only after explicit approval.
 - `services/patient-booking-service` is excluded because it is not present in the current checkout.
 
-## Execution Command
-
-Follow this blueprint exactly.
-Work on one phase only.
-Do not move to the next phase without approval.
-Do not make assumptions beyond this document.
-If reality differs from the blueprint, stop and report.
-
-### Working rule for every future session
+## Working rule for every future session
 > "Edit or move only the exact files named in the current phase. Do **not** create `enhanced`/`v2`/`fixed`/`backup`/duplicate files. Do **not** delete duty-shift code. If shared code is needed, route it through `packages/shared`. If a file seems obsolete or missing, **stop and report** — do not invent or delete it."

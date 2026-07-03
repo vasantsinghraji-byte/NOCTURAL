@@ -20,7 +20,7 @@ npm run dev                  # nodemon server.js (backend on :5000)
 npm run frontend             # client dev server
 npm run dev:all              # backend + frontend concurrently
 
-# Tests — IMPORTANT: `npm test` uses jest.fast.config.js (skips models/smoke/patient-booking-service)
+# Tests — IMPORTANT: `npm test` uses jest.fast.config.js (skips models/smoke suites)
 npm test                     # fast suite (default for local iteration)
 npm run test:all             # full jest.config.js suite
 npm run test:unit            # tests/unit only
@@ -58,10 +58,11 @@ All API routes are mounted under `/api/v1` via `routes/v1/index.js`, which compo
 `routes/payments.js` is mounted at `/api/v1/payments` unconditionally. `routes/payment.js` is mounted at `/api/v1/payments-b2c` only when `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` are set and `RAZORPAY_ENABLED !== 'false'`. Don't conflate the two files.
 
 ### Monorepo / Workspaces
-This is an npm workspaces repo (`packages/*`, `services/*`):
-- `packages/shared/` — `@nocturnal/shared` library (logger, common utilities) consumed by services.
-- `services/patient-booking-service/` — extracted microservice with its own `package.json`, `Dockerfile`, and Jest config. The fast Jest config explicitly ignores `services/patient-booking-service/tests/`; run that service's tests via its workspace (`npm test --workspace=@nocturnal/patient-booking-service`).
-- The root `server.js` is still the primary monolith; service extraction is incremental.
+This is an npm workspaces repo (`packages/*`, `apps/*`):
+- `packages/shared/` — `@nocturnal/shared`, a lazy re-export facade over shared modules that still physically live in their root folders (`utils/`, `middleware/`, `config/`, `models/`, `services/`). Importing the package or one export has no import-time side effects. See `docs/PHASE1_IMPLEMENTATION_NOTES.md`.
+- `apps/*` — reserved for product apps from the restructure roadmap (`apps/patient-health`, `apps/duty-shift`); not created yet. See `docs/PHASE1_SPLIT_RECONCILED.md`.
+- `services/` is a flat folder of monolith service modules, **not** workspace microservices. `services/patient-booking-service` does not exist (its extraction was reversed); the fast Jest config's ignore pattern for it is inert.
+- The root `server.js` is the primary monolith; restructure proceeds copy-first per the roadmap.
 
 ### Data & Caching
 - MongoDB via Mongoose (`config/database.js` handles pooling, `models/` for schemas).
