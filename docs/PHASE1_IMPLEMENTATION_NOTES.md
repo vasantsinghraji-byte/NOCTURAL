@@ -47,6 +47,11 @@ Path depth: `packages/shared/src/index.js` is three levels below repo root → a
 | `securityAuditService` | `services/securityAuditService.js` |
 | `passwordSecurityService` | `services/passwordSecurityService.js` |
 | `compromisedPasswordService` | `services/compromisedPasswordService.js` |
+| `spamTrap` † | `middleware/spamTrap.js` |
+| `authTokens` † | `utils/authTokens.js` |
+| `localFileSystem` † | `utils/localFileSystem.js` |
+
+† Added 2026-07-02 during Phase 3: the patient-health dependency trace surfaced these three as requirements of copied files, and root usage confirms each is genuinely shared (`spamTrap`: auth/hospitalWaitlist/patient routes; `authTokens`: authController + `middleware/auth` + `patientAuth`; `localFileSystem`: `uploadEnhanced` + `geminiAnalysisService`). Exporting them from `@nocturnal/shared` was chosen over app-local copies to avoid duplicating shared security code. Export count is now **30**; the lazy-load regression test was updated accordingly. (The root `utils/localFileSystem.js` is the module exported; the pre-existing stray copy under `packages/shared/src/utils/` remains untouched and unused.)
 
 ## Explicitly Excluded (patient-owned — per blueprint)
 

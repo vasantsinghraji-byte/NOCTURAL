@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Analytics - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/css/pages/roles-patient-patient-analytics.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/patient-session.js"></script>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="logo">Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/patient/patient-dashboard.html">Dashboard</a>
+            <a href="/roles/patient/patient-health-dashboard.html">Health</a>
+            <a href="/roles/patient/patient-analytics.html" class="active">Analytics</a>
+            <a href="/roles/patient/booking-form.html">Book Service</a>
+        </div>
+        <button class="btn btn-outline" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+    </nav>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="fas fa-chart-line"></i> Health Analytics</h1>
+            <div class="quick-actions">
+                <button class="btn btn-primary" id="openUploadModalBtn">
+                    <i class="fas fa-upload"></i> Upload Report
+                </button>
+                <button class="btn btn-success" data-action="open-reading-modal" data-reading-type="diabetes">
+                    <i class="fas fa-tint"></i> Log Blood Sugar
+                </button>
+                <button class="btn btn-danger" data-action="open-reading-modal" data-reading-type="bp">
+                    <i class="fas fa-heartbeat"></i> Log Blood Pressure
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabs Container -->
+        <div class="tabs-container">
+            <!-- Tab Headers -->
+            <div class="tabs-header">
+                <button class="tab-btn active" data-tab="reports">
+                    <i class="fas fa-file-medical"></i>
+                    Investigation Reports
+                    <span class="badge is-hidden" id="pendingReportsBadge">0</span>
+                </button>
+                <button class="tab-btn" data-tab="diabetes">
+                    <i class="fas fa-tint"></i>
+                    Diabetes Tracker
+                </button>
+                <button class="tab-btn" data-tab="hypertension">
+                    <i class="fas fa-heartbeat"></i>
+                    Hypertension Tracker
+                </button>
+            </div>
+
+            <!-- Reports Tab -->
+            <div class="tab-content active" id="reports-tab">
+                <div class="loading-spinner" id="reportsLoading">
+                    <div class="spinner"></div>
+                </div>
+                <div class="is-hidden" id="reportsContent">
+                    <!-- Content loaded dynamically -->
+                </div>
+            </div>
+
+            <!-- Diabetes Tab -->
+            <div class="tab-content" id="diabetes-tab">
+                <div class="loading-spinner" id="diabetesLoading">
+                    <div class="spinner"></div>
+                </div>
+                <div class="is-hidden" id="diabetesContent">
+                    <!-- Content loaded dynamically -->
+                </div>
+            </div>
+
+            <!-- Hypertension Tab -->
+            <div class="tab-content" id="hypertension-tab">
+                <div class="loading-spinner" id="hypertensionLoading">
+                    <div class="spinner"></div>
+                </div>
+                <div class="is-hidden" id="hypertensionContent">
+                    <!-- Content loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Report Modal -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-upload"></i> Upload Investigation Report</h2>
+                <button class="modal-close" id="closeUploadModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label class="required">Report Title</label>
+                        <input type="text" class="form-control" id="reportTitle" placeholder="e.g., Blood Test Results - Dec 2024" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="required">Report Type</label>
+                            <select class="form-control" id="reportType" required>
+                                <option value="">Select Type</option>
+                                <option value="BLOOD_TEST">Blood Test</option>
+                                <option value="URINE_TEST">Urine Test</option>
+                                <option value="IMAGING">Imaging (X-ray, CT, MRI)</option>
+                                <option value="ECG">ECG</option>
+                                <option value="DIABETES_PANEL">Diabetes Panel</option>
+                                <option value="LIPID_PROFILE">Lipid Profile</option>
+                                <option value="THYROID_PANEL">Thyroid Panel</option>
+                                <option value="LIVER_FUNCTION">Liver Function</option>
+                                <option value="KIDNEY_FUNCTION">Kidney Function</option>
+                                <option value="VITAMIN_PANEL">Vitamin Panel</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="required">Report Date</label>
+                            <input type="date" class="form-control" id="reportDate" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description (Optional)</label>
+                        <textarea class="form-control" id="reportDescription" rows="2" placeholder="Any additional notes..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="required">Upload Files (PDF, JPG, PNG)</label>
+                        <div class="file-upload-area" id="fileDropZone">
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                            <p class="upload-title">Drag & drop files here or click to browse</p>
+                            <p class="upload-help">Max 10 files, 20MB each</p>
+                            <input type="file" id="reportFiles" class="is-hidden" multiple accept=".pdf,.jpg,.jpeg,.png">
+                        </div>
+                        <div class="file-list" id="fileList"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelUploadModalBtn">Cancel</button>
+                <button class="btn btn-primary" id="submitReportBtn">
+                    <i class="fas fa-upload"></i> Upload & Analyze
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reading Entry Modal -->
+    <div class="modal" id="readingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="readingModalTitle"><i class="fas fa-tint"></i> Log Reading</h2>
+                <button class="modal-close" id="closeReadingModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="readingForm">
+                    <!-- Diabetes Fields -->
+                    <div id="diabetesFields" class="is-hidden">
+                        <div class="form-group">
+                            <label class="required">Reading Type</label>
+                            <select class="form-control" id="diabetesType">
+                                <option value="BLOOD_SUGAR_RBS">Random Blood Sugar (RBS)</option>
+                                <option value="BLOOD_SUGAR_FASTING">Fasting Blood Sugar</option>
+                                <option value="BLOOD_SUGAR_PP">Post-Prandial (PP)</option>
+                                <option value="HBA1C">HbA1c</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="required" id="diabetesValueLabel">Value (mg/dL)</label>
+                            <input type="number" class="form-control" id="diabetesValue" step="0.1" required>
+                        </div>
+                    </div>
+
+                    <!-- BP Fields -->
+                    <div id="bpFields" class="is-hidden">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="required">Systolic (mmHg)</label>
+                                <input type="number" class="form-control" id="systolicValue" placeholder="120" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="required">Diastolic (mmHg)</label>
+                                <input type="number" class="form-control" id="diastolicValue" placeholder="80" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Common Fields -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Context</label>
+                            <select class="form-control" id="readingContext">
+                                <option value="">Select Context</option>
+                                <option value="FASTING">Fasting</option>
+                                <option value="POST_MEAL">Post Meal</option>
+                                <option value="RESTING">Resting</option>
+                                <option value="POST_EXERCISE">Post Exercise</option>
+                                <option value="UNDER_STRESS">Under Stress</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Date & Time</label>
+                            <input type="datetime-local" class="form-control" id="readingDateTime">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes (Optional)</label>
+                        <textarea class="form-control" id="readingNotes" rows="2" placeholder="Any notes..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelReadingModalBtn">Cancel</button>
+                <button class="btn btn-primary" id="submitReadingBtn">
+                    <i class="fas fa-save"></i> Save Reading
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Target Configuration Modal -->
+    <div class="modal" id="targetModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="targetModalTitle"><i class="fas fa-bullseye"></i> Configure Targets</h2>
+                <button class="modal-close" id="closeTargetModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="targetForm">
+                    <!-- Diabetes Targets -->
+                    <div id="diabetesTargets" class="is-hidden">
+                        <p class="target-description">Set your target ranges for diabetes monitoring. These will be shown on your charts and used to flag abnormal readings.</p>
+
+                        <h4 class="target-heading target-heading-primary"><i class="fas fa-tint"></i> Blood Sugar Targets (mg/dL)</h4>
+                        <div class="form-row target-form-row">
+                            <div class="form-group">
+                                <label>Fasting - Min</label>
+                                <input type="number" class="form-control" id="diabetesFastingMin" value="70">
+                            </div>
+                            <div class="form-group">
+                                <label>Fasting - Max</label>
+                                <input type="number" class="form-control" id="diabetesFastingMax" value="100">
+                            </div>
+                        </div>
+                        <div class="form-row target-form-row">
+                            <div class="form-group">
+                                <label>RBS - Min</label>
+                                <input type="number" class="form-control" id="diabetesRbsMin" value="70">
+                            </div>
+                            <div class="form-group">
+                                <label>RBS - Max</label>
+                                <input type="number" class="form-control" id="diabetesRbsMax" value="140">
+                            </div>
+                        </div>
+                        <div class="form-row target-form-row">
+                            <div class="form-group">
+                                <label>Post-Prandial - Min</label>
+                                <input type="number" class="form-control" id="diabetesPpMin" value="70">
+                            </div>
+                            <div class="form-group">
+                                <label>Post-Prandial - Max</label>
+                                <input type="number" class="form-control" id="diabetesPpMax" value="180">
+                            </div>
+                        </div>
+
+                        <h4 class="target-heading target-heading-secondary"><i class="fas fa-percentage"></i> HbA1c Target (%)</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Target HbA1c (Max)</label>
+                                <input type="number" class="form-control" id="hba1cTarget" step="0.1" value="7.0">
+                            </div>
+                            <div class="form-group">
+                                <label>Good Control Below</label>
+                                <input type="number" class="form-control" id="hba1cGood" step="0.1" value="6.5">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hypertension Targets -->
+                    <div id="hypertensionTargets" class="is-hidden">
+                        <p class="target-description">Set your blood pressure target ranges. These targets will help identify readings that need attention.</p>
+
+                        <h4 class="target-heading target-heading-danger"><i class="fas fa-heart-pulse"></i> Systolic Pressure (mmHg)</h4>
+                        <div class="form-row target-form-row">
+                            <div class="form-group">
+                                <label>Normal - Min</label>
+                                <input type="number" class="form-control" id="systolicMin" value="90">
+                            </div>
+                            <div class="form-group">
+                                <label>Normal - Max</label>
+                                <input type="number" class="form-control" id="systolicMax" value="120">
+                            </div>
+                        </div>
+                        <div class="form-row target-form-row">
+                            <div class="form-group">
+                                <label>Elevated (up to)</label>
+                                <input type="number" class="form-control" id="systolicElevated" value="129">
+                            </div>
+                            <div class="form-group">
+                                <label>High Stage 1 (up to)</label>
+                                <input type="number" class="form-control" id="systolicHigh1" value="139">
+                            </div>
+                        </div>
+
+                        <h4 class="target-heading target-heading-info"><i class="fas fa-heart"></i> Diastolic Pressure (mmHg)</h4>
+                        <div class="form-row target-form-row">
+                            <div class="form-group">
+                                <label>Normal - Min</label>
+                                <input type="number" class="form-control" id="diastolicMin" value="60">
+                            </div>
+                            <div class="form-group">
+                                <label>Normal - Max</label>
+                                <input type="number" class="form-control" id="diastolicMax" value="80">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>High Stage 1 (up to)</label>
+                                <input type="number" class="form-control" id="diastolicHigh1" value="89">
+                            </div>
+                            <div class="form-group">
+                                <label>High Stage 2 (above)</label>
+                                <input type="number" class="form-control" id="diastolicHigh2" value="90">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reminder Settings -->
+                    <div class="reminder-settings">
+                        <h4 class="target-heading"><i class="fas fa-bell"></i> Reminder Settings</h4>
+                        <div class="form-group">
+                            <label class="inline-checkbox-label">
+                                <input type="checkbox" id="enableReminders" class="checkbox-input-md">
+                                <span>Enable daily reading reminders</span>
+                            </label>
+                        </div>
+                        <div id="reminderTimeGroup" class="is-hidden">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Reminder Time</label>
+                                    <input type="time" class="form-control" id="reminderTime" value="08:00">
+                                </div>
+                                <div class="form-group">
+                                    <label>Frequency</label>
+                                    <select class="form-control" id="reminderFrequency">
+                                        <option value="daily">Daily</option>
+                                        <option value="twice_daily">Twice Daily</option>
+                                        <option value="weekly">Weekly</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="resetTargetDefaultsBtn">
+                    <i class="fas fa-undo"></i> Reset Defaults
+                </button>
+                <button class="btn btn-outline" id="cancelTargetModalBtn">Cancel</button>
+                <button class="btn btn-primary" id="saveTargetBtn">
+                    <i class="fas fa-save"></i> Save Targets
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/patient-analytics.js"></script>
+
+    <link rel="stylesheet" href="/css/pages/roles-patient-patient-analytics-2.css">
+</body>
+</html>

@@ -18,17 +18,17 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Owner | VASANT SINGH RAJI |
 | Last Updated | 2026-07-02 |
 | Next Review Date | At Phase 3 approval |
-| Approved For Execution | Phases 0–2 (Phase 2 approved 2026-07-02). **Phase 3+ NOT yet approved** — see Approval Record. |
+| Approved For Execution | Phases 0–3 (Phase 3 approved 2026-07-02). **Phase 4+ NOT yet approved** — see Approval Record. |
 
 ## Current Phase Tracker
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 2 — Complete (2026-07-02) |
-| Execution Status | Phases 0–2 complete on branch `refactor/restructure-phase1-split`; Phase 3 blocked pending approval |
+| Current Phase | Phase 3 — Complete (2026-07-02) |
+| Execution Status | Phases 0–2 complete (PR #141 into develop); Phase 3 complete on branch `refactor/restructure-phase3-patient-health`; Phase 4 blocked pending approval |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | Phase 2: `require('@nocturnal/shared')` resolves by name with 27 lazy exports (only the facade file cached); lockfile diff reviewed — 12 insertions, 0 deletions, workspace linkage only, no version changes; no-eager-load Jest regression passed; `npm test` 931 passed / 145 suites |
-| Next Required Approval | Tech Lead approval for Phase 3 start |
+| Last Validation Result | Phase 3: 78 mirrored copies + 3 wiring files; 85 shared-import rewrites; 0 unresolved imports; all 9 route modules load; isolated boot on :5001 with DB connected, `/api/v1/health` HTTP 200; monolith loads; `npm test` 931 passed / 145 suites; eslint 0 errors; `lint:baseline` 121 warnings (max 294) |
+| Next Required Approval | Tech Lead approval for Phase 4 start |
 
 ## Approval Record
 
@@ -38,7 +38,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 |---|---|---|---|
 | Phase 1 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed start of Phase 1 |
 | Phase 2 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed start of Phase 2 (workspaces) |
-| Phase 3 Start (Tech Lead) | Pending | — | — |
+| Phase 3 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed via "do the Next Steps"; gate precondition met (shared package validated, no-eager-load regression test in place) |
 | Phase 5 Start (Product Owner — duty-shift dormancy) | Pending | — | — |
 | Phase 6 Start (Tech Lead / Owner — deletion batches) | Pending | — | — |
 
@@ -151,6 +151,7 @@ npm run lint:baseline
 | 2026-06-29 | Keep duty-shift parked, not deleted | Preserve Phase 2 work | User |
 | 2026-06-29 | Use lazy exports or sub-barrels for shared package | Avoid import-time side effects | User |
 | 2026-06-29 | Keep `mobileDevices.js` and `webAuthn.js` root-owned during Phase 1 | They use `protectBoth` from root `patientAuth` | User |
+| 2026-07-02 | Add `spamTrap`, `authTokens`, `localFileSystem` to `@nocturnal/shared` (30 exports) | Phase 3 dependency trace surfaced them; root usage shows they are genuinely shared; app-local copies would duplicate shared security code | Owner / Tech Lead (Phase 3 execution) |
 
 ## Glossary
 

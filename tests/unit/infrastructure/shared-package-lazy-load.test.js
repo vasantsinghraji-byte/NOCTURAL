@@ -27,7 +27,7 @@ describe('@nocturnal/shared lazy-load facade', () => {
     const shared = require('@nocturnal/shared');
     const afterPackageRequire = cacheEntriesRelativeToRepo();
 
-    expect(Object.keys(shared)).toHaveLength(27);
+    expect(Object.keys(shared)).toHaveLength(30);
     expect(newCacheEntries(beforeRequire)).toEqual(['packages/shared/src/index.js']);
 
     // Accessing one export may load its own dependency tree, but not unrelated subsystems.

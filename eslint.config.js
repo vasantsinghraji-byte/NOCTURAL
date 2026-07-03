@@ -136,7 +136,7 @@ module.exports = [
     }
   },
   {
-    files: ['client/public/**/*.js'],
+    files: ['client/public/**/*.js', 'apps/*/client/public/**/*.js'],
     languageOptions: {
       sourceType: 'module',
       globals: {

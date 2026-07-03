@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Nocturnal Healthcare</title>
+    <link rel="stylesheet" href="/css/pages/roles-patient-patient-dashboard.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/patient-session.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <h1>Nocturnal Healthcare</h1>
+            </div>
+            <div class="user-menu">
+                <span class="user-name" id="userName">Patient</span>
+                <button class="btn-logout" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="welcome-section">
+            <h2 id="welcomeMessage">Welcome back!</h2>
+            <p>Book healthcare services at your doorstep</p>
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <h3 id="totalBookings">0</h3>
+                <p>Total Bookings</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="totalSpent">₹0</h3>
+                <p>Total Spent</p>
+            </div>
+            <div class="stat-card">
+                <h3>4.8★</h3>
+                <p>Avg Service Rating</p>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="services">Browse Services</button>
+            <button class="tab" data-tab="bookings">My Bookings</button>
+            <button class="tab tab-link tab-link-health" data-route="patient-health-dashboard.html">Health Dashboard</button>
+            <button class="tab tab-link tab-link-analytics" data-route="patient-analytics.html">Analytics</button>
+        </div>
+
+        <div id="servicesTab">
+            <h2 class="section-title">🏥 Available Services</h2>
+            <div class="services-grid" id="servicesGrid">
+                <div class="loading">Loading services...</div>
+            </div>
+        </div>
+
+        <div id="bookingsTab" class="is-hidden">
+            <h2 class="section-title">📋 My Bookings</h2>
+            <div id="bookingsList">
+                <div class="loading">Loading bookings...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/patient-dashboard.js"></script>
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>
