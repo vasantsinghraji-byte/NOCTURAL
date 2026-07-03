@@ -9,6 +9,7 @@ const mongoose = require('mongoose');
 const Application = require('../models/application');
 const Duty = require('../models/duty');
 const { paginate } = require('../utils/pagination');
+const { normalizeObjectId } = require('../utils/safeMongo');
 const logger = require('../utils/logger');
 const { HTTP_STATUS } = require('../constants');
 
@@ -135,7 +136,11 @@ class ApplicationService {
   async applyForDuty(applicationData, userId) {
     const { duty, coverLetter } = applicationData;
 
-    const dutyExists = await Duty.findById(duty);
+    // Reject non-ObjectId payloads before they reach query operators
+    // (normalizeObjectId throws a 400-status error on invalid input).
+    const dutyId = normalizeObjectId(duty, 'duty id');
+
+    const dutyExists = await Duty.findById(dutyId);
 
     if (!dutyExists) {
       throw {
@@ -153,7 +158,7 @@ class ApplicationService {
 
     // Check for existing application
     const existingApplication = await Application.findOne({
-      duty,
+      duty: dutyId,
       applicant: userId
     });
 
@@ -166,19 +171,19 @@ class ApplicationService {
 
     // Create application
     const application = await Application.create({
-      duty,
+      duty: dutyId,
       applicant: userId,
       coverLetter
     });
 
     // Increment applications count on duty
-    await Duty.findByIdAndUpdate(duty, {
+    await Duty.findByIdAndUpdate(dutyId, {
       $inc: { applicationsCount: 1 }
     });
 
     logger.info('Application submitted', {
       applicationId: application._id,
-      dutyId: duty,
+      dutyId,
       applicantId: userId
     });
 
