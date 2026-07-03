@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <title>Provider Login - Nocturnal</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="/css/pages/roles-provider-provider-login.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/provider-session.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <div class="logo-icon">🏥</div>
+            <h1>Nocturnal Provider</h1>
+            <p>Healthcare Professional Portal</p>
+        </div>
+
+        <div class="install-prompt" id="installPrompt">
+            <strong>Install App</strong>
+            <p>Install Nocturnal on your device for quick access!</p>
+            <button id="installPwaButton" type="button">Install Now</button>
+        </div>
+
+        <div class="info-box">
+            <h3>Welcome Back!</h3>
+            <p>Login to manage your appointments and provide care</p>
+        </div>
+
+        <form id="loginForm">
+            <div id="messageDiv"></div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required
+                       placeholder="your.email@example.com" autocomplete="email">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required
+                       placeholder="Enter your password" autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">Login</button>
+        </form>
+    </div>
+
+    <script src="/js/provider-login.js"></script>
+</body>
+</html>

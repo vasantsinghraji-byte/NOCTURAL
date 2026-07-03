@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Settings - Nocturnal Admin</title>
+    <link rel="stylesheet" href="/css/pages/roles-admin-admin-settings.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/admin-session.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🏥 Nocturnal Admin</div>
+        <div class="nav-links">
+            <a href="/roles/admin/admin-dashboard.html">Dashboard</a>
+            <a href="/roles/admin/admin-post-duty.html">Post Duty</a>
+            <a href="/roles/admin/admin-applications.html">Applications</a>
+            <a href="/roles/admin/admin-analytics.html">Analytics</a>
+            <a href="/roles/admin/admin-waitlist.html">Waitlist</a>
+            <a href="/roles/admin/admin-settings.html" class="active">Settings</a>
+            <a href="/roles/admin/operator-audit.html">Operator Audit</a>
+            <a href="/roles/admin/admin-profile.html">Profile</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <span id="userName">Loading...</span>
+            <button id="logout-btn" class="logout-btn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>⚙️ Analytics & Budget Settings</h1>
+            <p>Configure your monthly budget, forecasting preferences, and notification settings</p>
+        </div>
+
+        <div id="messageContainer"></div>
+
+        <form id="settingsForm">
+            <!-- Budget Settings -->
+            <div class="settings-section">
+                <h2 class="section-title">💰 Budget Settings</h2>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="monthlyBudget">Monthly Budget (₹)</label>
+                        <input type="number" id="monthlyBudget" name="monthlyBudget" min="0" step="1000" placeholder="e.g., 500000" required>
+                        <div class="hint">Set your total budget for doctor shifts per month</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="alertThreshold">Budget Alert Threshold (%)</label>
+                        <input type="number" id="alertThreshold" name="alertThreshold" min="0" max="100" step="5" value="80" required>
+                        <div class="hint">Get alerts when this % of budget is used</div>
+                    </div>
+                </div>
+
+                <div class="budget-preview is-hidden" id="budgetPreview">
+                    <h3>Current Month Budget Status</h3>
+                    <div class="budget-stats">
+                        <div class="budget-stat">
+                            <div class="label">Monthly Budget</div>
+                            <div class="value" id="previewBudget">₹0</div>
+                        </div>
+                        <div class="budget-stat">
+                            <div class="label">Spent This Month</div>
+                            <div class="value" id="previewSpent">₹0</div>
+                        </div>
+                        <div class="budget-stat">
+                            <div class="label">Remaining</div>
+                            <div class="value" id="previewRemaining">₹0</div>
+                        </div>
+                        <div class="budget-stat">
+                            <div class="label">Usage</div>
+                            <div class="value" id="previewPercent">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Forecasting Settings -->
+            <div class="settings-section">
+                <h2 class="section-title">📊 Forecasting Settings</h2>
+
+                <div class="toggle-group">
+                    <div class="toggle-info">
+                        <h4>Enable AI Forecasting</h4>
+                        <p>Get predictive insights for upcoming staffing needs</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="forecastingEnabled" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="lookAheadDays">Forecast Period (Days)</label>
+                    <select id="lookAheadDays" name="lookAheadDays">
+                        <option value="7">1 Week</option>
+                        <option value="14" selected>2 Weeks</option>
+                        <option value="30">1 Month</option>
+                        <option value="60">2 Months</option>
+                        <option value="90">3 Months</option>
+                    </select>
+                    <div class="hint">How far ahead to predict staffing requirements</div>
+                </div>
+            </div>
+
+            <!-- Notification Preferences -->
+            <div class="settings-section">
+                <h2 class="section-title">🔔 Notification Preferences</h2>
+
+                <div class="toggle-group">
+                    <div class="toggle-info">
+                        <h4>Email Alerts</h4>
+                        <p>Receive email notifications for important events</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="emailAlerts" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-group">
+                    <div class="toggle-info">
+                        <h4>Budget Alerts</h4>
+                        <p>Get notified when approaching budget threshold</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="budgetAlerts" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-group">
+                    <div class="toggle-info">
+                        <h4>Staffing Gap Alerts</h4>
+                        <p>Alert when upcoming shifts are unfilled</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="staffingGapAlerts" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-group">
+                    <div class="toggle-info">
+                        <h4>New Application Alerts</h4>
+                        <p>Get notified immediately when doctors apply</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="newApplicationAlerts" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Analytics Preferences -->
+            <div class="settings-section">
+                <h2 class="section-title">📈 Analytics Preferences</h2>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="defaultDateRange">Default Date Range</label>
+                        <select id="defaultDateRange" name="defaultDateRange">
+                            <option value="7days">Last 7 Days</option>
+                            <option value="30days" selected>Last 30 Days</option>
+                            <option value="90days">Last 90 Days</option>
+                            <option value="year">Last Year</option>
+                        </select>
+                        <div class="hint">Default time period for analytics dashboard</div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="toggle-info toggle-info-spaced">
+                            <h4>Show Predictions</h4>
+                            <p>Display AI predictions on analytics dashboard</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="showPredictions" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="save-btn" id="saveBtn">Save All Settings</button>
+        </form>
+
+        <section class="settings-section">
+            <h2 class="section-title">Security Audit</h2>
+            <p>Platform operators can review passkey, recovery-code, and lost-device recovery events here.</p>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="securityAuditEvent">Event</label>
+                    <select id="securityAuditEvent">
+                        <option value="">All WebAuthn recovery events</option>
+                        <option value="webauthn_recovery_codes_generated">Recovery codes generated</option>
+                        <option value="webauthn_lost_device_recovered">Lost-device recovery completed</option>
+                        <option value="webauthn_lost_device_recovery_failed">Lost-device recovery failed</option>
+                        <option value="webauthn_passkey_revoked">Passkey revoked</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="securityAuditOutcome">Outcome</label>
+                    <select id="securityAuditOutcome">
+                        <option value="">All outcomes</option>
+                        <option value="success">Success</option>
+                        <option value="failure">Failure</option>
+                        <option value="warning">Warning</option>
+                    </select>
+                </div>
+            </div>
+            <button type="button" id="refreshSecurityAudit" class="save-btn">Refresh Audit Events</button>
+            <div id="securityAuditMessage"></div>
+            <div id="securityAuditList">Security audit events not loaded.</div>
+        </section>
+    </div>
+
+    <script src="/js/admin-settings.js"></script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

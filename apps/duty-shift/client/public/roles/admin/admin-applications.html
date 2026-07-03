@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Applications - Hospital Admin - Nocturnal</title>
+    <link rel="stylesheet" href="/css/pages/roles-admin-admin-applications.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/admin-session.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🏥 Nocturnal Admin</div>
+        <div class="nav-links">
+            <a href="/roles/admin/admin-dashboard.html">Dashboard</a>
+            <a href="/roles/admin/admin-post-duty.html">Post Duty</a>
+            <a href="/roles/admin/admin-applications.html" class="active">Applications</a>
+            <a href="/roles/admin/admin-analytics.html">Analytics</a>
+            <a href="/roles/admin/admin-waitlist.html">Waitlist</a>
+            <a href="/roles/admin/admin-settings.html">Settings</a>
+            <a href="/roles/admin/admin-profile.html">Profile</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <span id="userName">Loading...</span>
+            <button id="logout-btn" class="logout-btn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>Applications Management</h1>
+            <p>Review and manage doctor applications for your posted duties</p>
+            <div class="stats-summary">
+                <div class="stat-item">
+                    <div class="count" id="totalCount">0</div>
+                    <div class="label">Total</div>
+                </div>
+                <div class="stat-item">
+                    <div class="count" id="pendingCount">0</div>
+                    <div class="label">Pending</div>
+                </div>
+                <div class="stat-item">
+                    <div class="count" id="acceptedCount">0</div>
+                    <div class="label">Accepted</div>
+                </div>
+                <div class="stat-item">
+                    <div class="count" id="rejectedCount">0</div>
+                    <div class="label">Rejected</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <span class="filter-label">Filter by Status:</span>
+            <button class="filter-btn active" data-status="all">All Applications</button>
+            <button class="filter-btn" data-status="pending">Pending</button>
+            <button class="filter-btn" data-status="accepted">Accepted</button>
+            <button class="filter-btn" data-status="rejected">Rejected</button>
+        </div>
+
+        <div id="applicationsContainer">
+            <div class="loading">Loading applications...</div>
+        </div>
+    </div>
+
+    <script src="/js/admin-applications.js"></script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

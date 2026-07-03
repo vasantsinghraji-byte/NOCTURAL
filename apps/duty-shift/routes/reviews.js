@@ -1,0 +1,276 @@
+const express = require('express');
+const router = express.Router();
+const { protect, authorize } = require('../middleware/auth');
+const Review = require('../models/review');
+const { paginate, paginationMiddleware } = require('../utils/pagination');
+const pickAllowedFields = require('../utils/pickAllowedFields');
+const Duty = require('../models/duty');
+const Application = require('../models/application');
+const { getTenantQuery } = require('../utils/tenantScope');
+const { normalizeObjectId } = require('../utils/safeMongo');
+
+const REVIEW_CREATE_FIELDS = [
+    'duty',
+    'reviewedUser',
+    'rating',
+    'ratings',
+    'comment',
+    'performanceMetrics',
+    'tags'
+];
+
+// Apply pagination middleware
+router.use(paginationMiddleware);
+
+// @route   GET /api/reviews/user/:userId
+// @desc    Get reviews for a specific user with pagination
+// @access  Public
+router.get('/user/:userId', async (req, res) => {
+    try {
+        const reviewedUserId = normalizeObjectId(req.params.userId, 'reviewed user id');
+        const result = await paginate(
+            Review,
+            {
+                reviewedUser: reviewedUserId,
+                visibility: 'PUBLIC'
+            },
+            {
+                ...req.pagination,
+                sort: req.pagination.sort || { createdAt: -1 },
+                populate: 'reviewer:name hospitalId duty:title date hospitalId'
+            }
+        );
+
+        // Get average ratings
+        const avgRatings = await Review.getUserAverageRating(reviewedUserId, { visibility: 'PUBLIC' });
+
+        res.json({
+            success: true,
+            data: result.data,
+            summary: avgRatings,
+            pagination: result.pagination
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching reviews',
+            error: error.message
+        });
+    }
+});
+
+// @route   GET /api/reviews/hospital/user/:userId
+// @desc    Get hospital-only reviews for a specific user within current hospital scope
+// @access  Private (Hospital Admin)
+router.get('/hospital/user/:userId', protect, authorize('admin'), async (req, res) => {
+    try {
+        const tenantQuery = getTenantQuery(req.user);
+        if (!tenantQuery) {
+            return res.status(403).json({
+                success: false,
+                message: 'Hospital assignment required'
+            });
+        }
+
+        const reviewedUserId = normalizeObjectId(req.params.userId, 'reviewed user id');
+        const dutyIds = await Duty.find(tenantQuery).distinct('_id');
+        const hospitalOnlyFilter = {
+            reviewedUser: reviewedUserId,
+            visibility: 'HOSPITAL_ONLY',
+            duty: { $in: dutyIds }
+        };
+
+        const result = await paginate(
+            Review,
+            hospitalOnlyFilter,
+            {
+                ...req.pagination,
+                sort: req.pagination.sort || { createdAt: -1 },
+                populate: 'reviewer:name hospitalId duty:title date hospitalId'
+            }
+        );
+
+        const avgRatings = await Review.getUserAverageRating(reviewedUserId, hospitalOnlyFilter);
+
+        res.json({
+            success: true,
+            data: result.data,
+            summary: avgRatings,
+            pagination: result.pagination
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching hospital reviews',
+            error: error.message
+        });
+    }
+});
+
+// @route   GET /api/reviews/my-reviews
+// @desc    Get reviews for current user with pagination
+// @access  Private
+router.get('/my-reviews', protect, async (req, res) => {
+    try {
+        const result = await paginate(
+            Review,
+            { reviewedUser: req.user._id },
+            {
+                ...req.pagination,
+                sort: req.pagination.sort || { createdAt: -1 },
+                populate: 'reviewer:name hospitalId duty:title date hospitalId'
+            }
+        );
+
+        const avgRatings = await Review.getUserAverageRating(req.user._id);
+
+        res.json({
+            success: true,
+            data: result.data,
+            summary: avgRatings,
+            pagination: result.pagination
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching reviews',
+            error: error.message
+        });
+    }
+});
+
+// @route   POST /api/reviews
+// @desc    Create a review (Hospital/Admin only)
+// @access  Private
+router.post('/', protect, authorize('admin'), async (req, res) => {
+    try {
+        const tenantQuery = getTenantQuery(req.user);
+        if (!tenantQuery) {
+            return res.status(403).json({ success: false, message: 'Hospital assignment required' });
+        }
+
+        const reviewData = {
+            ...pickAllowedFields(req.body, REVIEW_CREATE_FIELDS),
+            reviewer: req.user._id
+        };
+        reviewData.duty = normalizeObjectId(reviewData.duty, 'duty id');
+        reviewData.reviewedUser = normalizeObjectId(reviewData.reviewedUser, 'reviewed user id');
+        const duty = await Duty.findOne({ _id: reviewData.duty, ...tenantQuery }).select('_id');
+        const acceptedApplication = duty && await Application.exists({
+            duty: duty._id,
+            applicant: reviewData.reviewedUser,
+            status: 'ACCEPTED'
+        });
+        if (!duty || !acceptedApplication) {
+            return res.status(403).json({
+                success: false,
+                message: 'Reviews require an accepted application for your hospital duty'
+            });
+        }
+
+        const review = new Review(reviewData);
+        await review.save();
+
+        // Update user's overall rating
+        const User = require('../models/user');
+        const avgRatings = await Review.getUserAverageRating(reviewData.reviewedUser);
+        await User.findByIdAndUpdate(reviewData.reviewedUser, {
+            rating: avgRatings.avgRating
+        });
+
+        res.status(201).json({
+            success: true,
+            data: review,
+            message: 'Review submitted successfully'
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: 'Error creating review',
+            error: error.message
+        });
+    }
+});
+
+// @route   PUT /api/reviews/:id/respond
+// @desc    Respond to a review
+// @access  Private
+router.put('/:id/respond', protect, async (req, res) => {
+    try {
+        const reviewId = normalizeObjectId(req.params.id, 'review id');
+        const { comment } = req.body;
+
+        const review = await Review.findOne({
+            _id: reviewId,
+            reviewedUser: req.user._id
+        });
+
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                message: 'Review not found'
+            });
+        }
+
+        review.response = {
+            comment,
+            respondedAt: new Date()
+        };
+
+        await review.save();
+
+        res.json({
+            success: true,
+            data: review,
+            message: 'Response added successfully'
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: 'Error responding to review',
+            error: error.message
+        });
+    }
+});
+
+// @route   POST /api/reviews/:id/helpful
+// @desc    Mark review as helpful
+// @access  Private
+router.post('/:id/helpful', protect, async (req, res) => {
+    try {
+        const reviewId = normalizeObjectId(req.params.id, 'review id');
+        const review = await Review.findById(reviewId);
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                message: 'Review not found'
+            });
+        }
+
+        // Check if user already marked as helpful
+        if (review.helpful.users.includes(req.user._id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'You have already marked this review as helpful'
+            });
+        }
+
+        review.helpful.users.push(req.user._id);
+        review.helpful.count += 1;
+        await review.save();
+
+        res.json({
+            success: true,
+            data: review,
+            message: 'Marked as helpful'
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: 'Error marking review as helpful',
+            error: error.message
+        });
+    }
+});
+
+module.exports = router;

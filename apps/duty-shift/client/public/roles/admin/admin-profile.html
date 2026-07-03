@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Profile - Admin - Nocturnal</title>
+    <link rel="stylesheet" href="/css/pages/roles-admin-admin-profile.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/admin-session.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🏥 Nocturnal Admin</div>
+        <div class="nav-links">
+            <a href="/roles/admin/admin-dashboard.html">Dashboard</a>
+            <a href="/roles/admin/admin-post-duty.html">Post Duty</a>
+            <a href="/roles/admin/admin-applications.html">Applications</a>
+            <a href="/roles/admin/admin-analytics.html">Analytics</a>
+            <a href="/roles/admin/admin-waitlist.html">Waitlist</a>
+            <a href="/roles/admin/admin-settings.html">Settings</a>
+            <a href="/roles/admin/admin-profile.html" class="active">Profile</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <span id="userName">Loading...</span>
+            <button id="logout-btn" class="logout-btn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>Hospital Profile</h1>
+            <p>Manage your hospital information and contact details</p>
+        </div>
+
+        <div id="messageContainer"></div>
+
+        <div class="profile-section">
+            <div class="section-header">
+                <h2>Hospital Information</h2>
+                <div>
+                    <button id="editBtn" class="edit-btn">Edit Profile</button>
+                    <button id="cancelBtn" class="cancel-btn is-hidden">Cancel</button>
+                </div>
+            </div>
+
+            <form id="profileForm">
+                <div class="profile-grid">
+                    <div class="form-group">
+                        <label for="hospitalName">Hospital Name</label>
+                        <input type="text" id="hospitalName" name="hospital" disabled required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="location">Location</label>
+                        <input type="text" id="location" name="location" disabled required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="adminName">Administrator Name</label>
+                        <input type="text" id="adminName" name="name" disabled required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Contact Phone</label>
+                        <input type="tel" id="phone" name="phone" disabled placeholder="Enter phone number">
+                    </div>
+                </div>
+
+                <button type="submit" id="saveBtn" class="save-btn is-hidden">Save Changes</button>
+            </form>
+
+            <div class="account-info">
+                <p><strong>Account Email:</strong> <span id="emailDisplay">-</span></p>
+                <p><strong>Account Type:</strong> Hospital Administrator</p>
+                <p><strong>User ID:</strong> <span id="userIdDisplay">-</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/admin-profile.js"></script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

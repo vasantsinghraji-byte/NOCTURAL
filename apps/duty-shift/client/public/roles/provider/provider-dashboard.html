@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <title>Provider Dashboard - Nocturnal</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="/css/pages/roles-provider-provider-dashboard.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/provider-session.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="provider-info">
+                <h2 id="providerName">Provider</h2>
+                <div class="provider-role" id="providerRole">Healthcare Professional</div>
+            </div>
+            <button class="btn-logout" id="logoutButton" type="button">Logout</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="stats-grid" id="stats">
+            <div class="stat-card">
+                <div class="icon">📋</div>
+                <h3 id="todayBookings">0</h3>
+                <p>Today's Bookings</p>
+            </div>
+            <div class="stat-card">
+                <div class="icon">✅</div>
+                <h3 id="completedToday">0</h3>
+                <p>Completed</p>
+            </div>
+            <div class="stat-card">
+                <div class="icon">💰</div>
+                <h3 id="todayEarnings">₹0</h3>
+                <p>Today's Earnings</p>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-status="ASSIGNED" type="button">New</button>
+            <button class="tab" data-status="CONFIRMED" type="button">Confirmed</button>
+            <button class="tab" data-status="EN_ROUTE" type="button">En Route</button>
+            <button class="tab" data-status="IN_PROGRESS" type="button">In Progress</button>
+            <button class="tab" data-status="COMPLETED" type="button">Completed</button>
+        </div>
+
+        <div id="messageDiv"></div>
+
+        <div id="bookingsList">
+            <div class="loading">Loading bookings...</div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active">
+            <span class="nav-icon">🏠</span>
+            <div class="nav-label">Home</div>
+        </div>
+    </div>
+
+    <script src="/js/provider-dashboard.js"></script>
+</body>
+</html>
