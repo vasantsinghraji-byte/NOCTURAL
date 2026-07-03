@@ -19,6 +19,10 @@ Facts that matter:
   see the blueprint's Approval Record).
 - Nothing here may be deleted, renamed, or "cleaned up" without the explicit
   approvals defined in the blueprint (Phase 6).
+- **CodeQL intentionally ignores this folder** (`.github/codeql/codeql-config.yml`):
+  findings inherited from the originals cannot be fixed here without breaking
+  the hash-identical mirror guarantee. The root originals remain fully scanned,
+  and security fixes land at the root (Decision Log, 2026-07-03).
 
 Contents (mirrored from root at copy time):
 

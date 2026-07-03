@@ -155,6 +155,7 @@ npm run lint:baseline
 | 2026-06-29 | Keep `mobileDevices.js` and `webAuthn.js` root-owned during Phase 1 | They use `protectBoth` from root `patientAuth` | User |
 | 2026-07-02 | Add `spamTrap`, `authTokens`, `localFileSystem` to `@nocturnal/shared` (30 exports) | Phase 3 dependency trace surfaced them; root usage shows they are genuinely shared; app-local copies would duplicate shared security code | Owner / Tech Lead (Phase 3 execution) |
 | 2026-07-03 | Keep Phase 3 CodeQL fix scoped to `apps/patient-health` copy | PR #142 was the split-app phase; monolith originals can be cleaned separately to avoid mixing phases | Owner / Tech Lead (Phase 3 closeout) |
+| 2026-07-03 | Exclude `apps/duty-shift/**` from CodeQL via `.github/codeql/codeql-config.yml` | PR #143 CodeQL flagged 26 inherited alerts in the parked mirror; fixing them in place would break the copy-only hash-identity guarantee. Root originals remain fully scanned; alerts are fixed at the root | Owner / Tech Lead (Phase 4 closeout) |
 
 ## Next Course of Action
 
