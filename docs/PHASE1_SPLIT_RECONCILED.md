@@ -4,30 +4,30 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 # NOCTURNAL Restructure Roadmap
 
-> Status: **PHASE 2 COMPLETE — Phase 3+ blocked pending approval.**
+> Status: **PHASE 3 COMPLETE — merged to develop; Phase 4 blocked pending approval.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
-> Branch at time of writing: `refactor/restructure-phase1-split`, Phase 2 complete.
+> Current develop merge: PR #142 (`cefba40`) includes Phases 0-3.
 
 ## Document Control
 
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | In Execution — Phase 1 complete |
-| Version | v1.4 |
+| Status | In Execution — Phase 3 complete |
+| Version | v1.5 |
 | Owner | VASANT SINGH RAJI |
-| Last Updated | 2026-07-02 |
-| Next Review Date | At Phase 3 approval |
-| Approved For Execution | Phases 0–3 (Phase 3 approved 2026-07-02). **Phase 4+ NOT yet approved** — see Approval Record. |
+| Last Updated | 2026-07-03 |
+| Next Review Date | At Phase 4 approval |
+| Approved For Execution | Phases 0-3 complete and merged. **Phase 4+ NOT yet approved** — see Approval Record. |
 
 ## Current Phase Tracker
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 3 — Complete (2026-07-02) |
-| Execution Status | Phases 0–2 complete (PR #141 into develop); Phase 3 complete on branch `refactor/restructure-phase3-patient-health`; Phase 4 blocked pending approval |
+| Current Phase | Phase 3 — Complete and merged (2026-07-03) |
+| Execution Status | Phases 0-2 merged via PR #141; Phase 3 merged via PR #142; no restructure PRs remain open; Phase 4 blocked pending approval |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | Phase 3: 78 mirrored copies + 3 wiring files; 85 shared-import rewrites; 0 unresolved imports; all 9 route modules load; isolated boot on :5001 with DB connected, `/api/v1/health` HTTP 200; monolith loads; `npm test` 931 passed / 145 suites; eslint 0 errors; `lint:baseline` 121 warnings (max 294) |
+| Last Validation Result | Phase 3 PR #142: CodeQL and CodeQL Alert Gate passed after fix `2e28cb5`; Run Tests, Code Linting, CODEOWNERS Security Governance Gate, Secret Scanning, Security Audit, Container Smoke Build, Deployment Gate, and Public Funnel E2E passed; open PR count confirmed 0; local `develop` fast-forwarded to `cefba40` |
 | Next Required Approval | Tech Lead approval for Phase 4 start |
 
 ## Approval Record
@@ -39,6 +39,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 | Phase 1 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed start of Phase 1 |
 | Phase 2 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed start of Phase 2 (workspaces) |
 | Phase 3 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed via "do the Next Steps"; gate precondition met (shared package validated, no-eager-load regression test in place) |
+| Phase 4 Start (Tech Lead) | Pending | — | — |
 | Phase 5 Start (Product Owner — duty-shift dormancy) | Pending | — | — |
 | Phase 6 Start (Tech Lead / Owner — deletion batches) | Pending | — | — |
 
@@ -62,7 +63,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 
 **Objective:** Convert NOCTURNAL into a clean monorepo without breaking the existing app.
 
-**Current Mode:** Phase 2 complete. Phase 3+ remains blocked until approval.
+**Current Mode:** Phase 3 complete and merged. Phase 4 remains blocked until Tech Lead approval.
 
 **Core Strategy:** Copy first, verify, then cut over later.
 
@@ -126,6 +127,7 @@ Stop immediately if:
 |---|---|---|
 | Phase 1 Start | Branch confirmed, repo clean, baseline documented | Tech Lead |
 | Phase 3 Start | Shared package validated and no eager-loading confirmed | Tech Lead |
+| Phase 4 Start | Phase 3 merged, patient-health copy validated, develop clean | Tech Lead |
 | Phase 5 Start | Duty-shift dormancy explicitly approved | Product Owner |
 | Phase 6 Start | Duplicate files and one-off scripts reviewed | Tech Lead / Owner |
 
@@ -152,6 +154,15 @@ npm run lint:baseline
 | 2026-06-29 | Use lazy exports or sub-barrels for shared package | Avoid import-time side effects | User |
 | 2026-06-29 | Keep `mobileDevices.js` and `webAuthn.js` root-owned during Phase 1 | They use `protectBoth` from root `patientAuth` | User |
 | 2026-07-02 | Add `spamTrap`, `authTokens`, `localFileSystem` to `@nocturnal/shared` (30 exports) | Phase 3 dependency trace surfaced them; root usage shows they are genuinely shared; app-local copies would duplicate shared security code | Owner / Tech Lead (Phase 3 execution) |
+| 2026-07-03 | Keep Phase 3 CodeQL fix scoped to `apps/patient-health` copy | PR #142 was the split-app phase; monolith originals can be cleaned separately to avoid mixing phases | Owner / Tech Lead (Phase 3 closeout) |
+
+## Next Course of Action
+
+1. Start Phase 4 only after Tech Lead approval is recorded in the Approval Record.
+2. Create a fresh Phase 4 branch from current `origin/develop`.
+3. Copy duty-shift code into `apps/duty-shift` as parked mirrored code only.
+4. Do not unmount duty-shift routes, delete originals, or change behavior in Phase 4.
+5. Keep Phase 5 blocked until explicit Product Owner approval for duty-shift dormancy.
 
 ## Glossary
 
@@ -436,16 +447,18 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **After Completion:** Run node checks/import validation, record changed files, and request Phase 4 approval.
 
 **Phase 3 Checklist:**
-- [ ] Create `apps/patient-health` folders.
-- [ ] Copy confirmed routes/controllers/services/models/validators/constants.
-- [ ] Copy patient frontend HTML and JS from `client/public`.
-- [ ] Copy patient-owned support files from dependency trace.
-- [ ] Rewrite only shared imports to `@nocturnal/shared`.
-- [ ] Keep intra-app imports relative.
-- [ ] Add dev/validation-only entrypoint/router.
-- [ ] Run `node --check` on changed JS files.
-- [ ] Confirm no `Cannot find module` errors.
-- [ ] Verify patient login, health intake, dashboard, booking, and B2C payment paths remain testable.
+- [x] Create `apps/patient-health` folders.
+- [x] Copy confirmed routes/controllers/services/models/validators/constants.
+- [x] Copy patient frontend HTML and JS from `client/public`.
+- [x] Copy patient-owned support files from dependency trace.
+- [x] Rewrite only shared imports to `@nocturnal/shared`.
+- [x] Keep intra-app imports relative.
+- [x] Add dev/validation-only entrypoint/router.
+- [x] Run `node --check` on changed JS files.
+- [x] Confirm no `Cannot find module` errors.
+- [x] Verify patient login, health intake, dashboard, booking, and B2C payment paths remain testable.
+- [x] Resolve PR #142 CodeQL findings without broadening Phase 3 scope.
+- [x] Merge PR #142 into `develop` and fast-forward local `develop` to `cefba40`.
 
 **Why:** Patient-health is the Phase 1 product and should become independently understandable without duty-shift clutter.
 **What to do:**
