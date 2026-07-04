@@ -73,6 +73,12 @@ const loginValidation = [
     .withMessage('Password is required')
 ];
 
+const verifyPasswordValidation = [
+  body('password')
+    .isString().withMessage('Password must be a string')
+    .notEmpty().withMessage('Password is required')
+];
+
 const changePasswordValidation = [
   body('currentPassword').notEmpty().withMessage('Current password is required'),
   body('newPassword')
@@ -151,7 +157,7 @@ router.route('/me')
   .put(updateMe);
 
 router.get('/me/stats', getBookingStats);
-router.post('/me/verify-password', verifyPassword);
+router.post('/me/verify-password', verifyPasswordValidation, validate, verifyPassword);
 router.put('/me/change-password', changePasswordValidation, validate, idempotency({ route: 'patients/change-password', required: true }), changePassword);
 router.get('/me/sessions', listSessions);
 router.delete('/me/sessions/:sessionId', revokeSession);
