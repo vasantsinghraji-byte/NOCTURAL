@@ -39,9 +39,12 @@ router.post(
   '/verify',
   protectPatient,
   [
-    body('razorpay_order_id').notEmpty().withMessage('Order ID is required'),
-    body('razorpay_payment_id').notEmpty().withMessage('Payment ID is required'),
-    body('razorpay_signature').notEmpty().withMessage('Payment signature is required'),
+    body('razorpay_order_id').isString().withMessage('Order ID must be a string')
+      .notEmpty().withMessage('Order ID is required'),
+    body('razorpay_payment_id').isString().withMessage('Payment ID must be a string')
+      .notEmpty().withMessage('Payment ID is required'),
+    body('razorpay_signature').isString().withMessage('Payment signature must be a string')
+      .notEmpty().withMessage('Payment signature is required'),
     body('bookingId')
       .notEmpty().withMessage('Booking ID is required')
       .isMongoId().withMessage('Invalid booking ID format'),

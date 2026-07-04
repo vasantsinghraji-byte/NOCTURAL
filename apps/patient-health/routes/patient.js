@@ -74,7 +74,9 @@ const loginValidation = [
 ];
 
 const verifyPasswordValidation = [
-  body('password').notEmpty().withMessage('Password is required')
+  body('password')
+    .isString().withMessage('Password must be a string')
+    .notEmpty().withMessage('Password is required')
 ];
 
 const changePasswordValidation = [

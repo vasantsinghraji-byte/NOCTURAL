@@ -218,13 +218,9 @@ exports.getBookingStats = async (req, res, next) => {
  */
 exports.verifyPassword = async (req, res, next) => {
   try {
-    const { password } = req.body;
-
-    if (!password) {
-      return responseHelper.sendBadRequest(res, 'Password is required');
-    }
-
-    const isValid = await patientService.verifyPassword(req.user.id, password);
+    // Presence/type validation lives in the route chain (routes/patient.js);
+    // the password comparison always runs — no user-controlled early return.
+    const isValid = await patientService.verifyPassword(req.user.id, req.body.password);
 
     responseHelper.sendSuccess(res, { isValid }, 'Password verification completed');
   } catch (error) {
