@@ -4,30 +4,30 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 # NOCTURNAL Restructure Roadmap
 
-> Status: **PHASE 4 COMPLETE — merged to develop; Phase 5 blocked pending Product Owner dormancy approval.**
+> Status: **PHASE 4 COMPLETE + FOLLOW-UP HARDENING MERGED — Phase 5 blocked pending Product Owner dormancy approval.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
-> Current develop tip: `e5476b3` = PR #144 (duty-shift security fixes) on top of PR #143 (`3de2a2b`, Phase 4). Phases 0-4 all merged.
+> Current develop tip: `17ca90f` = PR #146 (pre-commit hook speedup + password-pattern fix) on top of PR #145 (`2fd19d0`, governance + mirror guard), PR #144 (`e5476b3`, duty-shift security fixes), and PR #143 (`3de2a2b`, Phase 4). Phases 0-4 and approved follow-ups are merged.
 
 ## Document Control
 
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | In Execution — Phase 4 complete |
-| Version | v1.6 |
+| Status | In Execution — Phase 4 complete; follow-up hardening merged |
+| Version | v1.7 |
 | Owner | VASANT SINGH RAJI |
-| Last Updated | 2026-07-03 |
+| Last Updated | 2026-07-04 |
 | Next Review Date | At Phase 5 dormancy decision (see `docs/PHASE5_DECISION_BRIEF.md`) |
-| Approved For Execution | Phases 0-4 (Phase 4 approved 2026-07-03). **Phase 5+ NOT yet approved** — see Approval Record. |
+| Approved For Execution | Phases 0-4 plus approved governance/hook follow-ups. **Phase 5+ NOT yet approved** — see Approval Record. |
 
 ## Current Phase Tracker
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 4 — Complete and merged (2026-07-03) |
-| Execution Status | Phases 0-4 merged: PR #141 (Phases 0-2), PR #142 (Phase 3), PR #143 (Phase 4, `3de2a2b`), plus PR #144 (standalone duty-shift NoSQL-injection fixes, `e5476b3`). Phase 5 blocked pending Product Owner dormancy approval |
+| Current Phase | Phase 4 — Complete and merged; Phase 5 blocked |
+| Execution Status | Phases 0-4 merged: PR #141 (Phases 0-2), PR #142 (Phase 3), PR #143 (Phase 4, `3de2a2b`), PR #144 (standalone duty-shift NoSQL-injection fixes, `e5476b3`), PR #145 (governance + mirror guard, `2fd19d0`), and PR #146 (hook speedup + password-pattern fix, `17ca90f`). Phase 5 blocked pending Product Owner dormancy approval |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | Phase 4 (PR #143): all checks green after CodeQL exclusion for the parked mirror; 46 copies hash-identical. PR #144: all checks green; develop ref now has 0 open `js/sql-injection` instances (main's 8 auto-close at next develop → main promotion) |
+| Last Validation Result | PR #145: mirror-integrity guard added and full suite green (146 suites / 1057 tests). PR #146: refreshed onto PR #145, all checks green, then merged. PR #144: develop ref has 0 open `js/sql-injection` instances (main's 8 auto-close at next develop → main promotion) |
 | Next Required Approval | Product Owner dormancy approval for Phase 5 start (decision packet: `docs/PHASE5_DECISION_BRIEF.md`) |
 
 ## Approval Record
@@ -63,7 +63,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 
 **Objective:** Convert NOCTURNAL into a clean monorepo without breaking the existing app.
 
-**Current Mode:** Phase 3 complete and merged. Phase 4 remains blocked until Tech Lead approval.
+**Current Mode:** Phase 4 and approved follow-up hardening are merged. Phase 5 remains blocked until Product Owner dormancy approval.
 
 **Core Strategy:** Copy first, verify, then cut over later.
 
@@ -156,10 +156,12 @@ npm run lint:baseline
 | 2026-07-02 | Add `spamTrap`, `authTokens`, `localFileSystem` to `@nocturnal/shared` (30 exports) | Phase 3 dependency trace surfaced them; root usage shows they are genuinely shared; app-local copies would duplicate shared security code | Owner / Tech Lead (Phase 3 execution) |
 | 2026-07-03 | Keep Phase 3 CodeQL fix scoped to `apps/patient-health` copy | PR #142 was the split-app phase; monolith originals can be cleaned separately to avoid mixing phases | Owner / Tech Lead (Phase 3 closeout) |
 | 2026-07-03 | Exclude `apps/duty-shift/**` from CodeQL via `.github/codeql/codeql-config.yml` | PR #143 CodeQL flagged 26 inherited alerts in the parked mirror; fixing them in place would break the copy-only hash-identity guarantee. Root originals remain fully scanned; alerts are fixed at the root | Owner / Tech Lead (Phase 4 closeout) |
+| 2026-07-04 | Add mirror-integrity guard and Phase 5/6 governance packets before route cutover | PR #145 caught real duty-shift mirror drift from PR #144, restored hash identity, and made Phase 5/6 decisions explicit without starting Phase 5 | Owner / Tech Lead (follow-up hardening) |
+| 2026-07-04 | Speed up the pre-commit secret scan and fix the generic password detector | PR #146 reduced hook runtime and corrected the POSIX character-class bug that made the password pattern miss valid assignments | Owner / Tech Lead (follow-up hardening) |
 
 ## Next Course of Action
 
-1. Phase 4 is complete and merged (PR #143). Do not touch `apps/duty-shift` except via the drift-guard rules.
+1. Phase 4 and approved follow-ups are complete and merged through PR #146 (`17ca90f`). Do not touch `apps/duty-shift` except via the drift-guard rules.
 2. Keep Phase 5 blocked until explicit Product Owner approval for duty-shift dormancy — decision packet: `docs/PHASE5_DECISION_BRIEF.md`.
 3. Prepare (but do not execute) Phase 6 using `docs/PHASE6_DELETION_CANDIDATES.md`.
 4. Handle remaining CodeQL findings as separate `fix/` security PRs (`docs/CODEQL_BACKLOG.md`), never inside restructure phases.
@@ -502,14 +504,17 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **After Completion:** Confirm copies and originals exist, document changed files, and request route-separation discussion only if needed.
 
 **Phase 4 Checklist:**
-- [ ] Create `apps/duty-shift` folders.
-- [ ] Copy duty-shift models.
-- [ ] Copy duty-shift routes.
-- [ ] Copy duty-shift controllers/services.
-- [ ] Copy admin/doctor/provider frontend folders.
-- [ ] Confirm originals still exist.
-- [ ] Confirm no route unmounting happened.
-- [ ] Confirm patient app still runs.
+- [x] Create `apps/duty-shift` folders.
+- [x] Copy duty-shift models.
+- [x] Copy duty-shift routes.
+- [x] Copy duty-shift controllers/services.
+- [x] Copy admin/doctor/provider frontend folders.
+- [x] Confirm originals still exist.
+- [x] Confirm no route unmounting happened.
+- [x] Confirm patient app still runs.
+- [x] Add parked-code README and CodeQL mirror exclusion rationale.
+- [x] Add mirror-integrity guard for parked copies.
+- [x] Merge Phase 4 and follow-ups into `develop` through PR #146 (`17ca90f`).
 
 **Why:** Duty-shift must be preserved, not deleted, while Phase 1 focuses on patient-health.
 **What to do:**
