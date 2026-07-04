@@ -220,7 +220,9 @@ exports.verifyPassword = async (req, res, next) => {
   try {
     const { password } = req.body;
 
-    if (!password) {
+    // Type-safe guard: only a non-empty string may reach password
+    // comparison; non-string payloads must not flow into bcrypt.
+    if (typeof password !== 'string' || password.length === 0) {
       return responseHelper.sendBadRequest(res, 'Password is required');
     }
 

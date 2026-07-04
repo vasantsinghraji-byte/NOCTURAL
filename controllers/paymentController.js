@@ -53,7 +53,15 @@ exports.verifyPayment = async (req, res, next) => {
       bookingId
     } = req.body;
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !bookingId) {
+    // Type-safe guard: only non-empty strings may reach signature
+    // verification. Objects/arrays can pass route-level notEmpty() checks
+    // and must not flow into HMAC comparison.
+    if (
+      typeof razorpay_order_id !== 'string' || razorpay_order_id.length === 0 ||
+      typeof razorpay_payment_id !== 'string' || razorpay_payment_id.length === 0 ||
+      typeof razorpay_signature !== 'string' || razorpay_signature.length === 0 ||
+      typeof bookingId !== 'string' || bookingId.length === 0
+    ) {
       return responseHelper.sendBadRequest(res, 'Missing payment verification details');
     }
 
