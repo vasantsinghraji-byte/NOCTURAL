@@ -4,31 +4,31 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 # NOCTURNAL Restructure Roadmap
 
-> Status: **PHASE 3 COMPLETE — merged to develop; Phase 4 blocked pending approval.**
+> Status: **PHASE 4 COMPLETE — merged to develop; Phase 5 blocked pending Product Owner dormancy approval.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
-> Current develop merge: PR #142 (`cefba40`) includes Phases 0-3.
+> Current develop tip: `e5476b3` = PR #144 (duty-shift security fixes) on top of PR #143 (`3de2a2b`, Phase 4). Phases 0-4 all merged.
 
 ## Document Control
 
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | In Execution — Phase 3 complete |
-| Version | v1.5 |
+| Status | In Execution — Phase 4 complete |
+| Version | v1.6 |
 | Owner | VASANT SINGH RAJI |
 | Last Updated | 2026-07-03 |
-| Next Review Date | At Phase 4 approval |
+| Next Review Date | At Phase 5 dormancy decision (see `docs/PHASE5_DECISION_BRIEF.md`) |
 | Approved For Execution | Phases 0-4 (Phase 4 approved 2026-07-03). **Phase 5+ NOT yet approved** — see Approval Record. |
 
 ## Current Phase Tracker
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 4 — Complete (2026-07-03) |
-| Execution Status | Phases 0-3 merged (PRs #141, #142); Phase 4 complete on branch `refactor/restructure-phase4-duty-shift`; Phase 5 blocked pending Product Owner dormancy approval |
+| Current Phase | Phase 4 — Complete and merged (2026-07-03) |
+| Execution Status | Phases 0-4 merged: PR #141 (Phases 0-2), PR #142 (Phase 3), PR #143 (Phase 4, `3de2a2b`), plus PR #144 (standalone duty-shift NoSQL-injection fixes, `e5476b3`). Phase 5 blocked pending Product Owner dormancy approval |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | Phase 4: 46 copy-only files under `apps/duty-shift` (26 backend, 20 frontend) all hash-identical to originals; originals untouched; no route changes; monolith and patient-health app both load; `npm test` 931 passed / 145 suites; eslint 0 errors; `lint:baseline` 121 warnings (max 294, unchanged) |
-| Next Required Approval | Tech Lead approval for Phase 4 start |
+| Last Validation Result | Phase 4 (PR #143): all checks green after CodeQL exclusion for the parked mirror; 46 copies hash-identical. PR #144: all checks green; develop ref now has 0 open `js/sql-injection` instances (main's 8 auto-close at next develop → main promotion) |
+| Next Required Approval | Product Owner dormancy approval for Phase 5 start (decision packet: `docs/PHASE5_DECISION_BRIEF.md`) |
 
 ## Approval Record
 
@@ -159,11 +159,19 @@ npm run lint:baseline
 
 ## Next Course of Action
 
-1. Start Phase 4 only after Tech Lead approval is recorded in the Approval Record.
-2. Create a fresh Phase 4 branch from current `origin/develop`.
-3. Copy duty-shift code into `apps/duty-shift` as parked mirrored code only.
-4. Do not unmount duty-shift routes, delete originals, or change behavior in Phase 4.
-5. Keep Phase 5 blocked until explicit Product Owner approval for duty-shift dormancy.
+1. Phase 4 is complete and merged (PR #143). Do not touch `apps/duty-shift` except via the drift-guard rules.
+2. Keep Phase 5 blocked until explicit Product Owner approval for duty-shift dormancy — decision packet: `docs/PHASE5_DECISION_BRIEF.md`.
+3. Prepare (but do not execute) Phase 6 using `docs/PHASE6_DELETION_CANDIDATES.md`.
+4. Handle remaining CodeQL findings as separate `fix/` security PRs (`docs/CODEQL_BACKLOG.md`), never inside restructure phases.
+
+## Develop → Main Promotion Checklist
+
+Run through this whenever develop is next promoted to `main`:
+
+- [ ] All restructure-phase PRs intended for the release are merged and the tracker above reflects reality.
+- [ ] `npm run test:deploy-gate` green on the promotion candidate.
+- [ ] After the promotion merge, confirm the **8 `js/sql-injection` alerts pinned to `refs/heads/main`** (alerts 50–54, 56, 57, 59 — fixed on develop by PR #144) **auto-close** once main's CodeQL analysis completes. If they remain open, investigate before announcing the release.
+- [ ] Re-check open alert counts on `main` vs `develop` refs match expectations (`gh api .../code-scanning/alerts?ref=...`).
 
 ## Glossary
 

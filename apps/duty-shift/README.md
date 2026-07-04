@@ -24,6 +24,11 @@ Facts that matter:
   the hash-identical mirror guarantee. The root originals remain fully scanned,
   and security fixes land at the root (Decision Log, 2026-07-03).
 
+Mirror refreshes (copy-only, root → mirror): `routes/payments.js` and
+`services/applicationService.js` re-copied 2026-07-03 to carry the PR #144
+NoSQL-injection fixes; byte-identity with root restored and enforced by
+`tests/unit/infrastructure/app-mirror-integrity.test.js`.
+
 Contents (mirrored from root at copy time):
 
 | Group | Files |
