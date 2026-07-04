@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const { sanitizeInput } = require('../middleware/validation');
+const { normalizeObjectId } = require('../utils/safeMongo');
 const Payment = require('../models/payment');
 const Duty = require('../models/duty');
 const User = require('../models/user');
@@ -61,7 +62,9 @@ router.get('/history', protect, async (req, res) => {
       ? { doctor: req.user._id }
       : { hospital: req.user._id };
 
-    if (status) {
+    // Only accept plain string statuses so query-string bracket syntax
+    // (e.g. ?status[$ne]=x) cannot inject Mongo operators.
+    if (status && typeof status === 'string') {
       query.status = status;
     }
 
@@ -133,8 +136,18 @@ router.post('/', protect, async (req, res) => {
 
     const { dutyId, doctorId, paymentTimeline } = req.body;
 
+    // Reject non-ObjectId payloads before they reach query operators.
+    let safeDutyId;
+    let safeDoctorId;
+    try {
+      safeDutyId = normalizeObjectId(dutyId, 'dutyId');
+      safeDoctorId = normalizeObjectId(doctorId, 'doctorId');
+    } catch (validationError) {
+      return res.status(400).json({ success: false, message: validationError.message });
+    }
+
     // Validate duty
-    const duty = await Duty.findById(dutyId);
+    const duty = await Duty.findById(safeDutyId);
     if (!duty) {
       return res.status(404).json({ success: false, message: 'Duty not found' });
     }
@@ -144,13 +157,13 @@ router.post('/', protect, async (req, res) => {
     }
 
     // Validate doctor
-    const doctor = await User.findById(doctorId);
+    const doctor = await User.findById(safeDoctorId);
     if (!doctor || doctor.role !== 'doctor') {
       return res.status(404).json({ success: false, message: 'Doctor not found' });
     }
 
     // Check if payment already exists
-    const existingPayment = await Payment.findOne({ duty: dutyId, doctor: doctorId });
+    const existingPayment = await Payment.findOne({ duty: safeDutyId, doctor: safeDoctorId });
     if (existingPayment) {
       return res.status(400).json({ success: false, message: 'Payment already exists for this shift' });
     }
@@ -175,8 +188,8 @@ router.post('/', protect, async (req, res) => {
 
     // Create payment
     const payment = await Payment.create({
-      duty: dutyId,
-      doctor: doctorId,
+      duty: safeDutyId,
+      doctor: safeDoctorId,
       hospital: req.user._id,
       grossAmount,
       platformFee,
