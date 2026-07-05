@@ -121,10 +121,12 @@ exports.validateMongoId = [
 
 // Sanitize user input
 exports.sanitizeInput = (req, res, next) => {
-  // Remove any HTML tags from string inputs
+  // Remove any HTML tags from string inputs. Use [^<>] (not [^>]) so a run of
+  // '<' characters cannot force quadratic backtracking (polynomial ReDoS) — a
+  // tag never legitimately spans an inner '<'.
   const sanitizeString = (str) => {
     if (typeof str === 'string') {
-      return str.replace(/<[^>]*>/g, '');
+      return str.replace(/<[^<>]*>/g, '');
     }
     return str;
   };
