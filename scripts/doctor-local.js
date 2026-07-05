@@ -16,7 +16,7 @@ function quoteForShell(value) {
     return value;
   }
 
-  return `"${value.replace(/"/g, '\\"')}"`;
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
 function runCommand(command, args = [], options = {}) {
@@ -160,4 +160,10 @@ function main() {
   process.exit(1);
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  quoteForShell
+};
