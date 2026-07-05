@@ -1,64 +1,101 @@
-# Phase 5 Decision Brief — Duty-Shift Dormancy (Product Owner Approval Packet)
+# Phase 5 Decision Brief — Patient-Health Split Continuation (Duty-Shift Live)
 
-> **Decision requested from the Product Owner:** May duty-shift go dormant — i.e., may its API routes be unmounted from the live monolith?
-> Until this is approved and recorded in the blueprint's Approval Record, **no route separation work may start.**
-> Prepared 2026-07-03 against develop `e5476b3` (Phases 0–4 merged). Companion to `PHASE1_SPLIT_RECONCILED.md` (Phase 5).
+> **Product Owner decision recorded 2026-07-05:** Duty-shift must **not** go dormant. All existing duty-shift routes stay live while Phase 5 continues the patient-health split.
+> This supersedes the earlier dormancy/unmounting brief. Phase 5 implementation may not unmount, disable, redirect, pause, or delete duty-shift behavior.
+> Prepared against develop `7d41487` (Phases 0-4 and follow-up PRs #145-#150 merged). Companion to `PHASE1_SPLIT_RECONCILED.md` (Phase 5).
 
-## What "dormant" means here
+## Decision
 
-Route unmounting only. The code is already preserved twice (live at repo root, parked mirror in `apps/duty-shift`). Nothing is deleted; no schema, auth, or payment logic changes. Dormancy is reversible by a single revert.
+Duty-shift remains live in the monolith. The `apps/duty-shift` copy remains a parked mirror for ownership clarity and drift protection, not a replacement for the live root route mounts.
 
-## Exact routes that would be disabled
+Phase 5 therefore becomes **patient-health-only split continuation**. The approved first slice is **Phase 5-A: validation scripts, test coverage, and import ownership cleanup**. It advances patient-health separation without runtime router isolation or staging runtime changes.
 
-All mounted in `routes/v1/index.js`; unmounting is an explicit wiring change there (and, optionally, the now-inert rate-limiter mounts in `app.js`).
+## Explicitly preserved route behavior
 
-| Mount | Disposition |
+These mounts must stay available unless a later, separate Product Owner decision changes the product direction.
+
+| Mount | Phase 5 disposition |
 |---|---|
-| `/api/v1/duties` | Disable |
-| `/api/v1/applications` | Disable |
-| `/api/v1/calendar` | Disable |
-| `/api/v1/earnings` | Disable |
-| `/api/v1/certifications` | Disable |
-| `/api/v1/reviews` | Disable |
-| `/api/v1/achievements` | Disable |
-| `/api/v1/shift-series` | Disable |
-| `/api/v1/hospital-settings` | Disable |
-| `/api/v1/hospital-waitlist` | Disable |
+| `/api/v1/duties` | Preserve live |
+| `/api/v1/applications` | Preserve live |
+| `/api/v1/calendar` | Preserve live |
+| `/api/v1/earnings` | Preserve live |
+| `/api/v1/certifications` | Preserve live |
+| `/api/v1/reviews` | Preserve live |
+| `/api/v1/achievements` | Preserve live |
+| `/api/v1/shift-series` | Preserve live |
+| `/api/v1/hospital-settings` | Preserve live |
+| `/api/v1/hospital-waitlist` | Preserve live |
 
-**Explicitly preserved (blueprint-mandated):** `/api/v1/payments` (unconditional) and feature-flagged `/api/v1/payments-b2c`; all auth (`/auth`, `/mobile-devices`, `/webauthn`), `/uploads`, `/notifications`, `/security`, `/staging`, admin mounts, and every patient-health route.
+**Also preserved:** `/api/v1/payments` (unconditional), feature-flagged `/api/v1/payments-b2c`, all auth routes (`/auth`, `/mobile-devices`, `/webauthn`), `/uploads`, `/notifications`, `/security`, `/staging`, admin mounts, and every patient-health route.
 
-**Needs a classification decision before wiring (currently "Shared/TBD" in the Phase 0 baseline):** `/messages`, `/analytics`, `/funnel-events`. Recommend deciding these in the same approval so the wiring change is done once.
+**Shared/TBD mounts remain untouched in Phase 5:** `/messages`, `/analytics`, `/funnel-events`. They are not part of patient-health-only split continuation unless separately approved.
 
-## Affected consumers (verified 2026-07-03)
+## Allowed Phase 5 work
 
-- **Doctor frontend** — 7 pages under `client/public/roles/doctor/` reference duty/application/earnings endpoints. These pages break (404s) once routes unmount unless they are parked/redirected at the same time.
-- **Shared frontend modules** — `client/public/api.js`, `js/unified-nav.js`, `js/pagination.js`, `js/config.js`, `js/resource-hints.js` reference duty-shift endpoints; admin/provider pages consume through this shared layer.
-- **Mobile app** — the Capacitor app wraps this same PWA, so mobile doctor/provider users are equally affected. App-store releases lag web deploys; dormancy timing must account for released binaries still calling these endpoints.
-- **Patient product — zero references** to duty endpoints (verified by grep across `client/public/roles/patient/` and `js/patient-*.js`). Patient-health is unaffected.
-- **External/API consumers** — none known, but not provable from the repo. If any hospital partner scripts call these endpoints directly, dormancy breaks them silently. PO should confirm from the product side.
+- Improve patient-health app isolation and validation wiring.
+- Keep patient-health imports pointed at approved app-local or `@nocturnal/shared` ownership.
+- Add or update tests that prove patient-health behavior remains available.
+- Add or update tests that prove duty-shift routes remain mounted.
+- Update docs to match the live-duties decision.
+
+## Approved Phase 5-A scope
+
+Phase 5-A is limited to:
+
+1. **Validation scripts** — repeatable checks for patient-health imports, route availability expectations, and no missing modules.
+2. **Test coverage** — focused tests that prove patient-health behavior remains reachable and duty-shift routes remain mounted.
+3. **Import ownership cleanup** — patient-health-only import path/ownership corrections where they do not change runtime behavior.
+
+Explicitly out of scope for Phase 5-A:
+
+- Router isolation or production route rewiring.
+- Staging-only runtime preparation.
+- Duty-shift route, controller, service, model, frontend, or mirror changes except documented mirror-drift corrections.
+- Auth, payment, schema, package-version, or deployment configuration changes.
+
+## Not allowed in Phase 5
+
+- No duty-shift route unmounting.
+- No duty-shift route redirects or maintenance responses.
+- No duty-shift deletion.
+- No auth, payment, schema, or package-version changes.
+- No disabling route/frontend/deploy tests to force progress.
+- No edits to `apps/duty-shift` except through documented mirror-drift rules.
+
+## Affected consumers
+
+Because duty-shift stays live, existing doctor/admin/provider and mobile consumers should continue to see the same route behavior.
+
+- **Doctor frontend** — remains expected to call duty/application/earnings endpoints successfully.
+- **Shared frontend modules** — continue to expose existing duty-shift endpoint helpers.
+- **Mobile app** — released binaries continue using the current PWA/backend behavior.
+- **Patient product** — continues to split independently; patient flows must remain unaffected.
+- **External/API consumers** — stay compatible because route contracts remain live.
 
 ## Rollback plan
 
-1. Dormancy is delivered as **one wiring commit** touching only `routes/v1/index.js` (and optionally `app.js` limiter mounts).
-2. Rollback = `git revert <that commit>` — no data, schema, or dependency changes to unwind.
-3. Route/frontend-contract tests re-run after revert must return to the pre-dormancy baseline.
-4. Pause condition (blueprint): if any contract test fails unexpectedly or payment/auth behavior changes, stop — do not disable tests.
+1. Phase 5-A changes must be patient-health-only and delivered in reviewable commits.
+2. Rollback = revert the Phase 5-A patient-health commits.
+3. After rollback, patient-health, duty-shift, payment, and auth route behavior must return to the pre-Phase 5-A baseline.
+4. Pause condition: if any duty-shift route behavior changes, payment/auth behavior changes, or contract tests fail unexpectedly, stop and do not broaden the phase.
 
-## Required test list (gate: all green or explicitly waived by the PO)
+## Required test list
 
-- `npm run test:deploy-gate` — includes `frontend-admin-doctor-api-contract`, `frontend-provider-admin-booking-contract`, `admin-route-contract`, `frontend-canonical-nav-contract`, production smoke tests. **Expect failures here to be the real signal** — these encode the admin/doctor frontend contracts that dormancy deliberately changes; each failure needs a contract fix or a conscious PO-approved contract change, never a disabled test.
-- `npm test` (fast suite) and `npm run lint:baseline`.
-- Payment route gating tests — `/payments` and `/payments-b2c` behavior must be byte-for-byte unchanged.
-- Patient flows (login, intake, dashboard, booking, B2C payment) — must be unaffected.
-- Manual smoke of doctor/admin/provider pages to catalogue the expected breakage against the intended UX (redirect? banner? parked pages?).
+- `npm run test:deploy-gate` — route/frontend/deploy contracts must stay green.
+- `npm test` and `npm run lint:baseline`.
+- Payment route gating tests — `/payments` and `/payments-b2c` behavior must remain unchanged.
+- Patient flows — login, intake, dashboard, booking, and B2C payment must remain testable.
+- Duty-shift route availability checks for the preserved mounts above.
 
-## Open questions for the Product Owner
+## Scope decision before implementation
 
-1. Are duty-shift routes safe to park now, or after a sunset notice to doctors/hospitals?
-2. What should released mobile binaries and open doctor sessions see — 404, a "product paused" response, or a redirect?
-3. Classification of `/messages`, `/analytics`, `/funnel-events` (park with duty-shift / keep as shared)?
-4. Any external consumers (partner scripts, integrations) the repo can't see?
+1. Phase 5-A starts with validation scripts, test coverage, and import ownership cleanup.
+2. The patient-health app remains dev/validation-only in Phase 5-A.
+3. Staging-only runtime preparation is deferred.
+4. Router isolation is deferred.
+5. Mandatory checks before merging Phase 5-A: `npm run test:deploy-gate`, `npm test`, `npm run lint:baseline`, payment route gating tests, patient flow checks, and duty-shift route availability checks.
 
 ## Recommendation
 
-Defer wiring until questions 1–3 are answered in writing. The technical work is small and fully reversible; the product blast radius (doctor/admin/provider UX and released mobile builds) is the real decision.
+Start Phase 5-A only after implementation-start approval is recorded. Keep duty-shift live as a hard constraint throughout the phase.

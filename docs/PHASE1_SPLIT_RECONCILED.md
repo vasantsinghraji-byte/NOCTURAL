@@ -4,31 +4,31 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 # NOCTURNAL Restructure Roadmap
 
-> Status: **PHASE 4 COMPLETE + FOLLOW-UP HARDENING MERGED — Phase 5 blocked pending Product Owner dormancy approval.**
+> Status: **PHASE 5 SCOPE SELECTED — patient-health validation/test/import cleanup only; duty-shift routes stay live.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
-> Current develop tip: `17ca90f` = PR #146 (pre-commit hook speedup + password-pattern fix) on top of PR #145 (`2fd19d0`, governance + mirror guard), PR #144 (`e5476b3`, duty-shift security fixes), and PR #143 (`3de2a2b`, Phase 4). Phases 0-4 and approved follow-ups are merged.
+> Phase 5-A scope baseline: `7d41487` = PR #150 (Phase 5 duty-shift-live roadmap revision) on top of PR #148 (`3d65758`, CodeQL user-controlled-bypass fixes), PR #147 (`1ca204d`, tracker update), PR #146 (`17ca90f`, pre-commit hook speedup + password-pattern fix), PR #145 (`2fd19d0`, governance + mirror guard), and PR #143 (`3de2a2b`, Phase 4). Phases 0-4 and approved follow-ups are merged.
 
 ## Document Control
 
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | In Execution — Phase 4 complete; follow-up hardening merged |
-| Version | v1.7 |
+| Status | In Execution — Phase 5 scope selected; implementation not started |
+| Version | v1.9 |
 | Owner | VASANT SINGH RAJI |
-| Last Updated | 2026-07-04 |
-| Next Review Date | At Phase 5 dormancy decision (see `docs/PHASE5_DECISION_BRIEF.md`) |
-| Approved For Execution | Phases 0-4 plus approved governance/hook follow-ups. **Phase 5+ NOT yet approved** — see Approval Record. |
+| Last Updated | 2026-07-05 |
+| Next Review Date | Before Phase 5-A implementation |
+| Approved For Execution | Phases 0-4 plus approved governance/hook follow-ups. Phase 5 direction and Phase 5-A scope are selected; **Phase 5-A implementation is NOT yet started** — see Approval Record. |
 
 ## Current Phase Tracker
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 4 — Complete and merged; Phase 5 blocked |
-| Execution Status | Phases 0-4 merged: PR #141 (Phases 0-2), PR #142 (Phase 3), PR #143 (Phase 4, `3de2a2b`), PR #144 (standalone duty-shift NoSQL-injection fixes, `e5476b3`), PR #145 (governance + mirror guard, `2fd19d0`), and PR #146 (hook speedup + password-pattern fix, `17ca90f`). Phase 5 blocked pending Product Owner dormancy approval |
+| Current Phase | Phase 5-A — Scope selected; implementation pending |
+| Execution Status | Phases 0-4 merged: PR #141 (Phases 0-2), PR #142 (Phase 3), PR #143 (Phase 4, `3de2a2b`), PR #144 (standalone duty-shift NoSQL-injection fixes, `e5476b3`), PR #145 (governance + mirror guard, `2fd19d0`), PR #146 (hook speedup + password-pattern fix, `17ca90f`), PR #147 (tracker update, `1ca204d`), PR #148 (CodeQL user-controlled-bypass fixes, `3d65758`), and PR #150 (duty-shift-live roadmap revision, `7d41487`). Phase 5-A scope: validation scripts, test coverage, and import ownership cleanup only |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | PR #145: mirror-integrity guard added and full suite green (146 suites / 1057 tests). PR #146: refreshed onto PR #145, all checks green, then merged. PR #144: develop ref has 0 open `js/sql-injection` instances (main's 8 auto-close at next develop → main promotion) |
-| Next Required Approval | Product Owner dormancy approval for Phase 5 start (decision packet: `docs/PHASE5_DECISION_BRIEF.md`) |
+| Last Validation Result | PR #150 checks green and merged. Current edit is docs-only Phase 5-A scope selection; implementation validation still pending |
+| Next Required Approval | Tech Lead / Owner approval to start Phase 5-A implementation from current `origin/develop` |
 
 ## Approval Record
 
@@ -40,7 +40,9 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 | Phase 2 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed start of Phase 2 (workspaces) |
 | Phase 3 Start (Tech Lead) | **Approved** | 2026-07-02 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed via "do the Next Steps"; gate precondition met (shared package validated, no-eager-load regression test in place) |
 | Phase 4 Start (Tech Lead) | **Approved** | 2026-07-03 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed copy-only Phase 4 from fresh develop; gate preconditions met (Phase 3 merged via PR #142, develop clean) |
-| Phase 5 Start (Product Owner — duty-shift dormancy) | Pending | — | — |
+| Phase 5 Direction (Product Owner — duty-shift stays live) | **Approved** | 2026-07-05 | VASANT SINGH RAJI (Owner / Product Owner) — explicitly rejected duty-shift dormancy; continue patient-health split only |
+| Phase 5-A Scope (Tech Lead — validation/test/import cleanup) | **Approved** | 2026-07-05 | VASANT SINGH RAJI (Owner / Tech Lead) — chose validation scripts, test coverage, and import ownership cleanup before implementation |
+| Phase 5-A Implementation Start (Tech Lead — patient-health-only split) | Pending | — | — |
 | Phase 6 Start (Tech Lead / Owner — deletion batches) | Pending | — | — |
 
 ## Open Questions
@@ -48,7 +50,8 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 | Question | Impact | Owner | Status |
 |---|---|---|---|
 | Which lazy export mechanism will be used? | Affects Phase 1 implementation | Tech Lead | **Resolved 2026-07-02: lazy getters** (see `docs/PHASE1_IMPLEMENTATION_NOTES.md`) |
-| Are duty-shift routes safe to park? | Affects Phase 5 | Product Owner | Open |
+| Are duty-shift routes safe to park? | Affects Phase 5 | Product Owner | **Resolved 2026-07-05: No. Duty-shift routes must stay live** |
+| Which patient-health-only cutover steps are approved for Phase 5? | Affects implementation scope | Tech Lead / Owner | **Resolved 2026-07-05: Phase 5-A = validation scripts, test coverage, import ownership cleanup only** |
 
 ## PR Strategy
 
@@ -63,7 +66,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 
 **Objective:** Convert NOCTURNAL into a clean monorepo without breaking the existing app.
 
-**Current Mode:** Phase 4 and approved follow-up hardening are merged. Phase 5 remains blocked until Product Owner dormancy approval.
+**Current Mode:** Phase 4 and approved follow-up hardening are merged. Phase 5 has been revised to continue the patient-health split while preserving all duty-shift routes live. Phase 5-A scope is selected but not implemented.
 
 **Core Strategy:** Copy first, verify, then cut over later.
 
@@ -76,7 +79,7 @@ This roadmap converts NOCTURNAL into a clean monorepo in small, reviewable phase
 
 - `packages/shared` = shared toolkit used by both products
 - `apps/patient-health` = Phase 1 active product
-- `apps/duty-shift` = Phase 2 parked product
+- `apps/duty-shift` = parked mirror; live duty-shift product remains mounted in the monolith
 
 The guiding rule is: **copy first, verify, then cut over later.** Nothing is deleted or rewritten during early phases. Work proceeds as small PRs, one phase per session.
 
@@ -128,7 +131,7 @@ Stop immediately if:
 | Phase 1 Start | Branch confirmed, repo clean, baseline documented | Tech Lead |
 | Phase 3 Start | Shared package validated and no eager-loading confirmed | Tech Lead |
 | Phase 4 Start | Phase 3 merged, patient-health copy validated, develop clean | Tech Lead |
-| Phase 5 Start | Duty-shift dormancy explicitly approved | Product Owner |
+| Phase 5 Start | Duty-shift-live decision recorded; patient-health-only implementation scope approved | Tech Lead / Owner |
 | Phase 6 Start | Duplicate files and one-off scripts reviewed | Tech Lead / Owner |
 
 ## Validation Commands
@@ -150,7 +153,7 @@ npm run lint:baseline
 | Date | Decision | Reason | Approved By |
 |---|---|---|---|
 | 2026-06-29 | Use copy-first strategy | Avoid breaking the monolith during restructure | User |
-| 2026-06-29 | Keep duty-shift parked, not deleted | Preserve Phase 2 work | User |
+| 2026-06-29 | Keep a duty-shift copy parked, not deleted | Preserve Phase 2 work while live root routes remain available | User |
 | 2026-06-29 | Use lazy exports or sub-barrels for shared package | Avoid import-time side effects | User |
 | 2026-06-29 | Keep `mobileDevices.js` and `webAuthn.js` root-owned during Phase 1 | They use `protectBoth` from root `patientAuth` | User |
 | 2026-07-02 | Add `spamTrap`, `authTokens`, `localFileSystem` to `@nocturnal/shared` (30 exports) | Phase 3 dependency trace surfaced them; root usage shows they are genuinely shared; app-local copies would duplicate shared security code | Owner / Tech Lead (Phase 3 execution) |
@@ -158,13 +161,16 @@ npm run lint:baseline
 | 2026-07-03 | Exclude `apps/duty-shift/**` from CodeQL via `.github/codeql/codeql-config.yml` | PR #143 CodeQL flagged 26 inherited alerts in the parked mirror; fixing them in place would break the copy-only hash-identity guarantee. Root originals remain fully scanned; alerts are fixed at the root | Owner / Tech Lead (Phase 4 closeout) |
 | 2026-07-04 | Add mirror-integrity guard and Phase 5/6 governance packets before route cutover | PR #145 caught real duty-shift mirror drift from PR #144, restored hash identity, and made Phase 5/6 decisions explicit without starting Phase 5 | Owner / Tech Lead (follow-up hardening) |
 | 2026-07-04 | Speed up the pre-commit secret scan and fix the generic password detector | PR #146 reduced hook runtime and corrected the POSIX character-class bug that made the password pattern miss valid assignments | Owner / Tech Lead (follow-up hardening) |
+| 2026-07-05 | Supersede duty-shift dormancy plan; keep all duty-shift routes live | Product direction is to split patient-health from the current monolith without parking or unmounting the duty-shift product. Phase 5 is now patient-health-only continuation; no duty-shift route behavior may change | Owner / Product Owner |
+| 2026-07-05 | Select Phase 5-A scope: validation scripts, test coverage, import ownership cleanup | This advances patient-health separation without runtime route isolation, staging runtime preparation, duty-shift changes, auth/payment/schema changes, or deletion risk | Owner / Tech Lead |
 
 ## Next Course of Action
 
-1. Phase 4 and approved follow-ups are complete and merged through PR #146 (`17ca90f`). Do not touch `apps/duty-shift` except via the drift-guard rules.
-2. Keep Phase 5 blocked until explicit Product Owner approval for duty-shift dormancy — decision packet: `docs/PHASE5_DECISION_BRIEF.md`.
-3. Prepare (but do not execute) Phase 6 using `docs/PHASE6_DELETION_CANDIDATES.md`.
-4. Handle remaining CodeQL findings as separate `fix/` security PRs (`docs/CODEQL_BACKLOG.md`), never inside restructure phases.
+1. Phase 4 and approved follow-ups are complete and merged through PR #150 (`7d41487`). Do not touch `apps/duty-shift` except via the drift-guard rules.
+2. Do not unmount, disable, pause, redirect, or otherwise change duty-shift routes in Phase 5.
+3. Start Phase 5-A only after implementation-start approval; approved scope is validation scripts, test coverage, and import ownership cleanup.
+4. Keep Phase 6 deletion blocked; deletion is especially unsafe while duty-shift remains live.
+5. Handle remaining CodeQL findings as separate `fix/` security PRs (`docs/CODEQL_BACKLOG.md`), never inside restructure phases.
 
 ## Develop → Main Promotion Checklist
 
@@ -524,44 +530,48 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 
 **Exit criteria:** Duty-shift code preserved and recoverable; no duty-shift behavior rewritten; no duty-shift files deleted.
 
-### Phase 5: Controlled Route Separation — SEPARATE APPROVAL GATE - Risk Level: High
+### Phase 5: Patient-Health Split Continuation — Duty-Shift Live - Risk Level: Medium-High
 
-**Phase Goal:** Make patient-health active while duty-shift goes dormant only after explicit approval.
-**Allowed Changes:** Explicit router wiring changes after dormancy approval, route-contract updates required by approved dormancy.
-**Not Allowed:** Starting without approval, deleting duty-shift code, changing payment logic, disabling failing tests to force progress.
-**Main Tasks:** Record dormancy approval, unmount/disable duty-shift routes through router wiring, preserve payment route distinction, rerun contract checks.
-**Validation Required:** Route/frontend-contract tests, deploy-gate checks, patient-health routes, payment route gating.
-**Risks:** Breaking consumers still using duty-shift endpoints or accidentally changing payment/auth behavior.
-**Rollback / Pause Condition:** Pause if dormancy approval is absent, contract tests fail unexpectedly, or payment/auth behavior changes.
-**Exit Criteria:** Approval recorded; patient-health routes work; duty-shift parked not destroyed; contract/deploy-gate tests green.
-**Approval Required:** Product Owner approval before starting; Tech Lead approval before merging.
-**Confidence Level:** Low - behavior-changing route cutover, high caution required.
-**Expected Deliverables:** Recorded dormancy approval, explicit route wiring changes, passing route/frontend/deploy-gate validation.
+**Phase Goal:** Continue separating patient-health from the monolith by hardening validation, tests, and import ownership while keeping all existing duty-shift route behavior live.
+**Allowed Changes:** Patient-health validation scripts, focused tests, documentation, app-local import ownership cleanup, and read-only/audit-style checks that do not change runtime route behavior.
+**Not Allowed:** Unmounting, disabling, redirecting, parking, deleting, or changing duty-shift routes; changing payment/auth/schema behavior; disabling failing tests to force progress.
+**Main Tasks:** Record the selected Phase 5-A scope, add/adjust patient-health validation coverage, audit and clean patient-health import ownership where safe, preserve payment route distinction, prove duty-shift routes remain mounted, and rerun contract checks.
+**Validation Required:** Route/frontend-contract tests, deploy-gate checks, patient-health routes, duty-shift route availability checks, payment route gating.
+**Risks:** Accidentally changing shared route behavior, payment/auth behavior, or duty-shift contracts while isolating patient-health.
+**Rollback / Pause Condition:** Pause if any duty-shift route behavior changes, contract tests fail unexpectedly, payment/auth behavior changes, or patient-health isolation requires broader route cutover than this phase allows.
+**Exit Criteria:** Duty-shift routes remain live; patient-health split work is advanced within the approved scope; contract/deploy-gate tests green; no payment/auth/schema behavior changed.
+**Approval Required:** Tech Lead / Owner approval before implementation; Product Owner duty-shift-live direction already recorded.
+**Confidence Level:** Medium - patient-health-only continuation avoids duty-shift dormancy blast radius but still touches app/route boundaries.
+**Expected Deliverables:** Recorded duty-shift-live decision, approved Phase 5-A scope, patient-health validation/test/import-ownership improvements, passing route/frontend/deploy-gate validation.
 **Phase Readiness Score:** Fill the readiness template; do not start below 8/10.
-**Rollback Plan:** Stop, record the failing endpoint/test, revert only Phase 5 router wiring changes, confirm previous route behavior returns, and do not continue without root cause.
-**Before Starting:** Confirm dormancy approval, exact route list, and rollback steps.
-**During Execution:** Change only approved router wiring; do not change auth/payment logic or disable tests.
-**After Completion:** Run contract/deploy-gate checks, document route behavior, and request final cleanup approval.
+**Rollback Plan:** Stop, record the failing endpoint/test, revert only Phase 5 patient-health changes, confirm previous route behavior returns, and do not continue without root cause.
+**Before Starting:** Confirm fresh `origin/develop`, clean worktree, approved Phase 5-A implementation start, and duty-shift-live route preservation list.
+**During Execution:** Change only approved patient-health validation/test/import-ownership files; do not change duty-shift route mounts, auth/payment logic, schemas, package versions, production router wiring, or staging runtime behavior.
+**After Completion:** Run contract/deploy-gate checks, document route behavior, and request final cleanup approval only if validation stays green.
 
 **Phase 5 Checklist:**
-- [ ] Record explicit duty-shift dormancy approval.
-- [ ] Identify exact route mounts to change.
+- [x] Record explicit Product Owner decision that duty-shift routes stay live.
+- [x] Approve exact patient-health-only implementation scope: validation scripts, test coverage, import ownership cleanup.
+- [ ] Confirm no duty-shift route mounts will change.
+- [ ] Confirm duty-shift frontend/API contracts remain expected to pass.
 - [ ] Preserve `/api/v1/payments`.
 - [ ] Preserve feature-flagged `/api/v1/payments-b2c`.
-- [ ] Unmount/disable only approved duty-shift routes.
+- [ ] Preserve all existing duty-shift route mounts.
+- [ ] Implement only approved Phase 5-A validation/test/import-ownership changes.
 - [ ] Run route/frontend-contract tests.
 - [ ] Run deploy-gate-relevant tests.
 - [ ] Fix contracts or pause; do not disable tests.
 
-**Why:** Unlike copying (Phase 4), **unmounting duty-shift routes is a product-behavior change** that can break existing route/frontend-contract tests and any consumer still calling those endpoints. It must not ride along with the low-risk copy step.
-**Gate:** Do **not** begin this phase until stakeholders **explicitly confirm Phase 2 (duty-shift) can go dormant**. This is its own visible cutover decision, approved on its own.
+**Why:** The Product Owner decision is that duty-shift must remain live. Phase 5 therefore continues the patient-health split without any duty-shift dormancy, route unmounting, or deletion.
+**Gate:** Do **not** begin implementation until Phase 5-A implementation-start approval is recorded. The duty-shift-live decision and Phase 5-A scope are already recorded; they are constraints, not permission to touch duty-shift behavior.
 **What to do:**
-- Keep patient-health routes active for Phase 1.
-- Only then, disable/unmount duty-shift routes through explicit router wiring changes (`routes/v1/index.js` / `app.js`).
+- Keep patient-health routes active and continue isolating patient-health through validation, tests, and import ownership only.
+- Keep all duty-shift routes mounted through existing router wiring (`routes/v1/index.js` / `app.js`).
 - Preserve the current payment distinction: `/api/v1/payments` and feature-flagged `/api/v1/payments-b2c`.
+- Do not implement router isolation or staging runtime preparation in Phase 5-A; those require separate approval.
 - Re-run the route/frontend-contract and deploy-gate tests; if any contract test fails, fix the contract or pause — do not disable the test.
 
-**Exit criteria:** Explicit dormancy approval recorded; patient-health routes work independently; duty-shift routes parked, not destroyed; contract/deploy-gate tests green; no payment logic changed.
+**Exit criteria:** Duty-shift-live decision recorded; Phase 5-A validation/test/import-ownership work completed only within approved scope; duty-shift routes remain live; contract/deploy-gate tests green; no payment/auth/schema logic changed.
 
 ### Phase 6: Cleanup and Final Cutover - Risk Level: Medium
 
@@ -578,7 +588,7 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **Expected Deliverables:** Reviewed duplicate list, approved deletion batch, docs updates, clean validation.
 **Phase Readiness Score:** Fill the readiness template; do not start below 8/10.
 **Rollback Plan:** Stop, record the failing check, restore only the approved-deletion files from git or backup, and confirm validation returns to the prior state.
-**Before Starting:** Confirm Phase 5 is approved/complete and each deletion candidate has owner approval.
+**Before Starting:** Confirm the revised Phase 5 patient-health-only split is approved/complete and each deletion candidate has owner approval.
 **During Execution:** Delete only approved files; keep cleanup separate from feature/refactor work.
 **After Completion:** Run validation, review final diff, and prepare PR/merge handoff.
 
@@ -596,7 +606,7 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **What to do:**
 - List obsolete root duplicates and one-off scripts for review (`fix-mongodb-auth.bat`, `enable-mongodb-auth*.ps1`, `verify-and-fix-auth.js`, `fix-auth-with-localhost-exception.js`, `recreate-dev-prod-users.js`, etc.).
 - Delete only after explicit approval.
-- Update README and docs to state: Phase 1 = patient-health active; Phase 2 = duty-shift parked; shared code belongs in `packages/shared`.
+- Update README and docs to state: Phase 1 = patient-health active; duty-shift remains live in the monolith with a parked mirror under `apps/duty-shift`; shared code belongs in `packages/shared`.
 
 **Exit criteria:** Tests pass; documentation matches reality; old duplicates removed only with approval.
 
