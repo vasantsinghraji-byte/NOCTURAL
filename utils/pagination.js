@@ -5,6 +5,8 @@
  * with performance optimizations and query flexibility
  */
 
+const { safeCaseInsensitiveRegex } = require('./safeMongo');
+
 /**
  * Paginate mongoose query results
  *
@@ -107,12 +109,17 @@ const paginateWithSearch = async (model, params = {}, options = {}) => {
     // Build query with filters
     let query = { ...filters };
 
-    // Add search conditions if search term provided
+    // Add search conditions if search term provided. Build the regex from an
+    // escaped, length-capped copy of the user input (safeCaseInsensitiveRegex)
+    // so search terms are matched literally and cannot inject regex
+    // metacharacters or trigger catastrophic backtracking (ReDoS).
     if (search && searchFields.length > 0) {
-        const searchRegex = new RegExp(search, 'i');
-        query.$or = searchFields.map(field => ({
-            [field]: searchRegex
-        }));
+        const searchRegex = safeCaseInsensitiveRegex(search);
+        if (searchRegex) {
+            query.$or = searchFields.map(field => ({
+                [field]: searchRegex
+            }));
+        }
     }
 
     return paginate(model, query, options);
