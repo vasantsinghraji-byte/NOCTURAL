@@ -121,24 +121,54 @@ exports.validateMongoId = [
 
 // Sanitize user input
 exports.sanitizeInput = (req, res, next) => {
-  // Remove any HTML tags from string inputs
+  // Remove any HTML tags from string inputs.
+  // - [^<>] (not [^>]) keeps each pass linear so a run of '<' cannot force
+  //   quadratic backtracking (polynomial ReDoS).
+  // - Repeat until stable so a tag reconstructed by removing an inner tag
+  //   (e.g. "<<b>script>") cannot survive a single pass (incomplete
+  //   multi-character sanitization). Bounded: each pass strictly shortens the
+  //   string, and request bodies are size-limited upstream.
+  const TAG = /<[^<>]*>/g;
   const sanitizeString = (str) => {
-    if (typeof str === 'string') {
-      return str.replace(/<[^>]*>/g, '');
+    if (typeof str !== 'string') {
+      return str;
     }
-    return str;
+    let current = str;
+    let previous;
+    do {
+      previous = current;
+      current = current.replace(TAG, '');
+    } while (current !== previous);
+    return current;
   };
 
-  // Recursively sanitize object (returns new object to avoid mutation errors)
+  // Recursively sanitize object (returns new object to avoid mutation errors).
+  // Iterates own keys only; gates each write on a positive allowlist (bounded
+  // identifier-style names) and writes via defineProperty, so a user-controlled
+  // key is validated before it becomes a property name and can never reach the
+  // prototype chain.
+  const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
+  const SAFE_OUTPUT_KEY = /^[\w.-]{1,128}$/;
+  const setSanitizedKey = (target, key, value) => {
+    if (DANGEROUS_KEYS.includes(key) || !SAFE_OUTPUT_KEY.test(key)) {
+      return;
+    }
+    Object.defineProperty(target, key, {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  };
   const sanitizeObject = (obj) => {
     const sanitized = {};
-    for (let key in obj) {
+    for (const key of Object.keys(obj)) {
       if (typeof obj[key] === 'string') {
-        sanitized[key] = sanitizeString(obj[key]);
+        setSanitizedKey(sanitized, key, sanitizeString(obj[key]));
       } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-        sanitized[key] = sanitizeObject(obj[key]);
+        setSanitizedKey(sanitized, key, sanitizeObject(obj[key]));
       } else {
-        sanitized[key] = obj[key];
+        setSanitizedKey(sanitized, key, obj[key]);
       }
     }
     return sanitized;

@@ -18,6 +18,12 @@
 
 const MAX_RECURSION_DEPTH = 10;
 const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
+// Positive allowlist for output property names before they become computed
+// keys: identifier-style characters, bounded length (mirrors the pattern used
+// by utils/safeMongo). Realistic request-body field names match this; the
+// upstream branches already normalize dotted/null-byte/dangerous keys into
+// this shape, so validating here hardens without dropping legitimate keys.
+const SAFE_OUTPUT_KEY = /^[\w.-]{1,128}$/;
 const MONGODB_OPERATORS = [
   '$where', '$regex', '$expr', '$jsonSchema', '$text',
   '$eq', '$ne', '$gt', '$gte', '$lt', '$lte',
@@ -28,6 +34,28 @@ const MONGODB_OPERATORS = [
   '$set', '$unset', '$inc', '$mul',
   '$rename', '$setOnInsert', '$currentDate'
 ];
+
+/**
+ * Assign a sanitized key/value onto the output object.
+ *
+ * Re-checks DANGEROUS_KEYS on the final key because the dot/null-byte/
+ * character replacements above the call sites can synthesize a dangerous
+ * key from a benign-looking one (e.g. "__proto_." becomes "__proto__").
+ * Gates the write on a positive allowlist match (not just the denylist) so
+ * a user-controlled key is validated before it becomes a property name, and
+ * writes via defineProperty so the write can never reach the prototype chain.
+ */
+function setSanitizedKey(target, key, value) {
+  if (DANGEROUS_KEYS.includes(key) || !SAFE_OUTPUT_KEY.test(key)) {
+    return;
+  }
+  Object.defineProperty(target, key, {
+    value,
+    enumerable: true,
+    configurable: true,
+    writable: true
+  });
+}
 
 /**
  * Enhanced sanitization function
@@ -103,7 +131,7 @@ function sanitizeData(obj, depth = 0) {
     if (key.includes('.')) {
       // Replace dots with underscores to prevent field traversal
       const safeKey = key.replace(/\./g, '_');
-      sanitized[safeKey] = sanitizeData(obj[key], depth + 1);
+      setSanitizedKey(sanitized, safeKey, sanitizeData(obj[key], depth + 1));
       continue;
     }
 
@@ -111,14 +139,14 @@ function sanitizeData(obj, depth = 0) {
     if (key.includes('\0')) {
       // Replace null bytes with underscores
       const safeKey = key.replace(/\0/g, '_');
-      sanitized[safeKey] = sanitizeData(obj[key], depth + 1);
+      setSanitizedKey(sanitized, safeKey, sanitizeData(obj[key], depth + 1));
       continue;
     }
 
     // Check for other dangerous characters
     if (hasDangerousCharacters(key)) {
       const safeKey = sanitizeKeyName(key);
-      sanitized[safeKey] = sanitizeData(obj[key], depth + 1);
+      setSanitizedKey(sanitized, safeKey, sanitizeData(obj[key], depth + 1));
       continue;
     }
 
@@ -145,7 +173,7 @@ function sanitizeData(obj, depth = 0) {
       continue;
     }
 
-    sanitized[key] = sanitizedValue;
+    setSanitizedKey(sanitized, key, sanitizedValue);
   }
 
   return sanitized;
