@@ -47,10 +47,9 @@ function generateEncryptionKey(length = 32) {
 function generatePassword(length = 24) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
   let password = '';
-  const randomBytes = crypto.randomBytes(length);
 
   for (let i = 0; i < length; i++) {
-    password += chars[randomBytes[i] % chars.length];
+    password += chars[crypto.randomInt(chars.length)];
   }
 
   return password;
