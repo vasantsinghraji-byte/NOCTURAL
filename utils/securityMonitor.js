@@ -11,6 +11,7 @@ const securityEvents = [];
 const incidents = [];
 const blockedIPs = new Map();
 const auditLog = [];
+const MAX_BLOCK_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 const threatIntelligence = {
   sqlInjection: 0,
   xss: 0,
@@ -269,11 +270,13 @@ async function getBlockedIPs() {
  * Block IP address
  */
 async function blockIP(ip, { reason, duration, blockedBy }) {
+  const blockDuration = normalizeBlockDuration(duration);
+
   blockedIPs.set(ip, {
     reason,
     blockedAt: new Date(),
     blockedBy,
-    expiresAt: duration ? new Date(Date.now() + duration) : null
+    expiresAt: blockDuration ? new Date(Date.now() + blockDuration) : null
   });
 
   logSecurityEvent({
@@ -286,10 +289,10 @@ async function blockIP(ip, { reason, duration, blockedBy }) {
   });
 
   // Auto-unblock after duration
-  if (duration) {
+  if (blockDuration >= 1 && blockDuration <= MAX_BLOCK_DURATION_MS) {
     setTimeout(() => {
       unblockIP(ip);
-    }, duration);
+    }, blockDuration);
   }
 
   logger.warn('IP blocked', { ip, reason, blockedBy });
@@ -450,6 +453,23 @@ function parseTimeRange(range) {
 
   const [, value, unit] = match;
   return parseInt(value) * (units[unit] || units.h);
+}
+
+/**
+ * Helper: Normalize externally supplied block duration before scheduling timers
+ */
+function normalizeBlockDuration(duration) {
+  if (duration === undefined || duration === null || duration === '') {
+    return null;
+  }
+
+  const parsedDuration = Number(duration);
+
+  if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
+    return null;
+  }
+
+  return Math.min(Math.trunc(parsedDuration), MAX_BLOCK_DURATION_MS);
 }
 
 module.exports = {
