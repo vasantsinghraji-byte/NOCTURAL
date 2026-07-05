@@ -121,14 +121,25 @@ exports.validateMongoId = [
 
 // Sanitize user input
 exports.sanitizeInput = (req, res, next) => {
-  // Remove any HTML tags from string inputs. Use [^<>] (not [^>]) so a run of
-  // '<' characters cannot force quadratic backtracking (polynomial ReDoS) — a
-  // tag never legitimately spans an inner '<'.
+  // Remove any HTML tags from string inputs.
+  // - [^<>] (not [^>]) keeps each pass linear so a run of '<' cannot force
+  //   quadratic backtracking (polynomial ReDoS).
+  // - Repeat until stable so a tag reconstructed by removing an inner tag
+  //   (e.g. "<<b>script>") cannot survive a single pass (incomplete
+  //   multi-character sanitization). Bounded: each pass strictly shortens the
+  //   string, and request bodies are size-limited upstream.
+  const TAG = /<[^<>]*>/g;
   const sanitizeString = (str) => {
-    if (typeof str === 'string') {
-      return str.replace(/<[^<>]*>/g, '');
+    if (typeof str !== 'string') {
+      return str;
     }
-    return str;
+    let current = str;
+    let previous;
+    do {
+      previous = current;
+      current = current.replace(TAG, '');
+    } while (current !== previous);
+    return current;
   };
 
   // Recursively sanitize object (returns new object to avoid mutation errors).
