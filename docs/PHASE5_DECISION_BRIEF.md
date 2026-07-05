@@ -2,13 +2,13 @@
 
 > **Product Owner decision recorded 2026-07-05:** Duty-shift must **not** go dormant. All existing duty-shift routes stay live while Phase 5 continues the patient-health split.
 > This supersedes the earlier dormancy/unmounting brief. Phase 5 implementation may not unmount, disable, redirect, pause, or delete duty-shift behavior.
-> Prepared against develop `3d65758` (Phases 0-4 and follow-up PRs #145-#148 merged). Companion to `PHASE1_SPLIT_RECONCILED.md` (Phase 5).
+> Prepared against develop `7d41487` (Phases 0-4 and follow-up PRs #145-#150 merged). Companion to `PHASE1_SPLIT_RECONCILED.md` (Phase 5).
 
 ## Decision
 
 Duty-shift remains live in the monolith. The `apps/duty-shift` copy remains a parked mirror for ownership clarity and drift protection, not a replacement for the live root route mounts.
 
-Phase 5 therefore becomes **patient-health-only split continuation**. Its job is to continue isolating and validating patient-health without changing duty-shift availability.
+Phase 5 therefore becomes **patient-health-only split continuation**. The approved first slice is **Phase 5-A: validation scripts, test coverage, and import ownership cleanup**. It advances patient-health separation without runtime router isolation or staging runtime changes.
 
 ## Explicitly preserved route behavior
 
@@ -39,6 +39,21 @@ These mounts must stay available unless a later, separate Product Owner decision
 - Add or update tests that prove duty-shift routes remain mounted.
 - Update docs to match the live-duties decision.
 
+## Approved Phase 5-A scope
+
+Phase 5-A is limited to:
+
+1. **Validation scripts** — repeatable checks for patient-health imports, route availability expectations, and no missing modules.
+2. **Test coverage** — focused tests that prove patient-health behavior remains reachable and duty-shift routes remain mounted.
+3. **Import ownership cleanup** — patient-health-only import path/ownership corrections where they do not change runtime behavior.
+
+Explicitly out of scope for Phase 5-A:
+
+- Router isolation or production route rewiring.
+- Staging-only runtime preparation.
+- Duty-shift route, controller, service, model, frontend, or mirror changes except documented mirror-drift corrections.
+- Auth, payment, schema, package-version, or deployment configuration changes.
+
 ## Not allowed in Phase 5
 
 - No duty-shift route unmounting.
@@ -60,9 +75,9 @@ Because duty-shift stays live, existing doctor/admin/provider and mobile consume
 
 ## Rollback plan
 
-1. Phase 5 changes must be patient-health-only and delivered in reviewable commits.
-2. Rollback = revert the Phase 5 patient-health commits.
-3. After rollback, patient-health, duty-shift, payment, and auth route behavior must return to the pre-Phase 5 baseline.
+1. Phase 5-A changes must be patient-health-only and delivered in reviewable commits.
+2. Rollback = revert the Phase 5-A patient-health commits.
+3. After rollback, patient-health, duty-shift, payment, and auth route behavior must return to the pre-Phase 5-A baseline.
 4. Pause condition: if any duty-shift route behavior changes, payment/auth behavior changes, or contract tests fail unexpectedly, stop and do not broaden the phase.
 
 ## Required test list
@@ -73,12 +88,14 @@ Because duty-shift stays live, existing doctor/admin/provider and mobile consume
 - Patient flows — login, intake, dashboard, booking, and B2C payment must remain testable.
 - Duty-shift route availability checks for the preserved mounts above.
 
-## Open questions before implementation
+## Scope decision before implementation
 
-1. Which patient-health-only change should Phase 5 implement first: router isolation, validation scripts, test coverage, or import ownership cleanup?
-2. Should the patient-health app remain dev/validation-only in Phase 5, or should Phase 5 prepare a staging-only runtime path?
-3. Which exact smoke/contract tests will be treated as mandatory before merging Phase 5?
+1. Phase 5-A starts with validation scripts, test coverage, and import ownership cleanup.
+2. The patient-health app remains dev/validation-only in Phase 5-A.
+3. Staging-only runtime preparation is deferred.
+4. Router isolation is deferred.
+5. Mandatory checks before merging Phase 5-A: `npm run test:deploy-gate`, `npm test`, `npm run lint:baseline`, payment route gating tests, patient flow checks, and duty-shift route availability checks.
 
 ## Recommendation
 
-Start Phase 5 only after the exact patient-health-only scope is approved. Keep duty-shift live as a hard constraint throughout the phase.
+Start Phase 5-A only after implementation-start approval is recorded. Keep duty-shift live as a hard constraint throughout the phase.
