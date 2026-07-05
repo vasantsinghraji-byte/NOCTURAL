@@ -30,6 +30,27 @@ const MONGODB_OPERATORS = [
 ];
 
 /**
+ * Assign a sanitized key/value onto the output object.
+ *
+ * Re-checks DANGEROUS_KEYS on the final key because the dot/null-byte/
+ * character replacements above the call sites can synthesize a dangerous
+ * key from a benign-looking one (e.g. "__proto_." becomes "__proto__"),
+ * and writes via defineProperty so a computed key can never reach the
+ * prototype chain.
+ */
+function setSanitizedKey(target, key, value) {
+  if (DANGEROUS_KEYS.includes(key)) {
+    return;
+  }
+  Object.defineProperty(target, key, {
+    value,
+    enumerable: true,
+    configurable: true,
+    writable: true
+  });
+}
+
+/**
  * Enhanced sanitization function
  * @param {*} obj - Object to sanitize
  * @param {number} depth - Current recursion depth
@@ -103,7 +124,7 @@ function sanitizeData(obj, depth = 0) {
     if (key.includes('.')) {
       // Replace dots with underscores to prevent field traversal
       const safeKey = key.replace(/\./g, '_');
-      sanitized[safeKey] = sanitizeData(obj[key], depth + 1);
+      setSanitizedKey(sanitized, safeKey, sanitizeData(obj[key], depth + 1));
       continue;
     }
 
@@ -111,14 +132,14 @@ function sanitizeData(obj, depth = 0) {
     if (key.includes('\0')) {
       // Replace null bytes with underscores
       const safeKey = key.replace(/\0/g, '_');
-      sanitized[safeKey] = sanitizeData(obj[key], depth + 1);
+      setSanitizedKey(sanitized, safeKey, sanitizeData(obj[key], depth + 1));
       continue;
     }
 
     // Check for other dangerous characters
     if (hasDangerousCharacters(key)) {
       const safeKey = sanitizeKeyName(key);
-      sanitized[safeKey] = sanitizeData(obj[key], depth + 1);
+      setSanitizedKey(sanitized, safeKey, sanitizeData(obj[key], depth + 1));
       continue;
     }
 
@@ -145,7 +166,7 @@ function sanitizeData(obj, depth = 0) {
       continue;
     }
 
-    sanitized[key] = sanitizedValue;
+    setSanitizedKey(sanitized, key, sanitizedValue);
   }
 
   return sanitized;

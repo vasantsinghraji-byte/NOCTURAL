@@ -129,16 +129,30 @@ exports.sanitizeInput = (req, res, next) => {
     return str;
   };
 
-  // Recursively sanitize object (returns new object to avoid mutation errors)
+  // Recursively sanitize object (returns new object to avoid mutation errors).
+  // Iterates own keys only, drops prototype-polluting key names, and writes
+  // via defineProperty so a computed key can never reach the prototype chain.
+  const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
+  const setSanitizedKey = (target, key, value) => {
+    Object.defineProperty(target, key, {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  };
   const sanitizeObject = (obj) => {
     const sanitized = {};
-    for (let key in obj) {
+    for (const key of Object.keys(obj)) {
+      if (DANGEROUS_KEYS.includes(key)) {
+        continue;
+      }
       if (typeof obj[key] === 'string') {
-        sanitized[key] = sanitizeString(obj[key]);
+        setSanitizedKey(sanitized, key, sanitizeString(obj[key]));
       } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-        sanitized[key] = sanitizeObject(obj[key]);
+        setSanitizedKey(sanitized, key, sanitizeObject(obj[key]));
       } else {
-        sanitized[key] = obj[key];
+        setSanitizedKey(sanitized, key, obj[key]);
       }
     }
     return sanitized;

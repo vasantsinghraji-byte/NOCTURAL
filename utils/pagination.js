@@ -197,15 +197,25 @@ const paginationMiddleware = (req, res, next) => {
         populate: req.query.populate || ''
     };
 
-    // Parse sort (e.g., "name,-createdAt" => { name: 1, createdAt: -1 })
+    // Parse sort (e.g., "name,-createdAt" => { name: 1, createdAt: -1 }).
+    // Field names come from the query string: skip empty/prototype-polluting
+    // names and write via defineProperty so a user-supplied key can never
+    // reach the prototype chain.
     if (typeof req.pagination.sort === 'string') {
+        const DANGEROUS_SORT_KEYS = ['__proto__', 'constructor', 'prototype'];
         const sortObj = {};
         req.pagination.sort.split(',').forEach(field => {
-            if (field.startsWith('-')) {
-                sortObj[field.slice(1)] = -1;
-            } else {
-                sortObj[field] = 1;
+            const direction = field.startsWith('-') ? -1 : 1;
+            const name = field.startsWith('-') ? field.slice(1) : field;
+            if (!name || DANGEROUS_SORT_KEYS.includes(name)) {
+                return;
             }
+            Object.defineProperty(sortObj, name, {
+                value: direction,
+                enumerable: true,
+                configurable: true,
+                writable: true
+            });
         });
         req.pagination.sort = sortObj;
     }
