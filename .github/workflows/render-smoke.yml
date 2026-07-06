@@ -26,6 +26,10 @@ on:
         required: false
         type: string
         default: https://noctural.onrender.com
+      expected_deployment_commit:
+        description: Expected /api/v1/health deploymentCommit prefix
+        required: false
+        type: string
       origin:
         description: Browser Origin header to verify
         required: false
@@ -64,6 +68,12 @@ jobs:
 
       - name: Install Playwright Chromium
         run: node ./node_modules/playwright/cli.js install --with-deps chromium
+
+      - name: Smoke test deployed commit identity
+        env:
+          DEPLOYED_BASE_URL: ${{ github.event.inputs.deployed_base_url || vars.RENDER_SMOKE_BASE_URL || 'https://nocturnal-api.onrender.com' }}
+          EXPECTED_DEPLOYMENT_COMMIT: ${{ github.event.inputs.expected_deployment_commit || github.event.workflow_run.head_sha || github.event.client_payload.deploymentCommit || github.event.client_payload.head_sha || github.event.client_payload.sha || '' }}
+        run: npm run smoke:deployed-health-commit
 
       - name: Smoke test deployed login/register CORS
         env:

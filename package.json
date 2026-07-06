@@ -91,6 +91,7 @@
     "verify:local": "npm run lint && npm test",
     "test:deploy-gate": "npm run build:prod && npm run scan:inline-styles:strict && node ./node_modules/jest/bin/jest.js --runInBand --runTestsByPath tests/unit/validation/frontend-legacy-auth-retirement.test.js tests/unit/validation/frontend-route-helper-centralization.test.js tests/unit/validation/frontend-page-api-dependency-map.test.js tests/unit/validation/frontend-admin-doctor-api-contract.test.js tests/unit/validation/frontend-provider-admin-booking-contract.test.js tests/unit/validation/frontend-auth-flow-standardization.test.js tests/unit/validation/frontend-session-standardization.test.js tests/unit/validation/frontend-runtime-role-routing-and-doctor-dashboard-contract.test.js tests/unit/validation/frontend-build-output-csp-contract.test.js tests/unit/validation/frontend-build-artifact-contract.test.js tests/unit/validation/frontend-final-contract-closures.test.js tests/unit/validation/frontend-canonical-nav-contract.test.js tests/unit/validation/admin-route-contract.test.js tests/smoke/production-entrypoint-health.test.js tests/smoke/production-built-frontend-playwright.test.js && npm run test:e2e:csp",
     "smoke:deployed-auth-cors": "node scripts/smoke-deployed-auth-cors.js",
+    "smoke:deployed-health-commit": "node scripts/smoke-deployed-health-commit.js",
     "smoke:deployed-service-worker": "node scripts/smoke-deployed-service-worker.js",
     "smoke:deployed-csp": "node scripts/smoke-deployed-csp.js",
     "security:scan": "node scripts/security-scan.js --target http://localhost:5000",
