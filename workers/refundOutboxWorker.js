@@ -22,7 +22,7 @@ async function shutdown(signal) {
 async function start() {
   process.env.REFUND_OUTBOX_WORKER_ENABLED = process.env.REFUND_OUTBOX_WORKER_ENABLED || 'true';
 
-  await connectDB();
+  await connectDB({ failFast: true });
   paymentService.startRefundOutboxWorker();
 
   logger.info('Refund outbox background worker started', {

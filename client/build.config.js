@@ -12,6 +12,7 @@ const CleanCSS = require('clean-css');
 const terser = require('terser');
 const crypto = require('crypto');
 const { scanHtmlCsp, formatViolation } = require('../scripts/scan-html-csp');
+const { escapeRegExp } = require('./buildEscaping');
 
 // Directories and files excluded from production builds
 const BUILD_EXCLUDES = [
@@ -214,7 +215,7 @@ async function minifyHTMLFile(sourceFile, destFile) {
 
     // Replace asset references with versioned ones
     for (const [original, versioned] of Object.entries(assetManifest)) {
-      const regex = new RegExp(original.replace(/\./g, '\\.'), 'g');
+      const regex = new RegExp(escapeRegExp(original), 'g');
       content = content.replace(regex, versioned);
     }
 

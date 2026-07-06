@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Intake Form - Nocturnal Healthcare</title>
+    <link rel="stylesheet" href="/css/pages/roles-patient-health-intake-form.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/patient-session.js"></script>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="header">
+        <div class="header-content">
+            <button class="back-btn" id="backBtn">
+                <span>&larr;</span> Back to Dashboard
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="form-header">
+            <h1>Health Intake Form</h1>
+            <p>Please provide accurate information to help us serve you better</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-step">
+                <div class="step-circle active" id="step1Circle">1</div>
+                <span class="step-label">Lifestyle</span>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle" id="step2Circle">2</div>
+                <span class="step-label">Conditions</span>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle" id="step3Circle">3</div>
+                <span class="step-label">Allergies</span>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle" id="step4Circle">4</div>
+                <span class="step-label">Medications</span>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle" id="step5Circle">5</div>
+                <span class="step-label">Review</span>
+            </div>
+        </div>
+
+        <!-- Step 1: Lifestyle -->
+        <div class="form-section active" id="step1">
+            <h2 class="section-title">🏃 Lifestyle & Habits</h2>
+
+            <div class="form-group">
+                <label>Smoking Status</label>
+                <div class="option-group">
+                    <div class="option-item">
+                        <input type="radio" name="smokingStatus" id="smoking-never" value="NEVER" checked>
+                        <label for="smoking-never">Never</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="smokingStatus" id="smoking-former" value="FORMER">
+                        <label for="smoking-former">Former</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="smokingStatus" id="smoking-occasional" value="OCCASIONAL">
+                        <label for="smoking-occasional">Occasional</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="smokingStatus" id="smoking-current" value="CURRENT">
+                        <label for="smoking-current">Current</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Alcohol Consumption</label>
+                <div class="option-group">
+                    <div class="option-item">
+                        <input type="radio" name="alcoholConsumption" id="alcohol-none" value="NONE" checked>
+                        <label for="alcohol-none">None</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="alcoholConsumption" id="alcohol-occasional" value="OCCASIONAL">
+                        <label for="alcohol-occasional">Occasional</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="alcoholConsumption" id="alcohol-moderate" value="MODERATE">
+                        <label for="alcohol-moderate">Moderate</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="alcoholConsumption" id="alcohol-heavy" value="HEAVY">
+                        <label for="alcohol-heavy">Heavy</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Exercise Frequency</label>
+                <div class="option-group">
+                    <div class="option-item">
+                        <input type="radio" name="exerciseFrequency" id="exercise-never" value="NEVER">
+                        <label for="exercise-never">Never</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="exerciseFrequency" id="exercise-rarely" value="RARELY">
+                        <label for="exercise-rarely">Rarely</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="exerciseFrequency" id="exercise-weekly" value="WEEKLY" checked>
+                        <label for="exercise-weekly">Weekly</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="exerciseFrequency" id="exercise-daily" value="DAILY">
+                        <label for="exercise-daily">Daily</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Diet Type</label>
+                <div class="option-group">
+                    <div class="option-item">
+                        <input type="radio" name="dietType" id="diet-veg" value="VEGETARIAN">
+                        <label for="diet-veg">Vegetarian</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="dietType" id="diet-nonveg" value="NON_VEGETARIAN" checked>
+                        <label for="diet-nonveg">Non-Vegetarian</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="dietType" id="diet-vegan" value="VEGAN">
+                        <label for="diet-vegan">Vegan</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" name="dietType" id="diet-other" value="OTHER">
+                        <label for="diet-other">Other</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-nav">
+                <div></div>
+                <button class="btn btn-primary" data-action="next-step" data-step="1">Next &rarr;</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Medical Conditions -->
+        <div class="form-section" id="step2">
+            <h2 class="section-title">🏥 Medical Conditions</h2>
+            <p class="helper-text">List any medical conditions you have been diagnosed with</p>
+
+            <div class="dynamic-list" id="conditionsList">
+                <!-- Conditions added dynamically -->
+            </div>
+
+            <button class="add-btn" data-action="add-condition">+ Add Condition</button>
+
+            <div class="form-nav">
+                <button class="btn btn-secondary" data-action="prev-step" data-step="2">&larr; Previous</button>
+                <button class="btn btn-primary" data-action="next-step" data-step="2">Next &rarr;</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Allergies -->
+        <div class="form-section" id="step3">
+            <h2 class="section-title">⚠️ Allergies</h2>
+            <p class="helper-text">List any allergies (medications, food, environmental)</p>
+
+            <div class="dynamic-list" id="allergiesList">
+                <!-- Allergies added dynamically -->
+            </div>
+
+            <button class="add-btn" data-action="add-allergy">+ Add Allergy</button>
+
+            <div class="form-nav">
+                <button class="btn btn-secondary" data-action="prev-step" data-step="3">&larr; Previous</button>
+                <button class="btn btn-primary" data-action="next-step" data-step="3">Next &rarr;</button>
+            </div>
+        </div>
+
+        <!-- Step 4: Medications -->
+        <div class="form-section" id="step4">
+            <h2 class="section-title">💊 Current Medications</h2>
+            <p class="helper-text">List any medications you are currently taking</p>
+
+            <div class="dynamic-list" id="medicationsList">
+                <!-- Medications added dynamically -->
+            </div>
+
+            <button class="add-btn" data-action="add-medication">+ Add Medication</button>
+
+            <div class="form-nav">
+                <button class="btn btn-secondary" data-action="prev-step" data-step="4">&larr; Previous</button>
+                <button class="btn btn-primary" data-action="next-step" data-step="4">Next &rarr;</button>
+            </div>
+        </div>
+
+        <!-- Step 5: Review -->
+        <div class="form-section" id="step5">
+            <h2 class="section-title">📋 Review Your Information</h2>
+
+            <div id="reviewContent">
+                <!-- Review content populated dynamically -->
+            </div>
+
+            <div class="form-nav">
+                <button class="btn btn-secondary" data-action="prev-step" data-step="5">&larr; Previous</button>
+                <div>
+                    <button class="btn btn-secondary mr-10" data-action="save-draft">Save Draft</button>
+                    <button class="btn btn-success" data-action="submit-form">Submit for Review</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/patient-health-intake-form.js"></script>
+</body>
+</html>

@@ -5,6 +5,8 @@
  * with performance optimizations and query flexibility
  */
 
+const { safeCaseInsensitiveRegex } = require('./safeMongo');
+
 /**
  * Paginate mongoose query results
  *
@@ -107,12 +109,17 @@ const paginateWithSearch = async (model, params = {}, options = {}) => {
     // Build query with filters
     let query = { ...filters };
 
-    // Add search conditions if search term provided
+    // Add search conditions if search term provided. Build the regex from an
+    // escaped, length-capped copy of the user input (safeCaseInsensitiveRegex)
+    // so search terms are matched literally and cannot inject regex
+    // metacharacters or trigger catastrophic backtracking (ReDoS).
     if (search && searchFields.length > 0) {
-        const searchRegex = new RegExp(search, 'i');
-        query.$or = searchFields.map(field => ({
-            [field]: searchRegex
-        }));
+        const searchRegex = safeCaseInsensitiveRegex(search);
+        if (searchRegex) {
+            query.$or = searchFields.map(field => ({
+                [field]: searchRegex
+            }));
+        }
     }
 
     return paginate(model, query, options);
@@ -197,15 +204,29 @@ const paginationMiddleware = (req, res, next) => {
         populate: req.query.populate || ''
     };
 
-    // Parse sort (e.g., "name,-createdAt" => { name: 1, createdAt: -1 })
+    // Parse sort (e.g., "name,-createdAt" => { name: 1, createdAt: -1 }).
+    // Field names come from the query string: skip empty/prototype-polluting
+    // names and write via defineProperty so a user-supplied key can never
+    // reach the prototype chain.
     if (typeof req.pagination.sort === 'string') {
+        const DANGEROUS_SORT_KEYS = ['__proto__', 'constructor', 'prototype'];
+        // Mongo sort fields are identifier-style names; gate on a positive
+        // allowlist so a user-supplied key is validated before it becomes a
+        // property name (and can never reach the prototype chain).
+        const SAFE_SORT_FIELD = /^[\w.-]{1,128}$/;
         const sortObj = {};
         req.pagination.sort.split(',').forEach(field => {
-            if (field.startsWith('-')) {
-                sortObj[field.slice(1)] = -1;
-            } else {
-                sortObj[field] = 1;
+            const direction = field.startsWith('-') ? -1 : 1;
+            const name = field.startsWith('-') ? field.slice(1) : field;
+            if (DANGEROUS_SORT_KEYS.includes(name) || !SAFE_SORT_FIELD.test(name)) {
+                return;
             }
+            Object.defineProperty(sortObj, name, {
+                value: direction,
+                enumerable: true,
+                configurable: true,
+                writable: true
+            });
         });
         req.pagination.sort = sortObj;
     }

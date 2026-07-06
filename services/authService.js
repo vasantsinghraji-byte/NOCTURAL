@@ -30,7 +30,7 @@ const PROVIDER_PROFILE_FIELDS = [
 ];
 
 const PROFILE_FIELDS_BY_ROLE = {
-  admin: [...COMMON_PROFILE_FIELDS, 'hospital'],
+  admin: [...COMMON_PROFILE_FIELDS],
   doctor: [...COMMON_PROFILE_FIELDS, ...PROVIDER_PROFILE_FIELDS],
   nurse: [...COMMON_PROFILE_FIELDS, ...PROVIDER_PROFILE_FIELDS],
   physiotherapist: [...COMMON_PROFILE_FIELDS, ...PROVIDER_PROFILE_FIELDS]
@@ -64,7 +64,7 @@ class AuthService {
    * @returns {Promise<Object>} Created user and token
    */
   async register(userData) {
-    const { name, password, role, specialty, hospital, location, phone } = userData;
+    const { name, password, role, specialty, location, phone } = userData;
     const email = normalizeEmail(userData.email);
     await compromisedPasswordService.assertPasswordNotCompromised(password);
 
@@ -87,7 +87,6 @@ class AuthService {
         password,
         role,
         specialty,
-        hospital,
         location,
         phone
       });
@@ -119,7 +118,7 @@ class AuthService {
         email: user.email,
         role: user.role,
         specialty: user.specialty,
-        hospital: user.hospital,
+        hospitalId: user.hospitalId,
         location: user.location,
         onboardingCompleted: user.onboardingCompleted
       }
@@ -197,7 +196,7 @@ class AuthService {
         email: user.email,
         role: user.role,
         specialty: user.specialty,
-        hospital: user.hospital,
+        hospitalId: user.hospitalId,
         location: user.location,
         onboardingCompleted: user.onboardingCompleted,
         profileStrength: user.profileStrength
@@ -211,7 +210,10 @@ class AuthService {
    * @returns {Promise<Object>} User profile
    */
   async getUserProfile(userId) {
-    const user = await User.findById(userId).select('-password');
+    const profileQuery = User.findById(userId).select('-password');
+    const user = typeof profileQuery.populate === 'function'
+      ? await profileQuery.populate('hospitalId', 'name location')
+      : await profileQuery;
 
     if (!user) {
       throw {

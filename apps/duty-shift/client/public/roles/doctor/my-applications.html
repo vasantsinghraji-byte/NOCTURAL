@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Applications - Nocturnal</title>
+    <link rel="stylesheet" href="/css/pages/roles-doctor-my-applications.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="logo">🌙 Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/doctor/doctor-dashboard.html">Dashboard</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html">Browse Duties</a>
+            <a href="/roles/doctor/calendar.html">Calendar</a>
+            <a href="/roles/doctor/earnings.html">Earnings</a>
+            <a href="/roles/doctor/achievements.html">Achievements</a>
+            <a href="/roles/doctor/my-applications.html" class="active">My Applications</a>
+            <a href="/roles/doctor/doctor-profile-enhanced.html">Profile</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">D</div>
+            <span id="userName">Loading...</span>
+            <button class="logout-btn" id="logoutBtn">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>My Applications 📝</h1>
+            <p>Track and manage all your duty applications</p>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item total">
+                <div class="number" id="totalApps">0</div>
+                <div class="label">Total Applications</div>
+            </div>
+            <div class="stat-item pending">
+                <div class="number" id="pendingApps">0</div>
+                <div class="label">Pending</div>
+            </div>
+            <div class="stat-item accepted">
+                <div class="number" id="acceptedApps">0</div>
+                <div class="label">Accepted</div>
+            </div>
+            <div class="stat-item rejected">
+                <div class="number" id="rejectedApps">0</div>
+                <div class="label">Rejected</div>
+            </div>
+            <div class="stat-item withdrawn">
+                <div class="number" id="withdrawnApps">0</div>
+                <div class="label">Withdrawn</div>
+            </div>
+            <div class="stat-item earnings">
+                <div class="number" id="acceptedEarnings">INR 0</div>
+                <div class="label">Accepted Earnings</div>
+            </div>
+            <div class="stat-item rate">
+                <div class="number" id="acceptanceRate">0%</div>
+                <div class="label">Acceptance Rate</div>
+            </div>
+        </div>
+        <div class="stats-scope" id="statsScope">Showing overall totals</div>
+
+        <!-- Filter Tabs -->
+        <div class="filter-tabs">
+            <button class="filter-tab active" data-status="all">All Applications</button>
+            <button class="filter-tab" data-status="pending">Pending</button>
+            <button class="filter-tab" data-status="accepted">Accepted</button>
+            <button class="filter-tab" data-status="rejected">Rejected</button>
+            <button class="filter-tab" data-status="withdrawn">Withdrawn</button>
+        </div>
+
+        <!-- Applications List -->
+        <div class="applications-section">
+            <div class="applications-toolbar">
+                <div id="applicationsSummary" class="pagination-info">Loading applications...</div>
+                <div class="toolbar-preferences">
+                    <label class="page-size-control" for="pageSizeSelect">
+                        <span>Per page</span>
+                        <select id="pageSizeSelect">
+                            <option value="10" selected>10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </label>
+                    <button id="resetPreferencesBtn" class="reset-preferences-btn" type="button">
+                        Reset preferences
+                    </button>
+                </div>
+            </div>
+            <div id="applicationsContainer">
+                <div class="loading">🔄 Loading your applications...</div>
+            </div>
+            <div class="pagination-controls" id="paginationControls"></div>
+        </div>
+    </div>
+    <div id="preferencesToast" class="preferences-toast" role="status" aria-live="polite"></div>
+
+    <script src="/js/doctor-my-applications.js"></script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

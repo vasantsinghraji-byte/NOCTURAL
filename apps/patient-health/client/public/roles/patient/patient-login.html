@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Login - Nocturnal Healthcare</title>
+    <link rel="stylesheet" href="/css/pages/roles-patient-patient-login.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <h1>Nocturnal Healthcare</h1>
+            <p>Welcome Back!</p>
+        </div>
+
+        <div class="welcome-back">
+            <h3>Login to Continue</h3>
+            <p>Access your bookings and healthcare services</p>
+        </div>
+
+        <form id="loginForm">
+            <div id="errorDiv"></div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required
+                       placeholder="your.email@example.com" autocomplete="email">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required
+                       placeholder="Enter your password" autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">Login</button>
+        </form>
+
+        <div class="register-link">
+            Don't have an account? <a href="/roles/patient/patient-register.html">Register now</a>
+        </div>
+    </div>
+
+    <script src="/js/patient-login.js"></script>
+</body>
+</html>

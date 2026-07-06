@@ -71,7 +71,7 @@ class CalendarService {
     }
 
     const events = await CalendarEvent.find(query)
-      .populate('duty', 'title hospital specialty')
+      .populate('duty', 'title hospitalId specialty')
       .sort({ startDate: 1 });
 
     return events;
@@ -387,7 +387,7 @@ class CalendarService {
       eventType: { $in: ['SHIFT_CONFIRMED', 'SHIFT_PENDING'] },
       startDate: { $gte: new Date() }
     })
-      .populate('duty', 'title hospital specialty payRate')
+      .populate('duty', 'title hospitalId specialty payRate')
       .sort({ startDate: 1 })
       .limit(limit);
 

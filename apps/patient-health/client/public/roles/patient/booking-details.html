@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Details - Nocturnal Healthcare</title>
+    <link rel="stylesheet" href="/css/pages/roles-patient-booking-details.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/patient-session.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <button class="btn-back" id="backToDashboardBtn">← Back to Dashboard</button>
+            <h1>Booking Details</h1>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="loadingDiv" class="loading">Loading booking details...</div>
+
+        <div id="bookingContent" class="is-hidden">
+            <!-- Status Tracker -->
+            <div class="status-tracker">
+                <h2 class="card-title">Booking Status</h2>
+                <div class="status-steps" id="statusSteps">
+                    <div class="status-step" data-status="REQUESTED">
+                        <div class="status-icon">📝</div>
+                        <div class="status-label">Requested</div>
+                    </div>
+                    <div class="status-step" data-status="SEARCHING">
+                        <div class="status-icon">🔍</div>
+                        <div class="status-label">Searching</div>
+                    </div>
+                    <div class="status-step" data-status="ASSIGNED">
+                        <div class="status-icon">👨‍⚕️</div>
+                        <div class="status-label">Assigned</div>
+                    </div>
+                    <div class="status-step" data-status="CONFIRMED">
+                        <div class="status-icon">✅</div>
+                        <div class="status-label">Confirmed</div>
+                    </div>
+                    <div class="status-step" data-status="EN_ROUTE">
+                        <div class="status-icon">🚗</div>
+                        <div class="status-label">En Route</div>
+                    </div>
+                    <div class="status-step" data-status="IN_PROGRESS">
+                        <div class="status-icon">🩺</div>
+                        <div class="status-label">In Progress</div>
+                    </div>
+                    <div class="status-step" data-status="COMPLETED">
+                        <div class="status-icon">🎉</div>
+                        <div class="status-label">Completed</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="booking-grid">
+                <div>
+                    <!-- Booking Details Card -->
+                    <div class="card">
+                        <h2 class="card-title">📋 Service Details</h2>
+                        <div class="detail-row">
+                            <span class="detail-label">Service Type</span>
+                            <span class="detail-value" id="serviceType">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Booking ID</span>
+                            <span class="detail-value" id="bookingId">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Status</span>
+                            <span class="detail-value" id="statusBadge">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Scheduled Date</span>
+                            <span class="detail-value" id="scheduledDate">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Scheduled Time</span>
+                            <span class="detail-value" id="scheduledTime">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Appointment Timezone</span>
+                            <span class="detail-value" id="scheduledTimezone">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Service Location</span>
+                            <span class="detail-value" id="serviceLocation">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Provider Details Card -->
+                    <div class="card is-hidden" id="providerCard">
+                        <h2 class="card-title">👨‍⚕️ Service Provider</h2>
+                        <div class="provider-card">
+                            <div class="provider-name" id="providerName">-</div>
+                            <div class="provider-role" id="providerRole">-</div>
+                            <div class="provider-detail">
+                                <span>📞</span>
+                                <span id="providerPhone">-</span>
+                            </div>
+                            <div class="provider-detail">
+                                <span>⭐</span>
+                                <span id="providerRating">-</span>
+                            </div>
+                            <div class="provider-detail">
+                                <span>🎓</span>
+                                <span id="providerExperience">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Patient Details Card -->
+                    <div class="card">
+                        <h2 class="card-title">🏥 Patient Details</h2>
+                        <div class="detail-row">
+                            <span class="detail-label">Name</span>
+                            <span class="detail-value" id="patientName">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Age</span>
+                            <span class="detail-value" id="patientAge">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Gender</span>
+                            <span class="detail-value" id="patientGender">-</span>
+                        </div>
+                        <div class="detail-row is-hidden" id="specialReqRow">
+                            <span class="detail-label">Special Requirements</span>
+                            <span class="detail-value" id="specialReq">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Rating Section (shown after completion) -->
+                    <div class="card is-hidden" id="ratingCard">
+                        <h2 class="card-title">⭐ Rate Your Experience</h2>
+                        <div class="rating-section">
+                            <div class="stars" id="ratingStars">
+                                <span class="star" data-rating="1">★</span>
+                                <span class="star" data-rating="2">★</span>
+                                <span class="star" data-rating="3">★</span>
+                                <span class="star" data-rating="4">★</span>
+                                <span class="star" data-rating="5">★</span>
+                            </div>
+                            <textarea id="reviewText" placeholder="Share your experience (optional)..."></textarea>
+                            <div class="action-buttons">
+                                <button class="btn btn-primary" id="submitReviewBtn">Submit Review</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Service Report (shown after completion) -->
+                    <div class="card is-hidden" id="reportCard">
+                        <h2 class="card-title">📄 Service Report</h2>
+                        <div id="serviceReport"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <!-- Pricing Card -->
+                    <div class="card">
+                        <h2 class="card-title">💰 Pricing Breakdown</h2>
+                        <div class="detail-row">
+                            <span class="detail-label">Base Price</span>
+                            <span class="detail-value" id="basePrice">₹0</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Platform Fee</span>
+                            <span class="detail-value" id="platformFee">₹0</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">GST</span>
+                            <span class="detail-value" id="gst">₹0</span>
+                        </div>
+                        <div class="detail-row detail-row-total">
+                            <span class="detail-label detail-label-total">Total Paid</span>
+                            <span class="detail-value detail-value-total" id="totalPrice">₹0</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Payment Status</span>
+                            <span class="detail-value" id="paymentStatus">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Actions Card -->
+                    <div class="card">
+                        <h2 class="card-title">⚡ Actions</h2>
+                        <div id="messageDiv"></div>
+                        <div class="action-buttons action-buttons-vertical">
+                            <button class="btn btn-outline" id="refreshBookingBtn">🔄 Refresh Status</button>
+                            <button class="btn btn-danger is-hidden" id="cancelBtn">❌ Cancel Booking</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/patient-booking-details.js"></script>
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

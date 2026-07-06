@@ -97,7 +97,7 @@ function createPersistedUser(overrides = {}) {
         specialty: this.specialty,
         licenseNumber: this.licenseNumber,
         professional: this.professional,
-        hospital: this.hospital,
+        hospitalId: this.hospitalId,
         bankDetails: this.bankDetails
       };
     }

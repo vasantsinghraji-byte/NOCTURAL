@@ -15,7 +15,7 @@
  */
 
 require('dotenv').config();
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const path = require('path');
 const projectFs = require('./lib/projectFs');
 
@@ -42,14 +42,14 @@ async function createBackup() {
     process.exit(1);
   }
 
-  // Build mongodump command
-  const command = `mongodump --uri="${mongoUri}" --out="${backupPath}" --gzip`;
+  // Build mongodump arguments without invoking a shell
+  const dumpArgs = ['--uri', mongoUri, '--out', backupPath, '--gzip'];
 
   console.log(`📁 Backup location: ${backupPath}`);
   console.log('⏳ Running mongodump...\n');
 
   return new Promise((resolve, reject) => {
-    exec(command, (error, stdout, stderr) => {
+    execFile('mongodump', dumpArgs, (error, stdout, stderr) => {
       if (error) {
         console.error('❌ Backup failed:', error.message);
         console.error('Stderr:', stderr);
@@ -102,11 +102,11 @@ async function restoreBackup(backupPath) {
     process.exit(1);
   }
 
-  // Build mongorestore command
-  const command = `mongorestore --uri="${mongoUri}" --gzip --drop "${backupPath}"`;
+  // Build mongorestore arguments without invoking a shell
+  const restoreArgs = ['--uri', mongoUri, '--gzip', '--drop', backupPath];
 
   return new Promise((resolve, reject) => {
-    exec(command, (error, stdout, _stderr) => {
+    execFile('mongorestore', restoreArgs, (error, stdout, _stderr) => {
       if (error) {
         console.error('❌ Restore failed:', error.message);
         reject(error);

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - Hospital Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/css/admin-analytics.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/admin-session.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="logo">🌙 Nocturnal Admin</div>
+        <div class="nav-links">
+            <a href="/roles/admin/admin-dashboard.html">Dashboard</a>
+            <a href="/roles/admin/admin-post-duty.html">Post Duty</a>
+            <a href="/roles/admin/admin-applications.html">Applications</a>
+            <a href="/roles/admin/admin-analytics.html" class="active">Analytics</a>
+            <a href="/roles/admin/admin-waitlist.html">Waitlist</a>
+            <a href="/roles/admin/admin-settings.html">Settings</a>
+            <a href="/roles/admin/admin-profile.html">Profile</a>
+        </div>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-chart-line"></i> Analytics & Intelligence Dashboard</h1>
+            <p>AI-powered insights, forecasting, and optimization</p>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading" class="loading">
+            <i class="fas fa-spinner fa-spin loading-icon"></i>
+            <p>Loading analytics data...</p>
+        </div>
+
+        <!-- Main Content -->
+        <div id="mainContent" class="is-hidden">
+            <!-- Key Metrics -->
+            <div class="stats-grid">
+                <div class="stat-card blue">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">Duties Posted</div>
+                            <div class="stat-value" id="totalPosted">0</div>
+                            <div class="stat-change positive" id="postedChange">
+                                <i class="fas fa-arrow-up"></i> 0% vs last month
+                            </div>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-briefcase"></i></div>
+                    </div>
+                </div>
+
+                <div class="stat-card green">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">Fill Rate</div>
+                            <div class="stat-value" id="fillRate">0%</div>
+                            <div class="stat-benchmark">Industry avg: 79%</div>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                    </div>
+                </div>
+
+                <div class="stat-card yellow">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">Avg Time to Fill</div>
+                            <div class="stat-value" id="avgTime">0h</div>
+                            <div class="stat-benchmark">Industry avg: 8.5h</div>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    </div>
+                </div>
+
+                <div class="stat-card red">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">Total Spend</div>
+                            <div class="stat-value" id="totalSpend">₹0</div>
+                            <div class="stat-change" id="spendChange">
+                                <i class="fas fa-arrow-down"></i> 0% vs budget
+                            </div>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-rupee-sign"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Predictive Forecasting -->
+            <div class="forecast-card">
+                <h3><i class="fas fa-brain"></i> AI Predictive Forecasting - Next 2 Weeks</h3>
+                <div id="forecastWarning" class="forecast-warning is-hidden">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>High Demand Period Detected</strong>
+                </div>
+                <div class="forecast-grid">
+                    <div class="forecast-item">
+                        <div class="forecast-label">Predicted Shifts Needed</div>
+                        <div class="forecast-value" id="predictedShifts">0</div>
+                    </div>
+                    <div class="forecast-item">
+                        <div class="forecast-label">Current Coverage</div>
+                        <div class="forecast-value" id="currentCoverage">0</div>
+                    </div>
+                    <div class="forecast-item">
+                        <div class="forecast-label">Staffing Gap</div>
+                        <div class="forecast-value" id="staffingGap">0</div>
+                    </div>
+                    <div class="forecast-item">
+                        <div class="forecast-label">Estimated Cost</div>
+                        <div class="forecast-value" id="estimatedCost">₹0</div>
+                    </div>
+                </div>
+                <div id="recommendationsList" class="recommendations-list"></div>
+            </div>
+
+            <!-- Charts and Rankings -->
+            <div class="chart-grid">
+                <!-- Fill Rate Trend -->
+                <div class="card">
+                    <h3><i class="fas fa-chart-area"></i> Fill Rate Trend</h3>
+                    <div class="chart-frame chart-frame-lg">
+                        <canvas id="fillRateChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Financial Summary -->
+                <div class="card">
+                    <h3><i class="fas fa-wallet"></i> Financial Summary</h3>
+                    <div class="financial-summary">
+                        <div class="financial-row financial-row-bordered">
+                            <span class="text-gray">Budget</span>
+                            <strong class="text-primary" id="budget">₹0</strong>
+                        </div>
+                        <div class="financial-row financial-row-bordered">
+                            <span class="text-gray">Spent</span>
+                            <strong class="text-danger" id="spent">₹0</strong>
+                        </div>
+                        <div class="financial-row financial-row-bordered">
+                            <span class="text-gray">Remaining</span>
+                            <strong class="text-success" id="remaining">₹0</strong>
+                        </div>
+                        <div class="financial-row">
+                            <span class="text-gray">Avg Cost/Shift</span>
+                            <strong class="text-primary" id="avgCost">₹0</strong>
+                        </div>
+                    </div>
+                    <div class="chart-frame chart-frame-md">
+                        <canvas id="budgetChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Applicant Ranking -->
+            <div class="card">
+                <h3><i class="fas fa-robot"></i> AI-Powered Applicant Ranking (Sample)</h3>
+                <p class="section-note">Smart matching based on 47+ data points including experience, ratings, location, and past performance</p>
+                <div id="applicantList">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Top Performers -->
+            <div class="card">
+                <h3><i class="fas fa-star"></i> Top Performing Doctors</h3>
+                <div id="performersList"></div>
+            </div>
+
+            <!-- Cost Optimization -->
+            <div class="card">
+                <h3><i class="fas fa-piggy-bank"></i> Cost Optimization Opportunities</h3>
+                <div class="optimization-grid" id="optimizationList"></div>
+            </div>
+
+            <!-- Quality Metrics -->
+            <div class="chart-grid">
+                <div class="card">
+                    <h3><i class="fas fa-award"></i> Quality Metrics</h3>
+                    <div class="chart-frame chart-frame-md">
+                        <canvas id="qualityChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3><i class="fas fa-chart-pie"></i> Shift Distribution</h3>
+                    <div class="chart-frame chart-frame-md">
+                        <canvas id="distributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/admin-analytics.js"></script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

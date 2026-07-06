@@ -61,6 +61,14 @@
         }
 
         // Display duty details
+        function getHospitalName(record) {
+            const hospital = record && record.hospitalId;
+            if (hospital && typeof hospital === 'object') {
+                return hospital.name || 'Hospital Name';
+            }
+            return 'Hospital Name';
+        }
+
         function displayDutyDetails(duty, isApplied) {
             const date = AppFormat.date(duty.date, 'en-IN', { 
                 weekday: 'long',
@@ -75,7 +83,7 @@
                         <h1>${duty.specialty || 'General Medicine'}</h1>
                         <div class="hospital-info">
                             <span>🏥</span>
-                            <span>${duty.hospitalName || 'Hospital Name'}</span>
+                            <span>${getHospitalName(duty)}</span>
                         </div>
                         <div class="badges-container">
                             <span class="badge">${duty.shift || 'Night'} Shift</span>
@@ -134,7 +142,7 @@
                             <div class="contact-card">
                                 <div class="contact-item">
                                     <span class="icon">🏥</span>
-                                    <span><strong>Hospital:</strong> ${duty.hospitalName || 'Hospital Name'}</span>
+                                    <span><strong>Hospital:</strong> ${getHospitalName(duty)}</span>
                                 </div>
                                 <div class="contact-item">
                                     <span class="icon">📍</span>

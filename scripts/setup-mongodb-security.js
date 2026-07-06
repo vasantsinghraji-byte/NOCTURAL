@@ -42,10 +42,9 @@ const log = {
 function generatePassword(length = 32) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
   let password = '';
-  const randomBytes = crypto.randomBytes(length);
 
   for (let i = 0; i < length; i++) {
-    password += chars[randomBytes[i] % chars.length];
+    password += chars[crypto.randomInt(chars.length)];
   }
 
   return password;
@@ -169,7 +168,14 @@ MONGODB_URI_TEST=mongodb://${credentials.test.username}:${credentials.test.passw
 # MONGODB_URI=mongodb://${credentials.prod.username}:YOUR_PROD_PASSWORD@your-mongo-server:27017/noctural_prod?authSource=noctural_prod&replicaSet=rs0&retryWrites=true&w=majority
 `;
 
-  const currentEnvExample = fs.existsSync(envExamplePath) ? fs.readFileSync(envExamplePath, 'utf8') : '';
+  let currentEnvExample = '';
+  try {
+    currentEnvExample = fs.readFileSync(envExamplePath, 'utf8');
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
 
   if (!currentEnvExample.includes('setup-mongodb-security.js')) {
     fs.appendFileSync(envExamplePath, envExample);

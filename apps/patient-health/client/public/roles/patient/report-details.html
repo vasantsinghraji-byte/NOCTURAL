@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Details - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/pages/roles-patient-report-details.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/patient-session.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/patient/patient-dashboard.html">Dashboard</a>
+            <a href="/roles/patient/patient-health-dashboard.html">Health</a>
+            <a href="/roles/patient/patient-analytics.html" class="active">Analytics</a>
+            <a href="/roles/patient/booking-form.html">Book Service</a>
+        </div>
+        <button class="btn btn-outline" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    </nav>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="container">
+        <a href="/roles/patient/patient-analytics.html" class="back-link">
+            <i class="fas fa-arrow-left"></i> Back to Analytics
+        </a>
+
+        <div id="loadingContainer" class="loading-container">
+            <div class="spinner"></div>
+        </div>
+
+        <div id="reportContent" class="is-hidden">
+            <!-- Report Header -->
+            <div class="report-header">
+                <div class="report-header-top">
+                    <div>
+                        <h1 class="report-title" id="reportTitle">Loading...</h1>
+                        <div class="report-meta">
+                            <span><i class="fas fa-tag"></i> <span id="reportType">-</span></span>
+                            <span><i class="fas fa-calendar"></i> <span id="reportDate">-</span></span>
+                            <span><i class="fas fa-hashtag"></i> <span id="reportNumber">-</span></span>
+                        </div>
+                    </div>
+                    <span class="status-badge" id="statusBadge">-</span>
+                </div>
+
+                <div id="reportDescription" class="text-light-block"></div>
+
+                <h4 class="section-heading"><i class="fas fa-paperclip"></i> Attached Files</h4>
+                <div class="files-grid" id="filesGrid"></div>
+            </div>
+
+            <!-- AI Analysis Section -->
+            <div class="content-card" id="aiAnalysisCard">
+                <div class="card-header">
+                    <h3><i class="fas fa-robot"></i> AI Analysis</h3>
+                    <span id="aiConfidence"></span>
+                </div>
+                <div class="card-body" id="aiAnalysisContent">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Doctor Review Section -->
+            <div class="content-card" id="doctorReviewCard">
+                <div class="card-header green">
+                    <h3><i class="fas fa-user-md"></i> Doctor Review</h3>
+                    <span id="reviewDate"></span>
+                </div>
+                <div class="card-body" id="doctorReviewContent">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="actions-row">
+                <button class="btn btn-outline" id="printBtn">
+                    <i class="fas fa-print"></i> Print Report
+                </button>
+                <button class="btn btn-danger" id="deleteReportBtn">
+                    <i class="fas fa-trash"></i> Delete Report
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Request Review Modal -->
+    <div class="modal" id="reviewModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Request Doctor Review</h3>
+                <button class="modal-close" id="closeReviewModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Assignment Method</label>
+                    <select class="form-control" id="assignmentType">
+                        <option value="AUTO_QUEUE">Auto-assign to specialist queue</option>
+                        <option value="PATIENT_CHOICE">Choose a specific doctor</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="specializationGroup">
+                    <label>Required Specialization</label>
+                    <select class="form-control" id="specialization">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+
+                <div class="form-group is-hidden" id="doctorGroup">
+                    <label>Select Doctor</label>
+                    <select class="form-control" id="doctorSelect">
+                        <option value="">Loading doctors...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelReviewBtn">Cancel</button>
+                <button class="btn btn-primary" id="submitReviewBtn">
+                    <i class="fas fa-paper-plane"></i> Request Review
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ask Question Modal -->
+    <div class="modal" id="questionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Ask a Question</h3>
+                <button class="modal-close" id="closeQuestionModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Your Question</label>
+                    <textarea class="form-control" id="questionText" rows="4" placeholder="Type your question about this report..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelQuestionBtn">Cancel</button>
+                <button class="btn btn-primary" id="submitQuestionBtn">
+                    <i class="fas fa-paper-plane"></i> Submit Question
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/patient-report-details.js"></script>
+</body>
+</html>

@@ -70,27 +70,20 @@ else
   echo -e "${YELLOW}WARN${NC} gitleaks is not installed; using built-in secret checks only."
 fi
 
+# Single-pass filename check: two greps over the whole file list instead of
+# up to 18 grep processes per staged file (process spawn dominates on
+# Windows bash and made large stages take minutes).
 if [ -n "$staged_files" ]; then
-  while IFS= read -r file; do
-    # Check if file matches an allow pattern
-    allowed=0
-    for allow in "${ALLOW_PATTERNS[@]}"; do
-      if echo "$file" | grep -qiE "$allow"; then
-        allowed=1
-        break
-      fi
-    done
-    [ "$allowed" -eq 1 ] && continue
+  allow_re=$(IFS='|'; echo "${ALLOW_PATTERNS[*]}")
+  blocked_re=$(IFS='|'; echo "${BLOCKED_FILE_PATTERNS[*]}")
 
-    # Check if file matches a blocked pattern
-    for pattern in "${BLOCKED_FILE_PATTERNS[@]}"; do
-      if echo "$file" | grep -qiE "$pattern"; then
-        echo -e "${RED}BLOCKED${NC} Sensitive file staged for commit: ${YELLOW}${file}${NC}"
-        BLOCKED=1
-        break
-      fi
-    done
-  done <<< "$staged_files"
+  blocked_names=$(printf '%s\n' "$staged_files" | grep -viE "$allow_re" | grep -iE "$blocked_re" || true)
+  if [ -n "$blocked_names" ]; then
+    while IFS= read -r file; do
+      echo -e "${RED}BLOCKED${NC} Sensitive file staged for commit: ${YELLOW}${file}${NC}"
+    done <<< "$blocked_names"
+    BLOCKED=1
+  fi
 fi
 
 # ==============================================================================
@@ -119,56 +112,51 @@ SECRET_PATTERNS=(
   'xox[bpors]-[a-zA-Z0-9-]+'
   # GitHub tokens
   'gh[pousr]_[a-zA-Z0-9]{36,}'
-  # Generic password assignments
-  'password\s*[=:]\s*["'"'"'][^\s"'"'"']{8,}'
+  # Generic password assignments — note: [[:space:]] not \s, because inside a
+  # POSIX bracket expression \s is literal (backslash or "s"), which silently
+  # excluded the letter s from matches and missed most real passwords.
+  'password\s*[=:]\s*["'"'"'][^"'"'"'[:space:]]{8,}'
 )
 
-# Only scan text files that are staged (skip binaries, skip .env.example)
+# Only scan text files that are staged (skip binaries, skip .env.example).
+# Single-pass implementation: one `git diff --cached` for the whole stage
+# instead of one git invocation (plus 15 greps) per staged file — the
+# per-file loop took minutes on large stages such as copy-phase commits.
+# Skip rules are unchanged; they are applied per file inside awk.
 if [ -n "$staged_files" ]; then
-  while IFS= read -r file; do
-    # Skip .env.example — it's a template with empty values
-    if echo "$file" | grep -qiE '\.env\.example$'; then
-      continue
-    fi
+  staged_added=$(git diff --cached -p 2>/dev/null | awk '
+    /^\+\+\+ b\// {
+      file = substr($0, 7)
+      lf = tolower(file)
+      skip = 0
+      if (lf ~ /\.env\.example$/) skip = 1
+      else if (lf ~ /\.(png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|pdf|zip|tar|gz|lock)$/) skip = 1
+      else if (lf ~ /\.min\.(js|css)$/ || lf ~ /\.map$/) skip = 1
+      else if (lf ~ /node_modules\//) skip = 1
+      else if (lf ~ /\.githooks\//) skip = 1
+      else if (lf ~ /\.test\.(js|ts)$/ || lf ~ /\.spec\.(js|ts)$/ || lf ~ /__tests__\//) skip = 1
+      next
+    }
+    /^\+\+\+/ { skip = 1; next }
+    skip { next }
+    /^\+/ { print file "\t" substr($0, 2) }
+  ')
 
-    # Skip binary files, images, lock files
-    if echo "$file" | grep -qiE '\.(png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|pdf|zip|tar|gz|lock|min\.js|min\.css|map)$'; then
-      continue
-    fi
-
-    # Skip node_modules (should never be staged, but just in case)
-    if echo "$file" | grep -q 'node_modules/'; then
-      continue
-    fi
-
-    # Skip the hooks directory itself (contains detection patterns, not secrets)
-    if echo "$file" | grep -q '\.githooks/'; then
-      continue
-    fi
-
-    # Skip test files (may contain mock/fixture connection strings)
-    if echo "$file" | grep -qE '\.test\.(js|ts)$|\.spec\.(js|ts)$|__tests__/'; then
-      continue
-    fi
-
-    # Get the staged content of the file
-    staged_content=$(git diff --cached -p -- "$file" 2>/dev/null | grep '^+' | grep -v '^+++' || true)
-
-    if [ -n "$staged_content" ]; then
-      for pattern in "${SECRET_PATTERNS[@]}"; do
-        match=$(echo "$staged_content" | grep -iE "$pattern" 2>/dev/null | head -1 || true)
-        if [ -n "$match" ]; then
-          # Truncate the match for display (don't print the actual secret)
-          truncated=$(echo "$match" | cut -c1-80)
-          echo -e "${RED}BLOCKED${NC} Possible secret in ${YELLOW}${file}${NC}"
-          echo -e "  Pattern: ${pattern}"
-          echo -e "  Near:    ${truncated}..."
-          BLOCKED=1
-          break
-        fi
-      done
-    fi
-  done <<< "$staged_files"
+  if [ -n "$staged_added" ]; then
+    for pattern in "${SECRET_PATTERNS[@]}"; do
+      match=$(printf '%s\n' "$staged_added" | grep -iE "$pattern" 2>/dev/null | head -1 || true)
+      if [ -n "$match" ]; then
+        file=${match%%$'\t'*}
+        content=${match#*$'\t'}
+        # Truncate the match for display (don't print the actual secret)
+        truncated=$(printf '%s' "$content" | cut -c1-80)
+        echo -e "${RED}BLOCKED${NC} Possible secret in ${YELLOW}${file}${NC}"
+        echo -e "  Pattern: ${pattern}"
+        echo -e "  Near:    ${truncated}..."
+        BLOCKED=1
+      fi
+    done
+  fi
 fi
 
 # ==============================================================================

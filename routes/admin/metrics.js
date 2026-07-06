@@ -6,6 +6,14 @@ const { getRateLimitMetrics } = require('../../config/rateLimit');
 const { protect, authorize } = require('../../middleware/auth');
 const geoip = require('geoip-lite');
 
+const MAX_REQUEST_EVENTS = 10000;
+const MAX_ENDPOINT_STATS = 500;
+const MAX_RESPONSE_TIME_SAMPLES = 256;
+const MAX_ANOMALIES = 100;
+const OBJECT_ID_PATTERN = /^[a-f\d]{24}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const NUMERIC_ID_PATTERN = /^\d+$/;
+
 // Maintain a history of block rates and detailed analytics
 const blockRateHistory = [];
 const analyticsStore = {
@@ -15,6 +23,52 @@ const analyticsStore = {
     anomalies: []
 };
 const MAX_HISTORY_POINTS = 30;
+
+function pushBounded(target, value, maxSize) {
+    target.push(value);
+    while (target.length > maxSize) {
+        target.shift();
+    }
+}
+
+function normalizePathSegment(segment) {
+    if (OBJECT_ID_PATTERN.test(segment)) return ':objectId';
+    if (UUID_PATTERN.test(segment)) return ':uuid';
+    if (NUMERIC_ID_PATTERN.test(segment)) return ':id';
+    return segment;
+}
+
+function normalizeEndpoint(req) {
+    const routePath = req.route?.path;
+    if (typeof routePath === 'string') {
+        return `${req.baseUrl || ''}${routePath}`;
+    }
+
+    const rawPath = (req.originalUrl || req.url || req.path || 'unknown').split('?')[0];
+    return rawPath
+        .split('/')
+        .map(segment => segment ? normalizePathSegment(segment) : segment)
+        .join('/') || '/';
+}
+
+function metricEntries(collection) {
+    if (!collection) return [];
+    if (collection instanceof Map) {
+        return Array.from(collection.entries());
+    }
+    return Object.entries(collection);
+}
+
+function metricHitCount(value) {
+    return typeof value === 'number' ? value : value?.count || 0;
+}
+
+function trimEndpointStats() {
+    while (analyticsStore.endpointStats.size > MAX_ENDPOINT_STATS) {
+        const oldestKey = analyticsStore.endpointStats.keys().next().value;
+        analyticsStore.endpointStats.delete(oldestKey);
+    }
+}
 
 // Helper function to calculate percentiles
 function percentile(arr, p) {
@@ -48,10 +102,10 @@ function recordRequest(req, blocked = false) {
     const timestamp = Date.now();
     const ip = req.ip || req.connection.remoteAddress;
     const geo = geoip.lookup(ip) || {};
-    const endpoint = req.originalUrl;
+    const endpoint = normalizeEndpoint(req);
 
     // Store request data
-    analyticsStore.requests.push({
+    pushBounded(analyticsStore.requests, {
         timestamp,
         ip,
         endpoint,
@@ -60,7 +114,7 @@ function recordRequest(req, blocked = false) {
         country: geo.country,
         region: geo.region,
         responseTime: req.responseTime,
-    });
+    }, MAX_REQUEST_EVENTS);
 
     // Update endpoint stats
     if (!analyticsStore.endpointStats.has(endpoint)) {
@@ -69,11 +123,14 @@ function recordRequest(req, blocked = false) {
             blocked: 0,
             responseTimes: []
         });
+        trimEndpointStats();
     }
     const stats = analyticsStore.endpointStats.get(endpoint);
     stats.total++;
     if (blocked) stats.blocked++;
-    if (req.responseTime) stats.responseTimes.push(req.responseTime);
+    if (req.responseTime) {
+        pushBounded(stats.responseTimes, req.responseTime, MAX_RESPONSE_TIME_SAMPLES);
+    }
 
     // Cleanup old data (keep last 30 days)
     const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -101,12 +158,12 @@ let blockRateInterval = setInterval(() => {
     const anomalyIndices = detectAnomalies(recentRates);
 
     anomalyIndices.forEach(index => {
-        analyticsStore.anomalies.push({
+        pushBounded(analyticsStore.anomalies, {
             timestamp: blockRateHistory[index].timestamp,
             type: 'Unusual Block Rate',
             value: recentRates[index],
             severity: recentRates[index] > 0.5 ? 'High' : 'Medium'
-        });
+        }, MAX_ANOMALIES);
     });
 }, 60000);
 
@@ -234,14 +291,17 @@ router.get('/rate-limits', protect, authorize('admin'), async (req, res) => {
             api: {
                 ...metrics.metrics.api,
                 blockRate: metrics.metrics.api.blocked / apiTotal,
-                // Convert endpoints Map to array with additional stats
-                endpoints: Array.from(metrics.metrics.api.endpoints.entries())
-                    .map(([path, hits]) => ({
-                        path,
-                        hits,
-                        blockRate: metrics.metrics.api.blocked / apiTotal,
-                        status: hits > 100 ? 'high' : hits > 50 ? 'medium' : 'normal'
-                    }))
+                // Convert endpoint metrics from either Map or plain object contracts.
+                endpoints: metricEntries(metrics.metrics.api.endpoints)
+                    .map(([path, value]) => {
+                        const hits = metricHitCount(value);
+                        return {
+                            path,
+                            hits,
+                            blockRate: metrics.metrics.api.blocked / apiTotal,
+                            status: hits > 100 ? 'high' : hits > 50 ? 'medium' : 'normal'
+                        };
+                    })
             },
             upload: {
                 ...metrics.metrics.upload,

@@ -11,6 +11,8 @@ const PATIENT_ID = '000000000000000000000001';
 const DOCTOR_ID = '000000000000000000000002';
 const ADMIN_ID = '000000000000000000000003';
 const BOOKING_ID = '000000000000000000000004';
+const HOSPITAL_A_ID = '100000000000000000000001';
+const HOSPITAL_B_ID = '100000000000000000000002';
 
 jest.mock('../../../models/healthAccessToken');
 jest.mock('../../../models/healthDataAccessLog', () => ({
@@ -58,8 +60,8 @@ describe('Authorization Unit: doctor access control rules', () => {
     Patient.findById.mockResolvedValue(overrides.patient || { _id: PATIENT_ID, name: 'Test Patient' });
 
     User.findById
-      .mockResolvedValueOnce(overrides.doctor || { _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor', hospital: 'hospitalA' })  // doctor lookup
-      .mockResolvedValueOnce(overrides.admin || { _id: ADMIN_ID, name: 'Admin', role: 'admin', hospital: 'hospitalA' });  // admin lookup
+      .mockResolvedValueOnce(overrides.doctor || { _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor', hospitalId: HOSPITAL_A_ID })  // doctor lookup
+      .mockResolvedValueOnce(overrides.admin || { _id: ADMIN_ID, name: 'Admin', role: 'admin', hospitalId: HOSPITAL_A_ID });  // admin lookup
 
     if (overrides.hospitalProviders !== undefined) {
       User.find.mockReturnValue({
@@ -81,8 +83,8 @@ describe('Authorization Unit: doctor access control rules', () => {
   describe('AUTH-001: Hospital boundary enforcement', () => {
     it('should reject when doctor is from a different hospital than admin', async () => {
       setupGrantAccessMocks({
-        doctor: { _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor', hospital: 'hospitalB' },
-        admin: { _id: ADMIN_ID, name: 'Admin', role: 'admin', hospital: 'hospitalA' }
+        doctor: { _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor', hospitalId: HOSPITAL_B_ID },
+        admin: { _id: ADMIN_ID, name: 'Admin', role: 'admin', hospitalId: HOSPITAL_A_ID }
       });
 
       await expect(
@@ -102,8 +104,8 @@ describe('Authorization Unit: doctor access control rules', () => {
 
     it('should reject when patient has no bookings with admin hospital', async () => {
       setupGrantAccessMocks({
-        doctor: { _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor', hospital: 'hospitalA' },
-        admin: { _id: ADMIN_ID, name: 'Admin', role: 'admin', hospital: 'hospitalA' },
+        doctor: { _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor', hospitalId: HOSPITAL_A_ID },
+        admin: { _id: ADMIN_ID, name: 'Admin', role: 'admin', hospitalId: HOSPITAL_A_ID },
         hospitalProviders: [{ _id: 'prov1' }],
         patientHasBooking: null  // no booking found
       });
@@ -118,10 +120,10 @@ describe('Authorization Unit: doctor access control rules', () => {
       ).rejects.toThrow(/no bookings with your hospital/);
     });
 
-    it('should allow super-admin (no hospital field) to grant cross-hospital access', async () => {
+    it('should allow super-admin (no hospitalId field) to grant cross-hospital access', async () => {
       setupGrantAccessMocks({
-        doctor: { _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor', hospital: 'hospitalB' },
-        admin: { _id: ADMIN_ID, name: 'SuperAdmin', role: 'admin' }  // no hospital field
+        doctor: { _id: DOCTOR_ID, name: 'Dr. Test', role: 'doctor', hospitalId: HOSPITAL_B_ID },
+        admin: { _id: ADMIN_ID, name: 'SuperAdmin', role: 'admin' }  // no hospitalId field
       });
 
       const result = await doctorAccessService.grantAccess({

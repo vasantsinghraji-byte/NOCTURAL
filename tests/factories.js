@@ -3,6 +3,8 @@
  * Generate realistic mock data for testing
  */
 
+const mongoose = require('mongoose');
+
 /**
  * User Data Factories
  */
@@ -119,7 +121,7 @@ function hospitalFactory(overrides = {}) {
     role: 'admin',
     name: 'Test Hospital',
     email: 'hospital@test.com',
-    hospital: 'Test Hospital',
+    hospitalId: new mongoose.Types.ObjectId(),
     hospitalType: 'General',
     hospitalVerified: true,
     facilitySize: 'Large',
@@ -132,13 +134,15 @@ function hospitalFactory(overrides = {}) {
  * Duty/Shift Data Factories
  */
 
-function dutyFactory(hospitalId, overrides = {}) {
+function dutyFactory(hospital, overrides = {}) {
+  const postedBy = hospital?._id || hospital;
+  const hospitalId = hospital?.hospitalId || overrides.hospitalId || hospital;
+
   return {
     title: 'Night Shift - Emergency Department',
     department: 'Emergency',
     specialty: 'Emergency Medicine',
-    hospital: hospitalId,
-    hospitalName: 'Test Hospital',
+    hospitalId,
     location: '123 Hospital St, San Francisco, CA 94102',
     coordinates: {
       lat: 37.7749,
@@ -163,13 +167,13 @@ function dutyFactory(hospitalId, overrides = {}) {
     benefits: ['Meals provided', 'Free parking'],
     maxApplicants: 10,
     status: 'OPEN',
-    postedBy: hospitalId,
+    postedBy,
     ...overrides
   };
 }
 
-function urgentDutyFactory(hospitalId, overrides = {}) {
-  return dutyFactory(hospitalId, {
+function urgentDutyFactory(hospital, overrides = {}) {
+  return dutyFactory(hospital, {
     title: 'URGENT: ICU Coverage Needed',
     department: 'ICU',
     specialty: 'Intensive Care / Critical Care Medicine',
@@ -353,25 +357,28 @@ function paymentFactory(userId, overrides = {}) {
  * Shift Series Data Factories
  */
 
-function shiftSeriesFactory(hospitalId, overrides = {}) {
+function shiftSeriesFactory(hospital, overrides = {}) {
+  const postedBy = hospital?._id || hospital;
+  const hospitalId = hospital?.hospitalId || overrides.hospitalId || hospital;
+
   return {
     title: 'Weekly Night Shifts - ER',
     description: 'Recurring night shift coverage for emergency department',
     specialty: 'Emergency Medicine',
-    hospital: hospitalId,
-    postedBy: hospitalId,
-    recurrence: {
-      pattern: 'WEEKLY',
-      daysOfWeek: [1, 3, 5], // Monday, Wednesday, Friday
-      startDate: global.testUtils.futureDate(7),
-      endDate: global.testUtils.futureDate(90)
-    },
-    shiftDetails: {
+    hospitalId,
+    postedBy,
+    location: 'ER',
+    seriesType: 'WEEKLY',
+    shifts: [{
+      date: global.testUtils.futureDate(7),
       startTime: '20:00',
       endTime: '08:00',
-      duration: 12,
-      payRate: 75
-    },
+      hourlyRate: 75
+    }],
+    totalShifts: 1,
+    baseHourlyRate: 75,
+    discountedRate: 75,
+    totalCompensation: 900,
     status: 'OPEN',
     ...overrides
   };

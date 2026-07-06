@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earnings Dashboard - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/css/pages/roles-doctor-earnings.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">🌙 Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/doctor/doctor-dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html"><i class="fas fa-briefcase"></i> Browse</a>
+            <a href="/roles/doctor/calendar.html"><i class="fas fa-calendar"></i> Calendar</a>
+            <a href="/roles/doctor/earnings.html" class="active"><i class="fas fa-dollar-sign"></i> Earnings</a>
+            <a href="/roles/doctor/achievements.html"><i class="fas fa-trophy"></i> Achievements</a>
+            <a href="#" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-chart-line"></i> Earnings Dashboard</h1>
+            <p>Track your income, payments, and optimize your earnings</p>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading" class="loading">
+            <i class="fas fa-spinner fa-spin loading-spinner-icon"></i>
+            <p>Loading earnings data...</p>
+        </div>
+
+        <!-- Main Content (Hidden until loaded) -->
+        <div id="mainContent" class="is-hidden">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card success">
+                    <div class="stat-icon"><i class="fas fa-rupee-sign"></i></div>
+                    <div class="stat-value" id="totalEarnings">₹0</div>
+                    <div class="stat-label">Total Earnings This Month</div>
+                    <div class="stat-change positive" id="earningsChange">
+                        <i class="fas fa-arrow-up"></i> <span>0%</span> vs last month
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div class="stat-value" id="hoursWorked">0 hrs</div>
+                    <div class="stat-label">Hours Worked</div>
+                    <div class="stat-change" id="shiftsCount">0 shifts completed</div>
+                </div>
+
+                <div class="stat-card warning">
+                    <div class="stat-icon"><i class="fas fa-chart-bar"></i></div>
+                    <div class="stat-value" id="avgRate">₹0/hr</div>
+                    <div class="stat-label">Average Hourly Rate</div>
+                    <div class="stat-change" id="rateComparison">Market average: ₹0/hr</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-bullseye"></i></div>
+                    <div class="stat-value" id="goalProgress">0%</div>
+                    <div class="stat-label">Monthly Goal Progress</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-fill-empty" id="goalProgressBar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Earnings Optimizer -->
+            <div class="card optimizer-card is-hidden" id="optimizerCard">
+                <h3><i class="fas fa-lightbulb"></i> Earnings Optimizer</h3>
+                <p>Here are the best opportunities to maximize your income this week:</p>
+                <div class="suggestion-grid" id="suggestionsList"></div>
+                <div class="optimizer-summary">
+                    <strong>Potential Weekly Earnings:</strong> <span class="optimizer-potential-earnings" id="potentialEarnings">₹0</span>
+                    <div class="warning-message" id="warningMessage"></div>
+                </div>
+            </div>
+
+            <!-- Charts and Breakdown -->
+            <div class="chart-grid">
+                <div class="card">
+                    <h3><i class="fas fa-chart-area"></i> Earnings Trend</h3>
+                    <canvas id="earningsChart" height="100"></canvas>
+                </div>
+
+                <div class="card">
+                    <h3><i class="fas fa-pie-chart"></i> Breakdown</h3>
+                    <div id="breakdownList">
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">
+                                <i class="fas fa-check-circle breakdown-icon-success"></i>
+                                Paid
+                            </span>
+                            <span class="breakdown-value paid" id="paidAmount">₹0</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">
+                                <i class="fas fa-clock breakdown-icon-warning"></i>
+                                Pending
+                            </span>
+                            <span class="breakdown-value pending" id="pendingAmount">₹0</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">
+                                <i class="fas fa-exclamation-triangle breakdown-icon-danger"></i>
+                                Overdue
+                            </span>
+                            <span class="breakdown-value overdue" id="overdueAmount">₹0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Timeline -->
+            <div class="card">
+                <h3><i class="fas fa-history"></i> Payment Timeline</h3>
+                <div class="timeline" id="paymentTimeline"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/doctor-earnings.js"></script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>

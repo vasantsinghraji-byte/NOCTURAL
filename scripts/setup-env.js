@@ -35,17 +35,26 @@ function needsRegeneration(value) {
   return false;
 }
 
-function main() {
-  // If .env doesn't exist, copy from .env.example
-  if (!fs.existsSync(ENV_PATH)) {
-    if (fs.existsSync(ENV_EXAMPLE_PATH)) {
-      fs.copyFileSync(ENV_EXAMPLE_PATH, ENV_PATH);
-      console.log('Created .env from .env.example');
-    } else {
+function ensureEnvFile() {
+  try {
+    fs.copyFileSync(ENV_EXAMPLE_PATH, ENV_PATH, fs.constants.COPYFILE_EXCL);
+    console.log('Created .env from .env.example');
+  } catch (error) {
+    if (error.code === 'EEXIST') {
+      return;
+    }
+
+    if (error.code === 'ENOENT') {
       console.error('ERROR: Neither .env nor .env.example found');
       process.exit(1);
     }
+
+    throw error;
   }
+}
+
+function main() {
+  ensureEnvFile();
 
   let content = fs.readFileSync(ENV_PATH, 'utf-8');
   let changed = false;

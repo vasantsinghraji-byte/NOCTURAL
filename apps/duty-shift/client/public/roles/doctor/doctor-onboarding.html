@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Onboarding - Nocturnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/pages/roles-doctor-doctor-onboarding.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🩺 Doctor Onboarding</h1>
+            <p>Complete your profile to start applying for shifts</p>
+        </div>
+
+        <div id="alert" class="alert"></div>
+
+        <div class="progress-bar-container">
+            <div class="steps">
+                <div class="step active" data-step="1">
+                    <div class="step-circle">
+                        <span class="step-number">1</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="step-label">Account</div>
+                </div>
+                <div class="step" data-step="2">
+                    <div class="step-circle">
+                        <span class="step-number">2</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="step-label">Professional</div>
+                </div>
+                <div class="step" data-step="3">
+                    <div class="step-circle">
+                        <span class="step-number">3</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="step-label">Documents</div>
+                </div>
+                <div class="step" data-step="4">
+                    <div class="step-circle">
+                        <span class="step-number">4</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="step-label">Preferences</div>
+                </div>
+            </div>
+        </div>
+
+        <form id="onboardingForm">
+            <!-- Step 1: Account Creation -->
+            <div class="form-step active" data-step="1">
+                <div class="form-card">
+                    <h2 class="form-step-title">Provider Account Information</h2>
+                    <p class="form-step-description">Start with your basic details for India provider onboarding</p>
+
+                    <div class="form-group">
+                        <label for="fullName" class="required">Full Name</label>
+                        <input type="text" id="fullName" class="form-control" placeholder="Dr. John Doe" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="email" class="required">Email Address</label>
+                            <input type="email" id="email" class="form-control" placeholder="provider@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone" class="required">Phone Number</label>
+                            <input type="tel" id="phone" class="form-control" placeholder="+91 98765 43210" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="password" class="required">Password</label>
+                            <input type="password" id="password" class="form-control" placeholder="Min. 8 chars with uppercase, number & symbol" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmPassword" class="required">Confirm Password</label>
+                            <input type="password" id="confirmPassword" class="form-control" placeholder="Re-enter password" required>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" data-action="next-step">Next Step <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Professional Details -->
+            <div class="form-step" data-step="2">
+                <div class="form-card">
+                    <h2 class="form-step-title">Professional Details</h2>
+                    <p class="form-step-description">Tell us about your Indian healthcare registration and care experience</p>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="mciNumber" class="required">Professional Registration Number</label>
+                            <input type="text" id="mciNumber" class="form-control" placeholder="MCI/NMC/State council number" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="stateMedicalCouncil" class="required">Registration Council / Board</label>
+                            <select id="stateMedicalCouncil" class="form-control" required>
+                                <option value="">Select Council / Board</option>
+                                <option value="National Medical Commission">National Medical Commission</option>
+                                <option value="Indian Nursing Council">Indian Nursing Council</option>
+                                <option value="State Nursing Council">State Nursing Council</option>
+                                <option value="State Physiotherapy Council">State Physiotherapy Council</option>
+                                <option value="Delhi Medical Council">Delhi Medical Council</option>
+                                <option value="Maharashtra Medical Council">Maharashtra Medical Council</option>
+                                <option value="Tamil Nadu Medical Council">Tamil Nadu Medical Council</option>
+                                <option value="Karnataka Medical Council">Karnataka Medical Council</option>
+                                <option value="Rajasthan Medical Council">Rajasthan Medical Council</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="primarySpecialization" class="required">Primary Specialization</label>
+                        <select id="primarySpecialization" class="form-control" required>
+                            <option value="">Select Specialization</option>
+                            <option value="Home Healthcare">Home Healthcare</option>
+                            <option value="Nursing Care">Nursing Care</option>
+                            <option value="Physiotherapy">Physiotherapy</option>
+                            <option value="Internal Medicine">Internal Medicine</option>
+                            <option value="Emergency Medicine">Emergency Medicine</option>
+                            <option value="General Surgery">General Surgery</option>
+                            <option value="Anaesthesiology">Anaesthesiology</option>
+                            <option value="Intensive Care / Critical Care Medicine">Intensive Care / Critical Care Medicine</option>
+                            <option value="Obstetrics & Gynaecology">Obstetrics & Gynaecology</option>
+                            <option value="Orthopaedics">Orthopaedics</option>
+                            <option value="Urology">Urology</option>
+                            <option value="Neurosurgery">Neurosurgery</option>
+                            <option value="ENT (Otolaryngology)">ENT (Otolaryngology)</option>
+                            <option value="Cardiothoracic Surgery">Cardiothoracic Surgery</option>
+                            <option value="General Paediatrics">General Paediatrics</option>
+                            <option value="Neonatology">Neonatology</option>
+                            <option value="General Psychiatry">General Psychiatry</option>
+                            <option value="Radiology">Radiology</option>
+                            <option value="Pathology / Laboratory Medicine">Pathology / Laboratory Medicine</option>
+                            <option value="Palliative Medicine">Palliative Medicine</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="yearsOfExperience" class="required">Years of Experience</label>
+                            <input type="number" id="yearsOfExperience" class="form-control" placeholder="e.g., 5" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="employmentStatus" class="required">Current Employment Status</label>
+                            <select id="employmentStatus" class="form-control" required>
+                                <option value="">Select Status</option>
+                                <option value="Full-time">Full-time</option>
+                                <option value="Part-time">Part-time</option>
+                                <option value="Freelance">Freelance</option>
+                                <option value="Between Jobs">Between Jobs</option>
+                                <option value="Student">Student</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Procedural Skills</label>
+                        <p class="helper-text helper-text-muted helper-text-bottom">Select all that apply</p>
+                        <div class="skill-selection" id="skillsSelection">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" data-action="prev-step"><i class="fas fa-arrow-left"></i> Back</button>
+                        <button type="button" class="btn btn-primary" data-action="next-step">Next Step <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Document Upload -->
+            <div class="form-step" data-step="3">
+                <div class="form-card">
+                    <h2 class="form-step-title">Document Upload</h2>
+                    <p class="form-step-description">Upload Indian provider verification documents (All mandatory)</p>
+
+                    <div class="info-box">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Accepted formats:</strong> JPG, PNG, PDF (Max 5MB per file)
+                    </div>
+
+                    <div class="form-group">
+                        <label class="required">Council Registration Certificate</label>
+                        <div class="file-upload-area" data-file-trigger="mciCertFile">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p><strong>Click to upload</strong> or drag and drop</p>
+                            <p class="helper-text helper-text-subtle">JPG, PNG or PDF (Max 5MB)</p>
+                            <input type="file" id="mciCertFile" accept=".jpg,.jpeg,.png,.pdf">
+                        </div>
+                        <div class="file-preview" id="mciCertPreview">
+                            <span><i class="fas fa-file-check"></i> <span id="mciCertName"></span></span>
+                            <button type="button" class="btn-remove" data-remove-file="mciCert">Remove</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="required">Photo ID (Aadhaar/PAN)</label>
+                        <div class="file-upload-area" data-file-trigger="photoIdFile">
+                            <i class="fas fa-id-card"></i>
+                            <p><strong>Click to upload</strong> or drag and drop</p>
+                            <p class="helper-text helper-text-subtle">JPG, PNG or PDF (Max 5MB)</p>
+                            <input type="file" id="photoIdFile" accept=".jpg,.jpeg,.png,.pdf">
+                        </div>
+                        <div class="file-preview" id="photoIdPreview">
+                            <span><i class="fas fa-file-check"></i> <span id="photoIdName"></span></span>
+                            <button type="button" class="btn-remove" data-remove-file="photoId">Remove</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="required">Professional Degree / Diploma Certificate</label>
+                        <div class="file-upload-area" data-file-trigger="mbbsDegreeFile">
+                            <i class="fas fa-graduation-cap"></i>
+                            <p><strong>Click to upload</strong> or drag and drop</p>
+                            <p class="helper-text helper-text-subtle">JPG, PNG or PDF (Max 5MB)</p>
+                            <input type="file" id="mbbsDegreeFile" accept=".jpg,.jpeg,.png,.pdf">
+                        </div>
+                        <div class="file-preview" id="mbbsDegreePreview">
+                            <span><i class="fas fa-file-check"></i> <span id="mbbsDegName"></span></span>
+                            <button type="button" class="btn-remove" data-remove-file="mbbsDegree">Remove</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="required">Professional Photo</label>
+                        <div class="file-upload-area" data-file-trigger="profilePhotoFile">
+                            <i class="fas fa-camera"></i>
+                            <p><strong>Click to upload</strong> your profile photo</p>
+                            <p class="helper-text helper-text-subtle">JPG or PNG (Max 5MB)</p>
+                            <input type="file" id="profilePhotoFile" accept=".jpg,.jpeg,.png">
+                        </div>
+                        <div class="file-preview" id="profilePhotoPreview">
+                            <span><i class="fas fa-file-check"></i> <span id="profilePhotoName"></span></span>
+                            <button type="button" class="btn-remove" data-remove-file="profilePhoto">Remove</button>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" data-action="prev-step"><i class="fas fa-arrow-left"></i> Back</button>
+                        <button type="button" class="btn btn-primary" data-action="next-step">Next Step <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Skills & Availability -->
+            <div class="form-step" data-step="4">
+                <div class="form-card">
+                    <h2 class="form-step-title">Skills & Availability</h2>
+                    <p class="form-step-description">Set your preferences for home visits now and locum duty matching later</p>
+
+                    <div class="form-group">
+                        <label>Preferred Visit / Duty Times</label>
+                        <p class="helper-text helper-text-muted helper-text-bottom">Select all that work for home visits or future duty shifts</p>
+                        <div class="shift-preferences" id="shiftPreferences">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="serviceRadius">Service Radius (km)</label>
+                            <input type="number" id="serviceRadius" class="form-control" placeholder="20" min="5" max="100" value="20">
+                            <p class="helper-text helper-text-muted helper-text-top">How far are you willing to travel for home visits?</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="minimumRate">Minimum Expected Rate (₹/visit or hour)</label>
+                            <input type="number" id="minimumRate" class="form-control" placeholder="1500" min="500" step="100">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="city" class="required">City</label>
+                        <input type="text" id="city" class="form-control" placeholder="e.g., Jaipur" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="required">Bank Account Details</label>
+                        <p class="helper-text helper-text-muted helper-text-bottom">For receiving payments</p>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <input type="text" id="accountNumber" class="form-control" placeholder="Account Number" required>
+                            </div>
+                            <div class="form-group">
+                                <input type="text" id="ifscCode" class="form-control" placeholder="IFSC Code" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <input type="text" id="bankName" class="form-control" placeholder="Bank Name" required>
+                            </div>
+                            <div class="form-group">
+                                <input type="text" id="accountHolderName" class="form-control" placeholder="Account Holder Name" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" data-action="prev-step"><i class="fas fa-arrow-left"></i> Back</button>
+                        <button type="submit" class="btn btn-primary">Complete Onboarding <i class="fas fa-check"></i></button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script type="module" src="/js/doctor-onboarding.js"></script>
+</body>
+</html>

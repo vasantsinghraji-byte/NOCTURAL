@@ -26,7 +26,7 @@ router.use(paginationMiddleware);
  * - page: Page number (default: 1)
  * - limit: Items per page (default: 20, max: 100)
  * - sort: Sort field(s) (e.g., "-createdAt,title")
- * - select: Fields to return (e.g., "title,date,hospital")
+ * - select: Fields to return (e.g., "title,date,hospitalId")
  * - status: Filter by status
  * - specialty: Filter by specialty
  * - search: Search query
@@ -58,7 +58,7 @@ router.get('/', async (req, res) => {
             {
                 filters,
                 search: req.query.search || '',
-                searchFields: ['title', 'hospital', 'hospitalName', 'description']
+                searchFields: ['title', 'description']
             },
             req.pagination
         );
@@ -152,7 +152,7 @@ router.get('/urgent', async (req, res) => {
                 page: req.pagination.page,
                 limit: Math.min(req.pagination.limit, 50), // Max 50 for urgent
                 sort: { urgency: -1, date: 1 },
-                select: 'title hospital date startTime endTime hourlyRate urgency'
+                select: 'title hospitalId date startTime endTime hourlyRate urgency'
             }
         );
 

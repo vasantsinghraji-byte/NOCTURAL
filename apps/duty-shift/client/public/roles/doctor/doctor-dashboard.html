@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Nocturnal</title>
+    <link rel="stylesheet" href="/css/pages/roles-doctor-doctor-dashboard.css">
+    <script src="/js/vendor/dompurify.min.js"></script><script src="/js/config.js"></script>
+    <script src="/js/frontend-session.js"></script>
+    <script src="/js/doctor-session.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="logo">🌙 Nocturnal</div>
+        <div class="nav-links">
+            <a href="/roles/doctor/doctor-dashboard.html" class="active">Dashboard</a>
+            <a href="/roles/doctor/browse-shifts-enhanced.html">Browse Duties</a>
+            <a href="/roles/doctor/calendar.html">Calendar</a>
+            <a href="/roles/doctor/earnings.html">Earnings</a>
+            <a href="/roles/doctor/achievements.html">Achievements</a>
+            <a href="/roles/doctor/my-applications.html">My Applications</a>
+            <a href="/roles/doctor/doctor-profile-enhanced.html">Profile</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">D</div>
+            <span id="userName">Loading...</span>
+            <button id="logout-btn" class="logout-btn">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Welcome Section -->
+        <div class="welcome-section">
+            <h1>Welcome back, <span id="welcomeName">Doctor</span>! 👋</h1>
+            <p>Here's your overview for today</p>
+        </div>
+
+        <!-- Profile Information Section -->
+        <div class="welcome-section is-hidden" id="profileInfo">
+            <h2 class="profile-heading">Your Profile</h2>
+            <div class="profile-grid">
+                <div>
+                    <p class="profile-label"><strong>Specialty:</strong></p>
+                    <p class="profile-value" id="userSpecialty">-</p>
+                </div>
+                <div>
+                    <p class="profile-label"><strong>Hospital:</strong></p>
+                    <p class="profile-value" id="userHospital">-</p>
+                </div>
+                <div>
+                    <p class="profile-label"><strong>Location:</strong></p>
+                    <p class="profile-value" id="userLocation">-</p>
+                </div>
+                <div>
+                    <p class="profile-label"><strong>Experience:</strong></p>
+                    <p class="profile-value" id="userExperience">-</p>
+                </div>
+                <div>
+                    <p class="profile-label"><strong>Qualifications:</strong></p>
+                    <p class="profile-value" id="userQualifications">-</p>
+                </div>
+                <div>
+                    <p class="profile-label"><strong>Phone:</strong></p>
+                    <p class="profile-value" id="userPhone">-</p>
+                </div>
+                <div>
+                    <p class="profile-label"><strong>Email:</strong></p>
+                    <p class="profile-value" id="userEmail">-</p>
+                </div>
+                <div>
+                    <p class="profile-label"><strong>Profile Strength:</strong></p>
+                    <p class="profile-value" id="profileStrength">-</p>
+                </div>
+            </div>
+            <div class="preferences-section" id="preferencesSection">
+                <p class="profile-label"><strong>Preferences:</strong></p>
+                <p class="profile-value" id="userPreferences">-</p>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card blue">
+                <div class="icon">📋</div>
+                <h3>Available Duties</h3>
+                <div class="number" id="availableDuties">-</div>
+            </div>
+            <div class="stat-card green">
+                <div class="icon">✓</div>
+                <h3>Accepted Applications</h3>
+                <div class="number" id="acceptedApps">-</div>
+            </div>
+            <div class="stat-card yellow">
+                <div class="icon">⏳</div>
+                <h3>Pending Applications</h3>
+                <div class="number" id="pendingApps">-</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="icon">💰</div>
+                <h3>Total Earnings</h3>
+                <div class="number" id="totalEarnings">₹0</div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <h2>Quick Actions</h2>
+            <div class="action-buttons">
+                <a href="/roles/doctor/browse-shifts-enhanced.html" class="action-btn">
+                    <span class="icon">🔍</span>
+                    <span>Browse Available Duties</span>
+                </a>
+                <a href="/roles/doctor/my-applications.html" class="action-btn">
+                    <span class="icon">📝</span>
+                    <span>View My Applications</span>
+                </a>
+                <a href="/roles/doctor/doctor-profile-enhanced.html" class="action-btn">
+                    <span class="icon">👤</span>
+                    <span>Update Profile</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Recent Applications -->
+        <div class="recent-section">
+            <h2>Recent Applications</h2>
+            <div id="recentApplications">
+                <div class="loading">Loading your recent applications...</div>
+            </div>
+        </div>
+    </div>
+    <script src="/js/doctor-dashboard.js?v=20260429-1"></script>
+
+    <!-- JWT Authentication -->
+    <script src="/js/doctor-dashboard.js"></script>
+    <!-- Unified Navigation & Notifications -->
+    <script src="/js/auto-inject-nav.js"></script>
+</body>
+</html>
