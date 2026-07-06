@@ -2,9 +2,19 @@
 
 > Working inventory for security triage. Rule: each cluster below is fixed in its **own
 > small `fix/` PR against the root originals — never inside a restructure phase**
-> (Decision Log 2026-07-03). Snapshot taken 2026-07-03 at develop `e5476b3`
-> (31 open alerts). Re-generate with:
-> `gh api "repos/<owner>/<repo>/code-scanning/alerts?state=open&ref=refs/heads/develop&per_page=100" --paginate`
+> (Decision Log 2026-07-03). Original snapshot 2026-07-03 at develop `e5476b3` (31 open).
+> Last reconciled **2026-07-05 at develop `12026e8`**.
+>
+> **Reading alert state correctly (important):** GitHub pins each alert's `open/fixed`
+> state to the **default branch (`main`)**, so a fix merged to `develop` still shows
+> `open` globally until `develop → main` is promoted. Judge progress by the per-ref
+> counts, not the global list:
+> - `...alerts?state=open&ref=refs/heads/develop` → **4 open** (the real remaining work)
+> - `...alerts?state=open&ref=refs/heads/main` → **39 open** (pre-fix baseline; all the
+>   merged fixes below auto-close here at the next promotion)
+>
+> Re-generate the authoritative develop view with:
+> `gh api "repos/<owner>/<repo>/code-scanning/alerts?state=open&ref=refs/heads/develop&per_page=100" --paginate --jq '.[]|select(.tool.name=="CodeQL")|"\(.rule.id)\t\(.most_recent_instance.location.path):\(.most_recent_instance.location.start_line)"'`
 
 ## Triage clusters (suggested PR grouping, highest value first)
 
@@ -13,17 +23,36 @@
 | 1. Payment/patient controller auth bypass | 5 | `js/user-controlled-bypass` (high) | `controllers/paymentController.js` (4), `controllers/patientController.js` (1) | Highest priority: live payment + patient auth paths. |
 | 2. Sanitization/validation property injection | 9 | `js/remote-property-injection` (high) | `utils/sanitization.js` (4), `middleware/validation.js` (3), `utils/pagination.js` (2) | Core middleware — fix carefully with regression tests; these utilities defend everything else. |
 | 3. Regex hardening | Cleared | — | — | `utils/pagination.js` `js/regex-injection` fixed (cluster-3 PR: `safeCaseInsensitiveRegex`); `middleware/validation.js` `js/polynomial-redos` fixed in cluster-2 PR; `routes/duties-paginated-example.js` `js/regex-injection` dismissed (unmounted, Phase 6 deletion candidate). |
-| 4. Incomplete sanitization | 2 remaining | `js/incomplete-sanitization` (high) | `scripts/doctor-local.js`, `client/build.config.js` | The `middleware/validation.js` `js/incomplete-multi-character-sanitization` was resolved in the cluster-2 PR (loop-until-stable tag strip, same function). |
-| 5. Ops-script hygiene | 6 | `js/file-system-race`, `js/biased-cryptographic-random`, `js/indirect-command-line-injection` (high/medium) | `scripts/setup-mongodb-security.js`, `scripts/setup-env.js`, `scripts/rotate-secrets.js`, `scripts/backup-database.js` | Not request-path code, but rotate-secrets/crypto-random findings deserve real fixes. |
-| 6. Resource exhaustion | 1 | `js/resource-exhaustion` (high) | `utils/securityMonitor.js` | Single fix. |
-| 7. Misc / likely dismissals | 3 | `js/log-injection` (medium), `js/missing-regexp-anchor` (high) | `test-compression.js` (2), `tests/unit/authorization/k8s-security.test.js` (1) | Test/one-off code — candidates for documented dismissal ("used in tests") or Phase 6 deletion (`test-compression.js`). |
-| 8. Dependency CVEs | 3 | `CVE-2026-3449` (low), `CVE-2026-31808`, `CVE-2025-5891` (medium) | vendored `app/node_modules/**` (`@tootallnate/once`, `file-type`, `pm2`) | Why is `app/node_modules` committed/scanned? Investigate that first — the right fix may be untracking it, not patching vendored packages. |
+| 4. Incomplete sanitization | Cleared | — | — | Fixed in PR #154. (`middleware/validation.js` `js/incomplete-multi-character-sanitization` had already been fixed in the cluster-2 PR #149.) |
+| 5. Ops-script hygiene | Cleared | — | — | Fixed in PR #155 (`scripts/setup-mongodb-security.js`, `scripts/setup-env.js`, `scripts/rotate-secrets.js`, `scripts/backup-database.js`), with an ops-script CodeQL-hygiene regression test. |
+| 6. Resource exhaustion | Cleared | — | — | Fixed in PR #153 (`utils/securityMonitor.js`). |
+| 7. Misc / test-and-one-off | Dismissed | `js/log-injection` (medium), `js/regex/missing-regexp-anchor` (high) | `test-compression.js` (2), `tests/unit/authorization/k8s-security.test.js` (1) | Dismissed 2026-07-05: `test-compression.js` alerts as "won't fix" (Phase 6 deletion candidate); k8s test alert as "used in tests". No code fix warranted. |
+| 8. Dependency CVEs | 3 (Dependabot, not CodeQL) | `CVE-2026-3449` (low), `CVE-2026-31808`, `CVE-2025-5891` (medium) | vendored `app/node_modules/**` (`@tootallnate/once`, `file-type`, `pm2`) | Why is `app/node_modules` committed/scanned? Investigate that first — the right fix may be untracking it, not patching vendored packages. Not CodeQL; tracked separately. |
+| 9. Sensitive data in GET query (uncategorized) | Dismissed (false positive) | `js/sensitive-get-query` (medium) | `middleware/healthDataAccess.js:164` | Dismissed 2026-07-05: `patientId` is a REST **path** param (`req.params`), not `req.query` — used only in async audit logging, never a secret, never echoed to a response; `code_flows=0` (syntactic heuristic). Removing the path param would break the route contract. **Judgment-call dismissal on live middleware — reversible if the direction changes.** |
+
+## Remaining on develop (as of 2026-07-05)
+
+**0 open CodeQL alerts on develop.** All clusters are fixed or dismissed with
+documented rationale (verified: `...alerts?state=open&ref=refs/heads/develop`
+→ 0 CodeQL). The 4 that were open at `12026e8` (3 × cluster 7 test/one-off,
+1 × cluster 9 false positive) were dismissed 2026-07-05.
+
+Everything still listed as "open" globally is `main`-pinned and clears at the
+next `develop → main` promotion. Cluster 8 (Dependabot CVEs on committed
+`app/node_modules`) is the only non-CodeQL item left and needs a separate call.
 
 ## Already resolved (for the record)
 
-- 9 × `js/remote-property-injection` (cluster 2) + 1 × `js/polynomial-redos` + 1 × `js/incomplete-multi-character-sanitization` (both `middleware/validation.js`, clusters 3–4) — fixed in the cluster-2 PR: allowlist-gated `defineProperty` writes in `utils/sanitization.js`, `middleware/validation.js`, `utils/pagination.js`, plus a linear, loop-until-stable HTML-tag strip in the same `sanitizeInput` function.
-- 1 × `js/regex-injection` (cluster 3) — fixed in the cluster-3 PR: `utils/pagination.js` `paginateWithSearch` now builds its search regex via `safeMongo.safeCaseInsensitiveRegex` (escaped + length-capped). The `routes/duties-paginated-example.js` counterpart was dismissed (unmounted; Phase 6 deletion candidate).
+- 1 × `js/resource-exhaustion` (cluster 6) — fixed by PR #153 (`utils/securityMonitor.js`).
+- 2 × `js/incomplete-sanitization` (cluster 4) — fixed by PR #154 (`scripts/doctor-local.js`, `client/build.config.js`).
+- 6 × ops-script hygiene (cluster 5: `js/file-system-race`, `js/biased-cryptographic-random`, `js/indirect-command-line-injection`) — fixed by PR #155.
+- 1 × `js/regex-injection` (cluster 3) — fixed by PR #152: `utils/pagination.js` `paginateWithSearch` now builds its search regex via `safeMongo.safeCaseInsensitiveRegex` (escaped + length-capped). The `routes/duties-paginated-example.js` counterpart was dismissed (unmounted; Phase 6 deletion candidate).
+- 9 × `js/remote-property-injection` (cluster 2) + 1 × `js/polynomial-redos` + 1 × `js/incomplete-multi-character-sanitization` (both `middleware/validation.js`, clusters 3–4) — fixed by PR #149: allowlist-gated `defineProperty` writes in `utils/sanitization.js`, `middleware/validation.js`, `utils/pagination.js`, plus a linear, loop-until-stable HTML-tag strip in the same `sanitizeInput` function.
 - 5 × `js/user-controlled-bypass` (cluster 1) — fixed by PR #148 (`controllers/paymentController.js`, `controllers/patientController.js` + route-boundary validation).
-- 8 × `js/sql-injection` — fixed by PR #144 (`routes/payments.js`, `services/applicationService.js`); auto-close on `main` at next promotion.
+- 8 × `js/sql-injection` — fixed by PR #144 (`routes/payments.js`, `services/applicationService.js`).
 - 2 × `js/missing-rate-limiting` — dismissed with documented rationale (unmounted example route; test harness).
 - 26 alerts against `apps/duty-shift/**` — parked mirror excluded from scanning (`.github/codeql/codeql-config.yml`); root counterparts tracked here instead.
+
+> **Promotion note:** all merged fixes above are on develop; their `main`-pinned alerts (39 total)
+> auto-close when develop is promoted to main. Confirm via the develop→main checklist in
+> `PHASE1_SPLIT_RECONCILED.md`.
