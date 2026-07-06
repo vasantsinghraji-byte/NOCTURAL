@@ -17,6 +17,39 @@ test.describe('public conversion funnel', () => {
       });
     });
 
+    await page.route('**/api/v1/patients/login', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          patient: { id: 'patient-id', name: 'Test Patient', email: 'patient@example.com' }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/patients/me/stats', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          stats: { totalBookings: 0, totalSpent: 0 }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/bookings/patient/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: []
+        })
+      });
+    });
+
     await page.route('**/api/v1/auth/register', async (route) => {
       await route.fulfill({
         status: 201,
@@ -69,7 +102,21 @@ test.describe('public conversion funnel', () => {
     await page.getByLabel(/confirm password/i).fill('Password@1');
     await page.getByRole('button', { name: /create account/i }).click();
 
-    await expect(page).toHaveURL(/\/roles\/patient\/patient-(dashboard|login)\.html/);
+    await expect(page).toHaveURL(/\/roles\/patient\/patient-dashboard\.html/);
+    await page.waitForTimeout(500);
+    await expect(page).toHaveURL(/\/roles\/patient\/patient-dashboard\.html/);
+  });
+
+  test('patient login submits and remains on the protected patient dashboard', async ({ page }) => {
+    await page.goto('/roles/patient/patient-login.html');
+
+    await page.getByLabel(/email address/i).fill('patient@example.com');
+    await page.getByLabel(/^password/i).fill('Password@1');
+    await page.getByRole('button', { name: /^login$/i }).click();
+
+    await expect(page).toHaveURL(/\/roles\/patient\/patient-dashboard\.html/);
+    await page.waitForTimeout(500);
+    await expect(page).toHaveURL(/\/roles\/patient\/patient-dashboard\.html/);
   });
 
   test('provider registration submits and redirects by role to onboarding', async ({ page }) => {
