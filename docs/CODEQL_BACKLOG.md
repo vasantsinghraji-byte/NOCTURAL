@@ -27,8 +27,37 @@
 | 5. Ops-script hygiene | Cleared | — | — | Fixed in PR #155 (`scripts/setup-mongodb-security.js`, `scripts/setup-env.js`, `scripts/rotate-secrets.js`, `scripts/backup-database.js`), with an ops-script CodeQL-hygiene regression test. |
 | 6. Resource exhaustion | Cleared | — | — | Fixed in PR #153 (`utils/securityMonitor.js`). |
 | 7. Misc / test-and-one-off | Dismissed | `js/log-injection` (medium), `js/regex/missing-regexp-anchor` (high) | `test-compression.js` (2), `tests/unit/authorization/k8s-security.test.js` (1) | Dismissed 2026-07-05: `test-compression.js` alerts as "won't fix" (Phase 6 deletion candidate); k8s test alert as "used in tests". No code fix warranted. |
-| 8. Dependency CVEs | 3 (Dependabot, not CodeQL) | `CVE-2026-3449` (low), `CVE-2026-31808`, `CVE-2025-5891` (medium) | vendored `app/node_modules/**` (`@tootallnate/once`, `file-type`, `pm2`) | Why is `app/node_modules` committed/scanned? Investigate that first — the right fix may be untracking it, not patching vendored packages. Not CodeQL; tracked separately. |
+| 8. Container-image CVEs | Closed — not active | `CVE-2026-3449` (low), `CVE-2026-31808` (med), `CVE-2025-5891` (med) | Docker image `/app/node_modules` (`@tootallnate/once`, `file-type`, `pm2`) | Investigated 2026-07-05 — see note below. **Nothing committed, nothing to untrack;** these were transient Trivy container-image-scan findings, no longer in the open alert set. |
 | 9. Sensitive data in GET query (uncategorized) | Dismissed (false positive) | `js/sensitive-get-query` (medium) | `middleware/healthDataAccess.js:164` | Dismissed 2026-07-05: `patientId` is a REST **path** param (`req.params`), not `req.query` — used only in async audit logging, never a secret, never echoed to a response; `code_flows=0` (syntactic heuristic). Removing the path param would break the route contract. **Judgment-call dismissal on live middleware — reversible if the direction changes.** |
+
+## Cluster 8 investigation (2026-07-05) — closed, no action
+
+The original snapshot mislabelled these as "committed / vendored `app/node_modules`."
+That premise is false:
+
+- **Nothing is committed.** `git ls-files app/` → 0 files; `app/` is gitignored
+  (`.gitignore` has both `node_modules/` and `app/`). There is no vendored tree
+  to untrack.
+- **Source is the Trivy container-image scan.** The `Dockerfile` builds into
+  `WORKDIR /app`, and `.github/workflows/deploy.yml` runs
+  `aquasecurity/trivy-action` against the built image and uploads SARIF. That is
+  why the paths read `app/node_modules/...package.json` — they are files *inside
+  the Docker image*, not the repo.
+- **Not currently open.** As of `develop` today, the only open code-scanning
+  alerts are 35 CodeQL (all `main`-pinned); **zero** open alerts reference
+  `node_modules` or these CVEs. The Trivy entries were tied to an older image
+  scan and have aged out of the open set.
+- **They never gated anything.** The Trivy step is `severity: CRITICAL,HIGH` +
+  `ignore-unfixed: true` + `exit-code: 1`; these are low/medium, so they do not
+  fail the deploy gate.
+- **No straightforward dependency bump.** `file-type` is already latest
+  (`^22.0.1`); `pm2` and `@tootallnate/once` are image/transitive and not in the
+  root lockfile.
+
+**Standing recommendation (not urgent):** keep the Docker base image and deps
+current so image scans stay clean; the deploy gate already blocks CRITICAL/HIGH.
+Container-image CVE hygiene is image-maintenance work, not a code-scanning
+backlog item — de-scoped from this document.
 
 ## Remaining on develop (as of 2026-07-05)
 
@@ -38,8 +67,10 @@ documented rationale (verified: `...alerts?state=open&ref=refs/heads/develop`
 1 × cluster 9 false positive) were dismissed 2026-07-05.
 
 Everything still listed as "open" globally is `main`-pinned and clears at the
-next `develop → main` promotion. Cluster 8 (Dependabot CVEs on committed
-`app/node_modules`) is the only non-CodeQL item left and needs a separate call.
+next `develop → main` promotion. Cluster 8 (container-image CVEs) was
+investigated and closed — nothing committed, transient Trivy findings, de-scoped
+as image-maintenance (see the cluster 8 note above). **The CodeQL backlog is now
+fully resolved.**
 
 ## Already resolved (for the record)
 
