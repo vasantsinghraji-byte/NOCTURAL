@@ -73,8 +73,18 @@ describe('enhanced rate limiter user keys', () => {
   it('requires Redis-backed rate limits in production when rate limiting is enabled', () => {
     process.env.NODE_ENV = 'production';
     process.env.RATE_LIMIT_ENABLED = 'true';
+    process.env.REDIS_ENABLED = 'true';
     delete process.env.REDIS_URL;
 
     expect(() => loadWithRateLimitMock()).toThrow('REDIS_URL is required for production rate limiting');
+  });
+
+  it('allows production startup with memory rate limits when Redis is explicitly disabled', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.RATE_LIMIT_ENABLED = 'true';
+    process.env.REDIS_ENABLED = 'false';
+    delete process.env.REDIS_URL;
+
+    expect(() => loadWithRateLimitMock()).not.toThrow();
   });
 });
