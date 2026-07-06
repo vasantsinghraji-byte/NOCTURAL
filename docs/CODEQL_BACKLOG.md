@@ -26,18 +26,20 @@
 | 4. Incomplete sanitization | Cleared | — | — | Fixed in PR #154. (`middleware/validation.js` `js/incomplete-multi-character-sanitization` had already been fixed in the cluster-2 PR #149.) |
 | 5. Ops-script hygiene | Cleared | — | — | Fixed in PR #155 (`scripts/setup-mongodb-security.js`, `scripts/setup-env.js`, `scripts/rotate-secrets.js`, `scripts/backup-database.js`), with an ops-script CodeQL-hygiene regression test. |
 | 6. Resource exhaustion | Cleared | — | — | Fixed in PR #153 (`utils/securityMonitor.js`). |
-| 7. Misc / likely dismissals | 3 open (on develop) | `js/log-injection` (medium), `js/regex/missing-regexp-anchor` (high) | `test-compression.js` (2), `tests/unit/authorization/k8s-security.test.js` (1) | Test/one-off code — candidates for documented dismissal ("used in tests") or Phase 6 deletion (`test-compression.js` is a Phase 6 deletion candidate). No code fix warranted. |
-| 8. Dependency CVEs | 3 (Dependabot, not CodeQL) | `CVE-2026-3449` (low), `CVE-2026-31808`, `CVE-2025-5891` (medium) | vendored `app/node_modules/**` (`@tootallnate/once`, `file-type`, `pm2`) | Why is `app/node_modules` committed/scanned? Investigate that first — the right fix may be untracking it, not patching vendored packages. |
-| 9. Sensitive data in GET query (uncategorized) | 1 open (on develop) | `js/sensitive-get-query` (medium) | `middleware/healthDataAccess.js:164` | **Live request-path code** — not in the original 2026-07-03 snapshot; surfaced later. The only remaining develop alert that is not test/one-off. Read and fix properly (own `fix/` PR). |
+| 7. Misc / test-and-one-off | Dismissed | `js/log-injection` (medium), `js/regex/missing-regexp-anchor` (high) | `test-compression.js` (2), `tests/unit/authorization/k8s-security.test.js` (1) | Dismissed 2026-07-05: `test-compression.js` alerts as "won't fix" (Phase 6 deletion candidate); k8s test alert as "used in tests". No code fix warranted. |
+| 8. Dependency CVEs | 3 (Dependabot, not CodeQL) | `CVE-2026-3449` (low), `CVE-2026-31808`, `CVE-2025-5891` (medium) | vendored `app/node_modules/**` (`@tootallnate/once`, `file-type`, `pm2`) | Why is `app/node_modules` committed/scanned? Investigate that first — the right fix may be untracking it, not patching vendored packages. Not CodeQL; tracked separately. |
+| 9. Sensitive data in GET query (uncategorized) | Dismissed (false positive) | `js/sensitive-get-query` (medium) | `middleware/healthDataAccess.js:164` | Dismissed 2026-07-05: `patientId` is a REST **path** param (`req.params`), not `req.query` — used only in async audit logging, never a secret, never echoed to a response; `code_flows=0` (syntactic heuristic). Removing the path param would break the route contract. **Judgment-call dismissal on live middleware — reversible if the direction changes.** |
 
-## Remaining on develop (as of `12026e8`, 2026-07-05)
+## Remaining on develop (as of 2026-07-05)
 
-Only **4** CodeQL alerts are genuinely open on develop:
+**0 open CodeQL alerts on develop.** All clusters are fixed or dismissed with
+documented rationale (verified: `...alerts?state=open&ref=refs/heads/develop`
+→ 0 CodeQL). The 4 that were open at `12026e8` (3 × cluster 7 test/one-off,
+1 × cluster 9 false positive) were dismissed 2026-07-05.
 
-- 3 × cluster 7 (test/one-off): `test-compression.js` log-injection ×2, `k8s-security.test.js` missing-regexp-anchor — dismiss/Phase-6-delete, no code fix.
-- 1 × cluster 9: `js/sensitive-get-query` in `middleware/healthDataAccess.js:164` — the only live-code item left; needs a real fix.
-
-Everything else listed as "open" globally is `main`-pinned and clears at the next `develop → main` promotion.
+Everything still listed as "open" globally is `main`-pinned and clears at the
+next `develop → main` promotion. Cluster 8 (Dependabot CVEs on committed
+`app/node_modules`) is the only non-CodeQL item left and needs a separate call.
 
 ## Already resolved (for the record)
 
