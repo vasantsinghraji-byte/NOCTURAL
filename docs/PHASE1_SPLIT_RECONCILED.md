@@ -4,19 +4,20 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 # NOCTURNAL Restructure Roadmap
 
-> Status: **PHASE 5 SCOPE SELECTED — patient-health validation/test/import cleanup only; duty-shift routes stay live.**
+> Status: **PHASES 0-4 RELEASED TO PRODUCTION; PHASE 5-A PARKED — patient-health validation/test/import cleanup only; duty-shift routes stay live.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
-> Phase 5-A scope baseline: `7d41487` = PR #150 (Phase 5 duty-shift-live roadmap revision) on top of PR #148 (`3d65758`, CodeQL user-controlled-bypass fixes), PR #147 (`1ca204d`, tracker update), PR #146 (`17ca90f`, pre-commit hook speedup + password-pattern fix), PR #145 (`2fd19d0`, governance + mirror guard), and PR #143 (`3de2a2b`, Phase 4). Phases 0-4 and approved follow-ups are merged.
+> Production release state: `main` is live on Render at `8a43326` (PR #160 startup hotfix on top of PR #158 promotion `13b704c`); `/api/v1/health` reports `deploymentCommit=8a43326d5d50b504c36bd798be7d1c45ad2fb86c`; `main` CodeQL open alerts: 0.
+> Phase 5-A scope baseline: `7d41487` = PR #150 (Phase 5 duty-shift-live roadmap revision) on top of PR #148 (`3d65758`, CodeQL user-controlled-bypass fixes), PR #147 (`1ca204d`, tracker update), PR #146 (`17ca90f`, pre-commit hook speedup + password-pattern fix), PR #145 (`2fd19d0`, governance + mirror guard), and PR #143 (`3de2a2b`, Phase 4). Phases 0-4 and approved follow-ups are merged and released to production.
 
 ## Document Control
 
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | In Execution — Phase 5 scope selected; implementation not started |
-| Version | v1.9 |
+| Status | In Execution — Phases 0-4 released to production; Phase 5 scope selected; implementation not started |
+| Version | v1.10 |
 | Owner | VASANT SINGH RAJI |
-| Last Updated | 2026-07-05 |
+| Last Updated | 2026-07-06 |
 | Next Review Date | Before Phase 5-A implementation |
 | Approved For Execution | Phases 0-4 plus approved governance/hook follow-ups. Phase 5 direction and Phase 5-A scope are selected; **Phase 5-A implementation is NOT yet started** — see Approval Record. |
 
@@ -25,9 +26,9 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Field | Value |
 |---|---|
 | Current Phase | Phase 5-A — Scope selected; implementation pending |
-| Execution Status | Phases 0-4 merged: PR #141 (Phases 0-2), PR #142 (Phase 3), PR #143 (Phase 4, `3de2a2b`), PR #144 (standalone duty-shift NoSQL-injection fixes, `e5476b3`), PR #145 (governance + mirror guard, `2fd19d0`), PR #146 (hook speedup + password-pattern fix, `17ca90f`), PR #147 (tracker update, `1ca204d`), PR #148 (CodeQL user-controlled-bypass fixes, `3d65758`), and PR #150 (duty-shift-live roadmap revision, `7d41487`). Phase 5-A scope: validation scripts, test coverage, and import ownership cleanup only |
+| Execution Status | Phases 0-4 merged and released to production: PR #141 (Phases 0-2), PR #142 (Phase 3), PR #143 (Phase 4, `3de2a2b`), PR #144 (standalone duty-shift NoSQL-injection fixes, `e5476b3`), PR #145 (governance + mirror guard, `2fd19d0`), PR #146 (hook speedup + password-pattern fix, `17ca90f`), PR #147 (tracker update, `1ca204d`), PR #148 (CodeQL user-controlled-bypass fixes, `3d65758`), PR #150 (duty-shift-live roadmap revision, `7d41487`), PR #158 (develop to main promotion, `13b704c`), and PR #160 (Render startup hotfix, `8a43326`). Phase 5-A scope: validation scripts, test coverage, and import ownership cleanup only |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | PR #150 checks green and merged. Current edit is docs-only Phase 5-A scope selection; implementation validation still pending |
+| Last Validation Result | Production verified 2026-07-06: Render `nocturnal-api` deploy `dep-d95pg399rddc73bf1340` is live at `8a43326`; `/api/v1/health` returned healthy with `deploymentCommit=8a43326d5d50b504c36bd798be7d1c45ad2fb86c`; `main` CodeQL open alerts: 0 |
 | Next Required Approval | Tech Lead / Owner approval to start Phase 5-A implementation from current `origin/develop` |
 
 ## Approval Record
@@ -163,10 +164,12 @@ npm run lint:baseline
 | 2026-07-04 | Speed up the pre-commit secret scan and fix the generic password detector | PR #146 reduced hook runtime and corrected the POSIX character-class bug that made the password pattern miss valid assignments | Owner / Tech Lead (follow-up hardening) |
 | 2026-07-05 | Supersede duty-shift dormancy plan; keep all duty-shift routes live | Product direction is to split patient-health from the current monolith without parking or unmounting the duty-shift product. Phase 5 is now patient-health-only continuation; no duty-shift route behavior may change | Owner / Product Owner |
 | 2026-07-05 | Select Phase 5-A scope: validation scripts, test coverage, import ownership cleanup | This advances patient-health separation without runtime route isolation, staging runtime preparation, duty-shift changes, auth/payment/schema changes, or deletion risk | Owner / Tech Lead |
+| 2026-07-06 | Release Phases 0-4 and approved follow-ups to production | PR #158 promoted `develop` to `main` at `13b704c`; Render auto-deploy initially failed because `REDIS_ENABLED=false` was configured but `middleware/rateLimitEnhanced.js` still required `REDIS_URL`; PR #160 fixed the startup guard and Render deployed `main@8a43326` live | Owner / Tech Lead |
+| 2026-07-06 | Add deployed-commit identity to Render Smoke | PR #159 added a strict `/api/v1/health.deploymentCommit` smoke assertion so future post-deploy smokes fail when production is healthy but not running the expected commit | Owner / Tech Lead |
 
 ## Next Course of Action
 
-1. Phase 4 and approved follow-ups are complete and merged through PR #150 (`7d41487`). Do not touch `apps/duty-shift` except via the drift-guard rules.
+1. Phases 0-4 and approved follow-ups are released to production. Current production is `main@8a43326` (PR #160), Render deploy `dep-d95pg399rddc73bf1340`, health `deploymentCommit=8a43326d5d50b504c36bd798be7d1c45ad2fb86c`, and `main` CodeQL open alerts = 0.
 2. Do not unmount, disable, pause, redirect, or otherwise change duty-shift routes in Phase 5.
 3. Start Phase 5-A only after implementation-start approval; approved scope is validation scripts, test coverage, and import ownership cleanup.
 4. Keep Phase 6 deletion blocked; deletion is especially unsafe while duty-shift remains live.
@@ -180,6 +183,14 @@ Run through this whenever develop is next promoted to `main`:
 - [ ] `npm run test:deploy-gate` green on the promotion candidate.
 - [ ] After the promotion merge, confirm the **8 `js/sql-injection` alerts pinned to `refs/heads/main`** (alerts 50–54, 56, 57, 59 — fixed on develop by PR #144) **auto-close** once main's CodeQL analysis completes. If they remain open, investigate before announcing the release.
 - [ ] Re-check open alert counts on `main` vs `develop` refs match expectations (`gh api .../code-scanning/alerts?ref=...`).
+
+**Latest promotion record (2026-07-06):**
+
+- [x] PR #158 promoted `develop` to `main` at `13b704c`.
+- [x] PR #160 fixed the Render production startup blocker and moved `main` to `8a43326`.
+- [x] Render `nocturnal-api` deploy `dep-d95pg399rddc73bf1340` is live for `8a43326`.
+- [x] `/api/v1/health` returned healthy with `deploymentCommit=8a43326d5d50b504c36bd798be7d1c45ad2fb86c`.
+- [x] `main` CodeQL open alert count is 0.
 
 ## Glossary
 
