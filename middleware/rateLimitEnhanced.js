@@ -15,9 +15,10 @@ const monitoring = require('../utils/monitoring');
 // Redis client (shared across rate limiters)
 let redisClient = null;
 const isRateLimitingDisabled = process.env.RATE_LIMIT_ENABLED === 'false';
+const isRedisDisabled = process.env.REDIS_ENABLED === 'false';
 const isProduction = process.env.NODE_ENV === 'production';
 
-if (isProduction && !isRateLimitingDisabled && !process.env.REDIS_URL) {
+if (isProduction && !isRateLimitingDisabled && !isRedisDisabled && !process.env.REDIS_URL) {
   throw new Error('REDIS_URL is required for production rate limiting');
 }
 
