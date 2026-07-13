@@ -85,6 +85,8 @@ describe('Frontend Auth Flow Standardization', () => {
     expect(patientLoginScriptSrc).toContain("NocturnalSession.resetButtonState(btn, { textContent: 'Login' })");
     expect(patientLoginScriptSrc).toContain('NocturnalSession.expectJsonSuccess(data, \'Login failed\'');
     expect(patientLoginScriptSrc).toContain('NocturnalSession.completeAuthSuccess(');
+    expect(patientLoginScriptSrc).toContain("userTypeKey: 'userType'");
+    expect(patientLoginScriptSrc).toContain("userType: 'patient'");
     expect(patientLoginScriptSrc).toContain('skipAuth: true');
     expect(patientLoginScriptSrc).toContain('parseJson: true');
     expect(patientLoginSrc).not.toContain("tokenKey: 'patientToken'");
