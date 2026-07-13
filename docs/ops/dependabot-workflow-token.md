@@ -29,9 +29,9 @@ Use this if a workflow/bot should merge these PRs unattended.
    - **Pull requests: Read & write**
    - **Workflows: Read & write**  ← the key one; this is what the user token lacks
    - **Checks / Commit statuses: Read** (to gate on green CI)
-2. **Install** it on this repo, and note the App ID + generate a private key.
-3. **Store secrets** on the repo: `MERGE_APP_ID`, `MERGE_APP_PRIVATE_KEY`
-   (the repo already uses this pattern for `BRANCH_PROTECTION_APP_*`).
+2. **Install** it on this repo, note the Client ID, and generate a private key.
+3. **Store secrets** on the repo: `MERGE_APP_CLIENT_ID`,
+   `MERGE_APP_PRIVATE_KEY`.
 4. **Mint a token in a workflow** with `actions/create-github-app-token`
    (already a dependency here) and merge with it, e.g.:
 
@@ -39,7 +39,7 @@ Use this if a workflow/bot should merge these PRs unattended.
    - uses: actions/create-github-app-token@v3
      id: app-token
      with:
-       app-id: ${{ secrets.MERGE_APP_ID }}
+       client-id: ${{ secrets.MERGE_APP_CLIENT_ID }}
        private-key: ${{ secrets.MERGE_APP_PRIVATE_KEY }}
    - run: gh pr merge "$PR" --merge
      env:
@@ -62,7 +62,7 @@ Use this if a workflow/bot should merge these PRs unattended.
 minor/patch** Dependabot PRs (majors are left for a human). It ships **dormant**
 and only runs once all of the following are in place:
 
-1. **Merge App** (Option B above) installed, with `MERGE_APP_ID` and
+1. **Merge App** (Option B above) installed, with `MERGE_APP_CLIENT_ID` and
    `MERGE_APP_PRIVATE_KEY` secrets set.
 2. **App added to `.github/CODEOWNERS`** (e.g. `* @your-merge-app[bot]` or a
    scoped entry) so the App's approval satisfies the required **code-owner
