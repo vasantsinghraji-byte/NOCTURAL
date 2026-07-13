@@ -185,6 +185,7 @@ Run through this whenever develop is next promoted to `main`:
 - [ ] `npm run test:deploy-gate` green on the promotion candidate.
 - [ ] After the promotion merge, confirm the **8 `js/sql-injection` alerts pinned to `refs/heads/main`** (alerts 50–54, 56, 57, 59 — fixed on develop by PR #144) **auto-close** once main's CodeQL analysis completes. If they remain open, investigate before announcing the release.
 - [ ] Re-check open alert counts on `main` vs `develop` refs match expectations (`gh api .../code-scanning/alerts?ref=...`).
+- [ ] After Render deploys, a manual Render Smoke run (`gh workflow run render-smoke.yml --ref main`) passes against the canonical `nocturnal-api` service **before announcing the release**. (Added 2026-07-13: the July 6 promotion shipped a CORS regression that broke cross-origin login for a week because the scheduled smoke was pointed at the legacy service — see PRs #169/#170.)
 
 **Latest promotion record (2026-07-06):**
 
