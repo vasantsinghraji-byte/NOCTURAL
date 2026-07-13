@@ -18,6 +18,13 @@ const isRateLimitingDisabled = process.env.RATE_LIMIT_ENABLED === 'false';
 const isRedisDisabled = process.env.REDIS_ENABLED === 'false';
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Production fail-fast: Redis-backed rate limiting must be explicitly opted out
+// of with REDIS_ENABLED=false. Leaving REDIS_ENABLED unset does NOT count as
+// disabled — a missing env var must not silently downgrade to the per-instance
+// memory store. Render services without a provisioned Redis therefore need
+// REDIS_ENABLED=false in their environment or the process exits 1 at boot
+// (this crashed two production deploys on 2026-07-06; see PR #160 and
+// docs/ops/render-post-deploy-smoke.md).
 if (isProduction && !isRateLimitingDisabled && !isRedisDisabled && !process.env.REDIS_URL) {
   throw new Error('REDIS_URL is required for production rate limiting');
 }
