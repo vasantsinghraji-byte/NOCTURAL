@@ -12,7 +12,11 @@ Two Render web services auto-deploy `main` from this repo:
   the roadmap's production-state records point here.
 - **`NOCTURAL`** (`https://noctural.onrender.com`, `srv-d4qttd49c44c73bjvd30`) — a
   **legacy service** kept live (decision 2026-07-13). It shares the production
-  MongoDB, so it must not be allowed to drift behind `main`.
+  MongoDB, so it must not be allowed to drift behind `main`. Scheduled and
+  manual smoke runs enforce this: the "Check legacy service commit parity" step
+  fails when the legacy service's `/api/v1/health.deploymentCommit` differs
+  from the canonical service's (override the legacy URL with the
+  `RENDER_SMOKE_LEGACY_BASE_URL` repo variable if the service moves).
 
 **`REDIS_ENABLED` requirement:** in production, `middleware/rateLimitEnhanced.js`
 exits with status 1 at boot unless either `REDIS_URL` is set or Redis is
