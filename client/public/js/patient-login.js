@@ -27,6 +27,8 @@
                     }),
                     {
                         userKey: 'patient',
+                        userTypeKey: 'userType',
+                        userType: 'patient',
                         successContainer: errorDiv,
                         successMessage: 'Login successful! Redirecting...',
                         redirectUrl: AppConfig.routes.page('patient.dashboard'),
