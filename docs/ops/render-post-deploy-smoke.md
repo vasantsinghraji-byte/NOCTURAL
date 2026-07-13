@@ -3,6 +3,24 @@
 The `Render Smoke` workflow (`.github/workflows/render-smoke.yml`) verifies the
 **deployed** instance (auth/CORS contract, service-worker cache headers, CSP).
 
+## Which service is production?
+
+Two Render web services auto-deploy `main` from this repo:
+
+- **`nocturnal-api`** (`https://nocturnal-api.onrender.com`, `srv-d4r5pk7gi27c73akbbpg`)
+  — the **canonical production service**. All smoke defaults, repo variables, and
+  the roadmap's production-state records point here.
+- **`NOCTURAL`** (`https://noctural.onrender.com`, `srv-d4qttd49c44c73bjvd30`) — a
+  **legacy service** kept live (decision 2026-07-13). It shares the production
+  MongoDB, so it must not be allowed to drift behind `main`.
+
+**`REDIS_ENABLED` requirement:** in production, `middleware/rateLimitEnhanced.js`
+exits with status 1 at boot unless either `REDIS_URL` is set or Redis is
+*explicitly* opted out of with `REDIS_ENABLED=false` (unset does **not** count as
+disabled). Any Render service without a provisioned Redis must set
+`REDIS_ENABLED=false` in its Environment — this crashed both 2026-07-06 deploys
+of the legacy service.
+
 ## Why a webhook is needed
 
 Render runs **auto-deploy outside GitHub Actions**, so there is no GitHub
@@ -31,8 +49,8 @@ GitHub when a deploy succeeds.
    dispatch endpoint).
 
 3. Confirm the repo variables point at production:
-   - `RENDER_SMOKE_BASE_URL = https://noctural.onrender.com`
-   - `RENDER_SMOKE_ORIGIN   = https://noctural.onrender.com`
+   - `RENDER_SMOKE_BASE_URL = https://nocturnal-api.onrender.com`
+   - `RENDER_SMOKE_ORIGIN   = https://nocturnal-api.onrender.com`
 
 ## Manual run
 
@@ -40,8 +58,8 @@ Until the webhook is wired, trigger it manually (defaults already target prod):
 
 ```
 gh workflow run render-smoke.yml --ref main \
-  -f deployed_base_url=https://noctural.onrender.com \
-  -f origin=https://noctural.onrender.com
+  -f deployed_base_url=https://nocturnal-api.onrender.com \
+  -f origin=https://nocturnal-api.onrender.com
 ```
 
 ## Residue-free production verification
@@ -57,11 +75,11 @@ that **auto-expires via the existing TTL index** on `User.smokeTestExpiresAt`
 #   ENABLE_STAGING_TEST_APIS=true   STAGING_TEST_API_SECRET=<secret>
 
 # create a short-lived account (auto-expires; default TTL via the service)
-curl -X POST https://noctural.onrender.com/api/v1/staging/webauthn-smoke/accounts \
+curl -X POST https://nocturnal-api.onrender.com/api/v1/staging/webauthn-smoke/accounts \
   -H "x-staging-test-secret: <secret>"
 
 # revoke it immediately when done
-curl -X DELETE https://noctural.onrender.com/api/v1/staging/webauthn-smoke/accounts/<accountId> \
+curl -X DELETE https://nocturnal-api.onrender.com/api/v1/staging/webauthn-smoke/accounts/<accountId> \
   -H "x-staging-test-secret: <secret>"
 ```
 

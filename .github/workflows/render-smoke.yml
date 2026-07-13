@@ -25,7 +25,7 @@ on:
         description: Deployed base URL to smoke test
         required: false
         type: string
-        default: https://noctural.onrender.com
+        default: https://nocturnal-api.onrender.com
       expected_deployment_commit:
         description: Expected /api/v1/health deploymentCommit prefix
         required: false
@@ -34,7 +34,7 @@ on:
         description: Browser Origin header to verify
         required: false
         type: string
-        default: https://noctural.onrender.com
+        default: https://nocturnal-api.onrender.com
 
 permissions:
   contents: read
