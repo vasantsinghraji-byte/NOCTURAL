@@ -4,7 +4,7 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 # NOCTURNAL Restructure Roadmap
 
-> Status: **PHASES 0-4 RELEASED TO PRODUCTION; PHASE 5-A PARKED — patient-health validation/test/import cleanup only; duty-shift routes stay live.**
+> Status: **PHASES 0-4 RELEASED TO PRODUCTION; PHASE 5-A IN EXECUTION (started 2026-07-14) — patient-health validation/test/import cleanup only; duty-shift routes stay live.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
 > Production release state: `main` is live on Render at `bc1d1de` (PR #170 CORS hotfix on top of PR #160 `8a43326` and PR #158 promotion `13b704c`); both services report `deploymentCommit=bc1d1de` and the full Render Smoke is green (2026-07-14, run 29335343110) — see the Hotfix / incident record below.
 > Note (2026-07-13): "Render" means the canonical `nocturnal-api` service. A second legacy service, `NOCTURAL` (`noctural.onrender.com`), also auto-deploys `main`; it was stuck on `e7b220b` after two exit-1 deploys on 2026-07-06 and was recovered on 2026-07-13 (`REDIS_ENABLED=false` — the first fix attempt saved `False`, which the strict `=== 'false'` guard rejects — plus explicit `ALLOWED_ORIGINS` and a `/api/v1/health` health check). See the Decision Log and `docs/ops/render-post-deploy-smoke.md`.
@@ -15,22 +15,22 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | In Execution — Phases 0-4 released to production; Phase 5 scope selected; implementation not started |
-| Version | v1.10 |
+| Status | In Execution — Phases 0-4 released to production; Phase 5-A implementation started 2026-07-14 |
+| Version | v1.11 |
 | Owner | VASANT SINGH RAJI |
-| Last Updated | 2026-07-06 |
-| Next Review Date | Before Phase 5-A implementation |
-| Approved For Execution | Phases 0-4 plus approved governance/hook follow-ups. Phase 5 direction and Phase 5-A scope are selected; **Phase 5-A implementation is NOT yet started** — see Approval Record. |
+| Last Updated | 2026-07-14 |
+| Next Review Date | Before Phase 5-A merge (validation output required in PR) |
+| Approved For Execution | Phases 0-4 plus approved governance/hook follow-ups. Phase 5-A implementation approved 2026-07-14 — validation scripts, test coverage, import ownership cleanup only; see Approval Record. |
 
 ## Current Phase Tracker
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 5-A — Scope selected; implementation pending |
+| Current Phase | Phase 5-A — In execution (readiness 9/10; branch `refactor/restructure-phase5a-validation` from `origin/develop` `952d806`) |
 | Execution Status | Phases 0-4 merged and released to production: PR #141 (Phases 0-2), PR #142 (Phase 3), PR #143 (Phase 4, `3de2a2b`), PR #144 (standalone duty-shift NoSQL-injection fixes, `e5476b3`), PR #145 (governance + mirror guard, `2fd19d0`), PR #146 (hook speedup + password-pattern fix, `17ca90f`), PR #147 (tracker update, `1ca204d`), PR #148 (CodeQL user-controlled-bypass fixes, `3d65758`), PR #150 (duty-shift-live roadmap revision, `7d41487`), PR #158 (develop to main promotion, `13b704c`), and PR #160 (Render startup hotfix, `8a43326`). Phase 5-A scope: validation scripts, test coverage, and import ownership cleanup only |
 | Current Owner | VASANT SINGH RAJI |
 | Last Validation Result | Production verified 2026-07-06: Render `nocturnal-api` deploy `dep-d95pg399rddc73bf1340` is live at `8a43326`; `/api/v1/health` returned healthy with `deploymentCommit=8a43326d5d50b504c36bd798be7d1c45ad2fb86c`; `main` CodeQL open alerts: 0 |
-| Next Required Approval | Tech Lead / Owner approval to start Phase 5-A implementation from current `origin/develop` |
+| Next Required Approval | Tech Lead / Owner review + merge approval of the Phase 5-A PR (with validation output); Phase 6 start remains gated separately |
 
 ## Approval Record
 
@@ -44,7 +44,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 | Phase 4 Start (Tech Lead) | **Approved** | 2026-07-03 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed copy-only Phase 4 from fresh develop; gate preconditions met (Phase 3 merged via PR #142, develop clean) |
 | Phase 5 Direction (Product Owner — duty-shift stays live) | **Approved** | 2026-07-05 | VASANT SINGH RAJI (Owner / Product Owner) — explicitly rejected duty-shift dormancy; continue patient-health split only |
 | Phase 5-A Scope (Tech Lead — validation/test/import cleanup) | **Approved** | 2026-07-05 | VASANT SINGH RAJI (Owner / Tech Lead) — chose validation scripts, test coverage, and import ownership cleanup before implementation |
-| Phase 5-A Implementation Start (Tech Lead — patient-health-only split) | Pending | — | — |
+| Phase 5-A Implementation Start (Tech Lead — patient-health-only split) | **Approved** | 2026-07-14 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed "begin the approved 5-A scope"; readiness score 9/10 recorded; start from `origin/develop` `952d806` (PR #174) on branch `refactor/restructure-phase5a-validation` |
 | Phase 6 Start (Tech Lead / Owner — deletion batches) | Pending | — | — |
 
 ## Open Questions
@@ -168,6 +168,7 @@ npm run lint:baseline
 | 2026-07-06 | Release Phases 0-4 and approved follow-ups to production | PR #158 promoted `develop` to `main` at `13b704c`; Render auto-deploy initially failed because `REDIS_ENABLED=false` was configured but `middleware/rateLimitEnhanced.js` still required `REDIS_URL`; PR #160 fixed the startup guard and Render deployed `main@8a43326` live | Owner / Tech Lead |
 | 2026-07-06 | Add deployed-commit identity to Render Smoke | PR #159 added a strict `/api/v1/health.deploymentCommit` smoke assertion so future post-deploy smokes fail when production is healthy but not running the expected commit | Owner / Tech Lead |
 | 2026-07-13 | Keep the legacy `NOCTURAL` Render service (`noctural.onrender.com`) and fix it with `REDIS_ENABLED=false`; repoint all smoke targets at canonical `nocturnal-api` | The legacy service failed both 2026-07-06 deploys (exit 1: `REDIS_ENABLED` unset + no `REDIS_URL` trips the production guard in `middleware/rateLimitEnhanced.js`) and was still serving `e7b220b` (2026-06-28, pre-security-fix code) against the production DB. The `RENDER_SMOKE_BASE_URL`/`RENDER_SMOKE_ORIGIN` repo variables and workflow dispatch defaults also pointed monitoring at the legacy service; all were repointed to `https://nocturnal-api.onrender.com` (see `docs/ops/render-post-deploy-smoke.md`) | Owner / Tech Lead |
+| 2026-07-14 | Start Phase 5-A implementation | Owner instructed start; readiness template filled (branch verified from `origin/develop` `952d806`, clean worktree, required files confirmed, rollback = revert Phase 5-A commits, validation commands known, approval received) — score 9/10, above the 8/10 gate. Deduction: develop advanced past the `7d41487` scope baseline (PRs #151–#174), so blueprint assumptions are re-verified against current code during execution | Owner / Tech Lead |
 
 ## Next Course of Action
 
