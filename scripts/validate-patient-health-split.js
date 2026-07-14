@@ -118,6 +118,10 @@ function toPosix(value) {
   return value.split(path.sep).join('/');
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function resolveRelativeRequire(fromFile, spec) {
   const base = path.resolve(path.dirname(fromFile), spec);
   for (const candidate of [base, `${base}.js`, path.join(base, 'index.js'), `${base}.json`]) {
@@ -203,7 +207,7 @@ function checkAppImports() {
 function checkMounts(routerFile, mounts, label) {
   const source = fs.readFileSync(routerFile, 'utf8');
   for (const mount of mounts) {
-    const mountRe = new RegExp(`router\\.use\\(\\s*['"\`]${mount.replace(/[/-]/g, '\\$&')}['"\`]`);
+    const mountRe = new RegExp(`router\\.use\\(\\s*['"\`]${escapeRegExp(mount)}['"\`]`);
     if (!mountRe.test(source)) {
       violation(`${toPosix(path.relative(ROOT, routerFile))}: expected ${label} mount '${mount}' not found`);
     }
