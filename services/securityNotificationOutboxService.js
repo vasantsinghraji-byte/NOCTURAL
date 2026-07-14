@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const SecurityNotificationOutbox = require('../models/securityNotificationOutbox');
 const securityNotificationService = require('./securityNotificationService');
 const operationalMetrics = require('../utils/operationalMetrics');
@@ -72,6 +73,10 @@ const processOne = async (outboxId) => {
 };
 
 const processPending = async ({ limit = 50 } = {}) => {
+  if (mongoose.connection.readyState !== 1) {
+    return { attempted: 0, completed: 0 };
+  }
+
   const pending = await SecurityNotificationOutbox.find({
     status: { $in: ['PENDING', 'RETRY_PENDING', 'PROCESSING'] },
     nextAttemptAt: { $lte: new Date() }
@@ -81,7 +86,11 @@ const processPending = async ({ limit = 50 } = {}) => {
 };
 
 const start = () => {
-  if (intervalId || process.env.SECURITY_NOTIFICATION_OUTBOX_ENABLED === 'false') return;
+  if (
+    intervalId ||
+    process.env.SECURITY_NOTIFICATION_OUTBOX_ENABLED === 'false' ||
+    mongoose.connection.readyState !== 1
+  ) return;
   const intervalMs = Number(process.env.SECURITY_NOTIFICATION_OUTBOX_INTERVAL_MS) || 30000;
   processPending();
   intervalId = setInterval(() => processPending(), intervalMs);
