@@ -4,9 +4,9 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 # NOCTURNAL Restructure Roadmap
 
-> Status: **PHASES 0-4 RELEASED TO PRODUCTION; PHASE 5-A IN EXECUTION (started 2026-07-14) — patient-health validation/test/import cleanup only; duty-shift routes stay live.**
+> Status: **PHASES 0-4 RELEASED TO PRODUCTION; PHASE 5-A IMPLEMENTATION COMPLETE — PR REVIEW/MERGE PENDING; duty-shift routes stay live.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
-> Production release state: `main` is live on Render at `bc1d1de` (PR #170 CORS hotfix on top of PR #160 `8a43326` and PR #158 promotion `13b704c`); both services report `deploymentCommit=bc1d1de` and the full Render Smoke is green (2026-07-14, run 29335343110) — see the Hotfix / incident record below.
+> Production release state: `main` is live on Render at `a68a5ba` (PR #173 render-smoke origin matrix, on top of PR #170 CORS hotfix `bc1d1de`, PR #160 `8a43326`, and PR #158 promotion `13b704c`); both services verified reporting `deploymentCommit=a68a5ba8deaa79e2b7a023d91259330685b81b91` via `/api/v1/health` on 2026-07-14 — see the Hotfix / incident record below.
 > Note (2026-07-13): "Render" means the canonical `nocturnal-api` service. A second legacy service, `NOCTURAL` (`noctural.onrender.com`), also auto-deploys `main`; it was stuck on `e7b220b` after two exit-1 deploys on 2026-07-06 and was recovered on 2026-07-13 (`REDIS_ENABLED=false` — the first fix attempt saved `False`, which the strict `=== 'false'` guard rejects — plus explicit `ALLOWED_ORIGINS` and a `/api/v1/health` health check). See the Decision Log and `docs/ops/render-post-deploy-smoke.md`.
 > Phase 5-A scope baseline: `7d41487` = PR #150 (Phase 5 duty-shift-live roadmap revision) on top of PR #148 (`3d65758`, CodeQL user-controlled-bypass fixes), PR #147 (`1ca204d`, tracker update), PR #146 (`17ca90f`, pre-commit hook speedup + password-pattern fix), PR #145 (`2fd19d0`, governance + mirror guard), and PR #143 (`3de2a2b`, Phase 4). Phases 0-4 and approved follow-ups are merged and released to production.
 
@@ -15,8 +15,8 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | In Execution — Phases 0-4 released to production; Phase 5-A implementation started 2026-07-14 |
-| Version | v1.11 |
+| Status | In Execution — Phases 0-4 released to production; Phase 5-A implementation complete; PR review/merge pending |
+| Version | v1.12 |
 | Owner | VASANT SINGH RAJI |
 | Last Updated | 2026-07-14 |
 | Next Review Date | Before Phase 5-A merge (validation output required in PR) |
@@ -26,7 +26,7 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 5-A — In execution (readiness 9/10; branch `refactor/restructure-phase5a-validation` from `origin/develop` `952d806`) |
+| Current Phase | Phase 5-A — Implementation complete; PR review/merge pending (readiness 9/10; branch `refactor/restructure-phase5a-validation`, started from `origin/develop` `952d806`, rebased onto `724a3a0` pre-PR) |
 | Execution Status | Phases 0-4 merged and released to production: PR #141 (Phases 0-2), PR #142 (Phase 3), PR #143 (Phase 4, `3de2a2b`), PR #144 (standalone duty-shift NoSQL-injection fixes, `e5476b3`), PR #145 (governance + mirror guard, `2fd19d0`), PR #146 (hook speedup + password-pattern fix, `17ca90f`), PR #147 (tracker update, `1ca204d`), PR #148 (CodeQL user-controlled-bypass fixes, `3d65758`), PR #150 (duty-shift-live roadmap revision, `7d41487`), PR #158 (develop to main promotion, `13b704c`), and PR #160 (Render startup hotfix, `8a43326`). Phase 5-A scope: validation scripts, test coverage, and import ownership cleanup only |
 | Current Owner | VASANT SINGH RAJI |
 | Last Validation Result | Production verified 2026-07-06: Render `nocturnal-api` deploy `dep-d95pg399rddc73bf1340` is live at `8a43326`; `/api/v1/health` returned healthy with `deploymentCommit=8a43326d5d50b504c36bd798be7d1c45ad2fb86c`; `main` CodeQL open alerts: 0 |
@@ -68,7 +68,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 
 **Objective:** Convert NOCTURNAL into a clean monorepo without breaking the existing app.
 
-**Current Mode:** Phase 4 and approved follow-up hardening are merged. Phase 5 has been revised to continue the patient-health split while preserving all duty-shift routes live. Phase 5-A scope is selected but not implemented.
+**Current Mode:** Phases 0-4 and approved follow-up hardening are merged. Phase 5-A implementation is complete on `refactor/restructure-phase5a-validation` and awaiting PR review/merge. Duty-shift routes remain live.
 
 **Core Strategy:** Copy first, verify, then cut over later.
 

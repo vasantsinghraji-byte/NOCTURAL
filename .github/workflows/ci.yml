@@ -51,6 +51,9 @@ jobs:
       - name: Run repository governance check
         run: node scripts/run-stacked-pr-validation.js lint
 
+      - name: Validate patient-health split invariants
+        run: npm run validate:patient-health-split
+
   # Unit & Integration Tests
   test:
     name: Run Tests
