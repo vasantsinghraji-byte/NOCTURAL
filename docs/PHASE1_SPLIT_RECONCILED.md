@@ -4,7 +4,7 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 # NOCTURNAL Restructure Roadmap
 
-> Status: **PHASES 0-4 RELEASED TO PRODUCTION; PHASE 5-A IMPLEMENTATION COMPLETE — PR REVIEW/MERGE PENDING; duty-shift routes stay live.**
+> Status: **PHASES 0-4 RELEASED TO PRODUCTION; PHASE 5-A COMPLETE AND MERGED TO `develop`; PHASE 6 BLOCKED PENDING SEPARATE OWNER DELETION APPROVAL; duty-shift routes stay live.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
 > Production release state: `main` is live on Render at `a68a5ba` (PR #173 render-smoke origin matrix, on top of PR #170 CORS hotfix `bc1d1de`, PR #160 `8a43326`, and PR #158 promotion `13b704c`); both services verified reporting `deploymentCommit=a68a5ba8deaa79e2b7a023d91259330685b81b91` via `/api/v1/health` on 2026-07-14 — see the Hotfix / incident record below.
 > Note (2026-07-13): "Render" means the canonical `nocturnal-api` service. A second legacy service, `NOCTURAL` (`noctural.onrender.com`), also auto-deploys `main`; it was stuck on `e7b220b` after two exit-1 deploys on 2026-07-06 and was recovered on 2026-07-13 (`REDIS_ENABLED=false` — the first fix attempt saved `False`, which the strict `=== 'false'` guard rejects — plus explicit `ALLOWED_ORIGINS` and a `/api/v1/health` health check). See the Decision Log and `docs/ops/render-post-deploy-smoke.md`.
@@ -15,22 +15,22 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | In Execution — Phases 0-4 released to production; Phase 5-A implementation complete; PR review/merge pending |
-| Version | v1.12 |
+| Status | In Execution — Phases 0-4 released to production; Phase 5-A complete and merged; Phase 6 not approved |
+| Version | v1.13 |
 | Owner | VASANT SINGH RAJI |
 | Last Updated | 2026-07-14 |
-| Next Review Date | Before Phase 5-A merge (validation output required in PR) |
-| Approved For Execution | Phases 0-4 plus approved governance/hook follow-ups. Phase 5-A implementation approved 2026-07-14 — validation scripts, test coverage, import ownership cleanup only; see Approval Record. |
+| Next Review Date | Only after separate Owner approval identifies an explicit Phase 6 deletion batch |
+| Approved For Execution | Phases 0-5-A plus approved governance/hook follow-ups. Phase 5-A merged through PR #177 (`ab2046a`). Phase 6 planning/deletion is **not approved**; see Approval Record. |
 
 ## Current Phase Tracker
 
 | Field | Value |
 |---|---|
-| Current Phase | Phase 5-A — Implementation complete; PR review/merge pending (readiness 9/10; branch `refactor/restructure-phase5a-validation`, started from `origin/develop` `952d806`, rebased onto `724a3a0` pre-PR) |
-| Execution Status | Phases 0-4 merged and released to production: PR #141 (Phases 0-2), PR #142 (Phase 3), PR #143 (Phase 4, `3de2a2b`), PR #144 (standalone duty-shift NoSQL-injection fixes, `e5476b3`), PR #145 (governance + mirror guard, `2fd19d0`), PR #146 (hook speedup + password-pattern fix, `17ca90f`), PR #147 (tracker update, `1ca204d`), PR #148 (CodeQL user-controlled-bypass fixes, `3d65758`), PR #150 (duty-shift-live roadmap revision, `7d41487`), PR #158 (develop to main promotion, `13b704c`), and PR #160 (Render startup hotfix, `8a43326`). Phase 5-A scope: validation scripts, test coverage, and import ownership cleanup only |
+| Current Phase | Between phases — Phase 5-A complete and merged through PR #177 (`ab2046a`); Phase 6 blocked pending separate Owner deletion approval |
+| Execution Status | Phases 0-4 merged and released to production: PR #141 (Phases 0-2), PR #142 (Phase 3), PR #143 (Phase 4, `3de2a2b`), PR #144 (standalone duty-shift NoSQL-injection fixes, `e5476b3`), PR #145 (governance + mirror guard, `2fd19d0`), PR #146 (hook speedup + password-pattern fix, `17ca90f`), PR #147 (tracker update, `1ca204d`), PR #148 (CodeQL user-controlled-bypass fixes, `3d65758`), PR #150 (duty-shift-live roadmap revision, `7d41487`), PR #158 (develop to main promotion, `13b704c`), and PR #160 (Render startup hotfix, `8a43326`). Phase 5-A validation scripts, route coverage, and import-ownership enforcement merged to `develop` through PR #177 (`ab2046a`) |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | Production verified 2026-07-06: Render `nocturnal-api` deploy `dep-d95pg399rddc73bf1340` is live at `8a43326`; `/api/v1/health` returned healthy with `deploymentCommit=8a43326d5d50b504c36bd798be7d1c45ad2fb86c`; `main` CodeQL open alerts: 0 |
-| Next Required Approval | Tech Lead / Owner review + merge approval of the Phase 5-A PR (with validation output); Phase 6 start remains gated separately |
+| Last Validation Result | PR #177 final head `1e7fc5f`: CI, CodeQL, CodeQL Alert Gate, deployment gate, public-funnel E2E, container smoke build, lint, tests, secret scan, security audit, and governance gate all green; merged to `develop` at `ab2046a` on 2026-07-14 |
+| Next Required Approval | Separate Tech Lead / Owner approval naming the exact Phase 6 deletion batch; no Phase 6 planning or deletion is authorized yet |
 
 ## Approval Record
 
@@ -45,6 +45,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 | Phase 5 Direction (Product Owner — duty-shift stays live) | **Approved** | 2026-07-05 | VASANT SINGH RAJI (Owner / Product Owner) — explicitly rejected duty-shift dormancy; continue patient-health split only |
 | Phase 5-A Scope (Tech Lead — validation/test/import cleanup) | **Approved** | 2026-07-05 | VASANT SINGH RAJI (Owner / Tech Lead) — chose validation scripts, test coverage, and import ownership cleanup before implementation |
 | Phase 5-A Implementation Start (Tech Lead — patient-health-only split) | **Approved** | 2026-07-14 | VASANT SINGH RAJI (Owner / Tech Lead) — instructed "begin the approved 5-A scope"; readiness score 9/10 recorded; start from `origin/develop` `952d806` (PR #174) on branch `refactor/restructure-phase5a-validation` |
+| Phase 5-A Completion | **Complete** | 2026-07-14 | PR #177 merged to `develop` at `ab2046a`; all scoped exit criteria and required checks passed |
 | Phase 6 Start (Tech Lead / Owner — deletion batches) | Pending | — | — |
 
 ## Open Questions
@@ -68,7 +69,7 @@ Canonical record of gate approvals. A phase may not start until its row says **A
 
 **Objective:** Convert NOCTURNAL into a clean monorepo without breaking the existing app.
 
-**Current Mode:** Phases 0-4 and approved follow-up hardening are merged. Phase 5-A implementation is complete on `refactor/restructure-phase5a-validation` and awaiting PR review/merge. Duty-shift routes remain live.
+**Current Mode:** Phases 0-4 and approved follow-up hardening are merged and released. Phase 5-A is complete on `develop` through PR #177 (`ab2046a`). Duty-shift routes remain live. Phase 6 is blocked until the Owner separately approves an explicit deletion batch.
 
 **Core Strategy:** Copy first, verify, then cut over later.
 
@@ -170,14 +171,16 @@ npm run lint:baseline
 | 2026-07-13 | Keep the legacy `NOCTURAL` Render service (`noctural.onrender.com`) and fix it with `REDIS_ENABLED=false`; repoint all smoke targets at canonical `nocturnal-api` | The legacy service failed both 2026-07-06 deploys (exit 1: `REDIS_ENABLED` unset + no `REDIS_URL` trips the production guard in `middleware/rateLimitEnhanced.js`) and was still serving `e7b220b` (2026-06-28, pre-security-fix code) against the production DB. The `RENDER_SMOKE_BASE_URL`/`RENDER_SMOKE_ORIGIN` repo variables and workflow dispatch defaults also pointed monitoring at the legacy service; all were repointed to `https://nocturnal-api.onrender.com` (see `docs/ops/render-post-deploy-smoke.md`) | Owner / Tech Lead |
 | 2026-07-14 | Start Phase 5-A implementation | Owner instructed start; readiness template filled (branch verified from `origin/develop` `952d806`, clean worktree, required files confirmed, rollback = revert Phase 5-A commits, validation commands known, approval received) — score 9/10, above the 8/10 gate. Deduction: develop advanced past the `7d41487` scope baseline (PRs #151–#174), so blueprint assumptions are re-verified against current code during execution | Owner / Tech Lead |
 | 2026-07-14 | Codify Phase 5-A import ownership as validation instead of code changes | The import audit came back clean: all 143 app-local requires in `apps/patient-health` resolve, no duty-shift-owned imports anywhere, and the only root-reaching requires are the 8 approved wiring imports in `app.js`/`server.js`. Rather than expanding `@nocturnal/shared` exports (which would touch shared code without separate approval), the clean state is enforced by `scripts/validate-patient-health-split.js` (`npm run validate:patient-health-split`) and `tests/unit/infrastructure/phase5a-route-availability.test.js` | Owner / Tech Lead |
+| 2026-07-14 | Complete Phase 5-A and merge PR #177 to `develop` | Final head `1e7fc5f` passed CI, CodeQL and alert gate, deployment gate, public-funnel E2E, container smoke, lint, tests, secret scan, security audit, and governance checks; PR #177 merged at `ab2046a`. No runtime route, auth, payment, schema, package-version, or duty-shift behavior changed. Phase 6 remains blocked pending a separate Owner-approved deletion batch | Owner / Tech Lead |
 
 ## Next Course of Action
 
-1. Phases 0-4 and approved follow-ups are released to production. Current production is `main@8a43326` (PR #160), Render deploy `dep-d95pg399rddc73bf1340`, health `deploymentCommit=8a43326d5d50b504c36bd798be7d1c45ad2fb86c`, and `main` CodeQL open alerts = 0.
+1. Phases 0-4 and approved follow-ups are released to production. Current recorded production is `main@a68a5ba`; Phase 5-A is merged only to `develop` and is **not** promoted by this reconciliation.
 2. Do not unmount, disable, pause, redirect, or otherwise change duty-shift routes in Phase 5.
-3. Phase 5-A implementation started 2026-07-14 on `refactor/restructure-phase5a-validation` (validation script, route-availability tests, import audit clean); next step is PR review/merge with validation output.
-4. Keep Phase 6 deletion blocked; deletion is especially unsafe while duty-shift remains live.
-5. Handle remaining CodeQL findings as separate `fix/` security PRs (`docs/CODEQL_BACKLOG.md`), never inside restructure phases.
+3. Phase 5-A completed through PR #177 (`ab2046a`): validation script, route-availability tests, CI enforcement, and a clean import-ownership audit.
+4. Reconcile `main` into `develop` before any later production promotion; reconciliation must not itself promote `develop` to `main`.
+5. Keep Phase 6 planning and deletion blocked until the Owner separately approves an explicit deletion batch; duty-shift remains live.
+6. Track the WebAuthn outbox-worker test flake separately in issue #178 and any remediation in a `fix/` branch, outside restructure phases.
 
 ## Develop → Main Promotion Checklist
 
@@ -574,7 +577,7 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **During Execution:** Change only approved patient-health validation/test/import-ownership files; do not change duty-shift route mounts, auth/payment logic, schemas, package versions, production router wiring, or staging runtime behavior.
 **After Completion:** Run contract/deploy-gate checks, document route behavior, and request final cleanup approval only if validation stays green.
 
-**Phase 5 Checklist:**
+**Phase 5 Checklist — Complete (PR #177, merge `ab2046a`):**
 - [x] Record explicit Product Owner decision that duty-shift routes stay live.
 - [x] Approve exact patient-health-only implementation scope: validation scripts, test coverage, import ownership cleanup.
 - [x] Confirm no duty-shift route mounts will change. *(2026-07-14: no route files touched; mounts guarded by `scripts/validate-patient-health-split.js` + `tests/unit/infrastructure/phase5a-route-availability.test.js`)*
@@ -586,6 +589,7 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 - [x] Run route/frontend-contract tests. *(2026-07-14: deploy-gate jest list 15 suites / 58 tests passed; one non-reproducible flake in the first run — `securitynotificationoutboxes.find()` buffering timeout in the WebAuthn outbox worker — passed in isolation and on full rerun)*
 - [x] Run deploy-gate-relevant tests. *(2026-07-14: `build:prod`, `scan:inline-styles:strict`, contract jest list, and `test:e2e:csp` (6 passed) all green)*
 - [x] Fix contracts or pause; do not disable tests. *(no contract failures; no tests disabled)*
+- [x] Merge the completed Phase 5-A scope to `develop`. *(PR #177 merged 2026-07-14 at `ab2046a`; final CI and security gates green)*
 
 **Why:** The Product Owner decision is that duty-shift must remain live. Phase 5 therefore continues the patient-health split without any duty-shift dormancy, route unmounting, or deletion.
 **Gate:** Do **not** begin implementation until Phase 5-A implementation-start approval is recorded. The duty-shift-live decision and Phase 5-A scope are already recorded; they are constraints, not permission to touch duty-shift behavior.
@@ -596,7 +600,7 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 - Do not implement router isolation or staging runtime preparation in Phase 5-A; those require separate approval.
 - Re-run the route/frontend-contract and deploy-gate tests; if any contract test fails, fix the contract or pause — do not disable the test.
 
-**Exit criteria:** Duty-shift-live decision recorded; Phase 5-A validation/test/import-ownership work completed only within approved scope; duty-shift routes remain live; contract/deploy-gate tests green; no payment/auth/schema logic changed.
+**Exit criteria — satisfied 2026-07-14 via PR #177 (`ab2046a`):** Duty-shift-live decision recorded; Phase 5-A validation/test/import-ownership work completed only within approved scope; duty-shift routes remain live; contract/deploy-gate tests green; no payment/auth/schema logic changed.
 
 ### Phase 6: Cleanup and Final Cutover - Risk Level: Medium
 
