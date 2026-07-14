@@ -6,8 +6,8 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 > Status: **PHASES 0-4 RELEASED TO PRODUCTION; PHASE 5-A PARKED — patient-health validation/test/import cleanup only; duty-shift routes stay live.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
-> Production release state: `main` is live on Render at `8a43326` (PR #160 startup hotfix on top of PR #158 promotion `13b704c`); `/api/v1/health` reports `deploymentCommit=8a43326d5d50b504c36bd798be7d1c45ad2fb86c`; `main` CodeQL open alerts: 0.
-> Note (2026-07-13): "Render" above means the canonical `nocturnal-api` service. A second legacy service, `NOCTURAL` (`noctural.onrender.com`), also auto-deploys `main`; it was stuck on `e7b220b` after two exit-1 deploys on 2026-07-06 and was recovered on 2026-07-13 (`REDIS_ENABLED=false` — the first fix attempt saved `False`, which the strict `=== 'false'` guard rejects — plus explicit `ALLOWED_ORIGINS` and a `/api/v1/health` health check). Both services verified live at `8a43326`. See the Decision Log and `docs/ops/render-post-deploy-smoke.md`.
+> Production release state: `main` is live on Render at `bc1d1de` (PR #170 CORS hotfix on top of PR #160 `8a43326` and PR #158 promotion `13b704c`); both services report `deploymentCommit=bc1d1de` and the full Render Smoke is green (2026-07-14, run 29335343110) — see the Hotfix / incident record below.
+> Note (2026-07-13): "Render" means the canonical `nocturnal-api` service. A second legacy service, `NOCTURAL` (`noctural.onrender.com`), also auto-deploys `main`; it was stuck on `e7b220b` after two exit-1 deploys on 2026-07-06 and was recovered on 2026-07-13 (`REDIS_ENABLED=false` — the first fix attempt saved `False`, which the strict `=== 'false'` guard rejects — plus explicit `ALLOWED_ORIGINS` and a `/api/v1/health` health check). See the Decision Log and `docs/ops/render-post-deploy-smoke.md`.
 > Phase 5-A scope baseline: `7d41487` = PR #150 (Phase 5 duty-shift-live roadmap revision) on top of PR #148 (`3d65758`, CodeQL user-controlled-bypass fixes), PR #147 (`1ca204d`, tracker update), PR #146 (`17ca90f`, pre-commit hook speedup + password-pattern fix), PR #145 (`2fd19d0`, governance + mirror guard), and PR #143 (`3de2a2b`, Phase 4). Phases 0-4 and approved follow-ups are merged and released to production.
 
 ## Document Control
@@ -185,6 +185,7 @@ Run through this whenever develop is next promoted to `main`:
 - [ ] `npm run test:deploy-gate` green on the promotion candidate.
 - [ ] After the promotion merge, confirm the **8 `js/sql-injection` alerts pinned to `refs/heads/main`** (alerts 50–54, 56, 57, 59 — fixed on develop by PR #144) **auto-close** once main's CodeQL analysis completes. If they remain open, investigate before announcing the release.
 - [ ] Re-check open alert counts on `main` vs `develop` refs match expectations (`gh api .../code-scanning/alerts?ref=...`).
+- [ ] After Render deploys, a manual Render Smoke run (`gh workflow run render-smoke.yml --ref main`) passes against the canonical `nocturnal-api` service **before announcing the release**. (Added 2026-07-13: the July 6 promotion shipped a CORS regression that broke cross-origin login for a week because the scheduled smoke was pointed at the legacy service — see PRs #169/#170.)
 
 **Latest promotion record (2026-07-06):**
 
@@ -193,6 +194,15 @@ Run through this whenever develop is next promoted to `main`:
 - [x] Render `nocturnal-api` deploy `dep-d95pg399rddc73bf1340` is live for `8a43326`.
 - [x] `/api/v1/health` returned healthy with `deploymentCommit=8a43326d5d50b504c36bd798be7d1c45ad2fb86c`.
 - [x] `main` CodeQL open alert count is 0.
+
+**Hotfix / incident record (2026-07-13 → 2026-07-14):**
+
+- [x] Legacy `NOCTURAL` Render service recovered from two exit-1 deploys: `REDIS_ENABLED=false` (exact lowercase — a saved `False` failed the strict guard), explicit `ALLOWED_ORIGINS`, and `/api/v1/health` health check set; redeployed to `8a43326` (see Decision Log 2026-07-13).
+- [x] Smoke monitoring repointed from the legacy service to canonical `nocturnal-api` (PR #167: workflow defaults, repo variables, legacy-parity check).
+- [x] The repointed smoke immediately exposed a production CORS regression from the 2026-07-06 promotion: `d37dc9a` changed the API CORS mount to a prefix-only regex, which Express 5 use-mounts never match, so every non-preflight `/api/*` response lost its CORS headers (cross-origin login broken). Fixed in PR #169 (develop) and hotfixed to `main` via PR #170 → `main@bc1d1de`, admin-merged because the required post-deploy smoke tests live production and could not pass until the fix itself deployed.
+- [x] Both services verified live at `bc1d1de` with CORS headers restored.
+- [x] Second smoke pass exposed that `nocturnal-api`'s Render build command never built the frontend (served raw `client/public` source via the static fallback). Build command changed to `npm install --legacy-peer-deps && npm run build:frontend`; built service worker (`nocturnal-v4`) verified in production.
+- [x] Full Render Smoke green end-to-end 2026-07-14 (run 29335343110), including the legacy-parity check.
 
 ## Glossary
 
