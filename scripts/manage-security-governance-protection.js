@@ -103,8 +103,8 @@ function getProtectionStatus(repository, branch) {
 
 function classifyStatus(status) {
   const contexts = [...status.contexts].sort();
-  const enforcedContexts = [...enforcedContextsFor(status.branch)].sort();
-  const bootstrapContexts = [...bootstrapContextsFor(status.branch)].sort();
+  const enforcedContexts = [...enforcedContextsFor()].sort();
+  const bootstrapContexts = [...bootstrapContextsFor()].sort();
 
   if (
     status.requireCodeOwnerReviews
@@ -184,7 +184,7 @@ function enforce(repository, branches) {
   }
 
   for (const branch of branches) {
-    patchRequiredChecks(repository, branch, enforcedContextsFor(branch));
+    patchRequiredChecks(repository, branch, enforcedContextsFor());
     patchReviewProtection(repository, branch, true);
     console.log(`Enabled fully-enforced governance protection for ${branch}.`);
   }
@@ -192,7 +192,7 @@ function enforce(repository, branches) {
 
 function rollback(repository, branches) {
   for (const branch of branches) {
-    patchRequiredChecks(repository, branch, bootstrapContextsFor(branch));
+    patchRequiredChecks(repository, branch, bootstrapContextsFor());
     patchReviewProtection(repository, branch, false);
     console.log(`Restored bootstrap-safe governance protection for ${branch}.`);
   }
