@@ -169,12 +169,13 @@ npm run lint:baseline
 | 2026-07-06 | Add deployed-commit identity to Render Smoke | PR #159 added a strict `/api/v1/health.deploymentCommit` smoke assertion so future post-deploy smokes fail when production is healthy but not running the expected commit | Owner / Tech Lead |
 | 2026-07-13 | Keep the legacy `NOCTURAL` Render service (`noctural.onrender.com`) and fix it with `REDIS_ENABLED=false`; repoint all smoke targets at canonical `nocturnal-api` | The legacy service failed both 2026-07-06 deploys (exit 1: `REDIS_ENABLED` unset + no `REDIS_URL` trips the production guard in `middleware/rateLimitEnhanced.js`) and was still serving `e7b220b` (2026-06-28, pre-security-fix code) against the production DB. The `RENDER_SMOKE_BASE_URL`/`RENDER_SMOKE_ORIGIN` repo variables and workflow dispatch defaults also pointed monitoring at the legacy service; all were repointed to `https://nocturnal-api.onrender.com` (see `docs/ops/render-post-deploy-smoke.md`) | Owner / Tech Lead |
 | 2026-07-14 | Start Phase 5-A implementation | Owner instructed start; readiness template filled (branch verified from `origin/develop` `952d806`, clean worktree, required files confirmed, rollback = revert Phase 5-A commits, validation commands known, approval received) — score 9/10, above the 8/10 gate. Deduction: develop advanced past the `7d41487` scope baseline (PRs #151–#174), so blueprint assumptions are re-verified against current code during execution | Owner / Tech Lead |
+| 2026-07-14 | Codify Phase 5-A import ownership as validation instead of code changes | The import audit came back clean: all 143 app-local requires in `apps/patient-health` resolve, no duty-shift-owned imports anywhere, and the only root-reaching requires are the 8 approved wiring imports in `app.js`/`server.js`. Rather than expanding `@nocturnal/shared` exports (which would touch shared code without separate approval), the clean state is enforced by `scripts/validate-patient-health-split.js` (`npm run validate:patient-health-split`) and `tests/unit/infrastructure/phase5a-route-availability.test.js` | Owner / Tech Lead |
 
 ## Next Course of Action
 
 1. Phases 0-4 and approved follow-ups are released to production. Current production is `main@8a43326` (PR #160), Render deploy `dep-d95pg399rddc73bf1340`, health `deploymentCommit=8a43326d5d50b504c36bd798be7d1c45ad2fb86c`, and `main` CodeQL open alerts = 0.
 2. Do not unmount, disable, pause, redirect, or otherwise change duty-shift routes in Phase 5.
-3. Start Phase 5-A only after implementation-start approval; approved scope is validation scripts, test coverage, and import ownership cleanup.
+3. Phase 5-A implementation started 2026-07-14 on `refactor/restructure-phase5a-validation` (validation script, route-availability tests, import audit clean); next step is PR review/merge with validation output.
 4. Keep Phase 6 deletion blocked; deletion is especially unsafe while duty-shift remains live.
 5. Handle remaining CodeQL findings as separate `fix/` security PRs (`docs/CODEQL_BACKLOG.md`), never inside restructure phases.
 
@@ -576,15 +577,15 @@ This supersedes the earlier `NOCTURNAL SPLIT.txt`, which was written against a s
 **Phase 5 Checklist:**
 - [x] Record explicit Product Owner decision that duty-shift routes stay live.
 - [x] Approve exact patient-health-only implementation scope: validation scripts, test coverage, import ownership cleanup.
-- [ ] Confirm no duty-shift route mounts will change.
-- [ ] Confirm duty-shift frontend/API contracts remain expected to pass.
-- [ ] Preserve `/api/v1/payments`.
-- [ ] Preserve feature-flagged `/api/v1/payments-b2c`.
-- [ ] Preserve all existing duty-shift route mounts.
-- [ ] Implement only approved Phase 5-A validation/test/import-ownership changes.
-- [ ] Run route/frontend-contract tests.
-- [ ] Run deploy-gate-relevant tests.
-- [ ] Fix contracts or pause; do not disable tests.
+- [x] Confirm no duty-shift route mounts will change. *(2026-07-14: no route files touched; mounts guarded by `scripts/validate-patient-health-split.js` + `tests/unit/infrastructure/phase5a-route-availability.test.js`)*
+- [x] Confirm duty-shift frontend/API contracts remain expected to pass. *(2026-07-14: fast suite 1096 passed / 0 failed)*
+- [x] Preserve `/api/v1/payments`. *(untouched; unconditional mount now asserted by route-availability tests)*
+- [x] Preserve feature-flagged `/api/v1/payments-b2c`. *(untouched; both enabled and disabled gate sides now tested)*
+- [x] Preserve all existing duty-shift route mounts. *(all 10 preserved mounts sentinel-tested against their owning route modules)*
+- [x] Implement only approved Phase 5-A validation/test/import-ownership changes. *(diff = docs, validation script, npm alias, one test file; import audit came back clean — no code cleanup needed)*
+- [x] Run route/frontend-contract tests. *(2026-07-14: deploy-gate jest list 15 suites / 58 tests passed; one non-reproducible flake in the first run — `securitynotificationoutboxes.find()` buffering timeout in the WebAuthn outbox worker — passed in isolation and on full rerun)*
+- [x] Run deploy-gate-relevant tests. *(2026-07-14: `build:prod`, `scan:inline-styles:strict`, contract jest list, and `test:e2e:csp` (6 passed) all green)*
+- [x] Fix contracts or pause; do not disable tests. *(no contract failures; no tests disabled)*
 
 **Why:** The Product Owner decision is that duty-shift must remain live. Phase 5 therefore continues the patient-health split without any duty-shift dormancy, route unmounting, or deletion.
 **Gate:** Do **not** begin implementation until Phase 5-A implementation-start approval is recorded. The duty-shift-live decision and Phase 5-A scope are already recorded; they are constraints, not permission to touch duty-shift behavior.
