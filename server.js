@@ -167,11 +167,13 @@ async function startServer(options = {}) {
   server.requestTimeout = SERVER_REQUEST_TIMEOUT_MS;
   server.keepAliveTimeout = SERVER_KEEP_ALIVE_TIMEOUT_MS;
 
-  paymentService.startRefundOutboxWorker();
-  securityNotificationOutboxService.start();
-  auditExportCleanupScheduler.start();
-  auditLifecycleReportCleanupScheduler.start();
-  reconciliationScheduler.start();
+  if (config.connectDatabase) {
+    paymentService.startRefundOutboxWorker();
+    securityNotificationOutboxService.start();
+    auditExportCleanupScheduler.start();
+    auditLifecycleReportCleanupScheduler.start();
+    reconciliationScheduler.start();
+  }
 
   server.on('close', () => {
     server = null;
