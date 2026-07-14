@@ -1,8 +1,6 @@
 name: Render Smoke
 
 on:
-  pull_request:
-    branches: [ main ]
   workflow_run:
     workflows:
       - CI - Continuous Integration
@@ -31,19 +29,19 @@ on:
         required: false
         type: string
       origin:
-        description: Browser Origin header to verify
+        description: Comma-separated browser Origin headers to verify
         required: false
         type: string
-        default: https://nocturnal-api.onrender.com
+        default: https://nocturnal-frontend-208z.onrender.com,https://nocturnal-api.onrender.com
 
 permissions:
   contents: read
 
 jobs:
   auth-cors-smoke:
-    name: Required Post-Deploy Render Smoke
+    name: Post-Deploy Render Smoke
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch' || github.event_name == 'schedule' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch' || github.event_name == 'schedule' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     timeout-minutes: 12
 
     steps:
@@ -78,7 +76,7 @@ jobs:
       - name: Smoke test deployed login/register CORS
         env:
           DEPLOYED_BASE_URL: ${{ github.event.inputs.deployed_base_url || vars.RENDER_SMOKE_BASE_URL || 'https://nocturnal-api.onrender.com' }}
-          SMOKE_ORIGIN: ${{ github.event.inputs.origin || vars.RENDER_SMOKE_ORIGIN || 'https://nocturnal.com' }}
+          SMOKE_ORIGINS: ${{ github.event.inputs.origin || vars.RENDER_SMOKE_ORIGINS || 'https://nocturnal-frontend-208z.onrender.com,https://nocturnal-api.onrender.com' }}
         run: npm run smoke:deployed-auth-cors
 
       - name: Smoke test deployed service worker cache headers

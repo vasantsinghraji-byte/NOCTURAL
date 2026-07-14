@@ -53,10 +53,11 @@ Both `main` and `develop` must require:
 - `CodeQL Alert Gate`
 - Code-owner reviews enabled
 
-`main` additionally requires:
-- `Required Post-Deploy Render Smoke`
-
-> `Required Post-Deploy Render Smoke` is **main-only**: `render-smoke.yml` triggers on `pull_request → main` and smokes the deployed `main` instance, so the check can never run/pass on `develop` PRs. Requiring it on `develop` only forced manual admin merges without adding protection, so it is enforced on `main` alone.
+`Post-Deploy Render Smoke` is intentionally not a required pull-request check.
+It validates the already-deployed production environment after successful main
+CI, on a schedule, through Render dispatch, or manually. This keeps production
+monitoring actionable without allowing an existing outage to block unrelated
+source changes.
 
 ## Drift Audit
 

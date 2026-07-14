@@ -28,10 +28,10 @@ of the legacy service.
 ## Why a webhook is needed
 
 Render runs **auto-deploy outside GitHub Actions**, so there is no GitHub
-`Deploy` workflow run to chain off. The other triggers (`pull_request`,
-`workflow_run` on CI) fire *before* Render finishes deploying and would test the
-old build. To run the smoke **after** the new build is live, Render must notify
-GitHub when a deploy succeeds.
+`Deploy` workflow run to chain off. The `workflow_run` fallback waits after
+successful `main` CI, but the Render webhook is the authoritative way to run the
+smoke **after** the new build is live. The workflow intentionally does not run
+on pull requests: existing production health must not block unrelated changes.
 
 ## One-time setup
 
@@ -54,7 +54,11 @@ GitHub when a deploy succeeds.
 
 3. Confirm the repo variables point at production:
    - `RENDER_SMOKE_BASE_URL = https://nocturnal-api.onrender.com`
-   - `RENDER_SMOKE_ORIGIN   = https://nocturnal-api.onrender.com`
+   - `RENDER_SMOKE_ORIGINS  = https://nocturnal-frontend-208z.onrender.com,https://nocturnal-api.onrender.com`
+
+   `RENDER_SMOKE_ORIGINS` is comma-separated. Keep both the canonical frontend
+   and API origins so the deployed login/register contract is exercised for
+   cross-origin browser traffic and the API service origin.
 
 ## Manual run
 
@@ -63,7 +67,7 @@ Until the webhook is wired, trigger it manually (defaults already target prod):
 ```
 gh workflow run render-smoke.yml --ref main \
   -f deployed_base_url=https://nocturnal-api.onrender.com \
-  -f origin=https://nocturnal-api.onrender.com
+  -f origin=https://nocturnal-frontend-208z.onrender.com,https://nocturnal-api.onrender.com
 ```
 
 ## Residue-free production verification

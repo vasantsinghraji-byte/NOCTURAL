@@ -22,14 +22,13 @@ const ROOT = path.resolve(__dirname, '../../..');
 describe('CODEOWNERS security-governance validator', () => {
   it('classifies bootstrap-safe, fully-enforced, and drifted branch protection', () => {
     expect(classifyStatus({
-      contexts: ['Required Post-Deploy Render Smoke'],
+      contexts: ['CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
       requireCodeOwnerReviews: false
     })).toBe('bootstrap-safe');
 
     expect(classifyStatus({
       contexts: [
         'CodeQL Alert Gate',
-        'Required Post-Deploy Render Smoke',
         'CODEOWNERS Security Governance Gate'
       ],
       requireCodeOwnerReviews: true
@@ -45,12 +44,12 @@ describe('CODEOWNERS security-governance validator', () => {
     expect(getDriftedBranches([
       {
         branch: 'main',
-        contexts: ['Required Post-Deploy Render Smoke', 'CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
+        contexts: ['CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
         requireCodeOwnerReviews: true
       },
       {
         branch: 'develop',
-        contexts: ['Required Post-Deploy Render Smoke'],
+        contexts: ['CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
         requireCodeOwnerReviews: false
       }
     ])).toEqual(['develop']);
@@ -58,16 +57,13 @@ describe('CODEOWNERS security-governance validator', () => {
     expect(getDriftedBranches([
       {
         branch: 'main',
-        contexts: ['Required Post-Deploy Render Smoke', 'CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
+        contexts: ['CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
         requireCodeOwnerReviews: true
       }
     ])).toEqual([]);
   });
 
-  it('treats the post-deploy smoke check as main-only', () => {
-    // render-smoke.yml only runs on PRs to main and against the deployed main
-    // instance, so it can never pass on develop PRs. develop is fully-enforced
-    // with just the governance checks; main still requires the smoke check.
+  it('does not treat deployed-production health as a pull-request requirement', () => {
     expect(classifyStatus({
       branch: 'develop',
       contexts: ['CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
@@ -78,16 +74,25 @@ describe('CODEOWNERS security-governance validator', () => {
       branch: 'main',
       contexts: ['CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
       requireCodeOwnerReviews: true
-    })).toBe('custom-or-drifted');
+    })).toBe('fully-enforced');
 
-    // A develop branch fully-enforced without the smoke check is not drift.
     expect(getDriftedBranches([
       {
-        branch: 'develop',
+        branch: 'main',
         contexts: ['CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
         requireCodeOwnerReviews: true
       }
     ])).toEqual([]);
+  });
+
+  it('keeps deployed Render smoke monitoring off pull requests', () => {
+    const workflowPath = path.join(ROOT, '.github/workflows/render-smoke.yml');
+    const workflowSource = fs.readFileSync(workflowPath, 'utf8');
+
+    expect(workflowSource).not.toMatch(/^\s*pull_request:/m);
+    expect(workflowSource).toContain('name: Post-Deploy Render Smoke');
+    expect(workflowSource).toContain('SMOKE_ORIGINS:');
+    expect(workflowSource).toContain('https://nocturnal-frontend-208z.onrender.com,https://nocturnal-api.onrender.com');
   });
 
   it('renders the drift-audit issue body from the negative workflow fixture', () => {
@@ -263,8 +268,7 @@ describe('CODEOWNERS security-governance validator', () => {
     const request = jest.fn().mockResolvedValue({
       statusCode: 200,
       body: {
-        contexts: ['CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate'],
-        checks: [{ context: 'Required Post-Deploy Render Smoke' }]
+        contexts: ['CODEOWNERS Security Governance Gate', 'CodeQL Alert Gate']
       }
     });
 
@@ -275,8 +279,7 @@ describe('CODEOWNERS security-governance validator', () => {
       request,
       workflowCheckNames: new Set([
         'CODEOWNERS Security Governance Gate',
-        'CodeQL Alert Gate',
-        'Required Post-Deploy Render Smoke'
+        'CodeQL Alert Gate'
       ])
     })).resolves.toEqual({
       ok: true,

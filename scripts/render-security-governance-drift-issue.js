@@ -14,7 +14,7 @@ function buildDriftIssueBody(options = {}) {
     '```',
     '',
     'Expected mode for both main and develop:',
-    '- Required checks: Required Post-Deploy Render Smoke, CODEOWNERS Security Governance Gate, CodeQL Alert Gate',
+    '- Required checks: CODEOWNERS Security Governance Gate, CodeQL Alert Gate',
     '- Code-owner reviews: true',
     '',
     'Remediation:',

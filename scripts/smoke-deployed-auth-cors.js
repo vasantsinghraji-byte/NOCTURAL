@@ -5,9 +5,16 @@ const DEFAULT_BASE_URL = 'https://nocturnal-api.onrender.com';
 const baseUrl = (process.env.DEPLOYED_BASE_URL ||
   process.env.RENDER_SMOKE_BASE_URL ||
   DEFAULT_BASE_URL).replace(/\/+$/, '');
-const origin = (process.env.SMOKE_ORIGIN || process.env.RENDER_SMOKE_ORIGIN || baseUrl).replace(/\/+$/, '');
+const origins = (process.env.SMOKE_ORIGINS ||
+  process.env.RENDER_SMOKE_ORIGINS ||
+  process.env.SMOKE_ORIGIN ||
+  process.env.RENDER_SMOKE_ORIGIN ||
+  baseUrl)
+  .split(',')
+  .map(origin => origin.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
 
-const requiredCorsHeaders = (response, label) => {
+const requiredCorsHeaders = (response, label, origin) => {
   const allowOrigin = response.headers.get('access-control-allow-origin');
   const allowCredentials = response.headers.get('access-control-allow-credentials');
 
@@ -52,10 +59,10 @@ const retry = async (label, action, options = {}) => {
   throw lastError;
 };
 
-const assertNoCorsFailure = async (response, label) => {
+const assertNoCorsFailure = async (response, label, origin) => {
   const body = await readBody(response);
 
-  requiredCorsHeaders(response, label);
+  requiredCorsHeaders(response, label, origin);
 
   if (response.status >= 500) {
     throw new Error(`${label}: expected non-5xx response, received ${response.status}: ${body}`);
@@ -68,7 +75,7 @@ const assertNoCorsFailure = async (response, label) => {
   return body;
 };
 
-const request = (path, options = {}) => fetch(`${baseUrl}${path}`, {
+const request = (path, origin, options = {}) => fetch(`${baseUrl}${path}`, {
   redirect: 'manual',
   ...options,
   headers: {
@@ -78,7 +85,7 @@ const request = (path, options = {}) => fetch(`${baseUrl}${path}`, {
 });
 
 async function main() {
-  console.log(`Running deployed auth CORS smoke against ${baseUrl} with Origin ${origin}`);
+  console.log(`Running deployed auth CORS smoke against ${baseUrl} with Origins ${origins.join(', ')}`);
 
   await retry('homepage readiness', async () => {
     const homepage = await fetch(`${baseUrl}/index.html`, { redirect: 'manual' });
@@ -88,39 +95,41 @@ async function main() {
     }
   });
 
-  await retry('auth preflight readiness', async () => {
-    const preflight = await request('/api/v1/auth/login', {
-      method: 'OPTIONS',
-      headers: {
-        'Access-Control-Request-Method': 'POST',
-        'Access-Control-Request-Headers': 'content-type'
+  for (const origin of origins) {
+    await retry(`auth preflight readiness (${origin})`, async () => {
+      const preflight = await request('/api/v1/auth/login', origin, {
+        method: 'OPTIONS',
+        headers: {
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers': 'content-type'
+        }
+      });
+
+      if (preflight.status !== 204) {
+        const body = await readBody(preflight);
+        throw new Error(`preflight (${origin}): expected 204, received ${preflight.status}: ${body}`);
       }
+      requiredCorsHeaders(preflight, `preflight (${origin})`, origin);
     });
 
-    if (preflight.status !== 204) {
-      const body = await readBody(preflight);
-      throw new Error(`preflight: expected 204, received ${preflight.status}: ${body}`);
-    }
-    requiredCorsHeaders(preflight, 'preflight');
-  });
+    const login = await request('/api/v1/auth/login', origin, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
+    });
+    await assertNoCorsFailure(login, `login POST (${origin})`, origin);
 
-  const login = await request('/api/v1/auth/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({})
-  });
-  await assertNoCorsFailure(login, 'login POST');
-
-  const register = await request('/api/v1/auth/register', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({})
-  });
-  await assertNoCorsFailure(register, 'register POST');
+    const register = await request('/api/v1/auth/register', origin, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
+    });
+    await assertNoCorsFailure(register, `register POST (${origin})`, origin);
+  }
 
   // Same-origin simple GETs reach the server with NO Origin header (browsers
   // omit it). This guards the regression where production 500'd missing-origin
