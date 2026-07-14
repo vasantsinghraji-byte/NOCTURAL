@@ -97,7 +97,10 @@ const applyApiCors = (req, res, next) => {
 
   return cors(corsOptions)(req, res, next);
 };
-app.use(/^\/api(?:\/|$)/i, applyApiCors);
+// Express 5 matches a RegExp use-mount against the FULL path, so the pattern
+// needs the trailing `.*` — without it this layer matches nothing and every
+// non-preflight API response silently loses its CORS headers.
+app.use(/^\/api(?:\/|$).*/i, applyApiCors);
 app.options(/^\/api(?:\/|$).*/i, applyApiCors);
 
 // 2. Enforce HTTPS in production (redirect HTTP to HTTPS)

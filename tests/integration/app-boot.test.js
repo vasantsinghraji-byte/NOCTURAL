@@ -95,4 +95,26 @@ describe('App Integration: GET /api/v1/health and core API mount', () => {
     // 400 = validation error (no email/password), proves route is mounted
     expect([400, 422, 429]).toContain(res.status);
   });
+
+  // Regression: Express 5 matches RegExp use-mounts against the full path, so a
+  // prefix-only regex silently disabled CORS on every non-preflight API request
+  // (cross-origin login/register responses lost access-control-allow-origin).
+  // These exercise the real app.js mount, not a rebuilt mini-app.
+  test('CORS headers are set on non-preflight API POSTs with an allowed Origin', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/login')
+      .set('Origin', 'https://nocturnal-api.onrender.com')
+      .send({});
+
+    expect(res.headers['access-control-allow-origin']).toBe('https://nocturnal-api.onrender.com');
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
+  });
+
+  test('CORS headers are set on API GETs with an allowed Origin', async () => {
+    const res = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Origin', 'https://nocturnal-api.onrender.com');
+
+    expect(res.headers['access-control-allow-origin']).toBe('https://nocturnal-api.onrender.com');
+  });
 });
