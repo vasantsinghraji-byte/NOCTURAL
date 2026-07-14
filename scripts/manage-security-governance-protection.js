@@ -2,29 +2,21 @@
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 
-const SMOKE_CONTEXT = 'Required Post-Deploy Render Smoke';
-const BOOTSTRAP_CONTEXTS = [SMOKE_CONTEXT];
-const ENFORCED_CONTEXTS = [
-  SMOKE_CONTEXT,
+const BOOTSTRAP_CONTEXTS = [
   'CODEOWNERS Security Governance Gate',
   'CodeQL Alert Gate'
 ];
+const ENFORCED_CONTEXTS = [...BOOTSTRAP_CONTEXTS];
 
-// The post-deploy smoke check (render-smoke.yml) only runs on PRs to main and
-// against the deployed main instance, so it can never go green on develop PRs —
-// requiring it there just forced admin merges without catching anything. Require
-// it on main only; develop enforces the governance checks that actually run
-// there. Branch defaults to the full (main) set when unspecified.
-function enforcedContextsFor(branch) {
-  return branch === 'develop'
-    ? ENFORCED_CONTEXTS.filter(context => context !== SMOKE_CONTEXT)
-    : ENFORCED_CONTEXTS;
+// Deployed-production monitoring runs after main CI, on a schedule, by Render
+// dispatch, or manually. Existing production health must not block unrelated
+// source changes, so only source-governance checks are required on pull requests.
+function enforcedContextsFor() {
+  return ENFORCED_CONTEXTS;
 }
 
-function bootstrapContextsFor(branch) {
-  return branch === 'develop'
-    ? BOOTSTRAP_CONTEXTS.filter(context => context !== SMOKE_CONTEXT)
-    : BOOTSTRAP_CONTEXTS;
+function bootstrapContextsFor() {
+  return BOOTSTRAP_CONTEXTS;
 }
 
 function getArgValue(name, fallback) {
