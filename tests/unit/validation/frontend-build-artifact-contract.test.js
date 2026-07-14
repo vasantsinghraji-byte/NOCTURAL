@@ -47,7 +47,7 @@ describe('Frontend build artifact contract', () => {
   });
 
   test('Docker and Render use the same client build command and publish dist', () => {
-    expect(dockerfileSrc).toContain('RUN cd client && npm ci && npm run build && cd ..');
+    expect(dockerfileSrc).toContain('RUN npm run build:frontend');
     expect(dockerfileSrc).toContain('/app/client/dist ./client/dist');
 
     expect(renderYamlSrc).toContain('buildCommand: npm --prefix client ci && npm --prefix client run build');
