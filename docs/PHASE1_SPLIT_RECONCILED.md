@@ -4,9 +4,9 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 
 # NOCTURNAL Restructure Roadmap
 
-> Status: **PHASES 0-4 RELEASED TO PRODUCTION; PHASE 5-A COMPLETE AND MERGED TO `develop`; PHASE 6 BLOCKED PENDING SEPARATE OWNER DELETION APPROVAL; duty-shift routes stay live.**
+> Status: **PHASES 0-5-A RELEASED TO PRODUCTION (PR #182 promotion, 2026-07-15); PHASE 6 BLOCKED PENDING SEPARATE OWNER DELETION APPROVAL; duty-shift routes stay live.**
 > Active repo: `D:\NOCTURNAL\NOCTURAL` (typo'd folder name is intentional; do not rename).
-> Production release state: `main` is live on Render at `a68a5ba` (PR #173 render-smoke origin matrix, on top of PR #170 CORS hotfix `bc1d1de`, PR #160 `8a43326`, and PR #158 promotion `13b704c`); both services verified reporting `deploymentCommit=a68a5ba8deaa79e2b7a023d91259330685b81b91` via `/api/v1/health` on 2026-07-14 — see the Hotfix / incident record below.
+> Production release state: `main` is live on Render at `387bf0c` (PR #182 promotion of `develop`, 2026-07-15 — includes Phase 5-A PR #177 and the outbox-worker lifecycle fix PR #181; previous production: PR #173 `a68a5ba`, PR #170 CORS hotfix `bc1d1de`, PR #160 `8a43326`, PR #158 promotion `13b704c`); both services verified reporting `deploymentCommit=387bf0cc99e6f48b3fb0274f0b4954ac94afb984` via `/api/v1/health` on 2026-07-15; Render Smoke run 29391146732 green on `main`; `main` CodeQL open alerts: 0 — see the Latest promotion record below.
 > Note (2026-07-13): "Render" means the canonical `nocturnal-api` service. A second legacy service, `NOCTURAL` (`noctural.onrender.com`), also auto-deploys `main`; it was stuck on `e7b220b` after two exit-1 deploys on 2026-07-06 and was recovered on 2026-07-13 (`REDIS_ENABLED=false` — the first fix attempt saved `False`, which the strict `=== 'false'` guard rejects — plus explicit `ALLOWED_ORIGINS` and a `/api/v1/health` health check). See the Decision Log and `docs/ops/render-post-deploy-smoke.md`.
 > Phase 5-A scope baseline: `7d41487` = PR #150 (Phase 5 duty-shift-live roadmap revision) on top of PR #148 (`3d65758`, CodeQL user-controlled-bypass fixes), PR #147 (`1ca204d`, tracker update), PR #146 (`17ca90f`, pre-commit hook speedup + password-pattern fix), PR #145 (`2fd19d0`, governance + mirror guard), and PR #143 (`3de2a2b`, Phase 4). Phases 0-4 and approved follow-ups are merged and released to production.
 
@@ -15,10 +15,10 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Field | Value |
 |---|---|
 | Document Name | NOCTURNAL Restructure Roadmap |
-| Status | In Execution — Phases 0-4 released to production; Phase 5-A complete and merged; Phase 6 not approved |
-| Version | v1.13 |
+| Status | In Execution — Phases 0-5-A released to production (PR #182, 2026-07-15); Phase 6 not approved |
+| Version | v1.14 |
 | Owner | VASANT SINGH RAJI |
-| Last Updated | 2026-07-14 |
+| Last Updated | 2026-07-15 |
 | Next Review Date | Only after separate Owner approval identifies an explicit Phase 6 deletion batch |
 | Approved For Execution | Phases 0-5-A plus approved governance/hook follow-ups. Phase 5-A merged through PR #177 (`ab2046a`). Phase 6 planning/deletion is **not approved**; see Approval Record. |
 
@@ -29,7 +29,7 @@ This repo copy is the canonical Phase 1 monorepo-split blueprint. The original p
 | Current Phase | Between phases — Phase 5-A complete and merged through PR #177 (`ab2046a`); Phase 6 blocked pending separate Owner deletion approval |
 | Execution Status | Phases 0-4 merged and released to production: PR #141 (Phases 0-2), PR #142 (Phase 3), PR #143 (Phase 4, `3de2a2b`), PR #144 (standalone duty-shift NoSQL-injection fixes, `e5476b3`), PR #145 (governance + mirror guard, `2fd19d0`), PR #146 (hook speedup + password-pattern fix, `17ca90f`), PR #147 (tracker update, `1ca204d`), PR #148 (CodeQL user-controlled-bypass fixes, `3d65758`), PR #150 (duty-shift-live roadmap revision, `7d41487`), PR #158 (develop to main promotion, `13b704c`), and PR #160 (Render startup hotfix, `8a43326`). Phase 5-A validation scripts, route coverage, and import-ownership enforcement merged to `develop` through PR #177 (`ab2046a`) |
 | Current Owner | VASANT SINGH RAJI |
-| Last Validation Result | PR #177 final head `1e7fc5f`: CI, CodeQL, CodeQL Alert Gate, deployment gate, public-funnel E2E, container smoke build, lint, tests, secret scan, security audit, and governance gate all green; merged to `develop` at `ab2046a` on 2026-07-14 |
+| Last Validation Result | Production verified 2026-07-15: PR #182 promoted `develop` to `main` at `387bf0c`; both Render services report `deploymentCommit=387bf0cc99e6f48b3fb0274f0b4954ac94afb984` via `/api/v1/health`; Render Smoke run 29391146732 green on `main`; `main` CodeQL open alerts: 0 |
 | Next Required Approval | Separate Tech Lead / Owner approval naming the exact Phase 6 deletion batch; no Phase 6 planning or deletion is authorized yet |
 
 ## Approval Record
@@ -175,12 +175,11 @@ npm run lint:baseline
 
 ## Next Course of Action
 
-1. Phases 0-4 and approved follow-ups are released to production. Current recorded production is `main@a68a5ba`; Phase 5-A is merged only to `develop` and is **not** promoted by this reconciliation.
-2. Do not unmount, disable, pause, redirect, or otherwise change duty-shift routes in Phase 5.
-3. Phase 5-A completed through PR #177 (`ab2046a`): validation script, route-availability tests, CI enforcement, and a clean import-ownership audit.
-4. Reconcile `main` into `develop` before any later production promotion; reconciliation must not itself promote `develop` to `main`.
+1. Phases 0-5-A are released to production. Current recorded production is `main@387bf0c` (PR #182 promotion, 2026-07-15), verified on both Render services with Render Smoke run 29391146732 green.
+2. Do not unmount, disable, pause, redirect, or otherwise change duty-shift routes; the duty-shift-live constraint survives Phase 5.
+3. Phase 5-A completed through PR #177 (`ab2046a`): validation script, route-availability tests, CI enforcement, and a clean import-ownership audit. The outbox-worker flake (issue #178) was fixed by PR #181 and shipped in the same promotion.
+4. The `main@387bf0c` promotion merge is reconciled back into `develop` by this reconciliation PR; repeat this reconcile after every future promotion, and never promote `develop` to `main` inside a reconcile PR.
 5. Keep Phase 6 planning and deletion blocked until the Owner separately approves an explicit deletion batch; duty-shift remains live.
-6. Track the WebAuthn outbox-worker test flake separately in issue #178 and any remediation in a `fix/` branch, outside restructure phases.
 
 ## Develop → Main Promotion Checklist
 
@@ -192,7 +191,15 @@ Run through this whenever develop is next promoted to `main`:
 - [ ] Re-check open alert counts on `main` vs `develop` refs match expectations (`gh api .../code-scanning/alerts?ref=...`).
 - [ ] After Render deploys, a manual Render Smoke run (`gh workflow run render-smoke.yml --ref main`) passes against the canonical `nocturnal-api` service **before announcing the release**. (Added 2026-07-13: the July 6 promotion shipped a CORS regression that broke cross-origin login for a week because the scheduled smoke was pointed at the legacy service — see PRs #169/#170.)
 
-**Latest promotion record (2026-07-06):**
+**Latest promotion record (2026-07-15):**
+
+- [x] PR #182 promoted `develop` to `main` at `387bf0c` (includes Phase 5-A PR #177 `ab2046a` and the WebAuthn/refund outbox-worker lifecycle fix PR #181, closing issue #178).
+- [x] Both Render services (`nocturnal-api` and legacy `NOCTURAL`) verified reporting `deploymentCommit=387bf0cc99e6f48b3fb0274f0b4954ac94afb984` via `/api/v1/health`.
+- [x] Manual Render Smoke run 29391146732 green on `main` before announcing the release.
+- [x] `main` CodeQL open alert count is 0.
+- [x] `main` reconciled back into `develop` after the promotion merge (this PR), restoring `origin/main...origin/develop` from `1 ahead / 0 ahead` to identical histories.
+
+**Promotion record (2026-07-06):**
 
 - [x] PR #158 promoted `develop` to `main` at `13b704c`.
 - [x] PR #160 fixed the Render production startup blocker and moved `main` to `8a43326`.
