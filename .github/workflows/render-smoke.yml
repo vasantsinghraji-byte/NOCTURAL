@@ -24,6 +24,10 @@ on:
         required: false
         type: string
         default: https://nocturnal-api.onrender.com
+      expected_deployment_commit:
+        description: Expected /api/v1/health deploymentCommit prefix
+        required: false
+        type: string
       origin:
         description: Comma-separated browser Origin headers to verify
         required: false
@@ -63,6 +67,12 @@ jobs:
       - name: Install Playwright Chromium
         run: node ./node_modules/playwright/cli.js install --with-deps chromium
 
+      - name: Smoke test deployed commit identity
+        env:
+          DEPLOYED_BASE_URL: ${{ github.event.inputs.deployed_base_url || vars.RENDER_SMOKE_BASE_URL || 'https://nocturnal-api.onrender.com' }}
+          EXPECTED_DEPLOYMENT_COMMIT: ${{ github.event.inputs.expected_deployment_commit || github.event.workflow_run.head_sha || github.event.client_payload.deploymentCommit || github.event.client_payload.head_sha || github.event.client_payload.sha || '' }}
+        run: npm run smoke:deployed-health-commit
+
       - name: Smoke test deployed login/register CORS
         env:
           DEPLOYED_BASE_URL: ${{ github.event.inputs.deployed_base_url || vars.RENDER_SMOKE_BASE_URL || 'https://nocturnal-api.onrender.com' }}
@@ -78,6 +88,35 @@ jobs:
         env:
           DEPLOYED_BASE_URL: ${{ github.event.inputs.deployed_base_url || vars.RENDER_SMOKE_BASE_URL || 'https://nocturnal-api.onrender.com' }}
         run: npm run smoke:deployed-csp
+
+      # The legacy NOCTURAL service auto-deploys main too and shares the
+      # production DB — fail if it drifts behind the canonical service (see
+      # docs/ops/render-post-deploy-smoke.md). Scheduled/manual runs only:
+      # post-deploy triggers could race the legacy service's own deploy.
+      - name: Check legacy service commit parity
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          CANONICAL_BASE_URL: ${{ github.event.inputs.deployed_base_url || vars.RENDER_SMOKE_BASE_URL || 'https://nocturnal-api.onrender.com' }}
+          LEGACY_BASE_URL: ${{ vars.RENDER_SMOKE_LEGACY_BASE_URL || 'https://noctural.onrender.com' }}
+        shell: bash
+        run: |
+          fetch_commit() {
+            # generous retries: free-tier services cold-start on first hit
+            curl -sf --retry 8 --retry-delay 15 --retry-all-errors "$1/api/v1/health" \
+              | jq -r '.deploymentCommit // empty'
+          }
+          canonical="$(fetch_commit "$CANONICAL_BASE_URL")"
+          legacy="$(fetch_commit "$LEGACY_BASE_URL")"
+          echo "canonical=$canonical"
+          echo "legacy=$legacy"
+          if [ -z "$canonical" ]; then
+            echo "Could not read canonical deploymentCommit from $CANONICAL_BASE_URL" >&2
+            exit 1
+          fi
+          if [ "$legacy" != "$canonical" ]; then
+            echo "Legacy service ($LEGACY_BASE_URL) is not running the canonical commit — it has drifted behind main" >&2
+            exit 1
+          fi
 
       # Make the (otherwise silent) scheduled/post-deploy smoke actionable: alert
       # Slack only on failure. No-ops cleanly until SLACK_WEBHOOK_URL is configured.

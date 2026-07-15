@@ -158,7 +158,11 @@ describe('server startup database readiness', () => {
       serverModule,
       app,
       database,
-      paymentService
+      paymentService,
+      securityNotificationOutboxService,
+      auditExportCleanupScheduler,
+      auditLifecycleReportCleanupScheduler,
+      reconciliationScheduler
     } = loadServerWithMocks(Promise.resolve(true));
 
     await serverModule.startServer({
@@ -169,7 +173,11 @@ describe('server startup database readiness', () => {
 
     expect(database.connectDB).not.toHaveBeenCalled();
     expect(app.listen).toHaveBeenCalledTimes(1);
-    expect(paymentService.startRefundOutboxWorker).toHaveBeenCalledTimes(1);
+    expect(paymentService.startRefundOutboxWorker).not.toHaveBeenCalled();
+    expect(securityNotificationOutboxService.start).not.toHaveBeenCalled();
+    expect(auditExportCleanupScheduler.start).not.toHaveBeenCalled();
+    expect(auditLifecycleReportCleanupScheduler.start).not.toHaveBeenCalled();
+    expect(reconciliationScheduler.start).not.toHaveBeenCalled();
 
     await serverModule.stopServer();
   });

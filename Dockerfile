@@ -17,8 +17,10 @@ RUN npm ci --legacy-peer-deps --ignore-scripts
 # Copy application code
 COPY . .
 
-# Build frontend assets
-RUN cd client && npm ci && npm run build && cd ..
+# Build frontend assets — same script the canonical Render service's build
+# command and CI's deploy gate use, so the two production services can't
+# drift in how the frontend is built.
+RUN npm run build:frontend
 
 # Remove dev dependencies
 RUN npm prune --production

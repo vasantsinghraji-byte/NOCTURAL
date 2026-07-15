@@ -13,6 +13,7 @@ jest.mock('../../../utils/logger', () => ({
   error: jest.fn()
 }));
 
+const mongoose = require('mongoose');
 const Outbox = require('../../../models/securityNotificationOutbox');
 const delivery = require('../../../services/securityNotificationService');
 const { encodePayload } = require('../../../services/securityNotificationPayloadCrypto');
@@ -21,7 +22,24 @@ const outboxService = require('../../../services/securityNotificationOutboxServi
 describe('security notification outbox', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mongoose.connection.readyState = 1;
     process.env.ENCRYPTION_KEY = require('crypto').createHash('sha256').update('test-encryption-key').digest('hex');
+  });
+
+  afterEach(() => {
+    outboxService.stop();
+  });
+
+  it('does not poll or schedule the worker without a database connection', async () => {
+    mongoose.connection.readyState = 0;
+    const setIntervalSpy = jest.spyOn(global, 'setInterval');
+
+    await expect(outboxService.processPending()).resolves.toEqual({ attempted: 0, completed: 0 });
+    outboxService.start();
+
+    expect(Outbox.find).not.toHaveBeenCalled();
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    setIntervalSpy.mockRestore();
   });
 
   it('decrypts encrypted password-change payloads and marks delivery complete with retention', async () => {

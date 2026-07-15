@@ -103,6 +103,8 @@ describe('Frontend Auth Flow Standardization', () => {
     expect(providerLoginScriptSrc).toContain("NocturnalSession.resetButtonState(btn, { textContent: 'Login' })");
     expect(providerLoginScriptSrc).toContain('NocturnalSession.expectJsonSuccess(data, \'Login failed\'');
     expect(providerLoginScriptSrc).toContain('NocturnalSession.completeAuthSuccess(authData, {');
+    expect(providerLoginScriptSrc).toContain("userTypeKey: 'userType'");
+    expect(providerLoginScriptSrc).toContain("userType: 'provider'");
     expect(providerLoginScriptSrc).toContain('skipAuth: true');
     expect(providerLoginScriptSrc).toContain('parseJson: true');
     expect(providerLoginScriptSrc).toContain("successClassName: 'message success'");
@@ -125,6 +127,8 @@ describe('Frontend Auth Flow Standardization', () => {
     expect(patientRegisterScriptSrc).toContain("NocturnalSession.resetButtonState(btn, { textContent: 'Create Account' })");
     expect(patientRegisterScriptSrc).toContain('NocturnalSession.expectJsonSuccess(data, \'Registration failed\'');
     expect(patientRegisterScriptSrc).toContain('NocturnalSession.completeAuthSuccess(');
+    expect(patientRegisterScriptSrc).toContain("userTypeKey: 'userType'");
+    expect(patientRegisterScriptSrc).toContain("userType: 'patient'");
     expect(patientRegisterScriptSrc).toContain('skipAuth: true');
     expect(patientRegisterScriptSrc).toContain('parseJson: true');
     expect(patientRegisterScriptSrc).toContain("redirectUrl: AppConfig.routes.page('patient.dashboard')");

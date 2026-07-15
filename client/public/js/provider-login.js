@@ -62,6 +62,8 @@ if (installPwaButton) {
 
                 NocturnalSession.completeAuthSuccess(authData, {
                     userKey: 'provider',
+                    userTypeKey: 'userType',
+                    userType: 'provider',
                     successContainer: messageDiv,
                     successMessage: 'Login successful! Redirecting...',
                     successClassName: 'message success',

@@ -4,7 +4,7 @@ name: Dependabot Auto-merge
 # themselves. This workflow is DORMANT until you opt in — see
 # docs/ops/dependabot-workflow-token.md. Activation requires ALL of:
 #   1. A merge GitHub App with Contents/PR/Workflows write, installed on the repo,
-#      with secrets MERGE_APP_ID and MERGE_APP_PRIVATE_KEY set.
+#      with secrets MERGE_APP_CLIENT_ID and MERGE_APP_PRIVATE_KEY set.
 #   2. The App added to .github/CODEOWNERS so its approval satisfies the required
 #      code-owner review (otherwise auto-merge waits forever).
 #   3. Repo variable DEPENDABOT_AUTOMERGE_ENABLED = "true".
@@ -27,12 +27,12 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.MERGE_APP_ID }}
+          client-id: ${{ secrets.MERGE_APP_CLIENT_ID }}
           private-key: ${{ secrets.MERGE_APP_PRIVATE_KEY }}
 
       - name: Read Dependabot metadata
         id: meta
-        uses: dependabot/fetch-metadata@v2
+        uses: dependabot/fetch-metadata@v3
         with:
           github-token: ${{ steps.app-token.outputs.token }}
 
