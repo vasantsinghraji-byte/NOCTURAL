@@ -107,7 +107,7 @@ test.describe('public conversion funnel', () => {
     await expect(page).toHaveURL(/\/roles\/patient\/patient-dashboard\.html/);
   });
 
-  test('patient login submits and remains on the protected patient dashboard', async ({ page }) => {
+  test('patient login persists across protected patient pages', async ({ page }) => {
     await page.goto('/roles/patient/patient-login.html');
 
     await page.getByLabel(/email address/i).fill('patient@example.com');
@@ -117,6 +117,11 @@ test.describe('public conversion funnel', () => {
     await expect(page).toHaveURL(/\/roles\/patient\/patient-dashboard\.html/);
     await page.waitForTimeout(500);
     await expect(page).toHaveURL(/\/roles\/patient\/patient-dashboard\.html/);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('userType'))).toBe('patient');
+
+    await page.goto('/roles/patient/patient-analytics.html');
+    await page.waitForTimeout(500);
+    await expect(page).toHaveURL(/\/roles\/patient\/patient-analytics\.html/);
   });
 
   test('provider registration submits and redirects by role to onboarding', async ({ page }) => {
