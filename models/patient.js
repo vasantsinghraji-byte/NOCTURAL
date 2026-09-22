@@ -131,13 +131,23 @@ const PatientSchema = new mongoose.Schema({
     }
   },
 
-  // Emergency Contact
+  // Emergency Contact (legacy single contact)
   emergencyContact: {
     name: String,
     relation: String,
     phone: String,
     email: String
   },
+
+  // Multiple Emergency Contacts (for SOS feature — up to 3)
+  emergencyContacts: [{
+    name: { type: String, required: true },
+    relation: { type: String, required: true },
+    phone: { type: String, required: true },
+    email: String,
+    isPrimary: { type: Boolean, default: false },
+    notifyOnEmergency: { type: Boolean, default: true }
+  }],
 
   // Insurance Details
   insurance: {

@@ -12,10 +12,11 @@
 /** Roles stored in the User model (staff accounts) */
 // 'admin' is a hospital-scoped admin (tenant = their `hospital`); 'platform_admin'
 // is a cross-tenant operator for platform-level actions (e.g. credential verification).
-const STAFF_ROLES = ['doctor', 'nurse', 'physiotherapist', 'admin', 'platform_admin'];
+// 'medical_staff' = general-purpose field staff; 'phlebotomist' = lab sample collectors.
+const STAFF_ROLES = ['doctor', 'nurse', 'physiotherapist', 'medical_staff', 'phlebotomist', 'admin', 'platform_admin'];
 
 /** Staff roles allowed during /auth/register self-registration (no admin). Patients use /patients/register. */
-const REGISTRATION_ROLES = ['doctor', 'nurse', 'physiotherapist'];
+const REGISTRATION_ROLES = ['doctor', 'nurse', 'physiotherapist', 'medical_staff', 'phlebotomist'];
 
 // ── Medical Specializations ────────────────────────────────────────────
 
@@ -96,6 +97,37 @@ const EMPLOYMENT_STATUSES = ['Full-time', 'Part-time', 'Freelance', 'Between Job
 
 const SHIFT_PREFERENCES = ['Morning', 'Evening', 'Night', 'Weekend', '24hr'];
 
+// ── Lab Test Categories ───────────────────────────────────────────────
+
+const LAB_TEST_CATEGORIES = [
+  'HEMATOLOGY', 'BIOCHEMISTRY', 'URINE_ANALYSIS', 'THYROID',
+  'DIABETES', 'LIPID', 'LIVER', 'KIDNEY', 'CARDIAC',
+  'VITAMIN', 'ALLERGY', 'HORMONES', 'INFECTION',
+  'FULL_BODY_CHECKUP', 'COVID', 'OTHER'
+];
+
+// ── Sample Statuses ───────────────────────────────────────────────────
+
+const SAMPLE_STATUSES = [
+  'SCHEDULED', 'COLLECTED', 'IN_TRANSIT', 'AT_LAB',
+  'PROCESSING', 'REPORT_READY', 'DELIVERED'
+];
+
+// ── Consultation Types & Statuses ─────────────────────────────────────
+
+const CONSULTATION_TYPES = ['CHAT', 'AUDIO', 'VIDEO'];
+
+const CONSULTATION_STATUSES = [
+  'REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'MISSED'
+];
+
+// ── Emergency Statuses ────────────────────────────────────────────────
+
+const EMERGENCY_STATUSES = [
+  'TRIGGERED', 'DISPATCHING', 'STAFF_ASSIGNED', 'EN_ROUTE',
+  'ARRIVED', 'IN_PROGRESS', 'RESOLVED', 'CANCELLED'
+];
+
 // ── Field Constraints (shared between model validations & express-validator) ──
 
 const FIELD_LIMITS = {
@@ -120,5 +152,10 @@ module.exports = {
   URGENCY_LEVELS,
   EMPLOYMENT_STATUSES,
   SHIFT_PREFERENCES,
+  LAB_TEST_CATEGORIES,
+  SAMPLE_STATUSES,
+  CONSULTATION_TYPES,
+  CONSULTATION_STATUSES,
+  EMERGENCY_STATUSES,
   FIELD_LIMITS
 };

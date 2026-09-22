@@ -187,6 +187,37 @@ const UserSchema = new mongoose.Schema({
     address: String
   },
 
+  // Live Location (GeoJSON — for real-time staff tracking & proximity queries)
+  currentLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      default: [0, 0]
+    },
+    updatedAt: Date
+  },
+
+  // Online/Availability Status (for quick-commerce dispatch)
+  isOnline: {
+    type: Boolean,
+    default: false
+  },
+  availabilityStatus: {
+    type: String,
+    enum: ['AVAILABLE', 'BUSY', 'ON_BREAK', 'OFFLINE'],
+    default: 'OFFLINE'
+  },
+
+  // Services this staff member can provide (links to ServiceCatalog)
+  servicesOffered: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ServiceCatalog'
+  }],
+
   // Legacy fields for compatibility
   specialty: {
     type: String
@@ -401,5 +432,8 @@ UserSchema.index({ role: 1, rating: -1, completedDuties: -1 }); // Top-rated doc
 UserSchema.index({ role: 1, isAvailableForShifts: 1, isActive: 1 }); // Available doctors
 UserSchema.index({ lastActive: -1 }); // Recent activity tracking
 UserSchema.index({ smokeTestExpiresAt: 1 }, { expireAfterSeconds: 0 });
+// MedRush: geo-spatial index for nearest-staff queries
+UserSchema.index({ currentLocation: '2dsphere' });
+UserSchema.index({ isOnline: 1, availabilityStatus: 1, role: 1 }); // Online staff dispatch
 
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema);
