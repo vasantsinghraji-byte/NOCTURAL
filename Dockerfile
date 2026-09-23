@@ -59,6 +59,8 @@ COPY --from=builder --chown=nodejs:nodejs /app/controllers ./controllers
 COPY --from=builder --chown=nodejs:nodejs /app/services ./services
 COPY --from=builder --chown=nodejs:nodejs /app/constants ./constants
 COPY --from=builder --chown=nodejs:nodejs /app/validators ./validators
+# Ops scripts (index migration, seeds) run as one-off ECS tasks with the same image
+COPY --from=builder --chown=nodejs:nodejs /app/scripts ./scripts
 
 # Create directories for uploads and logs
 RUN mkdir -p uploads logs && \

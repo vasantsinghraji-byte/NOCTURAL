@@ -16,6 +16,7 @@ const { roundToTwoDecimals } = require('../utils/number');
 const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
 const { hasReviewAggregateStateChanged } = require('../utils/bookingReviewAggregate');
 const { PAGINATION } = require('../constants');
+const { SERVICE_TYPE_TO_CATALOG_NAME } = require('../constants/careServices');
 const {
   ValidationError,
   AuthorizationError,
@@ -28,6 +29,13 @@ const healthMetricService = require('./healthMetricService');
 const healthRecordService = require('./healthRecordService');
 const doctorAccessService = require('./doctorAccessService');
 const BookingCompletionOutbox = require('../models/bookingCompletionOutbox');
+const careSuppliesService = require('./careSuppliesService');
+const pricingService = require('./pricingService');
+const membershipService = require('./membershipService');
+const settlementService = require('./settlementService');
+const staffAvailabilityService = require('./staffAvailabilityService');
+const dispatchService = require('./dispatchService');
+const crypto = require('crypto');
 const { normalizeObjectId, nullProtoObject, setSafeField } = require('../utils/safeMongo');
 
 const ALLOWED_BOOKING_FILTERS = new Set(['patient', 'serviceProvider', 'status', 'serviceType', 'payment.status']);
@@ -74,30 +82,37 @@ const resolveCancellationActor = ({ userRole, isPatient = false, isProvider = fa
   if (userRole === 'admin') return 'ADMIN';
   if (userRole === 'system') return 'SYSTEM';
   if (isPatient || userRole === 'patient') return 'PATIENT';
-  if (isProvider || ['doctor', 'nurse', 'physiotherapist'].includes(userRole)) return 'PROVIDER';
+  if (isProvider || ['doctor', 'nurse', 'physiotherapist', 'medical_staff'].includes(userRole)) return 'PROVIDER';
   return 'SYSTEM';
 };
 
 const TIME_FORMAT_REGEX = /^\d{1,2}:\d{2}$/;
 
+// Live tracking: staff share location only while a visit is active, and a fix
+// older than this is treated as stale (phone offline / app closed).
+const TRACKABLE_STATUSES = ['CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'];
+const LOCATION_STALE_MS = 5 * 60 * 1000;
+const STAFF_SPEED_KMPH = 18; // city two-wheeler average incl. stops
+
+const haversineKm = (a, b) => {
+  const rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(h));
+};
+
+const toCoordinate = (value, min, max, name) => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < min || n > max) throw new ValidationError(`Invalid ${name}`);
+  return n;
+};
+
 const resolveCatalogServiceName = (serviceType) => {
-  switch (serviceType) {
-    case 'INJECTION': return 'INJECTION_IM';
-    case 'IV_DRIP': return 'IV_DRIP';
-    case 'WOUND_DRESSING': return 'WOUND_DRESSING';
-    case 'CATHETER_CARE': return 'CATHETER_CARE';
-    case 'POST_SURGERY_CARE': return 'POST_SURGERY_CARE';
-    case 'ELDERLY_CARE': return 'ELDERLY_CARE_DAILY';
-    case 'PHYSIOTHERAPY_SESSION': return 'PHYSIO_SESSION';
-    case 'BACK_PAIN_THERAPY': return 'BACK_PAIN_PHYSIO';
-    case 'KNEE_PAIN_THERAPY': return 'KNEE_PAIN_PHYSIO';
-    case 'POST_SURGERY_REHAB': return 'POST_SURGERY_REHAB';
-    case 'STROKE_REHAB': return 'STROKE_REHAB';
-    case 'PHYSIO_PACKAGE_10': return 'PHYSIO_PACKAGE_10';
-    case 'ELDERLY_CARE_PACKAGE': return 'ELDERLY_CARE_MONTHLY';
-    case 'POST_SURGERY_PACKAGE': return 'POST_SURGERY_14DAY';
-    default: throw new ValidationError('Unsupported service type');
+  if (!Object.prototype.hasOwnProperty.call(SERVICE_TYPE_TO_CATALOG_NAME, serviceType)) {
+    throw new ValidationError('Unsupported service type');
   }
+  return SERVICE_TYPE_TO_CATALOG_NAME[serviceType];
 };
 
 const formatUtcOffset = (offsetMinutes) => {
@@ -158,7 +173,9 @@ class BookingService {
       specialRequirements,
       patientDetails,
       isPackage,
-      packageDetails
+      packageDetails,
+      mode,
+      preferredGender
     } = bookingData;
 
     // Verify patient exists
@@ -180,7 +197,8 @@ class BookingService {
     }
 
     const availableCities = service.availability?.availableCities || [];
-    const requestedCity = serviceLocation?.city;
+    // The API validates serviceLocation.address.city (the old top-level `city` never existed).
+    const requestedCity = serviceLocation?.address?.city || serviceLocation?.city;
     if (
       availableCities.length > 0 &&
       (!requestedCity || !availableCities.some((city) =>
@@ -227,12 +245,9 @@ class BookingService {
       }
     }
 
-    // Calculate pricing upfront so the booking is created with correct amounts
-    const platformFee = basePrice * 0.15;
-    const gst = (basePrice + platformFee) * 0.18;
-    const totalAmount = basePrice + platformFee + gst;
-    const discount = 0;
-    const payableAmount = totalAmount - discount;
+    // Price upfront (config/revenue.js): platform fee waived for Nabz Plus members.
+    const quote = pricingService.quoteCareVisit({ basePrice, isMember: await membershipService.isMember(safePatientId) });
+    const { platformFee, gst, totalAmount, discount, payableAmount } = quote;
 
     // Create booking with final pricing in a single operation
     const booking = await NurseBooking.create({
@@ -256,8 +271,40 @@ class BookingService {
         payableAmount
       },
       prescriptionUrl: bookingData.prescriptionUrl,
-      status: 'REQUESTED'
+      status: 'REQUESTED',
+      dispatch: {
+        mode: mode === 'ASAP' ? 'ASAP' : 'SCHEDULED',
+        preferredGender: ['FEMALE', 'MALE'].includes(preferredGender) ? preferredGender : 'ANY'
+      },
+      // Visit code the patient shares at the door (never sent to the provider).
+      visitOtp: { code: String(crypto.randomInt(0, 10000)).padStart(4, '0') },
+      // Family tracking link token.
+      shareToken: crypto.randomBytes(16).toString('hex')
     });
+
+    // Supplies: "I have it" vs "staff brings it" (a linked STAFF_PICKUP pharmacy
+    // order). If the staff can't source them, don't leave a half-made booking.
+    if (Array.isArray(bookingData.supplies) && bookingData.supplies.length > 0) {
+      try {
+        const supplies = await careSuppliesService.orderSuppliesForBooking(booking, bookingData.supplies, {
+          patientId: safePatientId,
+          prescriptionKey: bookingData.prescriptionKey,
+          vendorId: bookingData.suppliesVendorId
+        });
+        if (supplies) {
+          booking.supplies = supplies;
+          await booking.save();
+        }
+      } catch (error) {
+        await NurseBooking.deleteOne({ _id: booking._id });
+        throw error;
+      }
+    }
+
+    // "Book now": match the nearest online nurse right away (Uber-style).
+    if (booking.dispatch && booking.dispatch.mode === 'ASAP') {
+      await dispatchService.startDispatch(booking);
+    }
 
     logger.info('Booking Created', {
       bookingId: booking._id,
@@ -302,7 +349,7 @@ class BookingService {
     const safeUserId = normalizeObjectId(userId, 'user id');
     const booking = await NurseBooking.findById(safeBookingId)
       .populate('patient', 'name email phone')
-      .populate('serviceProvider', 'name email phone specialty professional');
+      .populate('serviceProvider', 'name email phone specialty professional rating totalReviews profilePhoto careProfile.qualification careProfile.languages careProfile.verification.idVerified careProfile.verification.policeVerified careProfile.verification.councilVerified careProfile.verification.vaccinated');
 
     if (!booking) {
       throw new NotFoundError('Booking', bookingId);
@@ -318,6 +365,152 @@ class BookingService {
     }
 
     return booking;
+  }
+
+  /**
+   * Staff app: publish the provider's live location for an active visit.
+   * Also refreshes the ETA to the patient's address.
+   */
+  async updateProviderLocation(bookingId, providerId, { lat, lng }) {
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeProviderId = normalizeObjectId(providerId, 'provider id');
+    const point = { lat: toCoordinate(lat, -90, 90, 'latitude'), lng: toCoordinate(lng, -180, 180, 'longitude') };
+    const now = new Date();
+
+    const booking = await NurseBooking.findOneAndUpdate(
+      { _id: safeBookingId, serviceProvider: safeProviderId, status: { $in: TRACKABLE_STATUSES } },
+      { $set: { 'tracking.nurseLocation': { ...point, lastUpdated: now } } },
+      { new: true }
+    );
+    if (!booking) {
+      throw new ValidationError('Location can only be shared for your active visits');
+    }
+
+    const dest = booking.serviceLocation && booking.serviceLocation.address && booking.serviceLocation.address.coordinates;
+    let distanceKm = null;
+    let estimatedArrival = null;
+    if (dest && Number.isFinite(dest.lat) && Number.isFinite(dest.lng)) {
+      distanceKm = Math.round(haversineKm(point, dest) * 100) / 100;
+      estimatedArrival = new Date(now.getTime() + (Math.ceil((distanceKm / STAFF_SPEED_KMPH) * 60) + 2) * 60 * 1000);
+      await NurseBooking.updateOne({ _id: booking._id }, { $set: { 'tracking.estimatedArrival': estimatedArrival } });
+    }
+    return { lastUpdated: now, distanceKm, estimatedArrival };
+  }
+
+  /**
+   * Customer app: where is my nurse? Visible to the patient, the assigned
+   * provider and admins, and only while the visit is active.
+   */
+  async getTracking(bookingId, userId, userRole) {
+    const booking = await this.getBookingById(bookingId, userId, userRole);
+    const loc = booking.tracking && booking.tracking.nurseLocation;
+    const active = TRACKABLE_STATUSES.includes(booking.status);
+    const fresh = !!(loc && loc.lastUpdated && Date.now() - new Date(loc.lastUpdated).getTime() < LOCATION_STALE_MS);
+    const dest = booking.serviceLocation && booking.serviceLocation.address && booking.serviceLocation.address.coordinates;
+    const staffLocation = active && fresh && Number.isFinite(loc.lat) ? { lat: loc.lat, lng: loc.lng, lastUpdated: loc.lastUpdated } : null;
+    const isPatient = String(booking.patient._id || booking.patient) === String(userId);
+    let secrets = {};
+    if (isPatient && !['COMPLETED', 'CANCELLED'].includes(booking.status)) {
+      const withSecrets = await NurseBooking.findById(booking._id).select('+visitOtp.code +shareToken').lean();
+      secrets = {
+        visitCode: withSecrets && withSecrets.visitOtp && !withSecrets.visitOtp.verifiedAt ? withSecrets.visitOtp.code : undefined,
+        shareToken: withSecrets ? withSecrets.shareToken : undefined
+      };
+    }
+    const sp = booking.serviceProvider;
+    return {
+      bookingId: booking._id,
+      status: booking.status,
+      serviceType: booking.serviceType,
+      dispatch: booking.dispatch ? { mode: booking.dispatch.mode, status: booking.dispatch.status, attempts: booking.dispatch.attempts } : undefined,
+      ...secrets,
+      staff: sp ? {
+        name: sp.name,
+        phone: active ? sp.phone : undefined,
+        qualification: sp.careProfile && sp.careProfile.qualification,
+        experienceYears: sp.professional && sp.professional.yearsOfExperience,
+        languages: (sp.careProfile && sp.careProfile.languages) || [],
+        rating: sp.rating || null,
+        totalReviews: sp.totalReviews || 0,
+        photo: sp.profilePhoto && sp.profilePhoto.url,
+        verification: sp.careProfile && sp.careProfile.verification ? {
+          id: !!sp.careProfile.verification.idVerified,
+          police: !!sp.careProfile.verification.policeVerified,
+          council: !!sp.careProfile.verification.councilVerified,
+          vaccinated: !!sp.careProfile.verification.vaccinated
+        } : {}
+      } : null,
+      staffLocation,
+      destination: dest && Number.isFinite(dest.lat) ? { lat: dest.lat, lng: dest.lng } : null,
+      distanceKm: staffLocation && dest && Number.isFinite(dest.lat) ? Math.round(haversineKm(staffLocation, dest) * 100) / 100 : null,
+      estimatedArrival: active ? (booking.tracking && booking.tracking.estimatedArrival) || null : null
+    };
+  }
+
+  /** Check the patient's visit code before a visit starts; locks after 5 misses. */
+  async verifyVisitCode(bookingId, code) {
+    const booking = await NurseBooking.findById(bookingId).select('+visitOtp.code');
+    const otp = booking && booking.visitOtp;
+    if (!otp || !otp.code || otp.verifiedAt) return true; // older bookings without a code
+    if ((otp.failedAttempts || 0) >= 5) {
+      throw new ValidationError('Too many wrong codes. Ask support to start this visit.');
+    }
+    const given = String(code || '').replace(/\D/g, '');
+    const ok = given.length === 4 && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(otp.code));
+    if (!ok) {
+      await NurseBooking.updateOne({ _id: bookingId }, { $inc: { 'visitOtp.failedAttempts': 1 } });
+      logger.logSecurity('visit_code_wrong', { bookingId: String(bookingId) });
+      throw new ValidationError('That visit code is not right. Ask the patient for the 4-digit code.');
+    }
+    await NurseBooking.updateOne({ _id: bookingId }, { $set: { 'visitOtp.verifiedAt': new Date() } });
+    return true;
+  }
+
+  /** SOS from the patient or the provider during a visit: alert ops immediately. */
+  async raiseSos(bookingId, userId, userRole, { lat, lng, note } = {}) {
+    const booking = await this.getBookingById(bookingId, userId, userRole);
+    const by = String(booking.patient._id || booking.patient) === String(userId) ? 'PATIENT' : 'PROVIDER';
+    const entry = { at: new Date(), by, note: note ? String(note).slice(0, 300) : undefined };
+    if (Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) entry.location = { lat: Number(lat), lng: Number(lng) };
+    await NurseBooking.updateOne({ _id: booking._id }, { $push: { sos: entry }, $set: { flagged: true, flagReason: `SOS by ${by}` } });
+    logger.logSecurity('care_visit_sos', { bookingId: String(booking._id), by });
+    try {
+      const Notification = require('../models/notification');
+      const ops = await User.find({ role: 'platform_admin', isActive: { $ne: false } }).select('_id').lean();
+      await Promise.all(ops.map((o) => Notification.create({
+        user: o._id, recipientModel: 'User', type: 'CARE_SOS', priority: 'URGENT',
+        title: `SOS on a home visit (${by.toLowerCase()})`,
+        message: `Booking ${booking._id} · ${booking.serviceType}${entry.note ? ` · ${entry.note}` : ''}`,
+        metadata: { bookingId: String(booking._id) }, channels: { inApp: true, push: true }
+      })));
+    } catch (err) {
+      logger.error('SOS alert to ops failed', { bookingId: String(booking._id), error: err.message });
+    }
+    return { received: true, emergencyNumbers: { ambulance: '108', police: '112', women: '1091' } };
+  }
+
+  /** Public family-tracking view (link from the patient). Minimal, no contact details. */
+  async getSharedTracking(token) {
+    const safe = String(token || '');
+    if (!/^[a-f0-9]{32}$/.test(safe)) throw new NotFoundError('Tracking link');
+    const booking = await NurseBooking.findOne({ shareToken: safe })
+      .populate('serviceProvider', 'name careProfile.qualification')
+      .lean();
+    if (!booking) throw new NotFoundError('Tracking link');
+    const active = TRACKABLE_STATUSES.includes(booking.status);
+    const loc = booking.tracking && booking.tracking.nurseLocation;
+    const fresh = !!(loc && loc.lastUpdated && Date.now() - new Date(loc.lastUpdated).getTime() < LOCATION_STALE_MS);
+    return {
+      status: booking.status,
+      serviceType: booking.serviceType,
+      staff: booking.serviceProvider ? {
+        firstName: String(booking.serviceProvider.name || '').split(' ')[0],
+        qualification: booking.serviceProvider.careProfile && booking.serviceProvider.careProfile.qualification
+      } : null,
+      staffLocation: active && fresh ? { lat: loc.lat, lng: loc.lng, lastUpdated: loc.lastUpdated } : null,
+      estimatedArrival: active ? (booking.tracking && booking.tracking.estimatedArrival) || null : null,
+      expired: !active && booking.status !== 'REQUESTED'
+    };
   }
 
   /**
@@ -337,6 +530,8 @@ class BookingService {
     const bookings = await NurseBooking.find(query)
       .populate('patient', 'name email phone')
       .populate('serviceProvider', 'name email phone')
+      // Staff see which store to collect "staff brings" supplies from.
+      .populate('supplies.pharmacyVendor', 'name address phone location')
       .sort(sort)
       .limit(limit)
       .skip((page - 1) * limit)
@@ -380,10 +575,8 @@ class BookingService {
    * @returns {Promise<Array>} Active assignable providers
    */
   async getAssignableProviders() {
-    return User.find({
-      role: { $in: ['nurse', 'physiotherapist'] },
-      isActive: true
-    })
+    // Only staff who switched "Go online" and are heartbeating are discoverable.
+    return User.find({ ...staffAvailabilityService.discoverableFilter(), isActive: true })
       .select('name email phone role specialty professional.primarySpecialization professional.yearsOfExperience')
       .sort({ role: 1, name: 1 })
       .lean();
@@ -410,7 +603,7 @@ class BookingService {
       throw new NotFoundError('Service provider', providerId);
     }
 
-    const validRoles = ['nurse', 'physiotherapist'];
+    const validRoles = ['nurse', 'physiotherapist', 'medical_staff'];
     if (!validRoles.includes(provider.role)) {
       throw new ValidationError('User is not a valid service provider');
     }
@@ -493,7 +686,7 @@ class BookingService {
    * @param {String} note - Optional note
    * @returns {Promise<Object>} Updated booking
    */
-  async updateStatus(bookingId, newStatus, userId, note = '', userRole) {
+  async updateStatus(bookingId, newStatus, userId, note = '', userRole, extra = {}) {
     const safeBookingId = normalizeObjectId(bookingId, 'booking id');
     const safeUserId = normalizeObjectId(userId, 'user id');
     const booking = await NurseBooking.findById(safeBookingId);
@@ -525,6 +718,11 @@ class BookingService {
 
     if (!isProvider && !isAdmin) {
       throw new AuthorizationError('Not authorized to update booking status');
+    }
+
+    // Starting the visit needs the patient's code (Rapido-style ride OTP).
+    if (newStatus === 'IN_PROGRESS' && !isAdmin) {
+      await this.verifyVisitCode(booking._id, extra.visitCode);
     }
 
     // Update status
@@ -680,6 +878,9 @@ class BookingService {
     if (!completedBooking) {
       throw new ValidationError('Service has already been completed or is no longer in progress');
     }
+
+    // Book the provider's payout, our commission and the platform fee.
+    await settlementService.recordCareBooking(completedBooking);
 
     if (vitals.length > 0) {
       logger.info('Health metrics captured from booking', {
@@ -901,6 +1102,8 @@ class BookingService {
     booking.rating = {
       stars: reviewData.stars,
       comment: reviewData.comment,
+      review: reviewData.comment,
+      tags: Array.isArray(reviewData.tags) ? reviewData.tags.slice(0, 6).map((t) => String(t).slice(0, 40)) : [],
       ratedAt: new Date()
     };
 
@@ -1044,6 +1247,7 @@ class BookingService {
 
     // Update booking
     booking.status = 'CANCELLED';
+    if (booking.dispatch && booking.dispatch.status !== 'MATCHED') booking.dispatch.status = 'CANCELLED';
     booking.cancellation = {
       cancelledAt: new Date(),
       cancelledBy: resolveCancellationActor({ userRole, isPatient, isProvider }),
@@ -1052,6 +1256,9 @@ class BookingService {
     };
 
     await booking.save();
+
+    // Release the linked supplies order (restocks the pharmacy) if it isn't packed yet.
+    await careSuppliesService.cancelSuppliesForBooking(booking, `Home-care visit cancelled: ${reason || 'no reason given'}`);
 
     // Invalidate cache
     await invalidateCache('*:/api/bookings*');

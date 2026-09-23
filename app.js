@@ -95,7 +95,14 @@ const applyApiCors = (req, res, next) => {
     return next();
   }
 
-  return cors(corsOptions)(req, res, next);
+  return cors(corsOptions)(req, res, (err) => {
+    // A disallowed origin is a client error, not a server fault: answer 403
+    // (the warning is already logged by corsConfig) instead of a 500 + error log.
+    if (err && err.message === 'Not allowed by CORS') {
+      return res.status(403).json({ success: false, message: 'Origin not allowed' });
+    }
+    return next(err);
+  });
 };
 // Express 5 matches a RegExp use-mount against the FULL path, so the pattern
 // needs the trailing `.*` — without it this layer matches nothing and every
@@ -145,6 +152,8 @@ if (shouldApplyRateLimits) {
   // Auth routes - Strict limits to prevent brute force attacks
   app.use('/api/v1/auth/login', authRateLimiter);
   app.use('/api/v1/auth/register', authRateLimiter);
+  // Google / phone OTP sign-in (brute-force and SMS-cost protection)
+  app.use('/api/v1/auth/social', authRateLimiter);
   app.use('/api/v1/hospital-waitlist', hospitalWaitlistRateLimiter);
   app.use('/api/v1/auth/forgot-password', passwordResetRateLimiter);
   app.use('/api/v1/auth/reset-password', passwordResetRateLimiter);

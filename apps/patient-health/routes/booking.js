@@ -14,7 +14,7 @@ const { protectBoth } = require('../middleware/patientAuth');
 const idempotency = require('@nocturnal/shared').idempotency;
 const { queryCache } = require('@nocturnal/shared').queryCache;
 const { CACHE_TTL } = require('../constants');
-const { BOOKING_SERVICE_TYPES, BOOKING_STATUSES } = require('../constants/enums');
+const { BOOKING_SERVICE_TYPES, BOOKING_STATUSES, CARE_SUPPLY_SOURCES } = require('../constants/enums');
 const {
   createBooking,
   getBooking,
@@ -32,7 +32,13 @@ const {
   cancelBooking,
   getBookingStats,
   confirmBooking,
-  markEnRoute
+  markEnRoute,
+  updateLocation,
+  getTracking,
+  getMyOffer,
+  acceptOffer,
+  declineOffer,
+  raiseSos
 } = require('../controllers/bookingController');
 
 // Validation rules
@@ -112,7 +118,40 @@ const createBookingValidation = [
   body('packageDetails.frequency')
     .if(body('isPackage').equals('true'))
     .notEmpty()
-    .withMessage('Frequency required for packages')
+    .withMessage('Frequency required for packages'),
+  // Home-care supplies: per catalog item, who provides it.
+  body('supplies')
+    .optional()
+    .isArray({ max: 20 })
+    .withMessage('supplies must be a list'),
+  body('supplies.*.key')
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 60 })
+    .withMessage('Each supply needs a key'),
+  body('supplies.*.source')
+    .isIn(CARE_SUPPLY_SOURCES)
+    .withMessage('Each supply needs a valid source'),
+  body('suppliesVendorId')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid pharmacy'),
+  body('prescriptionKey')
+    .optional()
+    .isString()
+    .isLength({ max: 300 }),
+  body('prescriptionUrl')
+    .optional()
+    .isString()
+    .isLength({ max: 500 }),
+  body('mode')
+    .optional()
+    .isIn(['ASAP', 'SCHEDULED'])
+    .withMessage('mode must be ASAP or SCHEDULED'),
+  body('preferredGender')
+    .optional()
+    .isIn(['FEMALE', 'MALE', 'ANY'])
+    .withMessage('Invalid preferred gender')
 ];
 
 const assignProviderValidation = [
@@ -163,6 +202,14 @@ const reviewValidation = [
     .withMessage('Rating is required')
     .isInt({ min: 1, max: 5 })
     .withMessage('Rating must be between 1 and 5 stars'),
+  body('tags')
+    .optional()
+    .isArray({ max: 6 })
+    .withMessage('Up to 6 tags'),
+  body('tags.*')
+    .optional()
+    .isString()
+    .isLength({ max: 40 }),
   body('comment')
     .optional()
     .trim()
@@ -208,7 +255,7 @@ router.get(
 // Provider routes - view assigned bookings
 router.get(
   '/provider/me',
-  authorize('nurse', 'physiotherapist'),
+  authorize('nurse', 'physiotherapist', 'medical_staff'),
   queryCache({ ttl: CACHE_TTL.SHORT }),
   getProviderBookings
 );
@@ -229,12 +276,68 @@ router.get(
   getBooking
 );
 
+// Partner app: incoming visit request (Uber-style offer with a countdown).
+router.get(
+  '/offers/me',
+  authorize('nurse', 'physiotherapist', 'medical_staff'),
+  getMyOffer
+);
+
+router.post(
+  '/:id/offer/accept',
+  mongoIdValidation,
+  validate,
+  authorize('nurse', 'physiotherapist', 'medical_staff'),
+  acceptOffer
+);
+
+router.post(
+  '/:id/offer/decline',
+  mongoIdValidation,
+  validate,
+  authorize('nurse', 'physiotherapist', 'medical_staff'),
+  declineOffer
+);
+
+// Safety: SOS during a visit (patient or assigned provider).
+router.post(
+  '/:id/sos',
+  mongoIdValidation,
+  [
+    body('lat').optional().isFloat({ min: -90, max: 90 }),
+    body('lng').optional().isFloat({ min: -180, max: 180 }),
+    body('note').optional().isString().isLength({ max: 300 })
+  ],
+  validate,
+  raiseSos
+);
+
+// Live tracking (Uber-style). Not cached: the customer polls for fresh positions.
+router.get(
+  '/:id/tracking',
+  mongoIdValidation,
+  validate,
+  getTracking
+);
+
+router.put(
+  '/:id/location',
+  mongoIdValidation,
+  [
+    body('lat').isFloat({ min: -90, max: 90 }).withMessage('Valid latitude is required'),
+    body('lng').isFloat({ min: -180, max: 180 }).withMessage('Valid longitude is required')
+  ],
+  validate,
+  authorize('nurse', 'physiotherapist', 'medical_staff'),
+  updateLocation
+);
+
 // Provider actions
 router.put(
   '/:id/confirm',
   mongoIdValidation,
   validate,
-  authorize('nurse', 'physiotherapist'),
+  authorize('nurse', 'physiotherapist', 'medical_staff'),
   confirmBooking
 );
 
@@ -242,7 +345,7 @@ router.put(
   '/:id/en-route',
   mongoIdValidation,
   validate,
-  authorize('nurse', 'physiotherapist'),
+  authorize('nurse', 'physiotherapist', 'medical_staff'),
   markEnRoute
 );
 
@@ -250,7 +353,7 @@ router.put(
   '/:id/start',
   mongoIdValidation,
   validate,
-  authorize('nurse', 'physiotherapist'),
+  authorize('nurse', 'physiotherapist', 'medical_staff'),
   startService
 );
 
@@ -259,7 +362,7 @@ router.put(
   mongoIdValidation,
   completeServiceValidation,
   validate,
-  authorize('nurse', 'physiotherapist'),
+  authorize('nurse', 'physiotherapist', 'medical_staff'),
   completeService
 );
 
@@ -321,7 +424,7 @@ router.put(
   mongoIdValidation,
   updateStatusValidation,
   validate,
-  authorize('admin', 'nurse', 'physiotherapist'),
+  authorize('admin', 'nurse', 'physiotherapist', 'medical_staff'),
   updateStatus
 );
 

@@ -15,7 +15,9 @@ console.log('=== MongoDB Index Migration ===\n');
 async function addIndexes() {
     try {
         console.log('Connecting to MongoDB...');
-        await mongoose.connect(MONGODB_URI);
+        // autoIndex off: this script creates every index explicitly (and
+        // concurrent automatic builds can stall explicit createIndexes).
+        await mongoose.connect(MONGODB_URI, { autoIndex: false });
         console.log('✓ Connected successfully\n');
 
         const db = mongoose.connection.db;
@@ -290,6 +292,17 @@ async function addIndexes() {
             console.log('   security notification outbox, WebAuthn, and recovery-code indexes created');
         } catch (err) {
             console.log('   Security notification/WebAuthn indexes could not be created:', err.message);
+        }
+
+        // MedRush marketplace: build the schema-declared indexes up front
+        // (2dsphere for nearby-vendor $near queries, text search, payment
+        // sweeper, unique vendor×medicine). Not wrapped in try/catch on
+        // purpose: a missing geo index breaks discovery, so fail the deploy.
+        console.log('\nMedRush marketplace collections:');
+        for (const modelPath of ['../models/pharmacyVendor', '../models/serviceZone', '../models/medicine', '../models/vendorInventory', '../models/inventoryMovement', '../models/pharmacyOrder', '../models/user']) {
+            const Model = require(modelPath);
+            await Model.createIndexes();
+            console.log(`   ✓ ${Model.collection.collectionName} indexes ensured`);
         }
 
         // List all indexes

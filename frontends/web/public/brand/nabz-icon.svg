@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nabz">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3d63ff"/>
+      <stop offset="1" stop-color="#1533b4"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <!-- Map pin = care comes to your location -->
+  <path d="M256 84c-86 0-156 67-156 150 0 108 156 196 156 196s156-88 156-196c0-83-70-150-156-150z" fill="#fff"/>
+  <!-- Pulse line = health, live -->
+  <polyline points="146,238 204,238 228,186 262,292 290,214 306,238 350,238" fill="none" stroke="#1f45e0" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="366" cy="238" r="15" fill="#ff5a3c"/>
+</svg>

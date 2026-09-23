@@ -36,6 +36,8 @@
     "db:indexes:unsafe": "node scripts/add-indexes.js",
     "db:indexes:rollback": "node scripts/safe-index-migration.js --rollback",
     "db:migrate": "node scripts/add-indexes.js",
+    "db:seed:pharmacy": "node scripts/seedPharmacyMarketplace.js",
+    "db:seed:admin": "node scripts/seedAdmin.js",
     "reconcile:data": "node scripts/reconcile-data-integrity.js",
     "reconcile:data:write": "node scripts/reconcile-data-integrity.js --write",
     "db:backfill-upload-urls": "node scripts/backfill-upload-file-urls.js",

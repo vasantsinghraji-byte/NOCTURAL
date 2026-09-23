@@ -11,17 +11,33 @@ const FIELD_UPLOAD_FOLDERS = {
   mbbsDegree: 'documents/degrees',
   photoId: 'documents/ids',
   certificate: 'documents/certificates',
-  files: 'investigation-reports'
+  files: 'investigation-reports',
+  // Health data: partitioned per patient so an order can only attach the
+  // uploader's own prescription (see pharmacyService.createOrder).
+  prescription: (req) => `prescriptions/${req.user._id}`
 };
 
-const getUploadFolder = (req, file) => FIELD_UPLOAD_FOLDERS[file.fieldname] || req.uploadType || 'general';
+const getUploadFolder = (req, file) => {
+  const folder = FIELD_UPLOAD_FOLDERS[file.fieldname];
+  if (typeof folder === 'function') return folder(req, file);
+  return folder || req.uploadType || 'general';
+};
 
 // Determine storage backend — only use GCS when explicitly enabled and configured
 const USE_GCS = process.env.USE_GCS === 'true' && !!process.env.GCS_BUCKET;
-const USE_LOCAL = !USE_GCS;
+// AWS S3 (production target): STORAGE_PROVIDER=s3 + S3_UPLOADS_BUCKET. Credentials
+// come from the default AWS chain (ECS task role in AWS; env keys for MinIO locally).
+const USE_S3 = !USE_GCS && process.env.STORAGE_PROVIDER === 's3' && !!process.env.S3_UPLOADS_BUCKET;
+const USE_LOCAL = !USE_GCS && !USE_S3;
+const USE_CLOUD = !USE_LOCAL;
 
-if (process.env.NODE_ENV === 'production' && !USE_GCS) {
-  logger.warn('Production environment using local storage — set USE_GCS=true and GCS_BUCKET to enable cloud storage');
+if (process.env.NODE_ENV === 'production' && USE_LOCAL) {
+  // WARNING: container disks are ephemeral (ECS/Fargate, Render). Local uploads
+  // are lost on redeploy and are not shared between tasks. Use S3 in production.
+  logger.warn('Production environment using local storage — set STORAGE_PROVIDER=s3 and S3_UPLOADS_BUCKET (or USE_GCS=true and GCS_BUCKET) to enable cloud storage');
+}
+if (process.env.STORAGE_PROVIDER === 's3' && !USE_S3) {
+  logger.warn('STORAGE_PROVIDER=s3 but S3_UPLOADS_BUCKET is not set — falling back to local storage');
 }
 
 // Google Cloud Storage Client Configuration
@@ -61,6 +77,113 @@ if (USE_GCS && process.env.GCS_BUCKET) {
     logger.error('Failed to initialize Google Cloud Storage', { error: error.message });
   }
 }
+
+// AWS S3 Client Configuration (lazy — the SDK is only loaded when S3 is used)
+let s3Client = null;
+const S3_BUCKET = process.env.S3_UPLOADS_BUCKET;
+
+const getS3Client = () => {
+  if (s3Client) return s3Client;
+  const { S3Client } = require('@aws-sdk/client-s3');
+  const config = { region: process.env.AWS_REGION || 'ap-south-1' };
+  // S3-compatible endpoint for local dev (MinIO / LocalStack).
+  if (process.env.S3_ENDPOINT) {
+    config.endpoint = process.env.S3_ENDPOINT;
+    config.forcePathStyle = process.env.S3_FORCE_PATH_STYLE !== 'false';
+  }
+  s3Client = new S3Client(config);
+  return s3Client;
+};
+
+// SSE-S3 by default; SSE-KMS when a key is configured.
+const s3EncryptionParams = () => (process.env.S3_UPLOADS_KMS_KEY_ID
+  ? { ServerSideEncryption: 'aws:kms', SSEKMSKeyId: process.env.S3_UPLOADS_KMS_KEY_ID }
+  : { ServerSideEncryption: 'AES256' });
+
+const deleteS3Object = async (key) => {
+  const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
+  await getS3Client().send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: key }));
+};
+
+/** `<folder>/<yyyy-mm-dd>/<sanitised-name>-<unique><ext>` — shared by cloud engines. */
+const buildObjectKey = (req, file) => {
+  const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+  const ext = path.extname(file.originalname);
+  const basename = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9]/g, '_');
+  const dateFolder = new Date().toISOString().split('T')[0];
+  return `${getUploadFolder(req, file)}/${dateFolder}/${basename}-${uniqueSuffix}${ext}`;
+};
+
+/**
+ * Multer storage engine that streams to S3 through the magic-byte validator,
+ * so spoofed files are rejected before (or aborted during) the upload.
+ * `keyFor(req, file)` lets callers choose the object key layout.
+ */
+const createS3StorageEngine = (keyFor = buildObjectKey) => ({
+  _handleFile(req, file, cb) {
+    let key;
+    try {
+      key = keyFor(req, file);
+    } catch (error) {
+      return cb(error);
+    }
+
+    const { Upload } = require('@aws-sdk/lib-storage');
+    const userId = req.user ? req.user._id.toString() : 'anonymous';
+    const validatedUpload = createMagicByteValidatedStream(file, { userId });
+    let callbackCalled = false;
+    const done = (error, result) => {
+      if (callbackCalled) return;
+      callbackCalled = true;
+      cb(error, result);
+    };
+
+    const upload = new Upload({
+      client: getS3Client(),
+      params: {
+        Bucket: S3_BUCKET,
+        Key: key,
+        Body: file.stream.pipe(validatedUpload.stream),
+        ContentType: file.mimetype,
+        ...s3EncryptionParams(),
+        Metadata: {
+          fieldname: file.fieldname,
+          uploadedby: userId,
+          uploaddate: new Date().toISOString()
+        }
+      },
+      leavePartsOnError: false
+    });
+
+    const abortUpload = (error) => {
+      if (callbackCalled) return;
+      upload.abort().catch(() => {});
+      deleteS3Object(key).catch((deleteError) => {
+        logger.warn('Failed to delete rejected S3 upload', { key, error: deleteError.message });
+      });
+      done(error);
+    };
+
+    validatedUpload.stream.on('error', abortUpload);
+    file.stream.on('error', abortUpload);
+
+    upload.done()
+      .then(() => done(null, {
+        key,
+        filename: key,
+        location: `s3://${S3_BUCKET}/${key}`,
+        bucket: S3_BUCKET,
+        size: validatedUpload.getSize(),
+        mimetype: file.mimetype
+      }))
+      .catch(abortUpload);
+  },
+
+  _removeFile(req, file, cb) {
+    if (!file.key) return cb(null);
+    deleteS3Object(file.key).then(() => cb(null), cb);
+  }
+});
 
 // Local Storage Configuration (fallback for development)
 const localStorage = multer.diskStorage({
@@ -254,12 +377,24 @@ const fileFilter = (req, file, cb) => {
 };
 
 // Export storage configuration
+const selectStorage = () => {
+  if (USE_GCS && gcsBucket) return gcsStorage;
+  if (USE_S3) return createS3StorageEngine();
+  return localStorage;
+};
+
 module.exports = {
   USE_GCS,
+  USE_S3,
   USE_LOCAL,
+  USE_CLOUD,
   gcsClient,
   gcsBucket,
-  storage: USE_GCS && gcsBucket ? gcsStorage : localStorage,
+  S3_BUCKET,
+  getS3Client,
+  createS3StorageEngine,
+  buildObjectKey,
+  storage: selectStorage(),
 
   fileFilter,
 
@@ -276,11 +411,26 @@ module.exports = {
   toStoredFile,
   resolveLocalFile,
 
-  // Get file URL (works for both GCS and local)
+  // Get file URL (works for GCS, S3 and local)
   getFileUrl: (filename) => `/api/v1/uploads/file?key=${encodeURIComponent(normalizeStorageKey(filename))}`,
 
-  // Generate signed URL for private GCS files
+  // Generate a short-lived signed URL for private cloud files (GCS or S3)
   getSignedUrl: async (key, expiresIn = 3600) => {
+    if (USE_S3) {
+      try {
+        const { GetObjectCommand } = require('@aws-sdk/client-s3');
+        const { getSignedUrl: presign } = require('@aws-sdk/s3-request-presigner');
+        return await presign(
+          getS3Client(),
+          new GetObjectCommand({ Bucket: S3_BUCKET, Key: normalizeStorageKey(key) }),
+          { expiresIn }
+        );
+      } catch (error) {
+        logger.error('Failed to generate S3 signed URL', { error: error.message });
+        return null;
+      }
+    }
+
     if (!USE_GCS || !gcsBucket) {
       return null;
     }
@@ -298,11 +448,34 @@ module.exports = {
     }
   },
 
+  // List every stored object key in the active cloud bucket (null for local).
+  listObjectKeys: async () => {
+    if (USE_S3) {
+      const { ListObjectsV2Command } = require('@aws-sdk/client-s3');
+      const keys = [];
+      let ContinuationToken;
+      do {
+        const page = await getS3Client().send(new ListObjectsV2Command({ Bucket: S3_BUCKET, ContinuationToken }));
+        (page.Contents || []).forEach(object => keys.push(object.Key));
+        ContinuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+      } while (ContinuationToken);
+      return keys;
+    }
+    if (USE_GCS && gcsBucket) {
+      const [files] = await gcsBucket.getFiles();
+      return files.map(file => file.name);
+    }
+    return null;
+  },
+
   // Delete file (works for both GCS and local)
   deleteFile: async (filename) => {
     if (!filename) return;
     const key = normalizeStorageKey(filename);
-    if (USE_GCS && gcsBucket) {
+    if (USE_S3) {
+      // DeleteObject is idempotent: a missing key is not an error.
+      await deleteS3Object(key);
+    } else if (USE_GCS && gcsBucket) {
       try {
         await gcsBucket.file(key).delete();
       } catch (error) {

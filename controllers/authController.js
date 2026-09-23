@@ -17,6 +17,7 @@ const {
   clearAuthCookies
 } = require('../utils/authCookies');
 const { addMobileTokens, isMobileRequest } = require('../utils/mobileAuth');
+const { PORTAL_LABELS, isRoleAllowedInPortal, portalForRole } = require('../constants/portals');
 const securityAuditService = require('../services/securityAuditService');
 const { getRequestSecurityMetadata } = require('../utils/requestSecurityMetadata');
 
@@ -81,6 +82,18 @@ exports.register = async (req, res, next) => {
 exports.login = async (req, res, next) => {
   try {
     const result = await authService.login(req.body);
+
+    // Separate login per partner type: refuse before any session/cookie exists.
+    const { portal } = req.body;
+    const role = result.user && result.user.role;
+    if (portal && !isRoleAllowedInPortal(portal, role)) {
+      logger.logSecurity('login_wrong_portal', { email: req.body.email, portal, role });
+      const home = portalForRole(role);
+      return responseHelper.sendForbidden(res, home
+        ? `This is a ${PORTAL_LABELS[portal]} login. Please sign in from the ${PORTAL_LABELS[home]} login.`
+        : `This account can't sign in to the ${PORTAL_LABELS[portal]} portal.`);
+    }
+
     await refreshSessionService.create({
       token: result.refreshToken,
       userId: getResultUserId(result),

@@ -28,6 +28,12 @@ const adminFunnelRoutes = require('../admin/funnel');
 const adminSecurityAuditRoutes = require('../admin/securityAudit');
 const patientRoutes = require('../patient');
 const bookingRoutes = require('../booking');
+const pharmacyRoutes = require('../pharmacy');
+const careRoutes = require('../care');
+const membershipRoutes = require('../membership');
+const revenueRoutes = require('../revenue');
+const socialAuthRoutes = require('../socialAuth');
+const partnerRoutes = require('../partners');
 const funnelEventRoutes = require('../funnelEvents');
 const hospitalWaitlistRoutes = require('../hospitalWaitlist');
 const mobileDeviceRoutes = require('../mobileDevices');
@@ -72,6 +78,7 @@ router.use('/analytics', analyticsRoutes);
 router.use('/admin/metrics', metricsRouter.router);
 router.use('/admin/funnel', adminFunnelRoutes);
 router.use('/admin/security-audit', adminSecurityAuditRoutes);
+router.use('/admin/revenue', revenueRoutes);
 router.use('/shift-series', shiftSeriesRoutes);
 router.use('/hospital-settings', hospitalSettingsRoutes);
 router.use('/uploads', uploadsRoutes);
@@ -84,6 +91,13 @@ router.use('/security', securityRoutes);
 // B2C routes
 router.use('/patients', patientRoutes);
 router.use('/bookings', bookingRoutes);
+
+// MedRush pharmacy-vendor marketplace (public browse + patient/vendor/admin)
+router.use('/pharmacy', pharmacyRoutes);
+router.use('/care', careRoutes);
+router.use('/membership', membershipRoutes);
+router.use('/auth/social', socialAuthRoutes);
+router.use('/partners', partnerRoutes);
 router.use('/funnel-events', funnelEventRoutes);
 router.use('/hospital-waitlist', hospitalWaitlistRoutes);
 router.use('/mobile-devices', mobileDeviceRoutes);

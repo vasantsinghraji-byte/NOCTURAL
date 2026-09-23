@@ -158,11 +158,43 @@ jobs:
           cosign sign --yes \
             "${{ env.REGISTRY }}/${{ steps.image.outputs.image_name_lc }}@${{ steps.build-push.outputs.digest }}"
 
+      # AWS (ECR_REPOSITORY set): ECS pulls from ECR with its task execution
+      # role — no registry credentials. The digest is identical to GHCR's.
+      - name: Configure AWS credentials (OIDC)
+        if: vars.ECR_REPOSITORY != ''
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-south-1' }}
+
+      - name: Log in to Amazon ECR
+        if: vars.ECR_REPOSITORY != ''
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Mirror image to Amazon ECR
+        if: vars.ECR_REPOSITORY != ''
+        shell: bash
+        env:
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          SOURCE_REF: ${{ env.REGISTRY }}/${{ steps.image.outputs.image_name_lc }}@${{ steps.build-push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            --tag "${ECR_REPOSITORY}:${{ steps.image.outputs.primary_tag }}" \
+            --tag "${ECR_REPOSITORY}:${{ steps.image.outputs.channel_tag }}" \
+            "$SOURCE_REF"
+
       - name: Capture published image reference
         id: publish
         shell: bash
+        env:
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
         run: |
-          echo "image_uri=${{ env.REGISTRY }}/${{ steps.image.outputs.image_name_lc }}@${{ steps.build-push.outputs.digest }}" >> "$GITHUB_OUTPUT"
+          if [[ -n "$ECR_REPOSITORY" ]]; then
+            echo "image_uri=${ECR_REPOSITORY}@${{ steps.build-push.outputs.digest }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "image_uri=${{ env.REGISTRY }}/${{ steps.image.outputs.image_name_lc }}@${{ steps.build-push.outputs.digest }}" >> "$GITHUB_OUTPUT"
+          fi
           echo "image_tag=${{ steps.image.outputs.primary_tag }}" >> "$GITHUB_OUTPUT"
 
   deploy:
@@ -179,24 +211,34 @@ jobs:
       cancel-in-progress: false
 
     steps:
-      - name: Validate AWS secrets
+      - name: Validate AWS credentials config
         env:
+          AWS_ROLE: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           AWS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "$AWS_KEY" || -z "$AWS_SECRET" ]]; then
-            echo "::error::AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be configured"
+          if [[ -z "$AWS_ROLE" && ( -z "$AWS_KEY" || -z "$AWS_SECRET" ) ]]; then
+            echo "::error::Set the AWS_DEPLOY_ROLE_ARN environment variable (OIDC, from terraform output) or legacy AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY secrets"
             exit 1
           fi
 
-      - name: Configure AWS credentials
+      # Preferred: short-lived credentials via GitHub OIDC (terraform/github_oidc.tf).
+      - name: Configure AWS credentials (OIDC)
+        if: vars.AWS_DEPLOY_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-south-1' }}
+
+      - name: Configure AWS credentials (legacy access keys)
+        if: vars.AWS_DEPLOY_ROLE_ARN == ''
         uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-south-1' }}
 
       - name: Resolve deployment settings
         id: settings
@@ -208,6 +250,8 @@ jobs:
 
           if [[ -n "${{ needs.build-image.outputs.image_uri }}" ]]; then
             IMAGE_URI="${{ needs.build-image.outputs.image_uri }}"
+          elif [[ -n "${{ vars.ECR_REPOSITORY }}" ]]; then
+            IMAGE_URI="${{ vars.ECR_REPOSITORY }}:${{ needs.resolve.outputs.requested_image_tag }}"
           else
             IMAGE_URI="${{ env.REGISTRY }}/${IMAGE_NAME_LC}:${{ needs.resolve.outputs.requested_image_tag }}"
           fi
@@ -297,6 +341,34 @@ jobs:
             --output text)"
 
           echo "task_definition_arn=$TASK_DEF_ARN" >> "$GITHUB_OUTPUT"
+
+      # Runs `node scripts/add-indexes.js` with the new image, the service's
+      # secrets and network — before any traffic shifts. Skipped until the
+      # ECS_SUBNETS / ECS_SECURITY_GROUP variables are set (terraform output).
+      - name: Run database migrations (index creation)
+        if: vars.ECS_SUBNETS != '' && vars.ECS_SECURITY_GROUP != ''
+        shell: bash
+        env:
+          ECS_CONTAINER_NAME: ${{ steps.settings.outputs.ecs_container_name }}
+        run: |
+          set -euo pipefail
+          OVERRIDES="$(jq -nc --arg name "$ECS_CONTAINER_NAME" \
+            '{containerOverrides: [{name: $name, command: ["node", "scripts/add-indexes.js"]}]}')"
+          TASK_ARN="$(aws ecs run-task \
+            --cluster "${{ steps.settings.outputs.ecs_cluster }}" \
+            --task-definition "${{ steps.task.outputs.task_definition_arn }}" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ vars.ECS_SUBNETS }}],securityGroups=[${{ vars.ECS_SECURITY_GROUP }}],assignPublicIp=DISABLED}" \
+            --overrides "$OVERRIDES" \
+            --query 'tasks[0].taskArn' --output text)"
+
+          aws ecs wait tasks-stopped --cluster "${{ steps.settings.outputs.ecs_cluster }}" --tasks "$TASK_ARN"
+          EXIT_CODE="$(aws ecs describe-tasks --cluster "${{ steps.settings.outputs.ecs_cluster }}" --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' --output text)"
+          if [[ "$EXIT_CODE" != "0" ]]; then
+            echo "::error::Migration task failed (exit code: $EXIT_CODE). Check CloudWatch logs; service was not updated."
+            exit 1
+          fi
 
       - name: Deploy ECS service
         shell: bash
