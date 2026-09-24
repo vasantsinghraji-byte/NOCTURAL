@@ -14,7 +14,7 @@ export default function BrandPage() {
       <section className="hero" style={{ padding: '30px 28px' }}>
         <span className="eyebrow">Brand proposal · for review</span>
         <h1 style={{ fontSize: 40 }}>Nabz: care at your doorstep</h1>
-        <p>A map pin carrying a heartbeat: care that comes to where you are, fast. Royal blue for trust, a coral dot for urgency.</p>
+        <p>A map pin carrying a heartbeat: care that comes to where you are, fast. Deep rose for warmth, sage green for health, a coral dot for urgency.</p>
       </section>
 
       <div className="section-title">Logo</div>
@@ -22,7 +22,7 @@ export default function BrandPage() {
         <div className="card" style={{ display: 'grid', placeItems: 'center', padding: 28 }}>
           <img src="/brand/nabz-logo.svg" alt="Nabz logo" style={{ width: '100%', maxWidth: 460 }} />
         </div>
-        <div className="card" style={{ display: 'grid', placeItems: 'center', padding: 0, overflow: 'hidden', background: '#0d1633' }}>
+        <div className="card" style={{ display: 'grid', placeItems: 'center', padding: 0, overflow: 'hidden', background: '#2a2523' }}>
           <img src="/brand/nabz-logo-dark.svg" alt="Nabz logo on dark" style={{ width: '100%', maxWidth: 520 }} />
         </div>
       </div>

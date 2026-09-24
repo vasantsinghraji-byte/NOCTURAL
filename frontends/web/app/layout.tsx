@@ -13,7 +13,13 @@ const instrument = Instrument_Serif({ subsets: ['latin'], weight: '400', style: 
 
 export const metadata: Metadata = {
   title: 'Nabz · Care that comes home',
-  icons: { icon: '/brand/nabz-icon.svg' },
+  icons: {
+    icon: [
+      { url: '/brand/nabz-icon.svg', type: 'image/svg+xml' },
+      { url: '/brand/favicon-32.png', sizes: '32x32', type: 'image/png' }
+    ],
+    apple: '/apple-touch-icon.png'
+  },
   description:
     'Book verified nurses and physiotherapists to your home in minutes, with supplies from the nearest pharmacy. Medicines delivered from licensed stores near you. Now in Jaipur.'
 };
