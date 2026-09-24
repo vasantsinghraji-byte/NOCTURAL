@@ -41,3 +41,9 @@ variable "test_store_radius_km" {
   type    = number
   default = 3500
 }
+
+# Seconds a store has to accept an order before it moves to the next store.
+variable "pharmacy_accept_sla_seconds" {
+  type    = number
+  default = 600
+}

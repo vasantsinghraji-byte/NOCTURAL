@@ -179,8 +179,21 @@ const ZONE_STRESS_LEVELS = ['NORMAL', 'HIGH', 'SEVERE'];
 const INVENTORY_MOVEMENT_TYPES = [
   'ORDER_RESERVED', // stock taken for an order (delta < 0)
   'ORDER_RELEASED', // returned on cancel / reject / payment expiry (delta > 0)
-  'ADJUSTMENT' // vendor/admin stock count change (either sign)
+  'ADJUSTMENT', // vendor/admin stock count change (either sign)
+  'MARKED_UNAVAILABLE' // store said "don't have it" on an order: count zeroed (delta < 0)
 ];
+
+// Why a store turned an order (or items in it) down. The reason decides what
+// happens next: stock/capacity problems move the order to another store,
+// prescription problems follow the order and cancel it.
+const PHARMACY_REJECTION_REASONS = [
+  'OUT_OF_STOCK', 'STORE_CLOSED', 'STORE_BUSY',
+  'PRESCRIPTION_INVALID', 'PRESCRIPTION_MISSING', 'OTHER'
+];
+const PHARMACY_REASSIGNABLE_REJECTIONS = ['OUT_OF_STOCK', 'STORE_CLOSED', 'STORE_BUSY'];
+
+// Outcome of offering an order to one store (order.assignmentAttempts[]).
+const PHARMACY_ASSIGNMENT_OUTCOMES = ['PENDING', 'ACCEPTED', 'REJECTED', 'TIMED_OUT', 'CANCELLED'];
 
 // ── Field Constraints (shared between model validations & express-validator) ──
 
@@ -222,5 +235,8 @@ module.exports = {
   CONSULTATION_STATUSES,
   ZONE_STRESS_LEVELS,
   INVENTORY_MOVEMENT_TYPES,
+  PHARMACY_REJECTION_REASONS,
+  PHARMACY_REASSIGNABLE_REJECTIONS,
+  PHARMACY_ASSIGNMENT_OUTCOMES,
   FIELD_LIMITS
 };

@@ -13,6 +13,36 @@ const {
   MEDICINE_CATEGORIES
 } = require('../constants/enums');
 
+const norm = (value) => String(value || '').toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9.%/+-]/g, '');
+
+/**
+ * "paracetamol:650mg|tablet" — ingredients sorted so "A + B" and "B + A" match.
+ * Falls back to genericName + strength when composition isn't filled in.
+ */
+function deriveSaltKey(med) {
+  const parts = (med.composition || [])
+    .filter((c) => c && c.ingredient)
+    .map((c) => `${norm(c.ingredient)}:${norm(c.strength)}`)
+    .sort();
+  let salts = parts.join('+');
+  if (!salts && med.genericName) salts = `${norm(med.genericName)}:${norm(med.strength)}`;
+  if (!salts) return undefined;
+  return `${salts}|${norm(med.form || 'OTHER')}`;
+}
+
+/**
+ * Why this product can't be sold online (null when it can). Schedule X
+ * (narcotic/psychotropic) needs special records and in-person dispensing.
+ */
+function onlineSaleBlockReason(med) {
+  if (!med) return 'NOT_FOUND';
+  if (med.isActive === false) return 'INACTIVE';
+  if (med.isBanned) return 'BANNED';
+  if (med.isDiscontinued) return 'DISCONTINUED';
+  if (med.scheduleType === 'SCHEDULE_X') return 'SCHEDULE_X';
+  return null;
+}
+
 const MedicineSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -69,7 +99,23 @@ const MedicineSchema = new mongoose.Schema({
 
   isActive: { type: Boolean, default: true },
   // A medicine that dispenses only against a valid prescription.
-  requiresPrescription: { type: Boolean, default: false }
+  requiresPrescription: { type: Boolean, default: false },
+
+  // Same active ingredient(s) + strength + form = interchangeable brands
+  // ("Dolo 650" and "Calpol 650" share one key). Derived on validate; used to
+  // offer substitutes, never to swap silently.
+  saltKey: { type: String, index: true },
+  // Units in one sellable pack (15 for a strip of 15) for per-unit price compare.
+  packUnits: { type: Number, min: 1 },
+  barcodes: [{ type: String, trim: true }],
+  // Needs 2-8°C storage (insulin, some vaccines): only stores with a fridge.
+  coldChain: { type: Boolean, default: false },
+  // Government-banned (e.g. banned fixed-dose combinations) or withdrawn by
+  // the maker: never sold, delisted everywhere at once.
+  isBanned: { type: Boolean, default: false },
+  isDiscontinued: { type: Boolean, default: false },
+  // Per-order cap for habit-forming / misuse-prone products (codeine syrups…).
+  maxQtyPerOrder: { type: Number, min: 1 }
 }, {
   timestamps: true
 });
@@ -81,11 +127,17 @@ MedicineSchema.pre('validate', function syncPrescriptionFlag() {
   if (this.scheduleType && this.scheduleType !== 'OTC') {
     this.requiresPrescription = true;
   }
+  const key = deriveSaltKey(this);
+  if (key) this.saltKey = key;
 });
 
 MedicineSchema.index({ name: 'text', genericName: 'text', brand: 'text' });
 MedicineSchema.index({ category: 1, isActive: 1 });
 MedicineSchema.index({ scheduleType: 1 });
 
-module.exports = mongoose.models.Medicine
-  || mongoose.model('Medicine', MedicineSchema);
+MedicineSchema.index({ barcodes: 1 }, { sparse: true });
+
+const Medicine = mongoose.models.Medicine || mongoose.model('Medicine', MedicineSchema);
+Medicine.deriveSaltKey = deriveSaltKey;
+Medicine.onlineSaleBlockReason = onlineSaleBlockReason;
+module.exports = Medicine;

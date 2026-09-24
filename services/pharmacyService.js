@@ -30,6 +30,20 @@ const pharmacyNotificationService = require('./pharmacyNotificationService');
 const pricingService = require('./pricingService');
 const membershipService = require('./membershipService');
 const settlementService = require('./settlementService');
+const availability = require('./pharmacyAvailabilityService');
+const { getPharmacyOps, minExpiryDate } = require('../config/pharmacyOps');
+
+// pharmacyAssignmentService requires this module (reserveStock), so load lazily.
+const assignment = () => require('./pharmacyAssignmentService');
+
+const STORE_BLOCK_MESSAGES = {
+  CLOSED: 'This pharmacy is currently closed',
+  OUTSIDE_HOURS: 'This pharmacy is closed at this hour',
+  PAUSED: 'This pharmacy is not taking orders for a short while. Please pick another store',
+  LICENCE_EXPIRED: 'This pharmacy cannot take orders right now',
+  NOT_APPROVED: 'This pharmacy cannot take orders right now',
+  INACTIVE: 'This pharmacy cannot take orders right now'
+};
 
 // Vendor-driven status transitions. Delivery/admin own the later legs.
 const VENDOR_STATUS_TRANSITIONS = {
@@ -54,6 +68,13 @@ const STATUS_MILESTONES = {
   REJECTED: 'cancelledAt',
   CANCELLED: 'cancelledAt'
 };
+
+/** Listing can be bought now: in stock, not near expiry, product sellable online. */
+function isSellableRow(row, now = new Date()) {
+  if (!row || !(row.stockQty > 0) || row.isAvailable === false) return false;
+  if (row.expiryDate && new Date(row.expiryDate) < minExpiryDate(now)) return false;
+  return !Medicine.onlineSaleBlockReason(row.medicine);
+}
 
 function stampMilestone(order, status, at = new Date()) {
   const field = STATUS_MILESTONES[status];
@@ -123,7 +144,7 @@ async function searchMedicines({ q, vendorId, category, page = 1, limit = 20 }) 
       mrp: row.mrp,
       sellingPrice: row.sellingPrice,
       discountPercentage: row.discountPercentage,
-      inStock: row.stockQty > 0,
+      inStock: isSellableRow(row),
       stockQty: row.stockQty
     }));
   }
@@ -170,7 +191,7 @@ async function getVendorStorefront(vendorId) {
         mrp: row.mrp,
         sellingPrice: row.sellingPrice,
         discountPercentage: row.discountPercentage,
-        inStock: row.stockQty > 0
+        inStock: isSellableRow(row)
       }))
   };
 }
@@ -179,7 +200,7 @@ async function getVendorStorefront(vendorId) {
  * Reserve stock atomically for each item; roll back on partial failure.
  * Returns the list of successfully reserved { inventory, quantity } pairs.
  */
-async function reserveStock(vendorId, requestedItems) {
+async function reserveStock(vendorId, requestedItems, { now = new Date() } = {}) {
   const reserved = [];
   try {
     for (const item of requestedItems) {
@@ -188,7 +209,9 @@ async function reserveStock(vendorId, requestedItems) {
           vendor: vendorId,
           medicine: item.medicineId,
           isAvailable: true,
-          stockQty: { $gte: item.quantity }
+          stockQty: { $gte: item.quantity },
+          // Never sell stock that expires inside the minimum shelf life.
+          $or: [{ expiryDate: null }, { expiryDate: { $gte: minExpiryDate(now) } }]
         },
         { $inc: { stockQty: -item.quantity } },
         { new: true }
@@ -197,9 +220,9 @@ async function reserveStock(vendorId, requestedItems) {
       if (!updated) {
         throw new ConflictError('One or more items are out of stock at this pharmacy');
       }
-      if (!updated.medicine) {
-        // The master medicine was removed after the listing was read — undo this
-        // decrement and fail cleanly (the catch rolls back everything else).
+      if (!updated.medicine || Medicine.onlineSaleBlockReason(updated.medicine)) {
+        // Master medicine removed, banned or discontinued after the listing was
+        // read: undo this decrement and fail cleanly (the catch rolls back the rest).
         await VendorInventory.updateOne({ _id: updated._id }, { $inc: { stockQty: item.quantity } }).catch(() => {});
         throw new ConflictError('An item in your cart is no longer available');
       }
@@ -225,19 +248,13 @@ async function reserveStock(vendorId, requestedItems) {
 async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', careVisit } = {}) {
   // `fulfilment`/`careVisit` are set only by internal callers (home-care
   // supplies), never from the request body.
-  const { vendorId, items, deliveryAddress, deliveryLocation, prescriptionKey, paymentMode } = payload;
+  const { vendorId, deliveryAddress, deliveryLocation, prescriptionKey, paymentMode, quotedSubtotal } = payload;
 
   if (!mongoose.isValidObjectId(vendorId)) {
     throw new ValidationError('A valid vendorId is required');
   }
-  if (!Array.isArray(items) || items.length === 0) {
-    throw new ValidationError('At least one order item is required');
-  }
-  for (const item of items) {
-    if (!mongoose.isValidObjectId(item.medicineId) || !Number.isInteger(item.quantity) || item.quantity < 1) {
-      throw new ValidationError('Each item needs a valid medicineId and quantity >= 1');
-    }
-  }
+  // Same medicine twice in one cart → one line (else two reservations, two lines).
+  const items = availability.normalizeCartItems(payload.items);
   if (!deliveryAddress || !deliveryAddress.line1 || !deliveryAddress.pincode) {
     throw new ValidationError('A delivery address with line1 and pincode is required');
   }
@@ -254,7 +271,30 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
 
   const vendor = await PharmacyVendor.findOne({ _id: vendorId, status: 'APPROVED', isActive: true });
   if (!vendor) throw new NotFoundError('Pharmacy vendor', vendorId);
-  if (!vendor.isOpen) throw new ConflictError('This pharmacy is currently closed');
+  const now = new Date();
+  const blocked = serviceability.storeBlockReason(vendor, now);
+  if (blocked) throw new ConflictError(STORE_BLOCK_MESSAGES[blocked] || 'This pharmacy cannot take orders right now');
+
+  // Product rules before touching stock: banned/Schedule X, per-order caps,
+  // cold chain, and prescription drugs only from stores that dispense them.
+  const medicines = await Medicine.find({ _id: { $in: items.map((i) => i.medicineId) } }).lean();
+  const medById = new Map(medicines.map((m) => [String(m._id), m]));
+  for (const item of items) {
+    const med = medById.get(String(item.medicineId));
+    const reason = Medicine.onlineSaleBlockReason(med);
+    if (reason === 'SCHEDULE_X') throw new ValidationError(`${med.name} is a Schedule X drug and can't be ordered online`);
+    if (reason === 'BANNED') throw new ValidationError(`${med.name} is banned and can't be sold`);
+    if (reason) throw new ConflictError(`${med ? med.name : 'An item'} is no longer available`);
+    if (med.maxQtyPerOrder && item.quantity > med.maxQtyPerOrder) {
+      throw new ValidationError(`${med.name}: at most ${med.maxQtyPerOrder} per order`);
+    }
+    if (med.coldChain && !vendor.hasColdStorage) {
+      throw new ConflictError(`${med.name} needs refrigeration and this pharmacy can't store it. Pick another store`);
+    }
+    if (med.requiresPrescription && vendor.acceptsPrescriptionOrders === false) {
+      throw new ConflictError('This pharmacy does not take prescription orders. Pick another store');
+    }
+  }
 
   // Serviceability + delivery promise (before touching stock).
   let deliveryPoint;
@@ -269,7 +309,7 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
   }
 
   // Reserve stock atomically before building the order.
-  const reserved = await reserveStock(vendorId, items);
+  const reserved = await reserveStock(vendorId, items, { now });
 
   try {
     const orderItems = reserved.map(({ inventory, quantity }) => {
@@ -310,6 +350,12 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
     }
     const tax = 0; // GST computed at settlement for MVP
     const total = Math.round((itemsSubtotal + deliveryFee + tax) * 100) / 100;
+    // The customer confirmed an items total on screen; if the store changed a
+    // price since, show the new one instead of silently charging more or less.
+    if (quotedSubtotal !== undefined && quotedSubtotal !== null && Math.abs(Number(quotedSubtotal) - itemsSubtotal) > 0.5) {
+      throw new ConflictError(`Prices changed since you opened your cart. Items now cost ₹${itemsSubtotal}. Please review and place the order again`, 'quotedSubtotal');
+    }
+    const isCod = mode === 'COD';
 
     const order = await PharmacyOrder.create({
       patient: patientId,
@@ -322,7 +368,7 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
       zone: delivery.zone ? delivery.zone._id : undefined,
       distanceKm: delivery.distanceKm,
       eta: delivery.eta,
-      amounts: { itemsSubtotal, deliveryFee, tax, discount: 0, total },
+      amounts: { itemsSubtotal, deliveryFee, tax, discount: 0, total, originalTotal: total },
       feeBreakdown: fee.breakdown,
       paymentMode: mode,
       fulfilment: isStaffPickup ? 'STAFF_PICKUP' : 'DELIVERY',
@@ -331,6 +377,9 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
       paymentExpiresAt: mode === 'PREPAID'
         ? new Date(Date.now() + pharmacyPaymentService.getPaymentTtlMs())
         : undefined,
+      // COD orders are live for the store now; PREPAID ones start the clock when paid.
+      acceptBy: isCod ? new Date(now.getTime() + getPharmacyOps().acceptSlaSeconds * 1000) : undefined,
+      assignmentAttempts: [{ vendor: vendorId, offeredAt: now, outcome: 'PENDING' }],
       status: 'PLACED'
     });
 
@@ -345,7 +394,8 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
     })));
 
     // COD orders are actionable now; PREPAID ones alert the store once paid.
-    if (mode === 'COD') {
+    if (isCod) {
+      await PharmacyVendor.updateOne({ _id: vendorId }, { $inc: { 'reliability.offered': 1 } }).catch(() => {});
       pharmacyNotificationService.notifyVendorNewOrder(order);
     }
     return order;
@@ -418,14 +468,31 @@ async function cancelOrderByPatient(orderId, patientId, reason) {
     throw new ConflictError(`Order cannot be cancelled once it is ${order.status}`);
   }
 
-  await restockOrder(order, { kind: 'PATIENT', id: patientId, reason: 'Cancelled by patient' });
-  order.status = 'CANCELLED';
-  stampMilestone(order, 'CANCELLED');
-  order.cancelledBy = 'PATIENT';
-  order.cancellationReason = reason || 'Cancelled by patient';
-  order.timeline.push({ status: 'CANCELLED', at: new Date(), note: order.cancellationReason });
-  await order.save();
-  return pharmacyPaymentService.refundOrderPayment(order, order.cancellationReason);
+  // Claim the transition atomically BEFORE restocking. Read-check-save let a
+  // store reject and a customer cancel at the same moment both restock (and
+  // both refund); now only the winner of this update does.
+  const now = new Date();
+  const note = reason || 'Cancelled by patient';
+  const { attemptsGuard, closeCurrentAttempt } = assignment();
+  const cancelled = await PharmacyOrder.findOneAndUpdate(
+    { _id: order._id, patient: patientId, vendor: order.vendor, status: { $in: ['PLACED', 'ACCEPTED'] }, ...attemptsGuard(order) },
+    {
+      $set: {
+        status: 'CANCELLED',
+        cancelledBy: 'PATIENT',
+        cancellationReason: note,
+        'milestones.cancelledAt': now,
+        assignmentAttempts: closeCurrentAttempt(order, 'CANCELLED', { now })
+      },
+      $unset: { acceptBy: 1 },
+      $push: { timeline: { status: 'CANCELLED', at: now, note } }
+    },
+    { new: true }
+  );
+  if (!cancelled) throw new ConflictError('This order just changed. Refresh to see its latest status');
+
+  await restockOrder(cancelled, { kind: 'PATIENT', id: patientId, reason: 'Cancelled by patient' });
+  return pharmacyPaymentService.refundOrderPayment(cancelled, note);
 }
 
 /**
@@ -433,7 +500,8 @@ async function cancelOrderByPatient(orderId, patientId, reason) {
  * Never touches `isAvailable`: a vendor-delisted item stays delisted.
  */
 async function restockOrder(order, { kind = 'SYSTEM', id, reason } = {}) {
-  const movements = await Promise.all(order.items.map(async (item) => {
+  const lines = order.items.filter((item) => (item.status || 'AVAILABLE') === 'AVAILABLE');
+  const movements = await Promise.all(lines.map(async (item) => {
     try {
       const updated = await VendorInventory.findOneAndUpdate(
         { vendor: order.vendor, medicine: item.medicine },
@@ -478,7 +546,7 @@ async function listVendorOrders(vendorId, { status, page = 1, limit = 20 } = {})
   return { orders, pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) } };
 }
 
-async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note }) {
+async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note, reasonCode, unavailableMedicineIds }) {
   if (!PHARMACY_ORDER_STATUSES.includes(status)) throw new ValidationError('Invalid order status');
   const order = await PharmacyOrder.findById(orderId);
   if (!order) throw new NotFoundError('Order', orderId);
@@ -494,24 +562,33 @@ async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note 
     throw new ConflictError(`Cannot move order from ${order.status} to ${status}`);
   }
 
+  // Accept / decline end the store's turn: reliability, SLA and reassignment.
+  if (status === 'ACCEPTED') return assignment().acceptOrder(orderId, { vendorId, actorUserId, note });
   if (status === 'REJECTED' || status === 'CANCELLED') {
-    await restockOrder(order, { kind: 'VENDOR', id: actorUserId, reason: `Order ${status.toLowerCase()} by pharmacy` });
-    order.cancelledBy = 'VENDOR';
-    if (status === 'REJECTED') order.rejectionReason = note || 'Rejected by pharmacy';
-    else order.cancellationReason = note || 'Cancelled by pharmacy';
+    return assignment().declineOrder(orderId, {
+      vendorId, actorUserId, note, reasonCode: reasonCode || 'OTHER', unavailableMedicineIds: unavailableMedicineIds || []
+    });
   }
-  if (status === 'DELIVERED') order.deliveredAt = new Date();
 
-  order.status = status;
-  stampMilestone(order, status);
-  order.timeline.push({ status, at: new Date(), note, by: actorUserId });
-  await order.save();
-  if (status === 'REJECTED' || status === 'CANCELLED') {
-    return pharmacyPaymentService.refundOrderPayment(order, note || `Order ${status.toLowerCase()} by pharmacy`);
-  }
+  // Forward progress: one compare-and-set so a concurrent cancel can't be overwritten.
+  const now = new Date();
+  const milestone = STATUS_MILESTONES[status];
+  const updated = await PharmacyOrder.findOneAndUpdate(
+    { _id: order._id, vendor: vendorId, status: order.status },
+    {
+      $set: {
+        status,
+        ...(milestone && !(order.milestones && order.milestones[milestone]) ? { [`milestones.${milestone}`]: now } : {}),
+        ...(status === 'DELIVERED' ? { deliveredAt: now } : {})
+      },
+      $push: { timeline: { status, at: now, note, by: actorUserId } }
+    },
+    { new: true }
+  );
+  if (!updated) throw new ConflictError('This order just changed. Refresh to see its latest status');
   // Delivered: book the store's payout, our commission and the delivery fee.
-  if (status === 'DELIVERED') await settlementService.recordPharmacyOrder(order);
-  return order;
+  if (status === 'DELIVERED') await settlementService.recordPharmacyOrder(updated);
+  return updated;
 }
 
 async function upsertInventoryItem(vendorId, { medicineId, mrp, sellingPrice, stockQty, isAvailable, lowStockThreshold, expiryDate, batchNumber }) {
@@ -524,6 +601,14 @@ async function upsertInventoryItem(vendorId, { medicineId, mrp, sellingPrice, st
   if (Number(sellingPrice) > Number(mrp)) {
     throw new ValidationError('sellingPrice cannot exceed mrp');
   }
+  if (!(Number(mrp) > 0)) throw new ValidationError('mrp must be more than 0');
+  const blockedReason = Medicine.onlineSaleBlockReason(medicine);
+  if (blockedReason === 'BANNED' || blockedReason === 'SCHEDULE_X') {
+    throw new ValidationError(`${medicine.name} can't be sold online, so it can't be listed`);
+  }
+  if (expiryDate !== undefined && expiryDate !== null && Number.isNaN(new Date(expiryDate).getTime())) {
+    throw new ValidationError('expiryDate must be a valid date');
+  }
 
   const before = await VendorInventory.findOne({ vendor: vendorId, medicine: medicineId }).select('stockQty').lean();
 
@@ -533,7 +618,7 @@ async function upsertInventoryItem(vendorId, { medicineId, mrp, sellingPrice, st
       $set: {
         mrp: Number(mrp),
         sellingPrice: Number(sellingPrice),
-        ...(stockQty !== undefined ? { stockQty: Math.max(Number(stockQty), 0) } : {}),
+        ...(stockQty !== undefined ? { stockQty: Math.max(Number(stockQty), 0), stockUpdatedAt: new Date() } : {}),
         ...(isAvailable !== undefined ? { isAvailable: !!isAvailable } : {}),
         ...(lowStockThreshold !== undefined ? { lowStockThreshold: Number(lowStockThreshold) } : {}),
         ...(expiryDate ? { expiryDate } : {}),
@@ -560,6 +645,20 @@ async function upsertInventoryItem(vendorId, { medicineId, mrp, sellingPrice, st
     }]);
   }
   return item;
+}
+
+/**
+ * "My counts are right": the store confirms its shelf matches the app for
+ * some or all listings, refreshing stock freshness without retyping numbers.
+ */
+async function confirmInventory(vendorId, { medicineIds } = {}) {
+  const filter = { vendor: vendorId };
+  if (Array.isArray(medicineIds) && medicineIds.length > 0) {
+    if (!medicineIds.every((id) => mongoose.isValidObjectId(id))) throw new ValidationError('Invalid medicine id');
+    filter.medicine = { $in: medicineIds };
+  }
+  const result = await VendorInventory.updateMany(filter, { $set: { stockUpdatedAt: new Date() } });
+  return { confirmed: result.modifiedCount || 0 };
 }
 
 async function listVendorInventory(vendorId, { page = 1, limit = 50 } = {}) {
@@ -600,6 +699,8 @@ module.exports = {
   upsertInventoryItem,
   listVendorInventory,
   updateVendorProfile,
+  confirmInventory,
+  reserveStock,
   restockOrder,
   isOwnPrescriptionKey,
   stampMilestone,

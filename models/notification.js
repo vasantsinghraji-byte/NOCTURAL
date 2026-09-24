@@ -41,6 +41,7 @@ const notificationSchema = new mongoose.Schema({
       'MESSAGE_RECEIVED',
       'SYSTEM_ANNOUNCEMENT',
       'PHARMACY_ORDER_NEW',
+      'PHARMACY_ORDER_UPDATE',
       'CARE_VISIT_REQUEST',
       'CARE_VISIT_MATCHED',
       'CARE_SOS'

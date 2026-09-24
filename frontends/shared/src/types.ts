@@ -124,6 +124,80 @@ export interface OrderItem {
   mrp?: number;
   lineTotal: number;
   requiresPrescription?: boolean;
+  /** UNAVAILABLE = the store didn't have it: removed from the bill (and refunded if prepaid). */
+  status?: 'AVAILABLE' | 'UNAVAILABLE';
+  unavailableReason?: string;
+}
+
+/** Why a store turned an order down (decides whether it moves to another store). */
+export type PharmacyRejectionReason =
+  | 'OUT_OF_STOCK' | 'STORE_CLOSED' | 'STORE_BUSY' | 'PRESCRIPTION_INVALID' | 'PRESCRIPTION_MISSING' | 'OTHER';
+
+export interface AssignmentAttempt {
+  vendor: string;
+  offeredAt: string;
+  outcome: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'TIMED_OUT' | 'CANCELLED';
+  reasonCode?: PharmacyRejectionReason;
+  note?: string;
+  resolvedAt?: string;
+}
+
+export interface StoreSummary {
+  id: string;
+  name: string;
+  address?: Address;
+  distanceKm?: number;
+  etaMinutes: number;
+  acceptsPrescriptionOrders: boolean;
+  hasColdStorage: boolean;
+}
+
+/** GET /pharmacy/medicines/:id/availability */
+export interface MedicineAvailability {
+  medicine: Medicine;
+  blocked?: string;
+  message?: string;
+  serviceable?: boolean;
+  storeCount: number;
+  fromPrice?: number;
+  stores: Array<{
+    store: StoreSummary;
+    sellingPrice: number;
+    mrp: number;
+    discountPercentage?: number;
+    stockLevel: 'IN_STOCK' | 'LOW';
+    /** LIKELY = the store hasn't recounted recently. */
+    confidence: 'CONFIRMED' | 'LIKELY';
+  }>;
+  substitutes: MedicineSubstitute[];
+}
+
+export interface MedicineSubstitute {
+  medicine: { id: string; name: string; brand?: string; manufacturer?: string; packSize?: string; packUnits?: number; requiresPrescription: boolean };
+  fromPrice: number;
+  unitPrice?: number;
+  storeCount: number;
+  fastestEtaMinutes: number;
+}
+
+export interface CartPlanOption {
+  store: StoreSummary;
+  covered: Array<{ medicineId: string; name: string; quantity: number; unitPrice: number; mrp: number; lineTotal: number; confidence: 'CONFIRMED' | 'LIKELY' }>;
+  missing: string[];
+  subtotal: number;
+  score: number;
+}
+
+/** POST /pharmacy/cart/plan */
+export interface CartPlan {
+  serviceable: boolean;
+  reason?: string;
+  blocked: Array<{ medicineId: string; reason: string; message: string }>;
+  best: CartPlanOption | null;
+  split: CartPlanOption[] | null;
+  partial: CartPlanOption | null;
+  options: CartPlanOption[];
+  unavailable: Array<{ medicineId: string; name: string; substitutes: MedicineSubstitute[] }>;
 }
 
 export interface OrderAmounts {
@@ -132,6 +206,8 @@ export interface OrderAmounts {
   tax: number;
   discount: number;
   total: number;
+  originalTotal?: number;
+  refunded?: number;
 }
 
 export interface PharmacyOrder {
@@ -158,6 +234,11 @@ export interface PharmacyOrder {
   feeBreakdown?: { base: number; surgeMultiplier: number; surgeAmount: number; nightSurcharge: number; waiver: 'MEMBER' | 'FREE_ABOVE' | 'STAFF_PICKUP' | null };
   careVisit?: { booking: string; serviceType: string; scheduledDate: string; scheduledTime: string };
   cancellationReason?: string;
+  rejectionReasonCode?: PharmacyRejectionReason;
+  /** The current store must accept by this time or the order moves on. */
+  acceptBy?: string;
+  assignmentAttempts?: AssignmentAttempt[];
+  refunds?: Array<{ amount: number; reason?: string; status: 'PENDING' | 'DONE' | 'FAILED'; doneAt?: string }>;
   createdAt?: string;
 }
 
@@ -194,6 +275,8 @@ export interface CreateOrderInput {
   /** `key` returned by POST /pharmacy/prescriptions (must be the patient's own upload). */
   prescriptionKey?: string;
   paymentMode?: 'PREPAID' | 'COD';
+  /** Items total the customer saw; the order is refused (409) if prices changed since. */
+  quotedSubtotal?: number;
 }
 
 export interface Pagination {

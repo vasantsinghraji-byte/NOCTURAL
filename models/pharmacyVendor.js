@@ -58,6 +58,14 @@ const PharmacyVendorSchema = new mongoose.Schema({
 
   // Compliance / KYC
   drugLicenseNumber: { type: String, trim: true },
+  // Licence lapses → the store drops out of search and checkout automatically.
+  drugLicenseExpiry: Date,
+  // Registered pharmacist on duty (dispensing prescription drugs requires one).
+  pharmacist: {
+    name: { type: String, trim: true },
+    registrationNumber: { type: String, trim: true }
+  },
+  hasColdStorage: { type: Boolean, default: false },
   gstin: { type: String, trim: true, uppercase: true },
   documents: [{
     type: { type: String }, // DRUG_LICENSE, GST_CERTIFICATE, etc.
@@ -131,6 +139,21 @@ const PharmacyVendorSchema = new mongoose.Schema({
     count: { type: Number, default: 0 }
   },
 
+  // Order-acceptance reliability (drives ranking and auto-pause). Counters
+  // only go up; rates are derived where they're used.
+  reliability: {
+    offered: { type: Number, default: 0 },
+    accepted: { type: Number, default: 0 },
+    rejected: { type: Number, default: 0 },
+    timedOut: { type: Number, default: 0 },
+    itemsMarkedUnavailable: { type: Number, default: 0 },
+    consecutiveMisses: { type: Number, default: 0 },
+    lastMissAt: Date
+  },
+  // Temporary system pause (e.g. missed several orders in a row). Separate
+  // from `isOpen` so the owner's own open/closed switch is never overwritten.
+  pausedUntil: Date,
+  pauseReason: String,
   stats: {
     totalOrders: { type: Number, default: 0 },
     totalRevenue: { type: Number, default: 0 },

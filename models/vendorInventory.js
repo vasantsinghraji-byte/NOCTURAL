@@ -35,7 +35,13 @@ const VendorInventorySchema = new mongoose.Schema({
   // switched off. Orderable = isAvailable && stockQty > 0.
   isAvailable: { type: Boolean, default: true },
   batchNumber: String,
-  expiryDate: Date
+  // Earliest expiry among on-hand units. Stock expiring inside the minimum
+  // shelf life (config/pharmacyOps.js) is not sold online.
+  expiryDate: Date,
+  // Last time the store counted or confirmed this item. Orders move stock
+  // too, but only a human count proves the shelf matches: old counts are
+  // shown as "likely available" and ranked lower (walk-in sales drift).
+  stockUpdatedAt: Date
 }, {
   timestamps: true
 });

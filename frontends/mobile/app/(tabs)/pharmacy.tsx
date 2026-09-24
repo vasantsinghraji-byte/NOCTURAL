@@ -63,6 +63,46 @@ export default function Pharmacy() {
   }
 
   const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
+
+  // Prices can change while the cart is open: refresh them without losing the cart.
+  async function refreshPrices() {
+    if (!active) return;
+    try {
+      const res = await api.getVendorStorefront(active._id);
+      setItems(res.items);
+    } catch { /* keep what we have */ }
+  }
+
+  function switchTo(storeId: string, name: string) {
+    const known = vendors.find((v) => v._id === storeId);
+    selectVendor(known || ({ _id: storeId, name } as PharmacyVendor));
+  }
+
+  /** Out here? Show which nearby store has it, or a same-salt brand that is in stock. */
+  async function findElsewhere(medicineId: string, name: string) {
+    try {
+      const res = await api.getMedicineAvailability(medicineId, coords || FALLBACK);
+      if (res.blocked) {
+        Alert.alert(name, res.message || 'This item cannot be ordered online.');
+        return;
+      }
+      const other = res.stores.find((s) => s.store.id !== active?._id);
+      const sub = res.substitutes[0];
+      const buttons: Array<{ text: string; style?: 'cancel'; onPress?: () => void }> = [];
+      if (other) buttons.push({ text: `Shop at ${other.store.name}`, onPress: () => switchTo(other.store.id, other.store.name) });
+      if (!other && sub) buttons.push({ text: `Find ${sub.medicine.name}`, onPress: () => findElsewhere(sub.medicine.id, sub.medicine.name) });
+      buttons.push({ text: 'OK', style: 'cancel' });
+      const lines = [
+        other
+          ? `${other.store.name} has it · ₹${other.sellingPrice} · ~${other.store.etaMinutes} min${other.confidence === 'LIKELY' ? ' (likely in stock)' : ''}`
+          : 'No other pharmacy near you has it right now.',
+        sub ? `Same medicine, other brand: ${sub.medicine.name} from ₹${sub.fromPrice}${sub.medicine.requiresPrescription ? ' (prescription needed)' : ''}. Check with your doctor if your prescription names a brand.` : ''
+      ].filter(Boolean);
+      Alert.alert(name, lines.join('\n\n'), buttons);
+    } catch (e) {
+      Alert.alert('Could not check other stores', describeNetworkError(e));
+    }
+  }
   const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
   const cartItems = items.filter((it) => cart[it.medicine._id]);
   const cartTotal = cartItems.reduce((sum, it) => sum + it.sellingPrice * cart[it.medicine._id], 0);
@@ -95,13 +135,16 @@ export default function Pharmacy() {
         deliveryAddress: { line1: address.line1.trim(), pincode: address.pincode },
         deliveryLocation: coords ? { coordinates: [coords.lng, coords.lat] } : undefined,
         prescriptionKey: rx?.key,
-        paymentMode: 'COD' // online payment in the app comes with react-native-razorpay
+        paymentMode: 'COD', // online payment in the app comes with react-native-razorpay
+        // The server refuses the order if the store changed a price since this screen loaded.
+        quotedSubtotal: Math.round(cartTotal * 100) / 100
       });
       setCart({});
       setRx(null);
       Alert.alert('Order placed', `${res.order.orderNumber} — the pharmacy has been notified.`);
     } catch (e) {
       Alert.alert('Could not place order', describeNetworkError(e));
+      refreshPrices();
     } finally {
       setPlacing(false);
     }
@@ -142,9 +185,15 @@ export default function Pharmacy() {
                 {it.mrp > it.sellingPrice ? <Text style={styles.strike}>  ₹{it.mrp}</Text> : null}
               </Text>
             </View>
-            <Pressable style={[styles.addBtn, !it.inStock && styles.addBtnDisabled]} disabled={!it.inStock} onPress={() => add(it.medicine._id)}>
-              <Text style={styles.addBtnText}>{it.inStock ? (cart[it.medicine._id] ? `× ${cart[it.medicine._id]}` : 'Add') : 'Out'}</Text>
-            </Pressable>
+            {it.inStock ? (
+              <Pressable style={styles.addBtn} onPress={() => add(it.medicine._id)}>
+                <Text style={styles.addBtnText}>{cart[it.medicine._id] ? `× ${cart[it.medicine._id]}` : 'Add'}</Text>
+              </Pressable>
+            ) : (
+              <Pressable style={styles.findBtn} onPress={() => findElsewhere(it.medicine._id, it.medicine.name)}>
+                <Text style={styles.findBtnText}>Find nearby</Text>
+              </Pressable>
+            )}
           </View>
         )}
       />
@@ -188,7 +237,8 @@ const styles = StyleSheet.create({
   price: { marginTop: 6, fontFamily: F.heavy, color: C.ink },
   strike: { color: C.muted, textDecorationLine: 'line-through', fontFamily: F.regular, fontSize: 12 },
   addBtn: { backgroundColor: C.brand, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 12 },
-  addBtnDisabled: { backgroundColor: C.faint },
+  findBtn: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: C.brand },
+  findBtnText: { color: C.brand, fontFamily: F.bold, fontSize: 13 },
   addBtnText: { color: C.onBrand, fontFamily: F.bold },
   error: { backgroundColor: C.roseSoft, color: C.roseInk, padding: 10, margin: 12, borderRadius: 10, fontFamily: F.semi },
   checkout: { backgroundColor: C.night, padding: 16, gap: 8, borderTopLeftRadius: 22, borderTopRightRadius: 22 },

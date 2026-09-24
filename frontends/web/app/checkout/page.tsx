@@ -102,6 +102,8 @@ export default function CheckoutPage() {
           contactPhone: addr.contactPhone
         },
         prescriptionKey,
+        // The API refuses the order if the store changed a price since it was added.
+        quotedSubtotal: cart.subtotal,
         // Lets the API confirm the store delivers here and promise an ETA.
         deliveryLocation: (() => {
           const c = loadDeliveryCoords();

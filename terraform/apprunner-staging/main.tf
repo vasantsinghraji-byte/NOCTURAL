@@ -333,6 +333,8 @@ resource "aws_apprunner_service" "api" {
           LOG_LEVEL         = "info"
           # STAGING ONLY: test stores deliver India-wide so testers anywhere can order supplies.
           SERVICEABILITY_TEST_RADIUS_KM = tostring(var.test_store_radius_km)
+          # Testers need time to open the partner app; production default is 180s.
+          PHARMACY_ACCEPT_SLA_SECONDS = tostring(var.pharmacy_accept_sla_seconds)
         }
         runtime_environment_secrets = merge(
           { for k in local.generated : k => aws_secretsmanager_secret.generated[k].arn },

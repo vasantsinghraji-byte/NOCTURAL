@@ -39,6 +39,7 @@ async function stopServer() {
   paymentService.stopRefundOutboxWorker();
   pharmacyPaymentService.stopExpiryWorker();
     require('./services/dispatchService').stopWorker();
+  require('./services/pharmacyAssignmentService').stopWorker();
   cleanupRateLimits();
   monitoring.cleanup();
   metricsRouter.cleanup();
@@ -173,6 +174,7 @@ async function startServer(options = {}) {
   if (config.connectDatabase) {
     paymentService.startRefundOutboxWorker();
     pharmacyPaymentService.startExpiryWorker();
+    require('./services/pharmacyAssignmentService').startWorker();
     require('./services/dispatchService').startWorker();
     securityNotificationOutboxService.start();
     auditExportCleanupScheduler.start();

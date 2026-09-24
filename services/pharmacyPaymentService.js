@@ -17,10 +17,12 @@
 
 const mongoose = require('mongoose');
 const PharmacyOrder = require('../models/pharmacyOrder');
+const PharmacyVendor = require('../models/pharmacyVendor');
 const gateway = require('../utils/razorpayGateway');
 const logger = require('../utils/logger');
 const monitoring = require('../utils/monitoring');
 const pharmacyNotificationService = require('./pharmacyNotificationService');
+const { getPharmacyOps } = require('../config/pharmacyOps');
 const {
   ValidationError,
   NotFoundError,
@@ -178,7 +180,9 @@ async function applyCapturedPayment(order, gatewayPayment) {
         paymentStatus: 'PAID',
         'razorpay.paymentId': gatewayPayment.id,
         'razorpay.paidAt': now,
-        'milestones.paidAt': now
+        'milestones.paidAt': now,
+        // The store only sees the order now, so its acceptance clock starts now.
+        acceptBy: new Date(now.getTime() + getPharmacyOps().acceptSlaSeconds * 1000)
       },
       $unset: { 'razorpay.failureReason': 1 }
     },
@@ -205,6 +209,7 @@ async function applyCapturedPayment(order, gatewayPayment) {
     return refundOrderPayment(updated, 'Order was cancelled before payment completed');
   }
   // The order just became visible to the store (the CAS above runs once per order).
+  await PharmacyVendor.updateOne({ _id: updated.vendor }, { $inc: { 'reliability.offered': 1 } }).catch(() => {});
   pharmacyNotificationService.notifyVendorNewOrder(updated);
   return updated;
 }
@@ -336,6 +341,116 @@ async function refundOrderPayment(order, reason = 'Order cancelled') {
   }
 }
 
+// ── Partial refunds (items the store couldn't supply) ─────────────────────
+//
+// Money rules that must hold at every step:
+//   refunded so far + amounts.total (still owed to the store/us) = originalTotal
+//   a refund entry is sent to the gateway at most once per lock window, and a
+//   retry first asks the gateway whether an earlier attempt already went
+//   through (DB write lost after a successful refund), so we never pay twice.
+
+const REFUND_LOCK_MS = 60 * 1000;
+const MAX_REFUND_ATTEMPTS = 8;
+
+/** Queue a partial refund on a PAID order and try it once. Returns the order. */
+async function requestPartialRefund(orderId, amount, reason) {
+  const value = Math.round(Number(amount) * 100) / 100;
+  if (!(value > 0)) return PharmacyOrder.findById(orderId);
+  const queued = await PharmacyOrder.findOneAndUpdate(
+    { _id: orderId, paymentMode: 'PREPAID', paymentStatus: 'PAID' },
+    { $push: { refunds: { amount: value, reason: String(reason || 'Item unavailable').slice(0, 200), status: 'PENDING' } } },
+    { new: true }
+  );
+  if (!queued) return PharmacyOrder.findById(orderId); // COD or unpaid: nothing to refund
+  const entry = queued.refunds[queued.refunds.length - 1];
+  return processPartialRefund(queued._id, entry._id);
+}
+
+async function findExistingGatewayRefund(paymentId, entryId) {
+  const razorpay = gateway.getClient();
+  if (!razorpay.payments || typeof razorpay.payments.fetchMultipleRefund !== 'function') return null;
+  const list = await razorpay.payments.fetchMultipleRefund(paymentId, { count: 100 });
+  const items = (list && list.items) || [];
+  return items.find((r) => r && r.notes && r.notes.refundEntryId === String(entryId)) || null;
+}
+
+/** Send one queued refund entry to the gateway (lock, dedupe, refund, record). */
+async function processPartialRefund(orderId, entryId, now = new Date()) {
+  const locked = await PharmacyOrder.findOneAndUpdate(
+    {
+      _id: orderId,
+      refunds: {
+        $elemMatch: {
+          _id: entryId,
+          status: { $in: ['PENDING', 'FAILED'] },
+          attempts: { $lt: MAX_REFUND_ATTEMPTS },
+          $or: [{ lockedUntil: null }, { lockedUntil: { $lte: now } }]
+        }
+      }
+    },
+    { $set: { 'refunds.$.lockedUntil': new Date(now.getTime() + REFUND_LOCK_MS) }, $inc: { 'refunds.$.attempts': 1 } },
+    { new: true }
+  );
+  if (!locked) return PharmacyOrder.findById(orderId);
+  const entry = locked.refunds.id(entryId);
+  const paymentId = locked.razorpay && locked.razorpay.paymentId;
+
+  const markDone = (refundId) => PharmacyOrder.findOneAndUpdate(
+    { _id: orderId, refunds: { $elemMatch: { _id: entryId, status: { $ne: 'DONE' } } } },
+    {
+      $set: { 'refunds.$.status': 'DONE', 'refunds.$.refundId': refundId, 'refunds.$.doneAt': new Date() },
+      $unset: { 'refunds.$.error': 1, 'refunds.$.lockedUntil': 1 },
+      $inc: { 'amounts.refunded': entry.amount }
+    },
+    { new: true }
+  );
+
+  try {
+    if (!gateway.isEnabled() || !paymentId) throw new Error('Payment gateway unavailable');
+    if (entry.attempts > 1) {
+      // An earlier attempt may have succeeded before its DB write was lost.
+      const existing = await findExistingGatewayRefund(paymentId, entryId);
+      if (existing) return (await markDone(existing.id)) || PharmacyOrder.findById(orderId);
+    }
+    const refund = await gateway.getClient().payments.refund(paymentId, {
+      amount: gateway.toPaise(entry.amount),
+      notes: { pharmacyOrderId: String(orderId), refundEntryId: String(entryId), reason: String(entry.reason || '').slice(0, 200) }
+    });
+    logger.info('Pharmacy partial refund sent', { orderId: String(orderId), amount: entry.amount, refundId: refund.id });
+    return (await markDone(refund.id)) || PharmacyOrder.findById(orderId);
+  } catch (err) {
+    logger.error('Pharmacy partial refund failed, will retry', { orderId: String(orderId), entryId: String(entryId), error: err.message });
+    monitoring.triggerAlert('pharmacy_partial_refund_failed', 1, { orderId: String(orderId) });
+    return PharmacyOrder.findOneAndUpdate(
+      { _id: orderId, refunds: { $elemMatch: { _id: entryId, status: { $ne: 'DONE' } } } },
+      { $set: { 'refunds.$.status': 'FAILED', 'refunds.$.error': String(err.message || 'Refund failed').slice(0, 300) } },
+      { new: true }
+    );
+  }
+}
+
+/** Worker: retry queued/failed partial refunds whose lock has lapsed. */
+async function retryPartialRefunds({ now = new Date(), limit = 20 } = {}) {
+  const orders = await PharmacyOrder.find({
+    refunds: {
+      $elemMatch: {
+        status: { $in: ['PENDING', 'FAILED'] },
+        attempts: { $lt: MAX_REFUND_ATTEMPTS },
+        $or: [{ lockedUntil: null }, { lockedUntil: { $lte: now } }]
+      }
+    }
+  }).select('refunds').limit(limit);
+  let retried = 0;
+  for (const order of orders) {
+    for (const entry of order.refunds) {
+      if (!['PENDING', 'FAILED'].includes(entry.status)) continue;
+      await processPartialRefund(order._id, entry._id, now);
+      retried += 1;
+    }
+  }
+  return { retried };
+}
+
 /**
  * If the gateway order was actually paid (e.g. tab closed before verify),
  * apply that payment. Returns true when the order turned out to be paid.
@@ -456,6 +571,9 @@ module.exports = {
   verifyPayment,
   recordPaymentFailure,
   refundOrderPayment,
+  requestPartialRefund,
+  processPartialRefund,
+  retryPartialRefunds,
   expireUnpaidOrders,
   startExpiryWorker,
   stopExpiryWorker

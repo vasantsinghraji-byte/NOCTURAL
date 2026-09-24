@@ -75,6 +75,8 @@ const VENDORS = [
 
 const MEDICINES = [
   { name: 'Dolo 650 Tablet', genericName: 'Paracetamol 650mg', brand: 'Dolo', manufacturer: 'Micro Labs', form: 'TABLET', strength: '650mg', packSize: '15 tablets', scheduleType: 'OTC', category: 'PAIN_RELIEF', referenceMrp: 32 },
+  // Same salt as Dolo 650: shows up as a substitute when Dolo is out.
+  { name: 'Calpol 650 Tablet', genericName: 'Paracetamol 650mg', brand: 'Calpol', manufacturer: 'GSK', form: 'TABLET', strength: '650mg', packSize: '15 tablets', packUnits: 15, scheduleType: 'OTC', category: 'PAIN_RELIEF', referenceMrp: 30 },
   { name: 'Crocin Advance 500 Tablet', genericName: 'Paracetamol 500mg', brand: 'Crocin', manufacturer: 'GSK', form: 'TABLET', strength: '500mg', packSize: '15 tablets', scheduleType: 'OTC', category: 'PAIN_RELIEF', referenceMrp: 28 },
   { name: 'Azithral 500 Tablet', genericName: 'Azithromycin 500mg', brand: 'Azithral', manufacturer: 'Alembic', form: 'TABLET', strength: '500mg', packSize: '5 tablets', scheduleType: 'PRESCRIPTION', category: 'ANTIBIOTIC', referenceMrp: 118 },
   { name: 'Pan 40 Tablet', genericName: 'Pantoprazole 40mg', brand: 'Pan', manufacturer: 'Alkem', form: 'TABLET', strength: '40mg', packSize: '15 tablets', scheduleType: 'PRESCRIPTION', category: 'GASTRO', referenceMrp: 145 },
@@ -162,7 +164,8 @@ async function seed() {
           medicine: med._id,
           mrp: med.referenceMrp,
           sellingPrice: priceFor(med.referenceMrp, discountPct),
-          stockQty: 20 + ((i + j) % 5) * 15
+          stockQty: 20 + ((i + j) % 5) * 15,
+          stockUpdatedAt: new Date()
         });
         inventoryCount += 1;
       }
@@ -172,7 +175,8 @@ async function seed() {
           medicine: supply._id,
           mrp: supply.referenceMrp,
           sellingPrice: priceFor(supply.referenceMrp, 5 + i * 5),
-          stockQty: 50
+          stockQty: 50,
+          stockUpdatedAt: new Date()
         });
         inventoryCount += 1;
       }

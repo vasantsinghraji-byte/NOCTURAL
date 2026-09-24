@@ -8,6 +8,8 @@
 const pharmacyService = require('../services/pharmacyService');
 const pharmacyAdminService = require('../services/pharmacyAdminService');
 const pharmacyPaymentService = require('../services/pharmacyPaymentService');
+const pharmacyAvailabilityService = require('../services/pharmacyAvailabilityService');
+const pharmacyAssignmentService = require('../services/pharmacyAssignmentService');
 const responseHelper = require('../utils/responseHelper');
 const storageConfig = require('../config/storage');
 const { AuthorizationError } = require('../utils/errors');
@@ -47,6 +49,33 @@ exports.searchMedicines = async (req, res, next) => {
       limit: req.query.limit
     });
     responseHelper.sendSuccess(res, { results }, 'Medicine search results');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+exports.getMedicineAvailability = async (req, res, next) => {
+  try {
+    const result = await pharmacyAvailabilityService.getMedicineAvailability({
+      medicineId: req.params.id,
+      lat: req.query.lat,
+      lng: req.query.lng,
+      quantity: req.query.quantity
+    });
+    responseHelper.sendSuccess(res, result, 'Availability near you');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+exports.planCart = async (req, res, next) => {
+  try {
+    const plan = await pharmacyAvailabilityService.planCart({
+      lat: req.body.lat,
+      lng: req.body.lng,
+      items: req.body.items
+    });
+    responseHelper.sendSuccess(res, pharmacyAvailabilityService.stripInternal(plan), 'Cart plan');
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
   }
@@ -198,9 +227,36 @@ exports.updateOrderStatus = async (req, res, next) => {
       vendorId,
       actorUserId: req.user.id,
       status: req.body.status,
-      note: req.body.note
+      note: req.body.note,
+      reasonCode: req.body.reasonCode,
+      unavailableMedicineIds: req.body.unavailableMedicineIds
     });
     responseHelper.sendSuccess(res, { order }, 'Order status updated');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+exports.markItemsUnavailable = async (req, res, next) => {
+  try {
+    const vendorId = resolveVendorId(req);
+    const order = await pharmacyAssignmentService.markItemsUnavailable(req.params.id, {
+      vendorId,
+      actorUserId: req.user.id,
+      medicineIds: req.body.medicineIds,
+      reason: req.body.reason
+    });
+    responseHelper.sendSuccess(res, { order }, 'Items marked unavailable');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+exports.confirmInventory = async (req, res, next) => {
+  try {
+    const vendorId = resolveVendorId(req);
+    const result = await pharmacyService.confirmInventory(vendorId, req.body || {});
+    responseHelper.sendSuccess(res, result, 'Stock confirmed');
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
   }

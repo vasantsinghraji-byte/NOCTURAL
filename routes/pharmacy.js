@@ -14,6 +14,7 @@ const idempotency = require('../middleware/idempotency');
 const { uploadPrescription } = require('../middleware/upload');
 const {
   PHARMACY_ORDER_STATUSES,
+  PHARMACY_REJECTION_REASONS,
   PHARMACY_VENDOR_STATUSES,
   MEDICINE_FORMS,
   MEDICINE_SCHEDULE_TYPES,
@@ -38,12 +39,41 @@ const createOrderValidation = [
   body('deliveryAddress.line1').trim().notEmpty().withMessage('Delivery address line1 is required'),
   body('deliveryAddress.pincode').trim().matches(/^\d{6}$/).withMessage('Valid 6-digit pincode required'),
   body('prescriptionKey').optional().isString().trim().isLength({ min: 1, max: 512 }).withMessage('prescriptionKey must be the key returned by POST /prescriptions'),
-  body('paymentMode').optional().isIn(['PREPAID', 'COD'])
+  body('paymentMode').optional().isIn(['PREPAID', 'COD']),
+  body('quotedSubtotal').optional().isFloat({ min: 0 }).withMessage('quotedSubtotal must be the items total shown to the customer')
+];
+
+const availabilityValidation = [
+  query('lat').notEmpty().withMessage('lat is required').isFloat({ min: -90, max: 90 }),
+  query('lng').notEmpty().withMessage('lng is required').isFloat({ min: -180, max: 180 }),
+  query('quantity').optional().isInt({ min: 1, max: 100 })
+];
+
+const cartPlanValidation = [
+  body('lat').notEmpty().isFloat({ min: -90, max: 90 }).withMessage('lat is required'),
+  body('lng').notEmpty().isFloat({ min: -180, max: 180 }).withMessage('lng is required'),
+  body('items').isArray({ min: 1, max: 50 }).withMessage('1-50 items are required'),
+  body('items.*.medicineId').isMongoId().withMessage('Each item needs a valid medicineId'),
+  body('items.*.quantity').isInt({ min: 1, max: 100 }).withMessage('Each item needs quantity 1-100')
+];
+
+const markUnavailableValidation = [
+  body('medicineIds').isArray({ min: 1, max: 50 }).withMessage('medicineIds must list the missing items'),
+  body('medicineIds.*').isMongoId().withMessage('Invalid medicine id'),
+  body('reason').optional().isString().trim().isLength({ max: 200 })
+];
+
+const confirmInventoryValidation = [
+  body('medicineIds').optional().isArray({ max: 500 }),
+  body('medicineIds.*').optional().isMongoId()
 ];
 
 const orderStatusValidation = [
   body('status').notEmpty().isIn(PHARMACY_ORDER_STATUSES).withMessage('Invalid order status'),
-  body('note').optional().trim().isLength({ max: 500 })
+  body('note').optional().trim().isLength({ max: 500 }),
+  body('reasonCode').optional().isIn(PHARMACY_REJECTION_REASONS).withMessage('Invalid rejection reason'),
+  body('unavailableMedicineIds').optional().isArray({ max: 50 }),
+  body('unavailableMedicineIds.*').optional().isMongoId()
 ];
 
 const inventoryValidation = [
@@ -59,7 +89,13 @@ const medicineValidation = [
   body('form').optional().isIn(MEDICINE_FORMS),
   body('scheduleType').optional().isIn(MEDICINE_SCHEDULE_TYPES),
   body('category').optional().isIn(MEDICINE_CATEGORIES),
-  body('referenceMrp').optional().isFloat({ min: 0 })
+  body('referenceMrp').optional().isFloat({ min: 0 }),
+  body('packUnits').optional().isInt({ min: 1 }),
+  body('maxQtyPerOrder').optional().isInt({ min: 1 }),
+  body('coldChain').optional().isBoolean(),
+  body('isBanned').optional().isBoolean(),
+  body('isDiscontinued').optional().isBoolean(),
+  body('barcodes').optional().isArray({ max: 20 })
 ];
 
 const verifyPaymentValidation = [
@@ -107,6 +143,8 @@ const mongoIdParam = (name) => [param(name).isMongoId().withMessage(`Invalid ${n
 
 router.get('/vendors/nearby', nearbyValidation, validate, ctrl.getNearbyVendors);
 router.get('/medicines/search', ctrl.searchMedicines);
+router.get('/medicines/:id/availability', mongoIdParam('id'), availabilityValidation, validate, ctrl.getMedicineAvailability);
+router.post('/cart/plan', cartPlanValidation, validate, ctrl.planCart);
 router.get('/vendors/:vendorId', mongoIdParam('vendorId'), validate, ctrl.getVendorStorefront);
 // Whether online payment is available + the publishable Razorpay key id.
 router.get('/payment-options', ctrl.getPaymentOptions);
@@ -117,7 +155,9 @@ router.get('/vendor/orders', protect, authorize('pharmacy_vendor'), ctrl.listVen
 router.get('/vendor/orders/:id', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), validate, ctrl.getOrder);
 router.get('/vendor/orders/:id/prescription', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), validate, ctrl.getPrescription);
 router.patch('/vendor/orders/:id/status', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), orderStatusValidation, validate, ctrl.updateOrderStatus);
+router.post('/vendor/orders/:id/items/unavailable', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), markUnavailableValidation, validate, ctrl.markItemsUnavailable);
 router.get('/vendor/inventory', protect, authorize('pharmacy_vendor'), ctrl.listInventory);
+router.post('/vendor/inventory/confirm', protect, authorize('pharmacy_vendor'), confirmInventoryValidation, validate, ctrl.confirmInventory);
 router.put('/vendor/inventory', protect, authorize('pharmacy_vendor'), inventoryValidation, validate, ctrl.upsertInventory);
 router.patch('/vendor/profile', protect, authorize('pharmacy_vendor'), ctrl.updateVendorProfile);
 

@@ -37,7 +37,10 @@ import type {
   SignInMethods,
   SocialSignInResult,
   PartnerApplicationInput,
-  AdminMfaChallenge
+  AdminMfaChallenge,
+  MedicineAvailability,
+  CartPlan,
+  PharmacyRejectionReason
 } from './types';
 
 export interface ApiClientOptions {
@@ -366,6 +369,16 @@ export class MedRushApi {
     return this.request<{ success: true; results: StorefrontItem[] | Medicine[] }>('GET', '/pharmacy/medicines/search', { query: params });
   }
 
+  /** Which nearby stores have this medicine now (plus same-salt substitutes). */
+  getMedicineAvailability(medicineId: string, params: { lat: number; lng: number; quantity?: number }) {
+    return this.request<{ success: true } & MedicineAvailability>('GET', `/pharmacy/medicines/${medicineId}/availability`, { query: params });
+  }
+
+  /** Best store (or 2-store split) for a whole cart at a delivery point. */
+  planCart(body: { lat: number; lng: number; items: Array<{ medicineId: string; quantity: number }> }) {
+    return this.request<{ success: true } & CartPlan>('POST', '/pharmacy/cart/plan', { body });
+  }
+
   getVendorStorefront(vendorId: string) {
     return this.request<{ success: true; vendor: PharmacyVendor; items: StorefrontItem[] }>('GET', `/pharmacy/vendors/${vendorId}`);
   }
@@ -410,8 +423,18 @@ export class MedRushApi {
     return this.request<{ success: true; orders: PharmacyOrder[]; pagination: Pagination }>('GET', '/pharmacy/vendor/orders', { query: params });
   }
 
-  vendorUpdateOrderStatus(id: string, status: string, note?: string) {
-    return this.request<{ success: true; order: PharmacyOrder }>('PATCH', `/pharmacy/vendor/orders/${id}/status`, { body: { status, note } });
+  vendorUpdateOrderStatus(id: string, status: string, note?: string, extra: { reasonCode?: PharmacyRejectionReason; unavailableMedicineIds?: string[] } = {}) {
+    return this.request<{ success: true; order: PharmacyOrder }>('PATCH', `/pharmacy/vendor/orders/${id}/status`, { body: { status, note, ...extra } });
+  }
+
+  /** Store has the order but not these items: they're dropped and refunded. */
+  vendorMarkItemsUnavailable(id: string, medicineIds: string[], reason?: string) {
+    return this.request<{ success: true; order: PharmacyOrder }>('POST', `/pharmacy/vendor/orders/${id}/items/unavailable`, { body: { medicineIds, reason } });
+  }
+
+  /** "My stock counts are right" (all listings, or the given ones). */
+  vendorConfirmInventory(medicineIds?: string[]) {
+    return this.request<{ success: true; confirmed: number }>('POST', '/pharmacy/vendor/inventory/confirm', { body: medicineIds ? { medicineIds } : {} });
   }
 
   vendorListInventory(params: { page?: number; limit?: number } = {}) {

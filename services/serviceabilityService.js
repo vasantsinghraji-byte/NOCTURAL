@@ -93,6 +93,75 @@ function estimateEta(vendor, distanceKm, now = new Date()) {
   };
 }
 
+const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const toMinutes = (hhmm) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || '').trim());
+  if (!m) return undefined;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  return h <= 24 && min < 60 ? h * 60 + min : undefined;
+};
+
+/** Day + minutes-since-midnight in India time (servers run in UTC). */
+function indiaClock(now = new Date()) {
+  const ist = new Date(now.getTime() + 330 * 60 * 1000); // IST = UTC+5:30, no DST
+  return { day: DAYS[ist.getUTCDay()], prevDay: DAYS[(ist.getUTCDay() + 6) % 7], minutes: ist.getUTCHours() * 60 + ist.getUTCMinutes() };
+}
+
+/**
+ * Is the store inside its posted hours right now (India time)? Handles
+ * overnight hours (20:00–02:00). No hours posted = open whenever the owner's
+ * switch is on. Pure function — unit-tested.
+ */
+function isWithinOperatingHours(vendor, now = new Date()) {
+  const hours = Array.isArray(vendor && vendor.operatingHours) ? vendor.operatingHours : [];
+  if (hours.length === 0) return true;
+  const { day, prevDay, minutes } = indiaClock(now);
+  const rowFor = (d) => hours.find((h) => h && h.day === d);
+  const today = rowFor(day);
+  if (today && !today.isClosed) {
+    const open = toMinutes(today.open);
+    const close = toMinutes(today.close);
+    if (open !== undefined && close !== undefined) {
+      if (close > open && minutes >= open && minutes < close) return true;
+      if (close <= open && minutes >= open) return true; // overnight, before midnight
+    }
+  }
+  const yesterday = rowFor(prevDay);
+  if (yesterday && !yesterday.isClosed) {
+    const open = toMinutes(yesterday.open);
+    const close = toMinutes(yesterday.close);
+    if (open !== undefined && close !== undefined && close <= open && minutes < close) return true; // overnight tail
+  }
+  return false;
+}
+
+/**
+ * Why this store can't take orders right now (null = it can). One gate for
+ * search, cart planning, checkout and reassignment so they never disagree.
+ */
+function storeBlockReason(vendor, now = new Date()) {
+  if (!vendor) return 'NOT_FOUND';
+  if (vendor.status && vendor.status !== 'APPROVED') return 'NOT_APPROVED';
+  if (vendor.isActive === false) return 'INACTIVE';
+  if (vendor.isOpen === false) return 'CLOSED';
+  if (vendor.pausedUntil && new Date(vendor.pausedUntil) > now) return 'PAUSED';
+  if (vendor.drugLicenseExpiry && new Date(vendor.drugLicenseExpiry) <= now) return 'LICENCE_EXPIRED';
+  if (!isWithinOperatingHours(vendor, now)) return 'OUTSIDE_HOURS';
+  return null;
+}
+
+/** Mongo filter for stores that may trade now (hours are checked in Node). */
+const tradingStoreQuery = (now = new Date()) => ({
+  status: 'APPROVED',
+  isActive: true,
+  isOpen: true,
+  $and: [
+    { $or: [{ pausedUntil: null }, { pausedUntil: { $lte: now } }] },
+    { $or: [{ drugLicenseExpiry: null }, { drugLicenseExpiry: { $gt: now } }] }
+  ]
+});
+
 /**
  * Orderable stores that can deliver to (lat, lng) right now, nearest first,
  * each with `distanceKm`, `effectiveRadiusKm` and `eta`.
@@ -127,7 +196,7 @@ async function findServiceableVendors({ lat, lng, radiusKm, limit = 30 }) {
         distanceField: 'distanceMeters',
         maxDistance: searchKm * 1000,
         spherical: true,
-        query: { status: 'APPROVED', isActive: true, isOpen: true }
+        query: tradingStoreQuery(now)
       }
     },
     { $limit: cappedLimit * 3 },
@@ -135,13 +204,14 @@ async function findServiceableVendors({ lat, lng, radiusKm, limit = 30 }) {
       $project: {
         name: 1, slug: 1, address: 1, location: 1, serviceRadiusKm: 1, rating: 1,
         deliveryFee: 1, minOrderValue: 1, avgPreparationMinutes: 1, operatingHours: 1,
-        distanceMeters: 1
+        distanceMeters: 1, hasColdStorage: 1, acceptsPrescriptionOrders: 1, reliability: 1
       }
     }
   ]);
 
   const vendors = [];
   for (const vendor of candidates) {
+    if (!isWithinOperatingHours(vendor, now)) continue;
     const radius = effectiveRadiusKm(vendor, zone, now);
     const distanceKm = Math.round((vendor.distanceMeters / 1000) * 100) / 100;
     if (distanceKm > radius) continue;
@@ -189,6 +259,9 @@ async function assessDelivery(vendor, deliveryPoint) {
 module.exports = {
   toPoint,
   resolveZone,
+  isWithinOperatingHours,
+  storeBlockReason,
+  tradingStoreQuery,
   effectiveRadiusKm,
   estimateEta,
   findServiceableVendors,

@@ -37,6 +37,7 @@
     "db:indexes:rollback": "node scripts/safe-index-migration.js --rollback",
     "db:migrate": "node scripts/add-indexes.js",
     "db:seed:pharmacy": "node scripts/seedPharmacyMarketplace.js",
+    "db:backfill:pharmacy-catalog": "node scripts/backfillPharmacyCatalog.js",
     "db:seed:admin": "node scripts/seedAdmin.js",
     "admin:reset-mfa": "node scripts/resetAdminMfa.js",
     "reconcile:data": "node scripts/reconcile-data-integrity.js",

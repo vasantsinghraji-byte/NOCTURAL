@@ -46,6 +46,9 @@ async function createVendor(payload = {}, createdByUserId) {
     contactPhone: payload.contactPhone,
     contactEmail: payload.contactEmail,
     drugLicenseNumber: payload.drugLicenseNumber,
+    drugLicenseExpiry: payload.drugLicenseExpiry,
+    pharmacist: payload.pharmacist,
+    hasColdStorage: !!payload.hasColdStorage,
     gstin: payload.gstin,
     address: payload.address,
     location: payload.location && Array.isArray(payload.location.coordinates)
@@ -129,10 +132,25 @@ async function createMedicine(payload = {}) {
   return Medicine.create({ ...payload, slug });
 }
 
+// Fields an admin may change on a master medicine (slug/saltKey are derived).
+const MEDICINE_EDITABLE = [
+  'name', 'genericName', 'composition', 'brand', 'manufacturer', 'form', 'strength', 'packSize',
+  'packUnits', 'barcodes', 'scheduleType', 'category', 'hsn', 'gstPercentage', 'images', 'description',
+  'usage', 'sideEffects', 'warnings', 'referenceMrp', 'isActive', 'coldChain', 'isBanned',
+  'isDiscontinued', 'maxQtyPerOrder'
+];
+
 async function updateMedicine(medicineId, updates = {}) {
   if (!mongoose.isValidObjectId(medicineId)) throw new ValidationError('Invalid medicine id');
-  const medicine = await Medicine.findByIdAndUpdate(medicineId, { $set: updates }, { new: true, runValidators: true });
+  const medicine = await Medicine.findById(medicineId);
   if (!medicine) throw new NotFoundError('Medicine', medicineId);
+  for (const key of MEDICINE_EDITABLE) {
+    if (updates[key] !== undefined) medicine.set(key, updates[key]);
+  }
+  // save() (not findByIdAndUpdate) so the validate hook re-derives saltKey and
+  // the prescription flag. Banning/discontinuing takes effect everywhere at
+  // once: search, cart planning and stock reservation all check these flags.
+  await medicine.save();
   return medicine;
 }
 
