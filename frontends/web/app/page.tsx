@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -11,6 +12,9 @@ import type { CareService, HomeFeed } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { IconTile, serviceIcon, TONES } from './_components/icons';
+import { TrustBadgeBar } from './_components/TrustBadgeBar';
+import { CareGallery } from './_components/CareGallery';
+import { PatientStories } from './_components/PatientStories';
 
 const inr = (n: number) => `₹${Math.round(n)}`;
 const short = (s: CareService) => (s.displayName || s.name).replace(/ at Home| \(.*\)|Session/g, '').trim();
@@ -56,6 +60,7 @@ export default function Landing() {
               <Link href="/signup" className="btn light lg">Book a visit <ArrowRight size={18} /></Link>
               <Link href="/pharmacy" className="btn ghost lg">Order medicines</Link>
             </div>
+            <TrustBadgeBar />
             <div className="meta">
               <span><BadgeCheck size={16} color="#f0c77e" /> Verified professionals</span>
               <span><Wallet size={16} color="#f0c77e" /> Pay after the visit</span>
@@ -75,7 +80,15 @@ export default function Landing() {
                   <span className="label">On the way</span>
                   <span className="title">Asha is coming</span>
                   <div className="staff">
-                    <span className="av">A</span>
+                    <div className="av-photo-wrap">
+                      <Image
+                        src="/images/staff/nurse-asha.jpg"
+                        alt="Asha Verma"
+                        width={46}
+                        height={46}
+                        className="av-photo"
+                      />
+                    </div>
                     <div style={{ flex: 1 }}>
                       <b style={{ fontSize: 14 }}>Asha Verma</b>
                       <div className="muted">B.Sc Nursing · 6 yrs</div>
@@ -124,6 +137,9 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── Care in Action Visual Gallery ─────────────────────────────────── */}
+      <CareGallery />
+
       {/* ── How it works ─────────────────────────────────────────────────── */}
       <section className="band alt bleed" id="how">
         <div className="container">
@@ -140,6 +156,9 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ── Real Customer Stories & Testimonials ──────────────────────────── */}
+      <PatientStories />
 
       {/* ── Safety ───────────────────────────────────────────────────────── */}
       <section className="band" id="safety">

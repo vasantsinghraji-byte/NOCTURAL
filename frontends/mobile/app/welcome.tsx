@@ -3,14 +3,15 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { BadgeCheck, Clock3, Phone, ShieldCheck, Star } from 'lucide-react-native';
+import { BadgeCheck, Phone } from 'lucide-react-native';
 import type { SignInMethods, SocialSignInResult } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useT } from '@/lib/i18n';
-import { NabzMark, Wordmark } from '@/lib/Brand';
+import { Wordmark } from '@/lib/Brand';
 import { GoogleButton } from '@/lib/GoogleButton';
 import { PressScale, Rise } from '@/lib/motion';
+import { WelcomeCareCarousel } from '@/lib/WelcomeCareCarousel';
 import { GOOGLE_CONFIGURED } from '@/lib/variant';
 import { C, F } from '@/lib/theme';
 
@@ -58,25 +59,9 @@ export default function Welcome() {
           </View>
         </View>
 
-        {/* Product vignette: the promise, shown rather than told. */}
-        <Rise delay={80} style={styles.stage}>
-          <View style={styles.pinHalo}><NabzMark size={96} /></View>
-          <Rise delay={380} style={[styles.float, { top: 14, left: 0 }]}>
-            <View style={styles.floatIcon}><Clock3 size={15} color={C.mint} /></View>
-            <View>
-              <Text style={styles.floatTitle}>Asha · B.Sc Nursing</Text>
-              <Text style={styles.floatSub}>Arriving in 12 min</Text>
-            </View>
-          </Rise>
-          <Rise delay={560} style={[styles.float, { bottom: 18, right: 0 }]}>
-            <View style={styles.floatIcon}><ShieldCheck size={15} color={C.gold} /></View>
-            <View>
-              <Text style={styles.floatTitle}>Police verified</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Star size={11} color={C.gold} fill={C.gold} /><Text style={styles.floatSub}>4.9 · 320 visits</Text>
-              </View>
-            </View>
-          </Rise>
+        {/* Patient Care Experience Showcase */}
+        <Rise delay={80}>
+          <WelcomeCareCarousel />
         </Rise>
 
         <Rise delay={160}>
