@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 
 const extra = (Constants.expoConfig?.extra ?? {}) as {
   variant?: 'customer' | 'partner';
+  demoArea?: boolean;
   webBaseUrl?: string;
   google?: { androidClientId?: string; iosClientId?: string; webClientId?: string };
 };
@@ -19,3 +20,6 @@ export const GOOGLE_CLIENT_IDS = {
   web: extra.google?.webClientId || ''
 };
 export const GOOGLE_CONFIGURED = !!(GOOGLE_CLIENT_IDS.android || GOOGLE_CLIENT_IDS.ios || GOOGLE_CLIENT_IDS.web);
+
+/** Staging builds only: allow the Jaipur demo area (see app.config.js). */
+export const DEMO_AREA_ENABLED = extra.demoArea === true;

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Location from 'expo-location';
-import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { pickAndUploadPrescription } from '@/lib/prescription';
 import type { PharmacyVendor, StorefrontItem } from '@medrush/shared';
 import { C, F } from '@/lib/theme';
 
@@ -68,28 +68,9 @@ export default function Pharmacy() {
   const cartTotal = cartItems.reduce((sum, it) => sum + it.sellingPrice * cart[it.medicine._id], 0);
   const needsRx = cartItems.some((it) => it.medicine.requiresPrescription);
 
-  async function attachPrescription(source: 'camera' | 'library') {
-    const perm = source === 'camera'
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Permission needed', 'Allow camera/photos in Permissions to attach a prescription.');
-      return;
-    }
-    const result = source === 'camera'
-      ? await ImagePicker.launchCameraAsync({ quality: 0.7 })
-      : await ImagePicker.launchImageLibraryAsync({ quality: 0.7, mediaTypes: ['images'] });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    try {
-      const uploaded = await api.uploadPrescription(
-        { uri: asset.uri, name: asset.fileName || 'prescription.jpg', type: asset.mimeType || 'image/jpeg' },
-        asset.fileName || 'prescription.jpg'
-      );
-      setRx({ uri: asset.uri, key: uploaded.key });
-    } catch (e) {
-      Alert.alert('Upload failed', describeNetworkError(e));
-    }
+  async function attachPrescription() {
+    const up = await pickAndUploadPrescription();
+    if (up) setRx({ uri: up.uri, key: up.key });
   }
 
   async function placeOrder() {
@@ -178,8 +159,7 @@ export default function Pharmacy() {
           {needsRx && (
             <View style={styles.rxRow}>
               <Text style={styles.rxText}>{rx?.key ? 'Prescription attached' : 'Prescription required'}</Text>
-              <Pressable onPress={() => attachPrescription('camera')}><Text style={styles.rxLink}>Camera</Text></Pressable>
-              <Pressable onPress={() => attachPrescription('library')}><Text style={styles.rxLink}>Gallery</Text></Pressable>
+              <Pressable onPress={attachPrescription}><Text style={styles.rxLink}>{rx?.key ? 'Change' : 'Attach'}</Text></Pressable>
             </View>
           )}
           <Pressable style={[styles.placeBtn, placing && { opacity: 0.6 }]} disabled={placing} onPress={placeOrder}>

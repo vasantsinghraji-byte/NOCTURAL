@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import {
-  ChevronRight, Crown, Navigation, PackageCheck, Radio, RotateCcw, Search, ShieldCheck, Store, Truck, X, type LucideIcon
+  ChevronRight, Crown, MapPin as MapPinIcon, Navigation, PackageCheck, Radio, RotateCcw, Search, ShieldCheck, Store, Truck, X, type LucideIcon
 } from 'lucide-react-native';
 import type { CareBooking, CareService, HomeBanner, HomeFeed, PharmacyVendor } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useT } from '@/lib/i18n';
 import { useLiveLocation } from '@/lib/useLiveLocation';
+import { DEMO_AREA_ENABLED } from '@/lib/variant';
 import { LiveMap, type MapPin } from '@/lib/MapView';
 import { DEMO_POINT, inr, shortName } from '@/lib/care';
 import { IconTile, serviceIcon, TONES } from '@/lib/icons';
@@ -17,6 +19,7 @@ import { PressScale, Rise, Skeleton } from '@/lib/motion';
 import { C, F, IS_DARK, shadow, ui } from '@/lib/theme';
 
 type Mode = 'ASAP' | 'SCHEDULED';
+const DEMO_AREA_KEY = 'nabz.demoArea';
 const MAP_H = Math.round(Dimensions.get('window').height * 0.34);
 const ACTIVE = ['REQUESTED', 'ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'];
 const BANNER_LOOK: Record<HomeBanner['kind'], { icon: LucideIcon; bg: string; fg: string; ink: string }> = {
@@ -38,8 +41,23 @@ export default function BookHome() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { t } = useT();
-  const { point, area, source } = useLiveLocation(DEMO_POINT, 'C-Scheme, Jaipur (demo)');
+  const live = useLiveLocation(DEMO_POINT, 'C-Scheme, Jaipur (demo)');
+  // Testers outside the launch city can switch to the Jaipur demo area (remembered).
+  const [demoArea, setDemoArea] = useState(false);
+  useEffect(() => { if (DEMO_AREA_ENABLED) SecureStore.getItemAsync(DEMO_AREA_KEY).then((v) => setDemoArea(v === '1')).catch(() => undefined); }, []);
+  const point = demoArea ? DEMO_POINT : live.point;
+  const area = demoArea ? 'C-Scheme, Jaipur (demo area)' : live.area;
+  const source = demoArea ? 'recent' : live.source;
+  function chooseArea() {
+    if (!DEMO_AREA_ENABLED) return;
+    Alert.alert('Where should we send care?', 'Nabz is live in Jaipur. Outside Jaipur you can try the app in the Jaipur demo area.', [
+      { text: 'My live location', onPress: () => { setDemoArea(false); SecureStore.deleteItemAsync(DEMO_AREA_KEY).catch(() => undefined); } },
+      { text: 'Jaipur demo area', onPress: () => { setDemoArea(true); SecureStore.setItemAsync(DEMO_AREA_KEY, '1').catch(() => undefined); } },
+      { text: 'Cancel', style: 'cancel' }
+    ]);
+  }
   const [stores, setStores] = useState<PharmacyVendor[]>([]);
+  const [storesChecked, setStoresChecked] = useState(false);
   const [nearby, setNearby] = useState<{ count: number; nearestKm: number | null; staff: Array<{ lat: number; lng: number }> }>({ count: 0, nearestKm: null, staff: [] });
   const storesLoadedFor = useRef<string | null>(null);
   const [services, setServices] = useState<CareService[] | null>(null);
@@ -69,7 +87,7 @@ export default function BookHome() {
     const key = `${point.lat.toFixed(2)},${point.lng.toFixed(2)}`;
     if (storesLoadedFor.current !== key) {
       storesLoadedFor.current = key;
-      api.getNearbyVendors({ ...point, radiusKm: 10 }).then((r) => setStores(r.vendors)).catch(() => undefined);
+      api.getNearbyVendors({ ...point, radiusKm: 10 }).then((r) => { setStores(r.vendors); setStoresChecked(true); }).catch(() => undefined);
     }
     const loadStaff = () => api.getNearbyStaff({ ...point, radiusKm: 10 }).then(setNearby).catch(() => undefined);
     loadStaff();
@@ -115,7 +133,7 @@ export default function BookHome() {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <View style={[styles.mapWrap, { height: MAP_H + 40 }]}><LiveMap center={point} pins={pins} dark={IS_DARK} /></View>
 
-      <View style={[styles.where, { top: insets.top + 10 }]}>
+      <Pressable onPress={chooseArea} style={[styles.where, { top: insets.top + 10 }]} accessibilityRole="button" accessibilityLabel="Change location">
         <View style={styles.dot} />
         <View style={{ flex: 1 }}>
           <Text style={ui.muted} numberOfLines={1}>
@@ -123,8 +141,8 @@ export default function BookHome() {
           </Text>
           <Text style={ui.h3} numberOfLines={1}>{area}</Text>
         </View>
-        <Navigation size={18} color={C.brand} fill={C.brand} />
-      </View>
+        {demoArea ? <View style={styles.demoPill}><Text style={styles.demoPillText}>DEMO</Text></View> : <Navigation size={18} color={C.brand} fill={C.brand} />}
+      </Pressable>
 
       <ScrollView style={StyleSheet.absoluteFill} contentContainerStyle={{ paddingTop: MAP_H }} showsVerticalScrollIndicator={false}>
         <View style={styles.sheet}>
@@ -161,6 +179,16 @@ export default function BookHome() {
           )}
 
           {error && <Text style={[ui.error, { marginTop: 12 }]}>{error}</Text>}
+
+          {!demoArea && live.source !== 'fallback' && storesChecked && stores.length === 0 && (
+            <PressScale style={styles.outside} onPress={chooseArea} disabled={!DEMO_AREA_ENABLED}>
+              <MapPinIcon size={20} color={C.amber} />
+              <View style={{ flex: 1 }}>
+                <Text style={ui.h3}>Nabz isn’t in your area yet</Text>
+                <Text style={ui.muted}>{DEMO_AREA_ENABLED ? 'We’re live in Jaipur. Tap to try the app in the Jaipur demo area.' : 'We’re live in Jaipur and coming to more cities soon.'}</Text>
+              </View>
+            </PressScale>
+          )}
 
           {/* Book now vs schedule */}
           <View style={styles.segment}>
@@ -307,6 +335,9 @@ const styles = StyleSheet.create({
     backgroundColor: C.card, borderRadius: 18, padding: 14, ...shadow, elevation: 8
   },
   dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: C.brand, borderWidth: 3, borderColor: C.brandSoft },
+  demoPill: { backgroundColor: C.amberSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  demoPillText: { color: C.amber, fontFamily: F.heavy, fontSize: 10, letterSpacing: 1 },
+  outside: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.amberSoft, borderRadius: 18, padding: 14, marginTop: 14 },
   sheet: {
     backgroundColor: C.bg, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 18, paddingTop: 10,
     minHeight: Dimensions.get('window').height - MAP_H, ...shadow, elevation: 20

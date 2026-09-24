@@ -110,6 +110,9 @@ module.exports = {
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || '',
       allowServerOverride: process.env.EXPO_PUBLIC_ALLOW_SERVER_OVERRIDE === 'true',
       variant: IS_PARTNER ? 'partner' : 'customer',
+      // Staging only: lets testers outside the launch city use the Jaipur demo area
+      // (customer location + staff "Go online"). Never enable in production builds.
+      demoArea: process.env.EXPO_PUBLIC_DEMO_AREA === 'true',
       webBaseUrl: process.env.EXPO_PUBLIC_WEB_BASE_URL || '',
       google: {
         androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '',

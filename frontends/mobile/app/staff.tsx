@@ -12,9 +12,11 @@ import {
 import type { CareBooking, StaffDashboard, VisitOffer } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { STAFF_ROLES, useAuth } from '@/lib/auth';
-import { inr } from '@/lib/care';
+import { DEMO_POINT, inr } from '@/lib/care';
 import { PressScale, Rise, success, tap, warn } from '@/lib/motion';
 import { notifyLocal } from '@/lib/notifications';
+import * as SecureStore from 'expo-secure-store';
+import { DEMO_AREA_ENABLED } from '@/lib/variant';
 import { C, F, shadow, ui } from '@/lib/theme';
 
 type StoreInfo = { name?: string; address?: { line1?: string } };
@@ -32,6 +34,7 @@ const LIVE_STATUSES = ['CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'];
 const HEARTBEAT_MS = 30_000;
 const OFFER_POLL_MS = 5_000;
 const OFFER_TTL_S = 45;
+const PARTNER_DEMO_KEY = 'nabz.partnerDemoArea';
 
 const hello = () => {
   const h = new Date().getHours();
@@ -55,6 +58,7 @@ export default function StaffHome() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const visitsRef = useRef<Visit[]>([]);
   const offerIdRef = useRef<string | null>(null);
+  const demoRef = useRef(false); // staging: working in the Jaipur demo area
 
   const load = useCallback(() => {
     api.getMyAssignedVisits().then((r) => {
@@ -88,6 +92,12 @@ export default function StaffHome() {
 
   const startTracking = useCallback(async () => {
     stopTracking();
+    if (demoRef.current) {
+      // Staging demo area: report the Jaipur demo point instead of GPS.
+      publish(DEMO_POINT);
+      timerRef.current = setInterval(() => publish(DEMO_POINT), HEARTBEAT_MS);
+      return;
+    }
     watchRef.current = await Location.watchPositionAsync(
       { accuracy: Location.Accuracy.High, timeInterval: 10_000, distanceInterval: 30 },
       (pos) => publish({ lat: pos.coords.latitude, lng: pos.coords.longitude })
@@ -101,13 +111,16 @@ export default function StaffHome() {
 
   useEffect(() => {
     load();
-    api.getStaffAvailability().then(async (r) => {
+    (async () => {
+      // Restore the demo-area choice before resuming, so a restart never reports GPS by mistake.
+      if (DEMO_AREA_ENABLED) demoRef.current = (await SecureStore.getItemAsync(PARTNER_DEMO_KEY).catch(() => null)) === '1';
+      const r = await api.getStaffAvailability();
       // Server says online (e.g. app restarted): resume heartbeats.
       if (r.availability.online) {
-        const perm = await Location.getForegroundPermissionsAsync();
+        const perm = demoRef.current ? { granted: true } : await Location.getForegroundPermissionsAsync();
         if (perm.granted) { setOnline(true); startTracking(); }
       }
-    }).catch(() => undefined);
+    })().catch(() => undefined);
     return () => stopTracking();
   }, [load, startTracking, stopTracking]);
 
@@ -133,6 +146,30 @@ export default function StaffHome() {
     setError(null);
     try {
       if (next) {
+        if (DEMO_AREA_ENABLED) {
+          const where = await new Promise<'live' | 'demo' | null>((resolve) => Alert.alert(
+            'Where are you working today?',
+            'Testing from outside Jaipur? Use the Jaipur demo area so Jaipur bookings can reach you.',
+            [
+              { text: 'My live location', onPress: () => resolve('live') },
+              { text: 'Jaipur demo area', onPress: () => resolve('demo') },
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(null) }
+            ],
+            { cancelable: true, onDismiss: () => resolve(null) }
+          ));
+          if (!where) return;
+          demoRef.current = where === 'demo';
+          if (where === 'demo') SecureStore.setItemAsync(PARTNER_DEMO_KEY, '1').catch(() => undefined);
+          else SecureStore.deleteItemAsync(PARTNER_DEMO_KEY).catch(() => undefined);
+        }
+        if (demoRef.current) {
+          await api.setStaffAvailability(true, DEMO_POINT);
+          setOnline(true);
+          setLastPing(new Date());
+          success();
+          startTracking();
+          return;
+        }
         const perm = await Location.requestForegroundPermissionsAsync();
         if (!perm.granted) {
           Alert.alert('Location needed', 'Allow location so patients near you can book you and track your arrival.');

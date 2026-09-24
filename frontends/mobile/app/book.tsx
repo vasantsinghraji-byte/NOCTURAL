@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import type { CareService, CareSuppliesQuote, CareSupplySource } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { inr, shortName } from '@/lib/care';
+import { pickAndUploadPrescription } from '@/lib/prescription';
 import { IconTile, serviceIcon } from '@/lib/icons';
 import { PressScale, success } from '@/lib/motion';
 import { ArrowLeft, Camera, Check, CircleCheck, CircleX, FileText, MapPin, Store, Zap } from 'lucide-react-native';
@@ -89,16 +89,9 @@ export default function Book() {
   }
 
   async function attachRx() {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    const pick = perm.granted
-      ? await ImagePicker.launchCameraAsync({ quality: 0.7 })
-      : await ImagePicker.launchImageLibraryAsync({ quality: 0.7, mediaTypes: ['images'] });
-    if (pick.canceled || !pick.assets[0]) return;
-    const a = pick.assets[0];
-    try {
-      const up = await api.uploadPrescription({ uri: a.uri, name: a.fileName || 'prescription.jpg', type: a.mimeType || 'image/jpeg' }, a.fileName || 'prescription.jpg');
-      setRx({ key: up.key, url: up.url });
-    } catch (e) { setError(describeNetworkError(e)); }
+    setError(null);
+    const up = await pickAndUploadPrescription();
+    if (up) setRx({ key: up.key, url: up.url });
   }
 
   async function book() {
@@ -192,7 +185,9 @@ export default function Book() {
             <View style={styles.banner}>
               <Store size={20} color={C.brand} />
               <Text style={[ui.muted, { flex: 1, color: C.brandDark }]}>
-                Tick what the staff should bring. {quote?.vendor ? `Packed at ${quote.vendor.name}${quote.vendor.distanceKm !== undefined ? ` (${quote.vendor.distanceKm} km)` : ''}.` : 'Untick anything you already have.'}
+                {quote && !quote.vendor
+                  ? 'No partner pharmacy delivers to this address yet (Nabz is live in Jaipur). Keep these supplies ready at home; the professional brings their basic kit.'
+                  : `Tick what the staff should bring. ${quote?.vendor ? `Packed at ${quote.vendor.name}${quote.vendor.distanceKm !== undefined ? ` (${quote.vendor.distanceKm} km)` : ''}.` : 'Untick anything you already have.'}`}
               </Text>
             </View>
             {!quote ? <ActivityIndicator color={C.brand} /> : items.length === 0 ? (
