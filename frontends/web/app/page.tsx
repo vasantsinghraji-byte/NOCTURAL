@@ -16,7 +16,6 @@ import { TrustBadgeBar } from './_components/TrustBadgeBar';
 import { CareGallery } from './_components/CareGallery';
 import { PatientStories } from './_components/PatientStories';
 
-const inr = (n: number) => `₹${Math.round(n)}`;
 const short = (s: CareService) => (s.displayName || s.name).replace(/ at Home| \(.*\)|Session/g, '').trim();
 
 const SAFETY = [
@@ -124,14 +123,13 @@ export default function Landing() {
             <span className="kicker" style={{ color: 'var(--amber)' }}>Home care</span>
             <h2 className="display">What can we help with?</h2>
           </div>
-          <p className="sub">Prices include the visit, platform fee and GST. Nabz Plus members pay no platform fee.</p>
+          <p className="sub">Verified nurses and physiotherapists available across Jaipur for doorstep care.</p>
         </div>
         <div className="service-grid">
           {services.slice(0, 8).map((s, i) => (
             <Link key={s.serviceType} href={`/nursing?service=${s.serviceType}`} className="service-card">
               <div className="top">
                 <IconTile icon={serviceIcon(s.serviceType)} bg={TONES[i % TONES.length].bg} color={TONES[i % TONES.length].fg} size={46} />
-                <span className="price">{inr(s.pricingPreview?.regular.totalAmount ?? s.pricing.basePrice)}</span>
               </div>
               <h3>{short(s)}</h3>
               <span className="muted">
