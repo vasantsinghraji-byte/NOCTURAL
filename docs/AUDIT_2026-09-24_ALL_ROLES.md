@@ -12,6 +12,19 @@ Severity:
 - **High** means it will happen at modest scale.
 - **Medium** means it bites later or needs specific conditions.
 
+## Status (25 Sep 2026)
+
+Plan steps 1 and 2 are done and deployed to staging (commit `32d441c`).
+
+- **Fixed:** C1–C6, H1–H7, M1, M2, M4, P3.
+  - The minute tick is confirmed running on staging.
+  - The `background-tick` lease records each run and its result.
+- **Also fixed:** "API rate limit exceeded" for normal use.
+  - Limits are now per signed-in account.
+  - The website forwards the visitor's real IP in a signed header (`PROXY_SHARED_SECRET`), so visitors no longer share one limit.
+- **Still open (step 3, before real users):** M3, M5, M6, M7, P1, P2, P4.
+  - P2 (rotate the Atlas password) is the most urgent.
+
 ---
 
 ## Critical
