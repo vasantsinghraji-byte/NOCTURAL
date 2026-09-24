@@ -14,15 +14,15 @@ const html = `<!doctype html><html><head>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-  html,body,#m{margin:0;height:100%;background:#e9edf6}
+  html,body,#m{margin:0;height:100%;background:#efe9e1}
   /* Muted, cool-toned "custom" map look over OSM tiles (dark variant for dark mode). */
-  .leaflet-tile-pane{filter:grayscale(.55) saturate(.6) contrast(.95) brightness(1.04)}
-  body.dark,body.dark #m{background:#0b1024}
+  .leaflet-tile-pane{filter:grayscale(.5) sepia(.18) saturate(.7) contrast(.96) brightness(1.04)}
+  body.dark,body.dark #m{background:#1b1715}
   body.dark .leaflet-tile-pane{filter:invert(1) hue-rotate(200deg) grayscale(.35) brightness(.85) contrast(.9)}
-  .route{stroke:#0a0f24;stroke-width:5;stroke-linecap:round;fill:none}
+  .route{stroke:#2a2523;stroke-width:5;stroke-linecap:round;fill:none}
   body.dark .route{stroke:#f3f5fb}
-  .me{width:18px;height:18px;border-radius:50%;background:#1f45e0;border:3px solid #fff;box-shadow:0 0 0 8px rgba(31,69,224,.22)}
-  .pin{width:34px;height:34px;border-radius:12px;background:#1f45e0;display:grid;place-items:center;box-shadow:0 6px 14px rgba(31,69,224,.35);border:2px solid #fff}
+  .me{width:18px;height:18px;border-radius:50%;background:#b83a50;border:3px solid #fff;box-shadow:0 0 0 8px rgba(184,58,80,.22)}
+  .pin{width:34px;height:34px;border-radius:12px;background:#b83a50;display:grid;place-items:center;box-shadow:0 6px 14px rgba(184,58,80,.35);border:2px solid #fff}
   .pin.staff{background:#1a9960}
   .pin svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .leaflet-control-attribution{font-size:9px}
@@ -74,7 +74,7 @@ export function LiveMap({ center, pins, fit = false, dark = false, route }: {
         onLoadEnd={() => ref.current?.postMessage(payload)}
         javaScriptEnabled
         scrollEnabled={false}
-        style={{ backgroundColor: dark ? '#0b1024' : '#e9edf6' }}
+        style={{ backgroundColor: dark ? '#1b1715' : '#efe9e1' }}
       />
     </View>
   );

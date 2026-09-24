@@ -57,9 +57,9 @@ export default function Landing() {
               <Link href="/pharmacy" className="btn ghost lg">Order medicines</Link>
             </div>
             <div className="meta">
-              <span><BadgeCheck size={16} color="#d4a64a" /> Verified professionals</span>
-              <span><Wallet size={16} color="#d4a64a" /> Pay after the visit</span>
-              <span><Clock3 size={16} color="#d4a64a" /> Book now or schedule</span>
+              <span><BadgeCheck size={16} color="#f0c77e" /> Verified professionals</span>
+              <span><Wallet size={16} color="#f0c77e" /> Pay after the visit</span>
+              <span><Clock3 size={16} color="#f0c77e" /> Book now or schedule</span>
             </div>
           </div>
 
@@ -86,12 +86,12 @@ export default function Landing() {
                     <span className="pill mint">ID verified</span>
                     <span className="pill mint">Police verified</span>
                   </div>
-                  <div className="code"><span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.1em', color: '#d4a64a' }}>VISIT CODE</span><b>4 8 2 7</b></div>
+                  <div className="code"><span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.1em', color: '#f0c77e' }}>VISIT CODE</span><b>4 8 2 7</b></div>
                 </div>
               </div>
             </div>
             <div className="float-card a"><Clock3 size={16} color="#12a150" /> Arriving in 12 min</div>
-            <div className="float-card b"><PackageCheck size={16} color="#1f45e0" /> Supplies packed nearby</div>
+            <div className="float-card b"><PackageCheck size={16} color="#2f7d5b" /> Supplies packed nearby</div>
           </div>
         </div>
       </section>
@@ -152,7 +152,7 @@ export default function Landing() {
           <div className="safety-list">
             {SAFETY.map((s) => (
               <div key={s.title} className="safety-item">
-                <b><s.icon size={18} color="#d4a64a" /> {s.title}</b>
+                <b><s.icon size={18} color="#f0c77e" /> {s.title}</b>
                 <span>{s.text}</span>
               </div>
             ))}
@@ -164,7 +164,7 @@ export default function Landing() {
       <section className="band tight">
         <div className="split">
           <div className="promo plus">
-            <Crown size={26} color="#d4a64a" />
+            <Crown size={26} color="#f0c77e" />
             <h3>Nabz Plus</h3>
             <p>{plusBanner ? `${plusBanner.title}. ${plusBanner.subtitle}.` : 'No platform fee on visits and free medicine delivery.'}</p>
             <div className="actions">
@@ -172,7 +172,7 @@ export default function Landing() {
             </div>
           </div>
           <div className="promo partner">
-            <HeartHandshake size={26} color="#1f45e0" />
+            <HeartHandshake size={26} color="#2f7d5b" />
             <h3>Work with Nabz</h3>
             <p>Nurses, physios, pharmacies and path labs in Jaipur: get requests near you, clear earnings on every job, weekly payouts.</p>
             <div className="actions">

@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   upTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 15, marginTop: 2 },
   upSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 12 },
   upBtn: { backgroundColor: C.onNight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
-  upBtnText: { color: '#0a0f24', fontFamily: F.heavy, fontSize: 12 },
+  upBtnText: { color: '#2a2523', fontFamily: F.heavy, fontSize: 12 },
   segment: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 14, padding: 4, marginTop: 16 },
   segBtn: { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center' },
   segOn: { backgroundColor: C.night },

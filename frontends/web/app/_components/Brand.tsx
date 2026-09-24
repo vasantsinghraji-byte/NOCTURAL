@@ -1,5 +1,5 @@
 /** Nabz mark: location pin carrying a pulse line, coral live dot (same as the app). */
-export function NabzMark({ size = 30, pin = '#0a0f24', pulse = '#ffffff' }: { size?: number; pin?: string; pulse?: string }) {
+export function NabzMark({ size = 30, pin = '#b83a50', pulse = '#ffffff' }: { size?: number; pin?: string; pulse?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
       <path d="M32 4C19 4 9 13.6 9 26.2 9 41 25.4 53.3 32 60c6.6-6.7 23-19 23-33.8C55 13.6 45 4 32 4z" fill={pin} />
@@ -11,8 +11,8 @@ export function NabzMark({ size = 30, pin = '#0a0f24', pulse = '#ffffff' }: { si
 
 export function Wordmark({ suffix, onDark = false, size = 22 }: { suffix?: string; onDark?: boolean; size?: number }) {
   return (
-    <span className="brandmark" style={{ fontSize: size, color: onDark ? '#f6f7fb' : undefined }}>
-      <NabzMark size={size + 8} pin={onDark ? '#f6f7fb' : '#0a0f24'} pulse={onDark ? '#1f45e0' : '#ffffff'} />
+    <span className="brandmark" style={{ fontSize: size, color: onDark ? '#fff8f6' : undefined }}>
+      <NabzMark size={size + 8} pin={onDark ? '#fff8f6' : '#b83a50'} pulse={onDark ? '#b83a50' : '#ffffff'} />
       nabz
       {suffix ? <span className="suffix">{suffix}</span> : null}
     </span>

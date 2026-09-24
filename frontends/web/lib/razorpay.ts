@@ -59,7 +59,7 @@ export async function payForOrder(
       name: 'Nabz',
       description: `Order #${checkout.order.orderNumber}`,
       prefill,
-      theme: { color: '#1f45e0' },
+      theme: { color: '#2f7d5b' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: {
         // Razorpay lets the patient retry inside the modal, so failures are
@@ -94,7 +94,7 @@ export async function payForMembership(prefill: { name?: string; email?: string;
       name: 'Nabz Plus',
       description: 'Membership · free delivery, no visit platform fee',
       prefill,
-      theme: { color: '#1f45e0' },
+      theme: { color: '#2f7d5b' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: { ondismiss: () => reject(new PaymentDismissedError()) }
     });

@@ -24,11 +24,11 @@ export const SERVICE_ICONS: Record<string, LucideIcon> = {
 export const serviceIcon = (type: string): LucideIcon => SERVICE_ICONS[type] || Stethoscope;
 
 export const TONES = [
-  { bg: '#fdecec', fg: '#e5484d' },
-  { bg: '#e8eeff', fg: '#1f45e0' },
-  { bg: '#fff4d6', fg: '#c98a00' },
-  { bg: '#e5f7ee', fg: '#1a9960' },
-  { bg: '#f1ebff', fg: '#7a4ff0' }
+  { bg: '#fbe5e8', fg: '#d9485f' },
+  { bg: '#e3f1e8', fg: '#2f7d5b' },
+  { bg: '#fbf0dc', fg: '#b7791f' },
+  { bg: '#e6f0f5', fg: '#3f7fa8' },
+  { bg: '#f3e9f5', fg: '#8a5a9e' }
 ];
 
 /** Icon inside a tinted rounded tile, the premium list/grid treatment. */

@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { C, F } from './theme';
 
 /** Nabz mark: location pin carrying a pulse line, coral live dot. */
-export function NabzMark({ size = 40, pin = '#ffffff', pulse = '#1f45e0' }: { size?: number; pin?: string; pulse?: string }) {
+export function NabzMark({ size = 40, pin = '#ffffff', pulse = '#b83a50' }: { size?: number; pin?: string; pulse?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64">
       <Path d="M32 4C19 4 9 13.6 9 26.2 9 41 25.4 53.3 32 60c6.6-6.7 23-19 23-33.8C55 13.6 45 4 32 4z" fill={pin} />

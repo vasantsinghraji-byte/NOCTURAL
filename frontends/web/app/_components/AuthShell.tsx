@@ -17,9 +17,9 @@ export default function AuthShell({ title, subtitle, children, sideTitle, sideTe
           <h2>{sideTitle || 'Care that comes home.'}</h2>
           <p>{sideText || 'Verified nurses and physios at your door, supplies from the nearest pharmacy, and you pay after the visit.'}</p>
           <div className="points">
-            <div><BadgeCheck size={18} color="#d4a64a" /> ID, council and police verified professionals</div>
-            <div><ShieldCheck size={18} color="#d4a64a" /> Visit code and SOS on every visit</div>
-            <div><Wallet size={18} color="#d4a64a" /> Clear prices, pay after the visit</div>
+            <div><BadgeCheck size={18} color="#f0c77e" /> ID, council and police verified professionals</div>
+            <div><ShieldCheck size={18} color="#f0c77e" /> Visit code and SOS on every visit</div>
+            <div><Wallet size={18} color="#f0c77e" /> Clear prices, pay after the visit</div>
           </div>
         </div>
         <span style={{ color: 'var(--on-night-muted)', fontSize: 12 }}>In an emergency call 108 or 112.</span>

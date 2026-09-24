@@ -1,77 +1,78 @@
-import { Appearance, StyleSheet } from 'react-native';
+import { Appearance, StyleSheet, type ViewStyle } from 'react-native';
 
 /**
- * Nabz design tokens: midnight + ivory with a royal-blue accent, Instrument
- * Serif for display type and Manrope for everything else (both embedded, see
- * app/_layout.tsx). The palette follows the phone's light/dark setting at
- * launch; styles are created once, so a switch applies on the next app start.
+ * Nabz design tokens: ivory + deep rose + sage green, with soft claymorphism
+ * (pillowy depth: gentle lift + a faint light edge, never cartoonish).
+ * Instrument Serif for display type, Manrope for everything else (embedded,
+ * see app/_layout.tsx). Follows the phone's light/dark setting at launch.
+ * Mirrors frontends/web/app/globals.css.
  */
 const LIGHT = {
-  bg: '#f6f7fb', // ivory
-  card: '#ffffff',
-  cardAlt: '#eef1f8',
-  ink: '#0a0f24', // midnight
-  inkSoft: '#3a4260',
-  muted: '#7a8299',
-  faint: '#b4bccf',
-  border: '#e3e7f0',
-  brand: '#1f45e0',
-  brandDark: '#1533b4',
-  brandSoft: '#e8eeff',
+  bg: '#fbf8f3', // ivory
+  card: '#fffdf9', // warm white
+  cardAlt: '#f4efe7',
+  ink: '#2a2523', // warm charcoal
+  inkSoft: '#5b524c',
+  muted: '#8e857d',
+  faint: '#c9c0b6',
+  border: '#ece4da',
+  brand: '#2f7d5b', // sage-emerald green (links, active, success accents)
+  brandDark: '#25644a',
+  brandSoft: '#e3f1e8',
   onBrand: '#ffffff',
-  night: '#0a0f24', // hero / dark surfaces (dark in both schemes)
-  nightAlt: '#141b3a',
-  onNight: '#f6f7fb',
-  onNightMuted: '#a9b1cc',
-  accent: '#f0574b',
-  accentSoft: '#fdecec',
-  rose: '#e5484d',
-  roseSoft: '#fdecec',
-  roseInk: '#b42318',
-  amber: '#c98a00',
-  amberSoft: '#fff4d6',
-  mint: '#12a150',
-  mintSoft: '#e3f6ec',
-  violet: '#6e4ff0',
-  violetSoft: '#f1ebff',
-  sky: '#2f80ed',
-  skySoft: '#e6f0fd',
-  gold: '#d4a64a',
-  overlay: 'rgba(10,15,36,0.55)',
-  shadow: '#0a0f24'
+  night: '#b83a50', // deep rose: primary buttons + hero surfaces
+  nightAlt: '#9e2f43',
+  onNight: '#fff8f6',
+  onNightMuted: '#f8d7dc', // blush
+  accent: '#d9485f',
+  accentSoft: '#fbe5e8', // blush pink
+  rose: '#d9485f',
+  roseSoft: '#fbe5e8',
+  roseInk: '#a8283d',
+  amber: '#b7791f',
+  amberSoft: '#fbf0dc',
+  mint: '#2f9e6e',
+  mintSoft: '#e3f1e8',
+  violet: '#8a5a9e',
+  violetSoft: '#f3e9f5',
+  sky: '#3f7fa8',
+  skySoft: '#e6f0f5',
+  gold: '#f0c77e', // champagne: readable on rose and ivory
+  overlay: 'rgba(42,37,35,0.45)',
+  shadow: '#7a4a3a'
 };
 
 const DARK: typeof LIGHT = {
-  bg: '#070b1a',
-  card: '#10162d',
-  cardAlt: '#171e3a',
-  ink: '#f3f5fb',
-  inkSoft: '#c5cbe0',
-  muted: '#8c93ad',
-  faint: '#4a5273',
-  border: '#232b4a',
-  brand: '#5b7cff',
-  brandDark: '#8da2ff',
-  brandSoft: '#1a2350',
-  onBrand: '#ffffff',
-  night: '#0d1330',
-  nightAlt: '#18204a',
-  onNight: '#f6f7fb',
-  onNightMuted: '#a9b1cc',
-  accent: '#ff7a6e',
-  accentSoft: '#2e1418',
-  rose: '#ff6b70',
-  roseSoft: '#2e1418',
-  roseInk: '#ffb3b0',
-  amber: '#f5b82e',
-  amberSoft: '#2b2410',
-  mint: '#3dd68c',
-  mintSoft: '#0f2a1f',
-  violet: '#9c84ff',
-  violetSoft: '#1f1840',
-  sky: '#6aa8ff',
-  skySoft: '#0f2140',
-  gold: '#e7c07a',
+  bg: '#1b1715',
+  card: '#262019',
+  cardAlt: '#2f2822',
+  ink: '#f6efe8',
+  inkSoft: '#d8cec5',
+  muted: '#a3978c',
+  faint: '#5c524a',
+  border: '#3a3129',
+  brand: '#5cc99a',
+  brandDark: '#8adbb7',
+  brandSoft: '#1d3328',
+  onBrand: '#10201a',
+  night: '#c9475d',
+  nightAlt: '#a93a4e',
+  onNight: '#fff8f6',
+  onNightMuted: '#f8d7dc',
+  accent: '#f07a8c',
+  accentSoft: '#3a1f24',
+  rose: '#f07a8c',
+  roseSoft: '#3a1f24',
+  roseInk: '#ffc2cb',
+  amber: '#e2a64a',
+  amberSoft: '#3a2c14',
+  mint: '#5cc99a',
+  mintSoft: '#1d3328',
+  violet: '#c49ad6',
+  violetSoft: '#2e2233',
+  sky: '#7fb4d6',
+  skySoft: '#1c2a33',
+  gold: '#e2b56a',
   overlay: 'rgba(0,0,0,0.6)',
   shadow: '#000000'
 };
@@ -91,19 +92,33 @@ export const F = {
 };
 
 /** Soft tinted backgrounds for list cards. */
-export const PASTELS = [C.accentSoft, C.brandSoft, C.amberSoft, C.mintSoft];
+export const PASTELS = [C.accentSoft, C.brandSoft, C.amberSoft, C.violetSoft];
 
+/** Classic drop shadow (used where clay isn't wanted, e.g. floating map pills). */
 export const shadow = {
   shadowColor: C.shadow,
-  shadowOpacity: IS_DARK ? 0.4 : 0.08,
+  shadowOpacity: IS_DARK ? 0.4 : 0.12,
   shadowRadius: 18,
   shadowOffset: { width: 0, height: 8 },
   elevation: IS_DARK ? 0 : 4
 };
 
+/**
+ * Claymorphism (New Architecture boxShadow): soft lift underneath, a faint
+ * light edge on top and a gentle inner shade at the bottom. Subtle by design.
+ */
+export const clay: ViewStyle = IS_DARK
+  ? { boxShadow: '0 10px 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)' }
+  : { boxShadow: '0 12px 26px -8px rgba(122,74,58,0.22), inset 0 2px 1px rgba(255,255,255,0.9), inset 0 -3px 8px rgba(122,74,58,0.06)' };
+
+/** Clay for filled buttons: puffy, with a light top edge and darker base. */
+export const clayButton: ViewStyle = {
+  boxShadow: '0 10px 18px -8px rgba(184,58,80,0.55), inset 0 2px 0 rgba(255,255,255,0.28), inset 0 -3px 0 rgba(0,0,0,0.14)'
+};
+
 export const ui = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  card: { backgroundColor: C.card, borderRadius: 22, padding: 16, borderWidth: IS_DARK ? 1 : 0, borderColor: C.border, ...shadow },
+  card: { backgroundColor: C.card, borderRadius: 24, padding: 16, borderWidth: IS_DARK ? 1 : 0, borderColor: C.border, ...clay },
   display: { fontFamily: F.display, fontSize: 38, color: C.ink, letterSpacing: -0.5, lineHeight: 42 },
   h1: { fontFamily: F.display, fontSize: 30, color: C.onNight, letterSpacing: -0.3, lineHeight: 34 },
   h2: { fontFamily: F.heavy, fontSize: 19, color: C.ink, letterSpacing: -0.3 },
@@ -113,16 +128,17 @@ export const ui = StyleSheet.create({
   label: { fontFamily: F.bold, color: C.muted, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' },
   section: { fontFamily: F.heavy, fontSize: 17, color: C.ink, marginTop: 20, marginBottom: 10 },
   input: {
-    backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border, borderRadius: 14,
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.ink, fontFamily: F.medium
+    backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border, borderRadius: 16,
+    paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.ink, fontFamily: F.medium,
+    boxShadow: IS_DARK ? undefined : 'inset 0 2px 4px rgba(122,74,58,0.06)'
   },
-  btn: { backgroundColor: C.brand, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
+  btn: { backgroundColor: C.brand, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 18px -8px rgba(47,125,91,0.5), inset 0 2px 0 rgba(255,255,255,0.25), inset 0 -3px 0 rgba(0,0,0,0.12)' },
   btnText: { color: C.onBrand, fontFamily: F.heavy, fontSize: 15 },
-  btnDark: { backgroundColor: C.night, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', borderWidth: IS_DARK ? 1 : 0, borderColor: C.border },
-  btnOutline: { borderWidth: 1.5, borderColor: C.brand, borderRadius: 16, paddingVertical: 13, alignItems: 'center' },
+  btnDark: { backgroundColor: C.night, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', ...clayButton },
+  btnOutline: { borderWidth: 1.5, borderColor: C.brand, borderRadius: 18, paddingVertical: 13, alignItems: 'center' },
   btnOutlineText: { color: C.brand, fontFamily: F.bold },
   pill: { alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, backgroundColor: C.brandSoft },
   pillText: { fontSize: 11, fontFamily: F.heavy, color: C.brand },
-  error: { backgroundColor: C.roseSoft, color: C.roseInk, padding: 12, borderRadius: 12, overflow: 'hidden', fontFamily: F.semi },
-  good: { backgroundColor: C.brandSoft, padding: 12, borderRadius: 12 }
+  error: { backgroundColor: C.roseSoft, color: C.roseInk, padding: 12, borderRadius: 14, overflow: 'hidden', fontFamily: F.semi },
+  good: { backgroundColor: C.brandSoft, padding: 12, borderRadius: 14 }
 });

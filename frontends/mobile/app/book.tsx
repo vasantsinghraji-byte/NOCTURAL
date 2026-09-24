@@ -374,10 +374,10 @@ const styles = StyleSheet.create({
   billLine: { height: 1, backgroundColor: C.border, marginVertical: 2 },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   result: { flex: 1, backgroundColor: C.night, alignItems: 'center', paddingHorizontal: 28, gap: 14 },
-  art: { width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(91,124,255,0.14)', alignItems: 'center', justifyContent: 'center', marginVertical: 30 },
-  artInner: { width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(91,124,255,0.20)', alignItems: 'center', justifyContent: 'center' },
+  art: { width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,214,222,0.14)', alignItems: 'center', justifyContent: 'center', marginVertical: 30 },
+  artInner: { width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,214,222,0.20)', alignItems: 'center', justifyContent: 'center' },
   resultTitle: { color: C.onNight, fontSize: 40, fontFamily: F.display },
   resultText: { color: C.onNightMuted, textAlign: 'center', fontSize: 15, lineHeight: 22, fontFamily: F.medium },
   resultBtn: { marginTop: 'auto', alignSelf: 'stretch', backgroundColor: C.onNight, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  resultBtnText: { color: '#0a0f24', fontFamily: F.heavy, fontSize: 15 }
+  resultBtnText: { color: '#2a2523', fontFamily: F.heavy, fontSize: 15 }
 });

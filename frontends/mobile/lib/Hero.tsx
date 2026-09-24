@@ -8,8 +8,8 @@ export function Hero({ eyebrow, title, subtitle, children, tone = C.night }: {
 }) {
   return (
     <View style={[styles.hero, { backgroundColor: tone }]}>
-      <View style={[styles.orb, { top: -70, right: -50, backgroundColor: 'rgba(91,124,255,0.28)' }]} />
-      <View style={[styles.orb, { bottom: -90, left: -60, width: 200, height: 200, backgroundColor: 'rgba(212,166,74,0.16)' }]} />
+      <View style={[styles.orb, { top: -70, right: -50, backgroundColor: 'rgba(255,214,222,0.28)' }]} />
+      <View style={[styles.orb, { bottom: -90, left: -60, width: 200, height: 200, backgroundColor: 'rgba(255,232,196,0.16)' }]} />
       {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
       <Text style={styles.title}>{title}</Text>
       {subtitle ? <Text style={styles.sub}>{subtitle}</Text> : null}

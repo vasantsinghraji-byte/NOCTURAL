@@ -5,7 +5,7 @@ import { IconTile } from '../_components/icons';
 export default function LabPartnerHome() {
   return (
     <section className="card" style={{ marginTop: 20, padding: 28 }}>
-      <div style={{ marginBottom: 12 }}><IconTile icon={FlaskConical} bg="#fff4d6" color="#c98a00" size={56} /></div>
+      <div style={{ marginBottom: 12 }}><IconTile icon={FlaskConical} bg="#fbf0dc" color="#b7791f" size={56} /></div>
       <h2 style={{ marginTop: 0 }}>Path lab partner dashboard</h2>
       <p className="muted">
         You&apos;re signed in to the lab partner portal. Sample pickups, report uploads and lab orders arrive

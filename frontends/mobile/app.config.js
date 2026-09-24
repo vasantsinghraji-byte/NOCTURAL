@@ -21,8 +21,8 @@ const path = require('path');
 const allowCleartext = process.env.MEDRUSH_ALLOW_CLEARTEXT === 'true';
 const IS_PARTNER = process.env.APP_VARIANT === 'partner';
 const variant = IS_PARTNER
-  ? { name: 'Nabz Partner', slug: 'nabz-partner', scheme: 'nabzpartner', id: 'app.medrush.partner', icon: './assets/partner-icon.png', adaptive: './assets/partner-adaptive-icon.png', color: '#0a0f24' }
-  : { name: 'Nabz', slug: 'medrush', scheme: 'medrush', id: 'app.medrush.mobile', icon: './assets/icon.png', adaptive: './assets/adaptive-icon.png', color: '#1f45e0' };
+  ? { name: 'Nabz Partner', slug: 'nabz-partner', scheme: 'nabzpartner', id: 'app.medrush.partner', icon: './assets/partner-icon.png', adaptive: './assets/partner-adaptive-icon.png', color: '#2f7d5b' }
+  : { name: 'Nabz', slug: 'medrush', scheme: 'medrush', id: 'app.medrush.mobile', icon: './assets/icon.png', adaptive: './assets/adaptive-icon.png', color: '#b83a50' };
 const locationWhy = IS_PARTNER
   ? 'Nabz Partner shares your location with patients while you are online or on the way to a visit.'
   : 'Nabz uses your location to find nearby pharmacies and track deliveries.';
@@ -38,7 +38,7 @@ module.exports = {
     version: '0.1.0',
     orientation: 'portrait',
     icon: variant.icon,
-    splash: { image: './assets/splash.png', resizeMode: 'contain', backgroundColor: variant.color },
+    splash: { image: './assets/splash.png', resizeMode: 'contain', backgroundColor: '#fbf8f3' },
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
     plugins: [
@@ -57,7 +57,7 @@ module.exports = {
       ],
       [
         'expo-notifications',
-        { color: '#0e9f6e', defaultChannel: 'orders' }
+        { color: '#b83a50', defaultChannel: 'orders' }
       ],
       [
         'expo-build-properties',

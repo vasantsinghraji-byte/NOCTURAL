@@ -144,7 +144,7 @@ export default function Track() {
             </Rise>
           ) : (
             <>
-              <Radar size={280} color="#5b7cff"><NabzMark size={72} /></Radar>
+              <Radar size={280} color="#f8d7dc"><NabzMark size={72} /></Radar>
               <Text style={styles.findTitle}>{t('find.title')}</Text>
               <Text style={styles.findSub}>{t('find.sub')}</Text>
               {tracking?.dispatch?.attempts ? <Text style={styles.findMeta}>{t('find.attempt', { n: tracking.dispatch.attempts })}</Text> : null}
@@ -325,12 +325,12 @@ export default function Track() {
 const styles = StyleSheet.create({
   findScreen: { flex: 1, backgroundColor: C.night },
   backDark: { position: 'absolute', left: 16, zIndex: 3, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  pinHalo: { width: 140, height: 140, borderRadius: 70, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(91,124,255,0.14)' },
+  pinHalo: { width: 140, height: 140, borderRadius: 70, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,214,222,0.14)' },
   findTitle: { color: C.onNight, fontFamily: F.display, fontSize: 36, textAlign: 'center', marginTop: 10 },
   findSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 8 },
   findMeta: { color: C.gold, fontFamily: F.bold, fontSize: 12, marginTop: 10, letterSpacing: 0.5 },
   lightBtn: { backgroundColor: C.onNight, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  lightBtnText: { color: '#0a0f24', fontFamily: F.heavy, fontSize: 15 },
+  lightBtnText: { color: '#2a2523', fontFamily: F.heavy, fontSize: 15 },
   cancelText: { color: C.onNightMuted, fontFamily: F.bold },
   back: { position: 'absolute', left: 16, zIndex: 3, width: 44, height: 44, borderRadius: 22, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...shadow },
   sos: { position: 'absolute', right: 16, zIndex: 3, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#e5484d', paddingHorizontal: 14, height: 44, borderRadius: 22, ...shadow },

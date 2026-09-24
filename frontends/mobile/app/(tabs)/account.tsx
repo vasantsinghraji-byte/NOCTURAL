@@ -107,14 +107,14 @@ const styles = StyleSheet.create({
   email: { color: C.onNightMuted, marginTop: 2, fontFamily: F.medium },
   initial: { color: C.onNight, fontSize: 30, fontFamily: F.display },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: C.border },
-  plus: { backgroundColor: C.night, borderRadius: 24, padding: 18, gap: 8, borderWidth: 1, borderColor: 'rgba(212,166,74,0.45)', ...shadow },
+  plus: { backgroundColor: C.night, borderRadius: 24, padding: 18, gap: 8, borderWidth: 1, borderColor: 'rgba(255,232,196,0.45)', ...shadow },
   plusTitle: { color: C.onNight, fontSize: 24, fontFamily: F.display },
   plusText: { color: C.onNightMuted, fontSize: 13, lineHeight: 19, fontFamily: F.medium },
   plusSub: { color: C.gold, fontFamily: F.bold },
   plusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.mintSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   plusBadgeText: { color: C.mint, fontSize: 10, fontFamily: F.heavy },
   plusBtn: { backgroundColor: C.gold, borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
-  plusBtnText: { color: '#0a0f24', fontFamily: F.heavy },
+  plusBtnText: { color: '#2a2523', fontFamily: F.heavy },
   rowIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center' },
   lang: { fontFamily: F.bold, color: C.brand }
 });

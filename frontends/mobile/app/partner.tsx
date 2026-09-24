@@ -76,7 +76,7 @@ export default function PartnerWelcome() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.night, overflow: 'hidden' },
-  orb: { position: 'absolute', width: 380, height: 380, borderRadius: 999, backgroundColor: 'rgba(212,166,74,0.14)' },
+  orb: { position: 'absolute', width: 380, height: 380, borderRadius: 999, backgroundColor: 'rgba(255,232,196,0.14)' },
   title: { color: C.onNight, fontFamily: F.display, fontSize: 46, lineHeight: 50, marginTop: 34 },
   sub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 15, lineHeight: 22, marginTop: 10 },
   stats: { flexDirection: 'row', gap: 10, marginTop: 22 },
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   roleTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 14 },
   roleLine: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 12 },
   primary: { backgroundColor: C.gold, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  primaryText: { color: '#0a0f24', fontFamily: F.heavy, fontSize: 15 },
+  primaryText: { color: '#2a2523', fontFamily: F.heavy, fontSize: 15 },
   secondary: { borderRadius: 16, paddingVertical: 15, alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.22)' },
   secondaryText: { color: C.onNight, fontFamily: F.bold, fontSize: 15 },
   note: { color: C.onNightMuted, opacity: 0.75, fontFamily: F.medium, fontSize: 11, textAlign: 'center', marginTop: 4 }

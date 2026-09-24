@@ -10,11 +10,11 @@ import { IconTile } from './icons';
 import AdminMfa from './AdminMfa';
 
 const PORTALS: Record<LoginPortal, { icon: LucideIcon; fg: string; title: string; tagline: string; tone: string; next: string }> = {
-  staff: { icon: Stethoscope, fg: '#7a4ff0', title: 'Medical staff login', tagline: 'Nurses, physiotherapists & home-care staff', tone: 'var(--violet-soft)', next: '/staff' },
-  pharmacy: { icon: Store, fg: '#1a9960', title: 'Pharmacy partner login', tagline: 'Orders, stock and payouts for your store', tone: 'var(--brand-soft)', next: '/vendor' },
-  lab: { icon: FlaskConical, fg: '#c98a00', title: 'Path lab partner login', tagline: 'Sample pickups, reports and lab orders', tone: 'var(--sky-soft)', next: '/lab' },
-  rider: { icon: Bike, fg: '#c98a00', title: 'Delivery partner login', tagline: 'Pickups and drops near you', tone: 'var(--amber-soft)', next: '/' },
-  admin: { icon: Wrench, fg: '#e5484d', title: 'Admin login', tagline: 'Partners, zones and catalog', tone: 'var(--rose-soft)', next: '/admin' }
+  staff: { icon: Stethoscope, fg: '#8a5a9e', title: 'Medical staff login', tagline: 'Nurses, physiotherapists & home-care staff', tone: 'var(--violet-soft)', next: '/staff' },
+  pharmacy: { icon: Store, fg: '#2f7d5b', title: 'Pharmacy partner login', tagline: 'Orders, stock and payouts for your store', tone: 'var(--brand-soft)', next: '/vendor' },
+  lab: { icon: FlaskConical, fg: '#b7791f', title: 'Path lab partner login', tagline: 'Sample pickups, reports and lab orders', tone: 'var(--sky-soft)', next: '/lab' },
+  rider: { icon: Bike, fg: '#b7791f', title: 'Delivery partner login', tagline: 'Pickups and drops near you', tone: 'var(--amber-soft)', next: '/' },
+  admin: { icon: Wrench, fg: '#d9485f', title: 'Admin login', tagline: 'Partners, zones and catalog', tone: 'var(--rose-soft)', next: '/admin' }
 };
 
 const SWITCH: Array<{ href: string; label: string; icon: LucideIcon }> = [

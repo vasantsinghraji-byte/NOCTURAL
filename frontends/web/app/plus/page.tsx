@@ -47,14 +47,14 @@ export default function PlusPage() {
 
   return (
     <>
-      <section className="hero" style={{ background: 'linear-gradient(135deg,#16213e,#1f45e0)' }}>
+      <section className="hero" style={{ background: 'linear-gradient(135deg,#c9475d,#9e2f43)' }}>
         <span className="eyebrow"><Crown size={14} color="#f5b82e" /> Nabz Plus</span>
         <h1 style={{ fontSize: 'clamp(28px,4vw,44px)' }}>Care costs less with Plus.</h1>
         <p>Free medicine delivery and no platform fee on home visits, for ₹{plan.price} a month.</p>
         {!patient ? (
           <Link href="/login?next=/plus" className="btn light">Sign in to join</Link>
         ) : status?.active ? (
-          <span className="pill" style={{ background: '#e5f7ee', color: '#1a9960', fontSize: 13 }}>
+          <span className="pill" style={{ background: '#e6f0f5', color: '#2f7d5b', fontSize: 13 }}>
             <BadgeCheck size={14} /> Active till {status.validUntil ? new Date(status.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
           </span>
         ) : (
