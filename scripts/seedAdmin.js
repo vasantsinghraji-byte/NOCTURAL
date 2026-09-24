@@ -4,7 +4,8 @@ require('dotenv').config();
  * Seed / upsert a platform admin account (LOCAL DEV).
  *
  * Credentials come only from env (never hardcoded, so they can't leak via git):
- *   ADMIN_EMAIL, ADMIN_PASSWORD (min 10 chars), ADMIN_NAME
+ *   ADMIN_EMAIL, ADMIN_PASSWORD (min 12 chars, upper + lower + digit + symbol), ADMIN_NAME
+ * The admin then sets up two-step verification (authenticator app) at first sign-in.
  * Put them in your local .env (git-ignored). Refuses to run with
  * NODE_ENV=production unless ALLOW_ADMIN_SEED=true.
  *
@@ -17,8 +18,9 @@ const User = require('../models/user');
 const EMAIL = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
 const PASSWORD = process.env.ADMIN_PASSWORD || '';
 const NAME = process.env.ADMIN_NAME || 'Platform Admin';
-if (!EMAIL || PASSWORD.length < 10) {
-  console.error('❌ Set ADMIN_EMAIL and ADMIN_PASSWORD (min 10 chars) in your local .env');
+const STRONG = PASSWORD.length >= 12 && /[a-z]/.test(PASSWORD) && /[A-Z]/.test(PASSWORD) && /\d/.test(PASSWORD) && /[^A-Za-z0-9]/.test(PASSWORD);
+if (!EMAIL || !STRONG) {
+  console.error('❌ Set ADMIN_EMAIL and a strong ADMIN_PASSWORD (12+ chars with upper, lower, digit and symbol) in your local .env');
   process.exit(1);
 }
 if (process.env.NODE_ENV === 'production' && process.env.ALLOW_ADMIN_SEED !== 'true') {
@@ -60,7 +62,7 @@ async function seed() {
 
     console.log('\n👤 Admin login (local dev):');
     console.log(`   Email:    ${EMAIL}`);
-    console.log(`   Password: ${PASSWORD}`);
+    console.log('   Password: (from ADMIN_PASSWORD in your .env; never printed)');
     console.log(`   Role:     ${ROLE}`);
     console.log('\n⚠️  Change this password before deploying anywhere public.');
     process.exit(0);

@@ -149,7 +149,7 @@ async function seed() {
         });
         vendor.owner = owner._id;
         await vendor.save();
-        if (!existing) console.log(`   👤 Vendor login: ${v.owner.email} / ${v.owner.password}`);
+        if (!existing) console.log(`   👤 Vendor login: ${v.owner.email} (password: SEED_DEMO_PASSWORD)`);
       }
 
       // Each vendor stocks a rotating subset of the catalog with varied prices/stock.
@@ -182,14 +182,14 @@ async function seed() {
     for (const partner of DEMO_PARTNERS) {
       if (!(await User.findOne({ email: partner.email }))) {
         await User.create({ ...partner, isVerified: true });
-        console.log(`   👤 ${partner.role} login: ${partner.email} / ${partner.password}`);
+        console.log(`   👤 ${partner.role} login: ${partner.email} (password: SEED_DEMO_PASSWORD)`);
       }
     }
 
     const existingPatient = await Patient.findOne({ email: DEMO_PATIENT.email });
     if (!existingPatient) {
       await Patient.create(DEMO_PATIENT);
-      console.log(`   👤 Patient login: ${DEMO_PATIENT.email} / ${DEMO_PATIENT.password}`);
+      console.log(`   👤 Patient login: ${DEMO_PATIENT.email} (password: SEED_DEMO_PASSWORD)`);
     }
 
     console.log('\n📊 Marketplace seed complete.');

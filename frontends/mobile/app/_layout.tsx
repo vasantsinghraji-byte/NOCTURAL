@@ -42,6 +42,7 @@ export default function RootLayout() {
             <Stack.Screen name="book" options={{ headerShown: false }} />
             <Stack.Screen name="track" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ title: 'Sign in' }} />
+            <Stack.Screen name="forgot" options={{ headerShown: false }} />
             <Stack.Screen name="permissions" options={{ title: 'Permissions' }} />
             {/* Partner app (Nabz Partner build) */}
             <Stack.Screen name="partner" options={{ headerShown: false, animation: 'fade' }} />

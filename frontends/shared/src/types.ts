@@ -359,6 +359,9 @@ export interface CareBooking {
   createdAt?: string;
 }
 
+/** Password step of an admin login: finish with /auth/admin-mfa/*. */
+export interface AdminMfaChallenge { success: true; mfaRequired: true; mfaToken: string; enrolled: boolean }
+
 /** Separate login per partner type (server enforces the role). */
 export type LoginPortal = 'staff' | 'pharmacy' | 'lab' | 'rider' | 'admin';
 

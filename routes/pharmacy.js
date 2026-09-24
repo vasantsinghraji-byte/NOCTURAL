@@ -8,7 +8,7 @@ const express = require('express');
 const router = express.Router();
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validation');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, requireRecentAuth } = require('../middleware/auth');
 const { protectPatient } = require('../middleware/patientAuth');
 const idempotency = require('../middleware/idempotency');
 const { uploadPrescription } = require('../middleware/upload');
@@ -124,8 +124,8 @@ router.patch('/vendor/profile', protect, authorize('pharmacy_vendor'), ctrl.upda
 // ══ Admin (role: admin / platform_admin) ══════════════════════════════════
 
 router.get('/admin/vendors', protect, authorize('admin', 'platform_admin'), ctrl.adminListVendors);
-router.post('/admin/vendors', protect, authorize('admin', 'platform_admin'), ctrl.adminCreateVendor);
-router.patch('/admin/vendors/:id/status', protect, authorize('admin', 'platform_admin'), mongoIdParam('id'), vendorStatusValidation, validate, ctrl.adminSetVendorStatus);
+router.post('/admin/vendors', protect, authorize('admin', 'platform_admin'), requireRecentAuth, ctrl.adminCreateVendor);
+router.patch('/admin/vendors/:id/status', protect, authorize('admin', 'platform_admin'), requireRecentAuth, mongoIdParam('id'), vendorStatusValidation, validate, ctrl.adminSetVendorStatus);
 router.get('/admin/orders/:id/prescription', protect, authorize('admin', 'platform_admin'), mongoIdParam('id'), validate, ctrl.getPrescription);
 router.get('/admin/zones', protect, authorize('admin', 'platform_admin'), ctrl.adminListZones);
 router.post('/admin/zones', protect, authorize('admin', 'platform_admin'), createZoneValidation, validate, ctrl.adminCreateZone);

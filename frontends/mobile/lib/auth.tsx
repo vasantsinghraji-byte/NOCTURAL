@@ -131,6 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     } else {
       const res = await api.staffLogin(email.trim(), password, kind);
+      if (res.mfaRequired) {
+        // Admin accounts use two-step verification on the Nabz website only.
+        throw new Error('Admin accounts sign in on the Nabz website with two-step verification.');
+      }
       const tokens = requireTokens(res.tokens);
       next = {
         kind, token: tokens.accessToken, refreshToken: tokens.refreshToken,

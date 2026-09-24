@@ -223,7 +223,33 @@ consult chat/audio first (video later).
 - Tests: `tests/integration/nabz-matching-trust.test.js` (phone OTP, Google disabled, dispatch offer/decline/accept,
   visit code gate, SOS, family link, partner apply/review, dashboard, home feed).
 
+### DONE — Admin two-step login (2026-09-23)
+- `admin` / `platform_admin`: password → 5-min challenge (no session) → authenticator code (TOTP, `utils/totp.js`,
+  RFC 6238 tested) or one-time recovery code → session with `mfa: true` + `authTime` claims (`utils/authTokens.js`).
+- `services/adminMfaService.js`, routes `routes/adminMfa.js` at `/auth/admin-mfa` (rate-limited). First sign-in enrolls
+  (QR drawn in the browser, secret AES-GCM encrypted at rest, 10 HMAC-hashed recovery codes).
+- Replay-protected codes; 5 wrong codes → 15-min lock; admin sessions end after `ADMIN_SESSION_MAX_HOURS` (8);
+  `requireRecentAuth` step-up (`ADMIN_STEP_UP_MINUTES`, 15) on partner approval, staff verification, vendor create/status.
+- Enforced in `middleware/auth.js#protect`, `patientAuth.js#protectBoth` and `/auth/refresh`. Off only under
+  `NODE_ENV=test` unless `ADMIN_MFA_REQUIRED=true` (the integration test opts in).
+- Fixed: `protectBoth` ignored `sessionVersion`/`passwordChangedAt` (revoked sessions kept working on /webauthn).
+- Web: `_components/AdminMfa.tsx` (setup / code / recovery) + `StepUpDialog` in the admin console. Mobile tells
+  admins to use the website. Tests: `tests/unit/security/totp.test.js`, `tests/integration/nabz-admin-mfa.test.js`.
+
+### DONE — AWS staging live (2026-09-24), no domain needed
+- AWS account `554433963412`, CLI profile `nabz` (user `nabz-deployer`), region ap-south-1.
+- Website `https://79fkmxu8w3.ap-south-1.awsapprunner.com`, API `https://tiuh3tvxsa.ap-south-1.awsapprunner.com`
+  (App Runner). Stack + runbook: `terraform/apprunner-staging/` (README). Images built by CodeBuild from a zip in S3.
+- Atlas `nabz-staging` (M0, Mumbai), db `nabz` via `MONGODB_DB_NAME` (the stored string has no db path).
+  ⚠️ Atlas allows `0.0.0.0/0` (App Runner has no fixed IP) and the DB password was pasted in chat: rotate
+  before real users.
+- Fixes found while deploying: health check exempt from HTTPS redirect (app.js); Next.js `HOSTNAME=0.0.0.0`
+  (App Runner overrides HOSTNAME); add-indexes creates model indexes one by one (email index name conflict
+  used to skip users.currentLocation 2dsphere).
+- Staging admin password lives only in Secrets Manager `nabz/staging/ADMIN_PASSWORD`.
+
 ### NOT done yet
+- Admin passkey (WebAuthn) as a login factor; new-admin-sign-in email alert (needs SMTP).
 - Health vault, referrals, tips (need backend + payments), 3D icon pack, paid map tiles, web redesign to the new palette.
 - **Razorpay webhook** (`payment.captured`/`refund.processed`). The sweeper's reconcile covers
   closed tabs within the TTL. A webhook would also cover a patient who cancels an unpaid order while

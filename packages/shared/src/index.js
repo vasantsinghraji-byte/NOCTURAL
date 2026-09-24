@@ -72,3 +72,4 @@ lazyExport('membershipService', () => require('../../../services/membershipServi
 lazyExport('settlementService', () => require('../../../services/settlementService'));
 lazyExport('staffAvailabilityService', () => require('../../../services/staffAvailabilityService'));
 lazyExport('dispatchService', () => require('../../../services/dispatchService'));
+lazyExport('adminMfaService', () => require('../../../services/adminMfaService'));

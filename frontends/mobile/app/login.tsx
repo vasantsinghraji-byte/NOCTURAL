@@ -96,6 +96,12 @@ export default function Login() {
           <TextInput style={ui.input} placeholder="Password" placeholderTextColor={C.faint} secureTextEntry autoComplete="password"
             value={password} onChangeText={setPassword} />
 
+          {!isRegister && (
+            <Pressable onPress={() => router.push('/forgot')} hitSlop={8} style={{ alignSelf: 'flex-end' }}>
+              <Text style={styles.link}>Forgot password?</Text>
+            </Pressable>
+          )}
+
           {error && <Text style={ui.error}>{error}</Text>}
 
           <PressScale style={[ui.btnDark, busy && { opacity: 0.6 }]} onPress={submit} disabled={busy}>

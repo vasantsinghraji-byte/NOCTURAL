@@ -231,6 +231,22 @@ const UserSchema = new mongoose.Schema({
     min: 0,
     select: false
   },
+  // Admin two-step login (authenticator app). Secrets are AES-GCM encrypted and
+  // never selected by default; recovery codes are stored only as HMAC hashes.
+  adminMfa: {
+    totpSecret: { type: String, select: false },
+    pendingSecret: { type: String, select: false },
+    pendingCreatedAt: { type: Date, select: false },
+    enabledAt: Date,
+    lastUsedStep: { type: Number, select: false },
+    recoveryCodes: {
+      type: [{ hash: { type: String, required: true }, usedAt: Date, _id: false }],
+      select: false,
+      default: undefined
+    },
+    failedAttempts: { type: Number, default: 0, select: false },
+    lockUntil: { type: Date, select: false }
+  },
   webAuthnCredentials: {
     type: [{
       credentialId: { type: String, required: true },

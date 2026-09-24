@@ -9,13 +9,15 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validation');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, requireRecentAuth } = require('../middleware/auth');
 const partnerApplicationService = require('../services/partnerApplicationService');
 const staffDashboardService = require('../services/staffDashboardService');
 const PartnerApplication = require('../models/partnerApplication');
 
 const router = express.Router();
 const admin = [protect, authorize('platform_admin')];
+// Approving partners / setting trust badges needs a fresh authenticator code.
+const adminSensitive = [...admin, requireRecentAuth];
 const wrap = (fn) => async (req, res, next) => {
   try {
     await fn(req, res);
@@ -57,7 +59,7 @@ router.get(
 
 router.patch(
   '/admin/applications/:id',
-  admin,
+  adminSensitive,
   [param('id').isMongoId(), body('status').isIn(['APPROVED', 'REJECTED']), body('note').optional().isString().isLength({ max: 300 })],
   validate,
   wrap(async (req, res) => res.json({ success: true, application: await partnerApplicationService.review(req.params.id, req.user._id, req.body) }))
@@ -65,7 +67,7 @@ router.patch(
 
 router.patch(
   '/admin/staff/:id/verification',
-  admin,
+  adminSensitive,
   [param('id').isMongoId(), body(['id', 'police', 'council', 'vaccinated']).optional().isBoolean()],
   validate,
   wrap(async (req, res) => res.json({ success: true, ...(await staffDashboardService.setVerification(req.params.id, req.user._id, req.body)) }))

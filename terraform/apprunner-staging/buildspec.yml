@@ -1,0 +1,23 @@
+version: 0.2
+# TARGET=api → ./Dockerfile             → $API_REPO:{latest,<timestamp>}
+# TARGET=web → frontends/web/Dockerfile → $WEB_REPO:{latest,<timestamp>} (needs API_ORIGIN)
+phases:
+  build:
+    commands:
+      - |
+        set -euo pipefail
+        aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+        TAG="$(date -u +%Y%m%d%H%M%S)"
+        if [ "$TARGET" = "web" ]; then
+          case "$API_ORIGIN" in https://*) ;; *) echo "API_ORIGIN must be https://<api host> for web builds" >&2; exit 1 ;; esac
+          REPO="$WEB_REPO"
+          docker build -f frontends/web/Dockerfile --build-arg NODE_IMAGE="$NODE_IMAGE" --build-arg API_ORIGIN="$API_ORIGIN" \
+            -t "$ECR_REGISTRY/$REPO:$TAG" -t "$ECR_REGISTRY/$REPO:latest" .
+        else
+          REPO="$API_REPO"
+          docker build -f Dockerfile --build-arg NODE_IMAGE="$NODE_IMAGE" \
+            -t "$ECR_REGISTRY/$REPO:$TAG" -t "$ECR_REGISTRY/$REPO:latest" .
+        fi
+        docker push "$ECR_REGISTRY/$REPO:$TAG"
+        docker push "$ECR_REGISTRY/$REPO:latest"
+        echo "Pushed $REPO:$TAG"

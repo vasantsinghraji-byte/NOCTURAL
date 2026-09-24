@@ -299,9 +299,21 @@ async function addIndexes() {
         // sweeper, unique vendor×medicine). Not wrapped in try/catch on
         // purpose: a missing geo index breaks discovery, so fail the deploy.
         console.log('\nMedRush marketplace collections:');
-        for (const modelPath of ['../models/pharmacyVendor', '../models/serviceZone', '../models/medicine', '../models/vendorInventory', '../models/inventoryMovement', '../models/pharmacyOrder', '../models/user']) {
+        // One index at a time: Model.createIndexes() stops at the first conflict,
+        // and users.email is already indexed above as email_unique_idx, which used
+        // to skip every later User index (incl. the currentLocation 2dsphere).
+        for (const modelPath of ['../models/pharmacyVendor', '../models/serviceZone', '../models/medicine', '../models/vendorInventory', '../models/inventoryMovement', '../models/pharmacyOrder', '../models/user', '../models/nurseBooking', '../models/otpChallenge', '../models/partnerApplication', '../models/settlementEntry', '../models/membership']) {
             const Model = require(modelPath);
-            await Model.createIndexes();
+            await Model.init().catch(() => undefined); // ensure the collection exists
+            for (const [keys, options] of Model.schema.indexes()) {
+                try {
+                    await Model.collection.createIndex(keys, { background: true, ...options });
+                } catch (err) {
+                    // Same keys already indexed under another name: equivalent, keep going.
+                    if (err && (err.code === 85 || err.codeName === 'IndexOptionsConflict')) continue;
+                    throw err;
+                }
+            }
             console.log(`   ✓ ${Model.collection.collectionName} indexes ensured`);
         }
 

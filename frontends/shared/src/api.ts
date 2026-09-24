@@ -36,7 +36,8 @@ import type {
   HomeFeed,
   SignInMethods,
   SocialSignInResult,
-  PartnerApplicationInput
+  PartnerApplicationInput,
+  AdminMfaChallenge
 } from './types';
 
 export interface ApiClientOptions {
@@ -61,7 +62,9 @@ export interface ApiClientOptions {
 // Requests that must never trigger a refresh-and-retry.
 const NO_REFRESH_PATHS = new Set([
   '/auth/login', '/auth/refresh', '/auth/logout', '/patients/login', '/patients/register',
-  '/auth/social/google', '/auth/social/phone/start', '/auth/social/phone/verify', '/auth/social/complete'
+  '/auth/social/google', '/auth/social/phone/start', '/auth/social/phone/verify', '/auth/social/complete',
+  '/auth/admin-mfa/enroll/start', '/auth/admin-mfa/enroll/verify', '/auth/admin-mfa/verify',
+  '/auth/password/forgot', '/auth/password/check', '/auth/password/reset'
 ]);
 
 export interface SessionTokens { accessToken: string; refreshToken: string }
@@ -194,9 +197,52 @@ export class MedRushApi {
    * (a pharmacy login can't open the medical-staff app).
    */
   staffLogin(email: string, password: string, portal?: LoginPortal) {
-    return this.request<{ success: true; user: AuthUser; tokens?: { accessToken: string; refreshToken: string } }>(
+    // Admin accounts get an MFA challenge instead of a session (see adminMfa* below).
+    return this.request<{ success: true; user: AuthUser; tokens?: { accessToken: string; refreshToken: string }; mfaRequired?: undefined } | AdminMfaChallenge>(
       'POST', '/auth/login', { body: { email, password, ...(portal ? { portal } : {}) } }
     );
+  }
+
+  // ── Forgot / reset password (customers and partners) ────────────────────
+  /** Always resolves with the same message (the server never reveals whether the email exists). */
+  forgotPassword(email: string) {
+    return this.request<{ success: true; message: string }>('POST', '/auth/password/forgot', { body: { email } });
+  }
+
+  checkPasswordReset(token: string) {
+    return this.request<{ success: true; valid: boolean; expiresAt: string | null }>('POST', '/auth/password/check', { body: { token } });
+  }
+
+  resetPassword(token: string, password: string, confirmPassword: string) {
+    return this.request<{ success: true; message: string; accountType: 'patient' | 'user'; role: string }>(
+      'POST', '/auth/password/reset', { body: { token, password, confirmPassword } }
+    );
+  }
+
+  // ── Admin two-step login (authenticator app) ────────────────────────────
+  adminMfaEnrollStart(mfaToken: string) {
+    return this.request<{ success: true; secret: string; otpauthUri: string }>('POST', '/auth/admin-mfa/enroll/start', { body: { mfaToken } });
+  }
+
+  adminMfaEnrollVerify(mfaToken: string, code: string) {
+    return this.request<{ success: true; user: AuthUser; recoveryCodes: string[]; tokens?: SessionTokens }>('POST', '/auth/admin-mfa/enroll/verify', { body: { mfaToken, code } });
+  }
+
+  adminMfaVerify(mfaToken: string, factor: { code?: string; recoveryCode?: string }) {
+    return this.request<{ success: true; user: AuthUser; recoveryCodesLeft?: number; tokens?: SessionTokens }>('POST', '/auth/admin-mfa/verify', { body: { mfaToken, ...factor } });
+  }
+
+  /** Fresh code before a sensitive admin action (server replied details.stepUpRequired). */
+  adminMfaStepUp(code: string) {
+    return this.request<{ success: true; user: AuthUser; tokens?: SessionTokens }>('POST', '/auth/admin-mfa/step-up', { body: { code } });
+  }
+
+  adminMfaStatus() {
+    return this.request<{ success: true; enrolled: boolean; enabledAt: string | null; recoveryCodesLeft: number }>('GET', '/auth/admin-mfa/status');
+  }
+
+  adminMfaNewRecoveryCodes(code: string) {
+    return this.request<{ success: true; recoveryCodes: string[] }>('POST', '/auth/admin-mfa/recovery-codes', { body: { code } });
   }
 
   /** Medical staff: visits assigned to me. */

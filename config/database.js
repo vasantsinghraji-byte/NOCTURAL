@@ -270,6 +270,9 @@ const connectDB = async (options = {}) => {
       // to offload reads on a true replica set when eventual consistency is acceptable.
       readPreference: process.env.MONGODB_READ_PREFERENCE || 'primaryPreferred'
     };
+    // Atlas "Drivers" strings often have no database path (…mongodb.net/?appName=…),
+    // which silently means the "test" database. MONGODB_DB_NAME picks it explicitly.
+    if (process.env.MONGODB_DB_NAME) options.dbName = process.env.MONGODB_DB_NAME;
 
     await mongoose.connect(process.env.MONGODB_URI, options);
     await ensureIdempotencyIndexes();

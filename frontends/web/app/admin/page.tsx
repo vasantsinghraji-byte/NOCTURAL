@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import RevenuePanel from './RevenuePanel';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import type { AuthUser, Medicine, PharmacyVendor } from '@medrush/shared';
+import { ApiError, type AuthUser, type Medicine, type PharmacyVendor } from '@medrush/shared';
+import { StepUpDialog } from '../_components/AdminMfa';
 
 const VENDOR_ACTIONS: Record<string, string[]> = {
   PENDING: ['APPROVED', 'REJECTED'],
@@ -20,6 +21,8 @@ export default function AdminConsole() {
   const [vendors, setVendors] = useState<PharmacyVendor[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Sensitive actions need a fresh authenticator code: park the action, ask, retry.
+  const [pending, setPending] = useState<(() => Promise<void>) | null>(null);
 
   const isAdmin = user && (user.role === 'admin' || user.role === 'platform_admin');
 
@@ -44,9 +47,18 @@ export default function AdminConsole() {
       .finally(() => setChecking(false));
   }, [load]);
 
-  async function setVendorStatus(id: string, status: string) {
-    try { await api.adminSetVendorStatus(id, status); await load(); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Update failed'); }
+  async function sensitive(action: () => Promise<void>) {
+    try {
+      await action();
+    } catch (e) {
+      const details = e instanceof ApiError ? (e.details as { stepUpRequired?: boolean } | undefined) : undefined;
+      if (details?.stepUpRequired) { setPending(() => action); return; }
+      setError(e instanceof Error ? e.message : 'Update failed');
+    }
+  }
+
+  function setVendorStatus(id: string, status: string) {
+    return sensitive(async () => { await api.adminSetVendorStatus(id, status); await load(); });
   }
 
   if (checking) return <p className="muted" style={{ marginTop: 20 }}>Checking session…</p>;
@@ -72,6 +84,11 @@ export default function AdminConsole() {
       </div>
       {user?.role === 'platform_admin' && <RevenuePanel />}
       {error && <div className="notice">{error}</div>}
+      <StepUpDialog
+        open={!!pending}
+        onClose={() => setPending(null)}
+        onConfirmed={() => { const action = pending; setPending(null); if (action) sensitive(action); }}
+      />
 
       {tab === 'vendors' && (
         <div className="grid cards" style={{ marginTop: 12 }}>

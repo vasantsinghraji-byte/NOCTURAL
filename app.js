@@ -110,9 +110,11 @@ const applyApiCors = (req, res, next) => {
 app.use(/^\/api(?:\/|$).*/i, applyApiCors);
 app.options(/^\/api(?:\/|$).*/i, applyApiCors);
 
-// 2. Enforce HTTPS in production (redirect HTTP to HTTPS)
+// 2. Enforce HTTPS in production (redirect HTTP to HTTPS). Platform health
+// probes (App Runner, ALB, Docker HEALTHCHECK) call the container over plain
+// HTTP with no X-Forwarded-Proto, so a redirect there would mark it unhealthy.
 if (!isTest) {
-  app.use(enforceHTTPS);
+  app.use((req, res, next) => (isHealthCheckPath(req) ? next() : enforceHTTPS(req, res, next)));
 }
 
 // 3. Enhanced Security Headers (CSP, HSTS, X-Frame-Options, etc.)
@@ -154,6 +156,9 @@ if (shouldApplyRateLimits) {
   app.use('/api/v1/auth/register', authRateLimiter);
   // Google / phone OTP sign-in (brute-force and SMS-cost protection)
   app.use('/api/v1/auth/social', authRateLimiter);
+  app.use('/api/v1/auth/admin-mfa', authRateLimiter);
+  app.use('/api/v1/auth/password/reset', authRateLimiter);
+  app.use('/api/v1/auth/password/check', authRateLimiter);
   app.use('/api/v1/hospital-waitlist', hospitalWaitlistRateLimiter);
   app.use('/api/v1/auth/forgot-password', passwordResetRateLimiter);
   app.use('/api/v1/auth/reset-password', passwordResetRateLimiter);
@@ -249,6 +254,20 @@ if (!isTest) {
     });
 
     next();
+  });
+}
+
+// Optional: send browsers that open the API host to the Nabz website instead of
+// the legacy Nocturnal pages (e.g. WEB_REDIRECT_URL=http://localhost:3000 in dev).
+// Unset by default, so the legacy frontend and its contract tests are unchanged.
+const WEB_REDIRECT_URL = (process.env.WEB_REDIRECT_URL || '').replace(/\/+$/, '');
+if (/^https?:\/\/[^\s/]+$/i.test(WEB_REDIRECT_URL)) {
+  const NABZ_PATHS = new Set(['/', '/login', '/signup', '/register', '/forgot-password', '/reset-password', '/pharmacy', '/book', '/plus', '/orders']);
+  app.use((req, res, next) => {
+    if ((req.method !== 'GET' && req.method !== 'HEAD') || req.path.startsWith('/api') || !req.accepts('html')) return next();
+    // Same page on the website when it exists there, otherwise its home page.
+    const target = NABZ_PATHS.has(req.path) ? req.path : '/';
+    return res.redirect(302, `${WEB_REDIRECT_URL}${target}`);
   });
 }
 

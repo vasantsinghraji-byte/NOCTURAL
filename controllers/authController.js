@@ -18,6 +18,7 @@ const {
 } = require('../utils/authCookies');
 const { addMobileTokens, isMobileRequest } = require('../utils/mobileAuth');
 const { PORTAL_LABELS, isRoleAllowedInPortal, portalForRole } = require('../constants/portals');
+const adminMfa = require('../services/adminMfaService');
 const securityAuditService = require('../services/securityAuditService');
 const { getRequestSecurityMetadata } = require('../utils/requestSecurityMetadata');
 
@@ -94,6 +95,14 @@ exports.login = async (req, res, next) => {
         : `This account can't sign in to the ${PORTAL_LABELS[portal]} portal.`);
     }
 
+    // Admin roles: password alone never creates a session. Hand back a short-lived
+    // challenge; the session is issued by /auth/admin-mfa after the second step.
+    if (adminMfa.isRequired() && adminMfa.isAdminRole(role)) {
+      const challenge = await adminMfa.createChallenge(getResultUserId(result));
+      logger.logSecurity('admin_password_ok_mfa_pending', { userId: String(getResultUserId(result)), enrolled: challenge.enrolled });
+      return responseHelper.sendSuccess(res, challenge, 'Enter the code from your authenticator app');
+    }
+
     await refreshSessionService.create({
       token: result.refreshToken,
       userId: getResultUserId(result),
@@ -126,8 +135,10 @@ exports.refresh = async (req, res, next) => {
     const identityType = decoded.identityType === IDENTITY_TYPES.PATIENT
       ? IDENTITY_TYPES.PATIENT
       : IDENTITY_TYPES.USER;
-    const token = generateAccessToken(decoded.id, identityType, decoded.sessionVersion);
-    const replacementRefreshToken = generateRefreshToken(decoded.id, identityType, decoded.sessionVersion);
+    // Carry how the session was established (admin MFA + sign-in time) unchanged.
+    const auth = { mfa: decoded.mfa === true, authTime: decoded.authTime };
+    const token = generateAccessToken(decoded.id, identityType, decoded.sessionVersion, auth);
+    const replacementRefreshToken = generateRefreshToken(decoded.id, identityType, decoded.sessionVersion, auth);
     const currentSession = await refreshSessionService.rotate({
       currentToken: refreshToken,
       replacementToken: replacementRefreshToken,
@@ -150,6 +161,12 @@ exports.refresh = async (req, res, next) => {
       payload = { patient };
     } else {
       const user = await authService.getUserProfile(decoded.id);
+      // Admin sessions can't be refreshed past the max age or without the second step.
+      if (user && adminMfa.sessionProblem(user.role, decoded)) {
+        await refreshSessionService.revoke(replacementRefreshToken);
+        clearAuthCookies(res);
+        return responseHelper.sendUnauthorized(res, 'Admin session expired - please sign in again');
+      }
       payload = { user };
     }
 

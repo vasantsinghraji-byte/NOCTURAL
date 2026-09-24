@@ -3,152 +3,198 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { CareService } from '@medrush/shared';
+import {
+  ArrowRight, BadgeCheck, Clock3, Crown, Fingerprint, HeartHandshake, MapPin, PackageCheck,
+  Share2, ShieldAlert, ShieldCheck, Star, Stethoscope, Wallet
+} from 'lucide-react';
+import type { CareService, HomeFeed } from '@medrush/shared';
 import { api } from '@/lib/api';
-import { loadDeliveryCoords, saveDeliveryCoords, type Coords } from '@/lib/location';
-import { FlaskConical, ShieldCheck, Siren, Pill, Stethoscope, Store, Wrench, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
 import { IconTile, serviceIcon, TONES } from './_components/icons';
 
-const DEMO: Coords = { lat: 26.9110, lng: 75.8010 }; // launch city: Jaipur
+const inr = (n: number) => `₹${Math.round(n)}`;
 const short = (s: CareService) => (s.displayName || s.name).replace(/ at Home| \(.*\)|Session/g, '').trim();
 
-const MORE = [
-  { href: '/pharmacy', icon: Pill, title: 'Pharmacy', desc: 'Medicines from stores near you in ~30 min', tone: 'tone-green', tag: 'Live' },
-  { href: '/lab-tests', icon: FlaskConical, title: 'Lab Tests', desc: 'Home sample collection', tone: 'tone-sky', tag: 'Soon' },
-  { href: '/emergency', icon: Siren, title: 'Emergency SOS', desc: 'One tap for urgent home care', tone: 'tone-rose', tag: 'Soon' }
+const SAFETY = [
+  { icon: Fingerprint, title: 'Checked before they go live', text: 'ID, council registration and police verification for every professional.' },
+  { icon: ShieldCheck, title: 'Visit code at the door', text: 'Your 4-digit code must be entered before a visit can start.' },
+  { icon: Share2, title: 'Family can follow along', text: 'Share a live tracking link. It shows only a first name and the route.' },
+  { icon: ShieldAlert, title: 'SOS in one tap', text: 'Alerts the Nabz safety team with your location. 108 and 112 are one tap away.' }
 ];
 
-const PORTALS = [
-  { href: '/staff/login', icon: Stethoscope, title: 'Medical staff', desc: 'Your visits and supplies pickup.' },
-  { href: '/vendor/login', icon: Store, title: 'Pharmacy partner', desc: 'Orders, stock and payouts.' },
-  { href: '/lab/login', icon: FlaskConical, title: 'Path lab partner', desc: 'Sample pickups and reports.' },
-  { href: '/admin/login', icon: Wrench, title: 'Admin', desc: 'Partners, zones and catalog.' }
-];
-
-/** Home = book a medical staff (Uber/Rapido style): booking panel + live map. */
-export default function HomePage() {
+/** Public landing page. Signed-in customers go straight to the web app (/book). */
+export default function Landing() {
+  const { patient, loading } = useAuth();
   const router = useRouter();
   const [services, setServices] = useState<CareService[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [point, setPoint] = useState<Coords>(DEMO);
-  const [located, setLocated] = useState(false);
+  const [feed, setFeed] = useState<HomeFeed | null>(null);
 
   useEffect(() => {
-    api.listCareServices()
-      .then((r) => {
-        const list = r.services.filter((s) => s.category !== 'PACKAGE');
-        setServices(list);
-        setSelected(list[0]?.serviceType ?? null);
-      })
-      .catch(() => undefined);
-    const saved = loadDeliveryCoords();
-    if (saved) { setPoint(saved); setLocated(true); return; }
-    navigator.geolocation?.getCurrentPosition(
-      (pos) => { const c = { lat: pos.coords.latitude, lng: pos.coords.longitude }; saveDeliveryCoords(c); setPoint(c); setLocated(true); },
-      () => undefined,
-      { timeout: 8000 }
-    );
+    if (!loading && patient) router.replace('/book');
+  }, [loading, patient, router]);
+
+  useEffect(() => {
+    api.listCareServices().then((r) => setServices(r.services.filter((s) => s.category !== 'PACKAGE'))).catch(() => undefined);
+    api.getHomeFeed().then(setFeed).catch(() => undefined);
   }, []);
 
-  const service = services.find((s) => s.serviceType === selected) || null;
-  const d = 0.012;
-  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${point.lng - d * 1.6},${point.lat - d},${point.lng + d * 1.6},${point.lat + d}&layer=mapnik&marker=${point.lat},${point.lng}`;
+  const plusBanner = feed?.banners.find((b) => b.kind === 'PLUS');
 
   return (
     <>
-      <section className="book-hero">
-        <div className="book-panel">
-          <span className="pill"><ShieldCheck size={13} /> Verified nurses & physios</span>
-          <h1>Book a medical staff to your home</h1>
-          <div className="where">
-            <span className="dot" />
-            <div style={{ flex: 1 }}>
-              <div className="muted">Care at</div>
-              <b>{located ? 'Your current location' : 'C-Scheme, Jaipur (demo)'}</b>
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <section className="landing-hero bleed">
+        <div className="inner">
+          <div>
+            <span className="kicker"><span className="live" /> Now live in Jaipur</span>
+            <h1>Care that <em>comes home.</em></h1>
+            <p className="lede">
+              Book a verified nurse or physiotherapist to your door in minutes. We bring the supplies from the nearest
+              pharmacy, you pay after the visit.
+            </p>
+            <div className="actions">
+              <Link href="/signup" className="btn light lg">Book a visit <ArrowRight size={18} /></Link>
+              <Link href="/pharmacy" className="btn ghost lg">Order medicines</Link>
+            </div>
+            <div className="meta">
+              <span><BadgeCheck size={16} color="#d4a64a" /> Verified professionals</span>
+              <span><Wallet size={16} color="#d4a64a" /> Pay after the visit</span>
+              <span><Clock3 size={16} color="#d4a64a" /> Book now or schedule</span>
             </div>
           </div>
 
-          <div className="muted" style={{ fontWeight: 700 }}>What do you need?</div>
-          <div className="cat-row">
-            {services.slice(0, 8).map((s, i) => (
-              <button key={s.serviceType} type="button" className={`cat-chip ${selected === s.serviceType ? 'on' : ''}`} onClick={() => setSelected(s.serviceType)}>
-                <IconTile icon={serviceIcon(s.serviceType)} bg={TONES[i % TONES.length].bg} color={TONES[i % TONES.length].fg} size={58} round />
-                {short(s)}
-              </button>
-            ))}
-            {services.length === 0 && <span className="muted">Loading services…</span>}
-          </div>
-
-          {service && (
-            <div className="where" style={{ background: '#fff', border: '1px solid var(--border)' }}>
-              <IconTile icon={serviceIcon(service.serviceType)} size={46} />
-              <div style={{ flex: 1 }}>
-                <b>{service.displayName || service.name}</b>
-                <div className="muted">
-                  {service.serviceDetails?.duration ? `${service.serviceDetails.duration} min · ` : ''}
-                  {service.supplies?.length ? 'Staff can bring the supplies' : 'Staff brings own kit'}
+          <div className="preview" aria-hidden="true">
+            <div className="phone">
+              <div className="screen">
+                <div className="map">
+                  <div className="route" />
+                  <div className="pin-me" />
+                  <div className="pin-staff"><Stethoscope size={18} /></div>
+                </div>
+                <div className="sheet">
+                  <span className="label">On the way</span>
+                  <span className="title">Asha is coming</span>
+                  <div className="staff">
+                    <span className="av">A</span>
+                    <div style={{ flex: 1 }}>
+                      <b style={{ fontSize: 14 }}>Asha Verma</b>
+                      <div className="muted">B.Sc Nursing · 6 yrs</div>
+                    </div>
+                    <span className="pill mint"><Star size={11} /> 4.9</span>
+                  </div>
+                  <div className="badges">
+                    <span className="pill mint">ID verified</span>
+                    <span className="pill mint">Police verified</span>
+                  </div>
+                  <div className="code"><span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.1em', color: '#d4a64a' }}>VISIT CODE</span><b>4 8 2 7</b></div>
                 </div>
               </div>
-              <b style={{ color: 'var(--brand)' }}>₹{service.pricing.basePrice}</b>
             </div>
-          )}
-
-          <button className="btn book-cta" disabled={!service} onClick={() => service && router.push(`/nursing?service=${service.serviceType}`)}>
-            {service ? `Book ${short(service)}` : 'Book'}
-          </button>
-          <div className="muted" style={{ textAlign: 'center' }}>Pay at the visit · prices shown upfront</div>
+            <div className="float-card a"><Clock3 size={16} color="#12a150" /> Arriving in 12 min</div>
+            <div className="float-card b"><PackageCheck size={16} color="#1f45e0" /> Supplies packed nearby</div>
+          </div>
         </div>
+      </section>
 
-        <div className="book-map">
-          <iframe title="Map" src={mapSrc} loading="lazy" />
-          <div className="float">
-            <IconTile icon={Store} size={44} />
+      {/* ── Services ─────────────────────────────────────────────────────── */}
+      <section className="band" id="services">
+        <div className="head">
+          <div>
+            <span className="kicker" style={{ color: 'var(--amber)' }}>Home care</span>
+            <h2 className="display">What can we help with?</h2>
+          </div>
+          <p className="sub">Prices include the visit, platform fee and GST. Nabz Plus members pay no platform fee.</p>
+        </div>
+        <div className="service-grid">
+          {services.slice(0, 8).map((s, i) => (
+            <Link key={s.serviceType} href={`/nursing?service=${s.serviceType}`} className="service-card">
+              <div className="top">
+                <IconTile icon={serviceIcon(s.serviceType)} bg={TONES[i % TONES.length].bg} color={TONES[i % TONES.length].fg} size={46} />
+                <span className="price">{inr(s.pricingPreview?.regular.totalAmount ?? s.pricing.basePrice)}</span>
+              </div>
+              <h3>{short(s)}</h3>
+              <span className="muted">
+                {s.serviceDetails?.duration ? `${s.serviceDetails.duration} min · ` : ''}
+                {s.supplies?.length ? 'Supplies can be brought' : 'Professional brings the kit'}
+              </span>
+              <span className="go">Book <ArrowRight size={14} /></span>
+            </Link>
+          ))}
+          {services.length === 0 && [0, 1, 2, 3].map((i) => <div key={i} className="service-card" style={{ minHeight: 150, opacity: .5 }} />)}
+        </div>
+      </section>
+
+      {/* ── How it works ─────────────────────────────────────────────────── */}
+      <section className="band alt bleed" id="how">
+        <div className="container">
+          <div className="head">
             <div>
-              <b>Supplies from the nearest pharmacy</b>
-              <div className="muted">The staff collects them on the way. No second trip.</div>
+              <span className="kicker" style={{ color: 'var(--amber)' }}>How it works</span>
+              <h2 className="display">Three taps to a visit.</h2>
+            </div>
+          </div>
+          <div className="how-grid">
+            <div className="how"><div className="num">01</div><h3>Pick a service and time</h3><p>Book now to reach the nearest online professional, or schedule for later.</p></div>
+            <div className="how"><div className="num">02</div><h3>Tick what they should bring</h3><p>Syringes, dressings, IV sets: the nearest pharmacy packs them. Untick what you already have.</p></div>
+            <div className="how"><div className="num">03</div><h3>Track, verify, pay after</h3><p>Follow them live, share the visit code at the door, and pay once the visit is done.</p></div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Safety ───────────────────────────────────────────────────────── */}
+      <section className="band" id="safety">
+        <div className="safety">
+          <div>
+            <span className="kicker">Safety first</span>
+            <h2>Someone you can let into your home.</h2>
+            <p>Every professional is checked before they can go online, and every visit is protected from the moment it’s booked.</p>
+          </div>
+          <div className="safety-list">
+            {SAFETY.map((s) => (
+              <div key={s.title} className="safety-item">
+                <b><s.icon size={18} color="#d4a64a" /> {s.title}</b>
+                <span>{s.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Plus + partners ──────────────────────────────────────────────── */}
+      <section className="band tight">
+        <div className="split">
+          <div className="promo plus">
+            <Crown size={26} color="#d4a64a" />
+            <h3>Nabz Plus</h3>
+            <p>{plusBanner ? `${plusBanner.title}. ${plusBanner.subtitle}.` : 'No platform fee on visits and free medicine delivery.'}</p>
+            <div className="actions">
+              <Link href="/plus" className="btn accent">See Plus</Link>
+            </div>
+          </div>
+          <div className="promo partner">
+            <HeartHandshake size={26} color="#1f45e0" />
+            <h3>Work with Nabz</h3>
+            <p>Nurses, physios, pharmacies and path labs in Jaipur: get requests near you, clear earnings on every job, weekly payouts.</p>
+            <div className="actions">
+              <Link href="/partners" className="btn">Join as a partner</Link>
+              <Link href="/staff/login" className="btn secondary">Partner sign in</Link>
             </div>
           </div>
         </div>
       </section>
 
-      <div className="section-title">More from Nabz</div>
-      <div className="grid cats">
-        {MORE.map((s) => (
-          <Link key={s.href} href={s.href} className={`card cat ${s.tone}`}>
-            <IconTile icon={s.icon} size={52} />
-            <span className="go"><ArrowRight size={18} /></span>
-            <h3>{s.title} <span className={`pill ${s.tag === 'Live' ? '' : 'dark'}`}>{s.tag}</span></h3>
-            <span className="muted">{s.desc}</span>
-          </Link>
-        ))}
-      </div>
-
-      <div className="section-title">How a visit works</div>
-      <div className="grid cards steps">
-        <div className="card step"><h3>Pick a service</h3><span className="muted">Injection, IV drip, dressing, catheter care, physio.</span></div>
-        <div className="card step"><h3>Tick what they should bring</h3><span className="muted">Untick anything you already have. Prices are shown upfront.</span></div>
-        <div className="card step"><h3>Staff arrives prepared</h3><span className="muted">The nearest pharmacy packs the kit and the staff collects it.</span></div>
-      </div>
-
-      <div className="section-title">Partner with Nabz</div>
-      <p className="section-sub">Each partner has its own secure login.</p>
-      <div className="grid cards">
-        {PORTALS.map((p) => (
-          <Link key={p.href} href={p.href} className="card cat">
-            <IconTile icon={p.icon} size={52} />
-            <span className="go"><ArrowRight size={18} /></span>
-            <h3>{p.title}</h3>
-            <span className="muted">{p.desc}</span>
-          </Link>
-        ))}
-      </div>
-
-      <footer className="footer">
-        <div className="row">
-          <span>Nabz · care at your doorstep</span>
-          <span>Map © OpenStreetMap contributors</span>
+      {/* ── Final CTA ────────────────────────────────────────────────────── */}
+      <section className="band tight">
+        <div className="cta-band">
+          <h2>Ready when you are.</h2>
+          <p>Create your account in under a minute, then book your first visit.</p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/signup" className="btn light lg">Create account</Link>
+            <Link href="/login" className="btn ghost lg">I already have one</Link>
+          </div>
+          <p style={{ marginTop: 18, marginBottom: 0, fontSize: 13, display: 'inline-flex', gap: 6, alignItems: 'center' }}><MapPin size={14} /> Serving Jaipur. More cities soon.</p>
         </div>
-      </footer>
+      </section>
     </>
   );
 }
