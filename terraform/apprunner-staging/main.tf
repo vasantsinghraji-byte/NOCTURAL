@@ -331,6 +331,8 @@ resource "aws_apprunner_service" "api" {
           REDIS_ENABLED     = "false"
           RAZORPAY_ENABLED  = "false"
           LOG_LEVEL         = "info"
+          # STAGING ONLY: test stores deliver India-wide so testers anywhere can order supplies.
+          SERVICEABILITY_TEST_RADIUS_KM = tostring(var.test_store_radius_km)
         }
         runtime_environment_secrets = merge(
           { for k in local.generated : k => aws_secretsmanager_secret.generated[k].arn },

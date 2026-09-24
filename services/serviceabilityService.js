@@ -21,6 +21,17 @@ const { ValidationError } = require('../utils/errors');
 const DEFAULT_SEARCH_RADIUS_KM = 7;
 const MAX_SEARCH_RADIUS_KM = 50;
 
+/**
+ * STAGING/TEST ONLY: SERVICEABILITY_TEST_RADIUS_KM makes every approved store
+ * deliver within that distance (e.g. 3500 = all of India) so testers anywhere
+ * can exercise supplies and pharmacy orders against a few test stores.
+ * ⚠️ Never set this in production: it ignores real store radii and zone caps.
+ */
+const testRadiusKm = () => {
+  const n = Number(process.env.SERVICEABILITY_TEST_RADIUS_KM);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
 // ETA heuristics until a learned model exists (see docs/MEDRUSH_DATA_MODEL.md).
 const RIDER_SPEED_KMPH = 18; // Indian city two-wheeler average incl. stops
 const ASSIGNMENT_MINUTES = 3;
@@ -54,6 +65,7 @@ async function resolveZone(point) {
  * Pure function — unit-tested.
  */
 function effectiveRadiusKm(vendor, zone, now = new Date()) {
+  if (testRadiusKm()) return testRadiusKm();
   const storeRadius = toNumber(vendor && vendor.serviceRadiusKm, 5);
   if (!zone) return storeRadius;
   if (zone.isActive === false) return 0;
@@ -102,7 +114,7 @@ async function findServiceableVendors({ lat, lng, radiusKm, limit = 30 }) {
 
   // Search wide enough to reach any store whose radius could cover the point,
   // then keep only those whose *effective* radius actually does.
-  const searchKm = Math.min(
+  const searchKm = testRadiusKm() || Math.min(
     Math.max(toNumber(radiusKm, DEFAULT_SEARCH_RADIUS_KM), 0.5),
     MAX_SEARCH_RADIUS_KM
   );

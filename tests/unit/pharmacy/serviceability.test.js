@@ -67,3 +67,22 @@ describe('toPoint', () => {
     expect(() => toPoint('abc', 0)).toThrow('Valid lat/lng');
   });
 });
+
+describe('SERVICEABILITY_TEST_RADIUS_KM (staging only)', () => {
+  afterEach(() => { delete process.env.SERVICEABILITY_TEST_RADIUS_KM; });
+
+  it('is off by default: real store radius and zone caps apply', () => {
+    expect(effectiveRadiusKm({ serviceRadiusKm: 5 }, null)).toBe(5);
+  });
+
+  it('overrides every store radius when set (testers outside the launch city)', () => {
+    process.env.SERVICEABILITY_TEST_RADIUS_KM = '3500';
+    expect(effectiveRadiusKm({ serviceRadiusKm: 5 }, null)).toBe(3500);
+    expect(effectiveRadiusKm({ serviceRadiusKm: 5 }, { isActive: true, maxLastMileKm: 3 })).toBe(3500);
+  });
+
+  it('ignores invalid values', () => {
+    process.env.SERVICEABILITY_TEST_RADIUS_KM = 'abc';
+    expect(effectiveRadiusKm({ serviceRadiusKm: 5 }, null)).toBe(5);
+  });
+});

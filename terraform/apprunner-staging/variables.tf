@@ -34,3 +34,10 @@ variable "create_web" {
   type    = bool
   default = false
 }
+
+# Staging only: every approved store delivers within this radius (3500 km = all of India),
+# so testers outside Jaipur can order supplies. Set 0 to use real store radii.
+variable "test_store_radius_km" {
+  type    = number
+  default = 3500
+}
