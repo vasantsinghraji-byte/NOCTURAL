@@ -32,14 +32,16 @@
 .preview .screen { border-radius: 28px; background: var(--bg); color: var(--ink); overflow: hidden; }
 .preview .map {
   height: 170px; position: relative;
-  background:
-    linear-gradient(90deg, rgba(42, 37, 35,.05) 1px, transparent 1px) 0 0 / 28px 28px,
-    linear-gradient(rgba(42, 37, 35,.05) 1px, transparent 1px) 0 0 / 28px 28px,
-    #efe9e1;
+  overflow: hidden;
+  background: #efe9e1;
 }
-.preview .route { position: absolute; left: 20%; top: 30%; width: 55%; height: 45%; border: 3px dashed var(--ink); border-left: none; border-bottom: none; border-radius: 0 60px 0 0; opacity: .5; }
-.preview .pin-me { position: absolute; left: 18%; bottom: 20%; width: 16px; height: 16px; border-radius: 50%; background: var(--brand); border: 3px solid #fff; box-shadow: 0 0 0 8px rgba(47, 125, 91,.2); }
-.preview .pin-staff { position: absolute; right: 20%; top: 22%; width: 34px; height: 34px; border-radius: 12px; background: var(--mint); border: 2px solid #fff; display: grid; place-items: center; color: #fff; }
+.preview .map-bg {
+  object-fit: cover;
+  opacity: 0.94;
+}
+.preview .route { position: absolute; left: 20%; top: 30%; width: 55%; height: 45%; border: 3px dashed var(--brand); border-left: none; border-bottom: none; border-radius: 0 60px 0 0; opacity: .85; z-index: 2; }
+.preview .pin-me { position: absolute; left: 18%; bottom: 20%; width: 16px; height: 16px; border-radius: 50%; background: var(--brand); border: 3px solid #fff; box-shadow: 0 0 0 8px rgba(47, 125, 91,.28); z-index: 3; }
+.preview .pin-staff { position: absolute; right: 20%; top: 22%; width: 34px; height: 34px; border-radius: 12px; background: var(--mint); border: 2px solid #fff; display: grid; place-items: center; color: #fff; box-shadow: 0 4px 12px rgba(47, 125, 91,.35); z-index: 3; }
 .preview .sheet { padding: 16px; display: grid; gap: 10px; }
 .preview .label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .preview .title { font-family: var(--font-display); font-size: 26px; line-height: 1.05; }

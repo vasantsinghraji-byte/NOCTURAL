@@ -72,6 +72,14 @@ export default function Landing() {
             <div className="phone">
               <div className="screen">
                 <div className="map">
+                  <Image
+                    src="/images/map-preview.jpg"
+                    alt="Live GPS map"
+                    fill
+                    sizes="360px"
+                    className="map-bg"
+                    priority
+                  />
                   <div className="route" />
                   <div className="pin-me" />
                   <div className="pin-staff"><Stethoscope size={18} /></div>
