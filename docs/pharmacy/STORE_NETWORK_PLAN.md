@@ -109,12 +109,12 @@ refunds. Tests now race these cases and assert that stock moves exactly once.
 | 2 | Two customers buy the last unit | **Built** (existing) | Atomic conditional `$inc` reservation |
 | 3 | Same medicine added twice to a cart | **Built** | Lines merged before reserving |
 | 4 | Stock expiring soon | **Built** | Minimum shelf life on search, planning and reservation |
-| 5 | Several batches with different expiries | **Next** | `InventoryBatch` per store and product: sell earliest expiry first, record the batch on each order line (needed for recalls) |
+| 5 | Several batches with different expiries | **Built** | `InventoryBatch` per store and product: earliest expiry sold first, batch recorded on each order line, near-expiry batches quarantined by the worker, batch recalls |
 | 6 | Banned, discontinued or Schedule X product | **Built** | Blocked everywhere, including items already in a cart and listings made before the ban |
 | 7 | Cold-chain product (insulin) | **Built** | Only stores with a fridge |
-| 8 | Misuse-prone products (codeine syrups, sedatives) | **Built** per order (`maxQtyPerOrder`) · **Next** per patient per month, plus pattern flags for review |
+| 8 | Misuse-prone products (codeine syrups, sedatives) | **Built** | Per order (`maxQtyPerOrder`), per patient per 30 days across all stores (`maxQtyPerMonth`), risk flags (`MANY_STORES`, `EARLY_REFILL`, `MONTHLY_LIMIT_NEAR`) with an admin review list |
 | 9 | Brand out of stock, but the same salt is available | **Built** | Salt key; substitutes offered, never auto-swapped |
-| 10 | The same product entered twice in the master list | **Next** | Admin merge tool that moves listings and stock; barcodes indexed to catch duplicates |
+| 10 | The same product entered twice in the master list | **Built** | Admin merge moves listings, stock, batches, alerts and demand; refuses products with different compositions; open orders restock onto the surviving product |
 | 11 | Selling price above MRP | **Built** (existing check, plus MRP > 0) | · Government price caps (DPCO/NPPA) **Later** |
 | 12 | Price changed while the item sat in the cart | **Built** | Client sends `quotedSubtotal`; the server returns 409 with the new price instead of charging a different amount |
 | 13 | Price per tablet vs per strip | **Built** for comparison (`packUnits`) · selling loose strips **Later** |
@@ -141,7 +141,7 @@ refunds. Tests now race these cases and assert that stock moves exactly once.
 | 26 | Refund sent twice (retry after lost write) | **Built** | Per-entry lock + gateway lookup by entry id |
 | 27 | Orders placed before this release | **Built** | All updates work when the attempts log is missing |
 | 28 | Payment arrives after the order was cancelled | **Built** (existing) | Auto-refund |
-| 29 | Cart split across two stores at checkout | Planning **Built** · checkout **Next** | One payment → parent checkout with two child orders, each with its own store turn |
+| 29 | Cart split across two stores at checkout | **Built** (cash on delivery) · one online payment across stores **Next** | `POST /pharmacy/checkouts` creates child orders all-or-nothing |
 | 30 | Supplies for a nurse visit reassigned | **Built** | Booking follows the order |
 | 31 | Damaged or wrong item delivered | **Later** | Return flow; returned medicine is never restocked (ledger `RETURN_DAMAGED`) |
 | 32 | Refund gateway down | **Built** | Queued, retried, alerted |
@@ -149,7 +149,7 @@ refunds. Tests now race these cases and assert that stock moves exactly once.
 ### Compliance
 | # | Case | Status | How |
 |---|---|---|---|
-| 33 | Pharmacist verifies the prescription; Schedule H1 register | Store pharmacist fields and ledger **Built** · H1 register export **Next** |
+| 33 | Pharmacist verifies the prescription; Schedule H1 register | **Built** | Packing is blocked until the pharmacist records the doctor, their registration number and the prescription date (max age `PHARMACY_RX_MAX_AGE_DAYS`, default 180, which is a business rule to confirm with your pharmacist); H1 register export per store (CSV, formula-safe) and for admins |
 | 34 | Prescription reused for refills beyond the prescribed quantity | **Later** | Track dispensed quantity per prescription |
 | 35 | Prescriptions stay private | **Built** (existing) | Private storage, owner-scoped links |
 
@@ -157,12 +157,19 @@ refunds. Tests now race these cases and assert that stock moves exactly once.
 | # | Case | Status | How |
 |---|---|---|---|
 | 36 | Several API instances run the worker at once | **Built** | Compare-and-set, plus an overlap guard in each process |
-| 37 | Demand nobody nearby can meet | **Built** (data) · dashboard **Next** | `PharmacyDemandSignal` per medicine, ~5 km cell and day |
-| 38 | "Notify me when back in stock" | **Next** | Subscriptions fired from stock adjustments |
-| 39 | Stores keep stock in billing software (Marg, GoFrugal, Busy) | **Next** CSV/Excel upload with a matching review queue · **Later** direct sync |
+| 37 | Demand nobody nearby can meet | **Built** | `PharmacyDemandSignal` per medicine, ~5 km cell and day; "what customers near you couldn't find" for stores, and an admin view |
+| 38 | "Notify me when back in stock" | **Built** | Alert fires once when a store that delivers to the customer goes from 0 to in stock; alerts lapse after 14 days |
+| 39 | Stores keep stock in billing software (Marg, GoFrugal, Busy) | **Built** CSV upload: barcode or exact name applies, anything else waits in a review queue, and confirmed barcodes are learned · **Later** direct sync |
 | 40 | Availability load at scale | **Later** | Cache per geohash with background refresh (Zepto pattern) |
 
 ---
+
+### Phase 2 notes
+
+- **Batch-tracked items** keep the listing count equal to the sum of the ACTIVE batch counts. A product switches to batches only once its untracked count is zero, and after that the store updates batch counts, not the listing count. Units from a batch that was quarantined or recalled while an order held them are never put back on sale.
+- **A recall** pulls the batch at every store. Open orders holding it get a timeline warning so the store swaps units, and customers who received it can optionally be notified.
+- **Monthly caps** are checked at checkout. Two orders placed at the very same moment can both pass; the review flags and the H1 register catch that rare case (a hard guarantee needs a per-patient lock).
+- **Split checkout** is cash on delivery only. One online payment across several stores needs a shared gateway order, which is still **Next**.
 
 ## 4. Code map
 
@@ -178,7 +185,9 @@ refunds. Tests now race these cases and assert that stock moves exactly once.
 | API | `GET /pharmacy/medicines/:id/availability`, `POST /pharmacy/cart/plan`, `POST /pharmacy/vendor/orders/:id/items/unavailable`, `POST /pharmacy/vendor/inventory/confirm`; the status update accepts `reasonCode` and `unavailableMedicineIds`; order create accepts `quotedSubtotal` |
 | Store screens | `frontends/mobile/app/vendor.tsx`, `frontends/web/app/vendor/page.tsx`: accept countdown, reject reasons, per-item "Not available", "Can't fulfil", confirm counts |
 | Customer screens | App pharmacy tab and web `/pharmacy`: "Find nearby" (other stores and same-salt brands); checkout sends `quotedSubtotal` |
-| Tests | `tests/integration/pharmacy-store-network.test.js` (real MongoDB, including races), `tests/unit/pharmacy/store-network-rules.test.js` |
+| Phase 2 services | `services/pharmacyBatchService.js` (batches, earliest-expiry-first, quarantine, recall), `services/pharmacyComplianceService.js` (monthly caps, risk flags, Rx verification, H1 register), `services/pharmacyCatalogService.js` (merge, CSV import, demand), `services/pharmacyStockAlertService.js`, `services/pharmacyCheckoutService.js` |
+| Phase 2 API | Store: `/vendor/inventory/batches` (list, receive, recount), `/vendor/inventory/import` (CSV) and `/vendor/inventory/imports/:id/rows/:line`, `/vendor/orders/:id/prescription/verify`, `/vendor/register/h1?format=csv`, `/vendor/demand`. Customer: `/medicines/:id/notify-me`, `/checkouts`. Admin: `/admin/medicines/:id/merge`, `/admin/recalls`, `/admin/demand`, `/admin/orders/flagged`, `/admin/register/h1` |
+| Tests | `tests/integration/pharmacy-store-network.test.js` and `pharmacy-store-network-phase2.test.js` (real MongoDB, including races), `tests/unit/pharmacy/store-network-rules.test.js` |
 
 ## 5. Settings and rollout
 
@@ -190,7 +199,8 @@ refunds. Tests now race these cases and assert that stock moves exactly once.
 | `PHARMACY_MIN_SHELF_LIFE_DAYS` | 30 | Expiry cut-off for online sale |
 | `PHARMACY_STALE_STOCK_HOURS` | 48 | When a count becomes "likely" |
 | `PHARMACY_MAX_SPLIT_STORES` | 2 | Cart split limit |
-| `PHARMACY_ASSIGNMENT_WORKER_ENABLED` | true | Set `false` to stop the worker |
+| `PHARMACY_ASSIGNMENT_WORKER_ENABLED` | true | Set `false` to stop the worker (also runs batch quarantine and alert expiry every 10 min) |
+| `PHARMACY_RX_MAX_AGE_DAYS` | 180 | Oldest prescription date a pharmacist can accept |
 
 Rollout steps:
 

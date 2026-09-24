@@ -20,6 +20,8 @@ const SERVER_KEY = 'medrush.apiBaseUrl';
 // React Native has no cookie jar; the app uses bearer tokens (kept in SecureStore).
 let authToken: string | null = null;
 export const setAuthToken = (t: string | null) => { authToken = t; };
+/** For authenticated media (e.g. a prescription image) loaded outside `api`. */
+export const getAuthToken = () => authToken;
 
 export const api: MedRushApi = createApiClient({
   baseUrl: DEFAULT_API_BASE_URL,

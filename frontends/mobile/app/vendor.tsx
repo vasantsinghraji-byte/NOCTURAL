@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import type { PharmacyOrder, PharmacyRejectionReason } from '@medrush/shared';
-import { api, describeNetworkError } from '@/lib/api';
+import { api, describeNetworkError, getAuthToken } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { C, F } from '@/lib/theme';
 import { notifyLocal, registerForServerPush, requestNotificationPermission } from '@/lib/notifications';
@@ -44,6 +44,43 @@ function Countdown({ acceptBy }: { acceptBy?: string }) {
   const left = Math.max(0, Math.round((new Date(acceptBy).getTime() - now) / 1000));
   const text = left > 0 ? `Accept within ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : 'Moving to another store…';
   return <Text style={[styles.countdown, left <= 30 && { color: C.roseInk, backgroundColor: C.roseSoft }]}>{text}</Text>;
+}
+
+const needsRxCheck = (o: PharmacyOrder) =>
+  o.requiresPrescription && !o.prescription?.verified && ['PLACED', 'ACCEPTED'].includes(o.status);
+
+/** Pharmacist reads the prescription and records the doctor (Schedule H1 register). */
+function RxPanel({ order, busy, onVerify }: {
+  order: PharmacyOrder;
+  busy: boolean;
+  onVerify: (body: { prescriberName: string; prescriberRegistrationNumber: string; prescribedOn: string }) => void;
+}) {
+  const [name, setName] = useState('');
+  const [reg, setReg] = useState('');
+  const [date, setDate] = useState('');
+  const token = getAuthToken();
+  const valid = name.trim().length >= 3 && reg.trim().length >= 3 && /^\d{4}-\d{2}-\d{2}$/.test(date.trim());
+  return (
+    <View style={styles.rxBox}>
+      <Text style={styles.reasonTitle}>Check the prescription</Text>
+      {order.prescription?.key ? (
+        <Image
+          source={{ uri: api.prescriptionLink(order._id, 'vendor'), headers: token ? { Authorization: `Bearer ${token}` } : undefined }}
+          style={styles.rxImage}
+          resizeMode="contain"
+          accessibilityLabel="Prescription photo"
+        />
+      ) : <Text style={styles.reasonHint}>No prescription uploaded. Reject with "Prescription not valid".</Text>}
+      <Text style={styles.reasonHint}>PDF prescriptions open on the website dashboard.</Text>
+      <TextInput style={styles.input} placeholder="Doctor's name" placeholderTextColor={C.muted} value={name} onChangeText={setName} />
+      <TextInput style={styles.input} placeholder="Doctor's registration no." placeholderTextColor={C.muted} value={reg} onChangeText={setReg} autoCapitalize="characters" />
+      <TextInput style={styles.input} placeholder="Date on prescription (YYYY-MM-DD)" placeholderTextColor={C.muted} value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" maxLength={10} />
+      <Pressable disabled={!valid || busy} onPress={() => onVerify({ prescriberName: name.trim(), prescriberRegistrationNumber: reg.trim(), prescribedOn: date.trim() })}
+        style={[styles.action, { alignSelf: 'flex-start' }, (!valid || busy) && { opacity: 0.5 }]}>
+        <Text style={styles.actionText}>Prescription is valid</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 export default function VendorOrders() {
@@ -183,6 +220,9 @@ export default function VendorOrders() {
                   <Text style={styles.status}>{o.status.replace(/_/g, ' ')}</Text>
                 </View>
                 {o.status === 'PLACED' && <Countdown acceptBy={o.acceptBy} />}
+                {o.riskFlags && o.riskFlags.length > 0 && (
+                  <Text style={styles.risk}>Check before dispensing: {o.riskFlags.map((f) => f.detail || f.code).join(' · ')}</Text>
+                )}
                 {o.fulfilment === 'STAFF_PICKUP' && (
                   <Text style={styles.pickup}>
                     Nurse pickup for home visit{o.careVisit ? ` · ${String(o.careVisit.scheduledDate).slice(0, 10)} ${o.careVisit.scheduledTime}` : ''}. Pack and hand to the nurse.
@@ -192,7 +232,14 @@ export default function VendorOrders() {
                   const gone = it.status === 'UNAVAILABLE';
                   return (
                     <View key={i} style={styles.itemRow}>
-                      <Text style={[styles.item, gone && styles.itemGone]}>{it.quantity} × {it.name}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.item, gone && styles.itemGone]}>{it.quantity} × {it.name}</Text>
+                        {!gone && it.batches && it.batches.length > 0 && (
+                          <Text style={styles.batch}>
+                            Pick: {it.batches.map((b) => `${b.batchNumber} ×${b.quantity} (exp ${String(b.expiryDate).slice(0, 7)})`).join(', ')}
+                          </Text>
+                        )}
+                      </View>
                       {gone ? <Text style={styles.goneTag}>Removed</Text> : editable ? (
                         <Pressable hitSlop={8} disabled={busy} onPress={() => markMissing(o, it.medicine, it.name)}>
                           <Text style={styles.missingLink}>Not available</Text>
@@ -206,6 +253,13 @@ export default function VendorOrders() {
                   {o.requiresPrescription ? ' · Rx required' : ''}
                 </Text>
                 {o.deliveryAddress && <Text style={styles.muted}>{o.deliveryAddress.line1}, {o.deliveryAddress.pincode}</Text>}
+
+                {needsRxCheck(o) && (
+                  <RxPanel order={o} busy={busy} onVerify={(body) => run(o._id, () => api.vendorVerifyPrescription(o._id, body), 'Prescription verified.')} />
+                )}
+                {o.requiresPrescription && o.prescription?.verified && (
+                  <Text style={styles.rxOk}>Prescription verified{o.prescription.prescriber?.name ? ` · ${o.prescription.prescriber.name}` : ''}</Text>
+                )}
 
                 {declining === o._id ? (
                   <View style={styles.reasons}>
@@ -224,12 +278,16 @@ export default function VendorOrders() {
                   </View>
                 ) : (
                   <View style={styles.actions}>
-                    {(NEXT_ACTIONS[o.status] || []).map((a) => (
-                      <Pressable key={a.status} disabled={busy} onPress={() => run(o._id, () => api.vendorUpdateOrderStatus(o._id, a.status))}
-                        style={[styles.action, busy && { opacity: 0.5 }]}>
-                        <Text style={styles.actionText}>{a.label}</Text>
-                      </Pressable>
-                    ))}
+                    {(NEXT_ACTIONS[o.status] || []).map((a) => {
+                      // Packing waits for the pharmacist's prescription check.
+                      const blocked = a.status === 'PREPARING' && o.requiresPrescription && !o.prescription?.verified;
+                      return (
+                        <Pressable key={a.status} disabled={busy || blocked} onPress={() => run(o._id, () => api.vendorUpdateOrderStatus(o._id, a.status))}
+                          style={[styles.action, (busy || blocked) && { opacity: 0.5 }]}>
+                          <Text style={styles.actionText}>{blocked ? 'Verify prescription first' : a.label}</Text>
+                        </Pressable>
+                      );
+                    })}
                     {CAN_DECLINE.includes(o.status) && (
                       <Pressable disabled={busy} onPress={() => setDeclining(o._id)} style={[styles.action, styles.actionDanger, busy && { opacity: 0.5 }]}>
                         <Text style={[styles.actionText, styles.actionTextDanger]}>{o.status === 'PLACED' ? 'Reject' : "Can't fulfil"}</Text>
@@ -280,5 +338,11 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: C.roseSoft },
   chipGhost: { backgroundColor: C.cardAlt },
-  chipText: { fontFamily: F.bold, color: C.roseInk, fontSize: 13 }
+  chipText: { fontFamily: F.bold, color: C.roseInk, fontSize: 13 },
+  risk: { backgroundColor: C.amberSoft, color: C.amber, padding: 8, borderRadius: 10, fontFamily: F.bold, fontSize: 12, overflow: 'hidden' },
+  batch: { color: C.muted, fontFamily: F.medium, fontSize: 12 },
+  rxBox: { marginTop: 8, gap: 6, padding: 10, borderRadius: 12, backgroundColor: C.cardAlt },
+  rxImage: { width: '100%', height: 220, borderRadius: 10, backgroundColor: C.card },
+  rxOk: { color: C.brand, fontFamily: F.bold, fontSize: 12, marginTop: 4 },
+  input: { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, paddingHorizontal: 10, paddingVertical: 8, color: C.ink, fontFamily: F.medium }
 });

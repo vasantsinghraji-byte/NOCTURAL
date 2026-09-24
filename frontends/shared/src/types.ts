@@ -127,6 +127,43 @@ export interface OrderItem {
   /** UNAVAILABLE = the store didn't have it: removed from the bill (and refunded if prepaid). */
   status?: 'AVAILABLE' | 'UNAVAILABLE';
   unavailableReason?: string;
+  scheduleType?: string;
+  batches?: Array<{ batchNumber: string; expiryDate: string; quantity: number }>;
+}
+
+export interface InventoryBatch {
+  _id: string;
+  medicine: string | { _id: string; name: string; packSize?: string };
+  batchNumber: string;
+  expiryDate: string;
+  qty: number;
+  mrp?: number;
+  status: 'ACTIVE' | 'QUARANTINED' | 'RECALLED';
+  statusReason?: string;
+}
+
+export interface InventoryImport {
+  _id: string;
+  createdAt: string;
+  counts: { total: number; applied: number; needsReview: number; errors: number; skipped: number };
+  rows: Array<{
+    line: number;
+    raw: { name?: string; barcode?: string; mrp?: number; sellingPrice?: number; stock?: number; batchNumber?: string; expiryDate?: string };
+    status: 'APPLIED' | 'NEEDS_REVIEW' | 'ERROR' | 'SKIPPED';
+    matchedBy?: 'BARCODE' | 'NAME' | 'REVIEW';
+    candidates?: Array<{ medicine: string; name: string; packSize?: string; manufacturer?: string }>;
+    error?: string;
+  }>;
+}
+
+export interface DemandItem {
+  medicineId: string;
+  name: string;
+  packSize?: string;
+  manufacturer?: string;
+  unmet: number;
+  areas: number;
+  youList?: boolean;
 }
 
 /** Why a store turned an order down (decides whether it moves to another store). */
@@ -217,7 +254,15 @@ export interface PharmacyOrder {
   vendor: string | PharmacyVendor;
   items: OrderItem[];
   requiresPrescription: boolean;
-  prescription?: { key?: string; verified?: boolean };
+  prescription?: {
+    key?: string;
+    verified?: boolean;
+    verifiedAt?: string;
+    prescriber?: { name?: string; registrationNumber?: string; address?: string };
+    prescribedOn?: string;
+  };
+  riskFlags?: Array<{ code: string; detail?: string }>;
+  checkout?: string;
   status: PharmacyOrderStatus;
   timeline?: Array<{ status: PharmacyOrderStatus; at: string; note?: string }>;
   deliveryAddress?: Address;

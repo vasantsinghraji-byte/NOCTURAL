@@ -26,6 +26,8 @@ const VendorInventory = require('../models/vendorInventory');
 const InventoryMovement = require('../models/inventoryMovement');
 const Notification = require('../models/notification');
 const availability = require('./pharmacyAvailabilityService');
+const batchService = require('./pharmacyBatchService');
+const stockAlerts = require('./pharmacyStockAlertService');
 const pharmacyPaymentService = require('./pharmacyPaymentService');
 const pharmacyNotificationService = require('./pharmacyNotificationService');
 const pushNotificationService = require('./pushNotificationService');
@@ -86,6 +88,7 @@ async function releaseAtStore(order, vendorId, { zeroMedicineIds = [], actor = {
   const rows = await Promise.all(availableItems(order).map(async (item) => {
     try {
       if (zero.has(String(item.medicine))) {
+        await batchService.zeroBatches(vendorId, item.medicine);
         const before = await VendorInventory.findOneAndUpdate(
           { vendor: vendorId, medicine: item.medicine },
           { $set: { stockQty: 0, stockUpdatedAt: new Date() } }
@@ -93,12 +96,14 @@ async function releaseAtStore(order, vendorId, { zeroMedicineIds = [], actor = {
         if (!before || !before.stockQty) return null;
         return { vendor: vendorId, medicine: item.medicine, type: 'MARKED_UNAVAILABLE', delta: -before.stockQty, balanceAfter: 0, order: order._id, actor, reason: reason || 'Store did not have it' };
       }
-      const updated = await VendorInventory.findOneAndUpdate(
+      // Units from a batch quarantined/recalled meanwhile stay off sale.
+      const back = await batchService.returnUnits(vendorId, item.medicine, item.quantity, item.batches);
+      const updated = back > 0 ? await VendorInventory.findOneAndUpdate(
         { vendor: vendorId, medicine: item.medicine },
-        { $inc: { stockQty: item.quantity } },
+        { $inc: { stockQty: back } },
         { new: true }
-      );
-      return { vendor: vendorId, medicine: item.medicine, type: 'ORDER_RELEASED', delta: item.quantity, balanceAfter: updated ? updated.stockQty : undefined, order: order._id, actor, reason };
+      ) : null;
+      return { vendor: vendorId, medicine: item.medicine, type: 'ORDER_RELEASED', delta: back, balanceAfter: updated ? updated.stockQty : undefined, order: order._id, actor, reason };
     } catch (err) {
       logger.error('Stock release failed', { orderId: String(order._id), vendorId: String(vendorId), error: err.message });
       return null;
@@ -223,10 +228,14 @@ async function reserveNextStore(order, now) {
 }
 
 async function undoReservation(vendorId, reserved) {
-  await Promise.all((reserved || []).map((r) => VendorInventory.updateOne(
-    { _id: r.inventory._id },
-    { $inc: { stockQty: r.quantity } }
-  ).catch((err) => logger.error('Reservation rollback failed', { vendorId: String(vendorId), error: err.message }))));
+  await Promise.all((reserved || []).map(async (r) => {
+    try {
+      const back = await batchService.returnUnits(vendorId, r.inventory.medicine._id || r.inventory.medicine, r.quantity, r.batches);
+      if (back > 0) await VendorInventory.updateOne({ _id: r.inventory._id }, { $inc: { stockQty: back } });
+    } catch (err) {
+      logger.error('Reservation rollback failed', { vendorId: String(vendorId), error: err.message });
+    }
+  }));
 }
 
 /**
@@ -253,11 +262,18 @@ async function moveOrCancel(order, {
   const next = reassign ? await reserveNextStore(order, now) : null;
   if (next) {
     const byMed = new Map(next.option.covered.map((c) => [c.medicineId, c]));
+    const batchesByMed = new Map(next.reserved.map((r) => [String(r.inventory.medicine._id || r.inventory.medicine), r.batches || []]));
     const items = order.items.map((item) => {
       const plain = item.toObject ? item.toObject() : { ...item };
       const offer = (plain.status || 'AVAILABLE') === 'AVAILABLE' ? byMed.get(String(plain.medicine)) : null;
       if (!offer) return plain;
-      return { ...plain, unitPrice: offer.unitPrice, mrp: offer.mrp, lineTotal: round2(offer.unitPrice * plain.quantity) };
+      return {
+        ...plain,
+        unitPrice: offer.unitPrice,
+        mrp: offer.mrp,
+        lineTotal: round2(offer.unitPrice * plain.quantity),
+        batches: batchesByMed.get(String(plain.medicine)) || []
+      };
     });
     const itemsSubtotal = round2(items.filter((i) => (i.status || 'AVAILABLE') === 'AVAILABLE').reduce((s, i) => s + i.lineTotal, 0));
     const total = round2(itemsSubtotal + (order.amounts.deliveryFee || 0) + (order.amounts.tax || 0) - (order.amounts.discount || 0));
@@ -438,6 +454,7 @@ async function markItemsUnavailable(orderId, { vendorId, actorUserId, medicineId
 
   // The shelf doesn't have them: zero the count (the reserved units never existed).
   const rows = await Promise.all(hits.map(async (item) => {
+    await batchService.zeroBatches(vendorId, item.medicine).catch(() => {});
     const before = await VendorInventory.findOneAndUpdate(
       { vendor: vendorId, medicine: item.medicine },
       { $set: { stockQty: 0, stockUpdatedAt: now } }
@@ -481,6 +498,15 @@ async function sweepAcceptanceTimeouts({ now = new Date(), limit = 25 } = {}) {
 }
 
 let workerHandle = null;
+let lastHousekeeping = 0;
+const HOUSEKEEPING_MS = 10 * 60 * 1000;
+
+/** Slow chores: near-expiry batches leave sale, old stock alerts lapse. */
+async function housekeeping(now = new Date()) {
+  const quarantine = await batchService.quarantineExpiring({ now });
+  const alerts = await stockAlerts.expireAlerts(now);
+  return { ...quarantine, ...alerts };
+}
 
 function startWorker(options = {}) {
   if (process.env.PHARMACY_ASSIGNMENT_WORKER_ENABLED === 'false') return null;
@@ -494,6 +520,10 @@ function startWorker(options = {}) {
     try {
       await sweepAcceptanceTimeouts();
       await pharmacyPaymentService.retryPartialRefunds();
+      if (Date.now() - lastHousekeeping >= HOUSEKEEPING_MS) {
+        lastHousekeeping = Date.now();
+        await housekeeping();
+      }
     } catch (err) {
       try {
         logger.error('Pharmacy assignment sweep failed', { error: err.message });
@@ -522,6 +552,7 @@ module.exports = {
   declineOrder,
   markItemsUnavailable,
   sweepAcceptanceTimeouts,
+  housekeeping,
   moveOrCancel,
   releaseAtStore,
   attemptsGuard,

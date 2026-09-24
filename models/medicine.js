@@ -115,7 +115,13 @@ const MedicineSchema = new mongoose.Schema({
   isBanned: { type: Boolean, default: false },
   isDiscontinued: { type: Boolean, default: false },
   // Per-order cap for habit-forming / misuse-prone products (codeine syrups…).
-  maxQtyPerOrder: { type: Number, min: 1 }
+  maxQtyPerOrder: { type: Number, min: 1 },
+  // Per-patient cap across all stores in a rolling 30 days.
+  maxQtyPerMonth: { type: Number, min: 1 },
+  // Misuse-prone (sedatives, codeine, pregabalin…): orders get risk checks.
+  habitForming: { type: Boolean, default: false },
+  // Set when an admin folds this duplicate into another product.
+  mergedInto: { type: mongoose.Schema.Types.ObjectId, ref: 'Medicine' }
 }, {
   timestamps: true
 });

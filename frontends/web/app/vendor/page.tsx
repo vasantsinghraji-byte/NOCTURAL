@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import type { AuthUser, PharmacyOrder, PharmacyOrderStatus, PharmacyRejectionReason } from '@medrush/shared';
+import { StockTools } from './StockTools';
 
 // Vendor-driven next-status options, matching the backend transition map.
 const NEXT_STATUS: Partial<Record<PharmacyOrderStatus, PharmacyOrderStatus[]>> = {
@@ -37,6 +38,32 @@ function Countdown({ acceptBy }: { acceptBy?: string }) {
     <span className={`pill ${left <= 30 ? 'rx' : ''}`} style={left > 30 ? { background: 'var(--amber-soft)', color: 'var(--amber)' } : undefined}>
       {left > 0 ? `Accept within ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : 'Moving to another store…'}
     </span>
+  );
+}
+
+/** Pharmacist reads the prescription and records the doctor (Schedule H1 register). */
+function RxCheck({ order, busy, onVerify }: {
+  order: PharmacyOrder;
+  busy: boolean;
+  onVerify: (body: { prescriberName: string; prescriberRegistrationNumber: string; prescribedOn: string }) => void;
+}) {
+  const [name, setName] = useState('');
+  const [reg, setReg] = useState('');
+  const [date, setDate] = useState('');
+  const valid = name.trim().length >= 3 && reg.trim().length >= 3 && !!date;
+  return (
+    <div className="stack" style={{ gap: 6, background: 'var(--card-alt)', padding: 10, borderRadius: 12, margin: '8px 0' }}>
+      <b>Check the prescription</b>
+      {order.prescription?.key
+        ? <a href={api.prescriptionLink(order._id, 'vendor')} target="_blank" rel="noreferrer" className="linkish">Open prescription</a>
+        : <span className="muted">No prescription uploaded. Reject with &quot;Prescription not valid&quot;.</span>}
+      <input className="input" placeholder="Doctor's name" value={name} onChange={(e) => setName(e.target.value)} />
+      <input className="input" placeholder="Doctor's registration no." value={reg} onChange={(e) => setReg(e.target.value)} />
+      <label className="muted">Date on prescription <input className="input" type="date" value={date} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDate(e.target.value)} /></label>
+      <button className="btn" disabled={!valid || busy} onClick={() => onVerify({ prescriberName: name.trim(), prescriberRegistrationNumber: reg.trim(), prescribedOn: date })}>
+        Prescription is valid
+      </button>
+    </div>
   );
 }
 
@@ -156,6 +183,9 @@ export default function VendorDashboard() {
                 <span className="pill">{o.status.replace(/_/g, ' ')}</span>
               </div>
               {o.status === 'PLACED' && <div style={{ margin: '4px 0' }}><Countdown acceptBy={o.acceptBy} /></div>}
+              {o.riskFlags && o.riskFlags.length > 0 && (
+                <div className="notice" style={{ margin: '6px 0' }}>Check before dispensing: {o.riskFlags.map((f) => f.detail || f.code).join(' · ')}</div>
+              )}
               <span className="muted">₹{o.amounts.total} · {o.paymentMode === 'COD' ? 'Cash on delivery' : `Paid online (${o.paymentStatus})`}</span>
               {o.fulfilment === 'STAFF_PICKUP' && (
                 <div className="notice" style={{ marginTop: 6, background: 'var(--violet-soft)', borderColor: 'transparent' }}>
@@ -174,7 +204,12 @@ export default function VendorDashboard() {
                   const gone = it.status === 'UNAVAILABLE';
                   return (
                     <li key={i} className="row" style={{ padding: '3px 0' }}>
-                      <span className="muted" style={gone ? { textDecoration: 'line-through' } : undefined}>{it.quantity} × {it.name}: ₹{it.lineTotal}</span>
+                      <span className="muted" style={gone ? { textDecoration: 'line-through' } : undefined}>
+                        {it.quantity} × {it.name}: ₹{it.lineTotal}
+                        {!gone && it.batches && it.batches.length > 0 && (
+                          <><br /><small>Pick: {it.batches.map((b) => `${b.batchNumber} ×${b.quantity} (exp ${String(b.expiryDate).slice(0, 7)})`).join(', ')}</small></>
+                        )}
+                      </span>
                       {gone ? <span className="pill rx">Removed</span> : editable ? (
                         <button className="linkish" style={{ color: 'var(--rose-ink)', fontSize: 12 }} disabled={busy} onClick={() => markMissing(o, it.medicine, it.name)}>
                           Not available
@@ -184,6 +219,13 @@ export default function VendorDashboard() {
                   );
                 })}
               </ul>
+
+              {o.requiresPrescription && !o.prescription?.verified && ['PLACED', 'ACCEPTED'].includes(o.status) && (
+                <RxCheck order={o} busy={busy} onVerify={(body) => run(o._id, () => api.vendorVerifyPrescription(o._id, body), 'Prescription verified.')} />
+              )}
+              {o.requiresPrescription && o.prescription?.verified && (
+                <span className="pill mint" style={{ marginBottom: 6 }}>Prescription verified{o.prescription.prescriber?.name ? ` · ${o.prescription.prescriber.name}` : ''}</span>
+              )}
 
               {declining === o._id ? (
                 <div className="stack" style={{ gap: 6 }}>
@@ -198,11 +240,15 @@ export default function VendorDashboard() {
                 </div>
               ) : (
                 <div className="row" style={{ gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start' }}>
-                  {(NEXT_STATUS[o.status] || []).map((s) => (
-                    <button key={s} className="btn" disabled={busy} onClick={() => run(o._id, () => api.vendorUpdateOrderStatus(o._id, s))}>
-                      {s === 'ACCEPTED' ? 'Accept' : s.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
-                    </button>
-                  ))}
+                  {(NEXT_STATUS[o.status] || []).map((s) => {
+                    // Packing waits for the pharmacist's prescription check.
+                    const blocked = s === 'PREPARING' && o.requiresPrescription && !o.prescription?.verified;
+                    return (
+                      <button key={s} className="btn" disabled={busy || blocked} onClick={() => run(o._id, () => api.vendorUpdateOrderStatus(o._id, s))}>
+                        {blocked ? 'Verify prescription first' : s === 'ACCEPTED' ? 'Accept' : s.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
+                      </button>
+                    );
+                  })}
                   {CAN_DECLINE.includes(o.status) && (
                     <button className="btn secondary" disabled={busy} onClick={() => setDeclining(o._id)}>
                       {o.status === 'PLACED' ? 'Reject' : "Can't fulfil"}
@@ -214,6 +260,8 @@ export default function VendorDashboard() {
           );
         })}
       </div>
+
+      <StockTools />
     </>
   );
 }

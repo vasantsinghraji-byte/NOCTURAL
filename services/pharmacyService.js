@@ -31,6 +31,9 @@ const pricingService = require('./pricingService');
 const membershipService = require('./membershipService');
 const settlementService = require('./settlementService');
 const availability = require('./pharmacyAvailabilityService');
+const batchService = require('./pharmacyBatchService');
+const compliance = require('./pharmacyComplianceService');
+const stockAlerts = require('./pharmacyStockAlertService');
 const { getPharmacyOps, minExpiryDate } = require('../config/pharmacyOps');
 
 // pharmacyAssignmentService requires this module (reserveStock), so load lazily.
@@ -68,6 +71,32 @@ const STATUS_MILESTONES = {
   REJECTED: 'cancelledAt',
   CANCELLED: 'cancelledAt'
 };
+
+/**
+ * Put units back on a store listing. If the product was merged into another
+ * after the order was placed, its listing moved there, so follow it.
+ */
+async function incListing(vendorId, medicineId, qty) {
+  const updated = await VendorInventory.findOneAndUpdate({ vendor: vendorId, medicine: medicineId }, { $inc: { stockQty: qty } }, { new: true });
+  if (updated) return updated;
+  const med = await Medicine.findById(medicineId).select('mergedInto').lean();
+  if (med && med.mergedInto) {
+    return VendorInventory.findOneAndUpdate({ vendor: vendorId, medicine: med.mergedInto }, { $inc: { stockQty: qty } }, { new: true });
+  }
+  return null;
+}
+
+/** Undo reserveStock results (listing units + batch allocations). */
+async function rollbackReservation(vendorId, reserved) {
+  await Promise.all(reserved.map(async (r) => {
+    try {
+      const back = await batchService.returnUnits(vendorId, r.inventory.medicine._id || r.inventory.medicine, r.quantity, r.batches);
+      if (back > 0) await VendorInventory.updateOne({ _id: r.inventory._id }, { $inc: { stockQty: back } });
+    } catch (err) {
+      logger.error('Stock rollback failed', { inventoryId: r.inventory._id, error: err.message });
+    }
+  }));
+}
 
 /** Listing can be bought now: in stock, not near expiry, product sellable online. */
 function isSellableRow(row, now = new Date()) {
@@ -226,17 +255,14 @@ async function reserveStock(vendorId, requestedItems, { now = new Date() } = {})
         await VendorInventory.updateOne({ _id: updated._id }, { $inc: { stockQty: item.quantity } }).catch(() => {});
         throw new ConflictError('An item in your cart is no longer available');
       }
-      reserved.push({ inventory: updated, quantity: item.quantity });
+      // Earliest-expiry-first batches for this line (none for untracked products).
+      const batches = await batchService.allocateFefo(vendorId, item.medicineId, item.quantity, now);
+      reserved.push({ inventory: updated, quantity: item.quantity, batches });
     }
     return reserved;
   } catch (err) {
     // Roll back everything reserved so far.
-    await Promise.all(reserved.map((r) => VendorInventory.updateOne(
-      { _id: r.inventory._id },
-      { $inc: { stockQty: r.quantity } }
-    ).catch((rollbackErr) => {
-      logger.error('Stock rollback failed', { inventoryId: r.inventory._id, error: rollbackErr.message });
-    })));
+    await rollbackReservation(vendorId, reserved);
     throw err;
   }
 }
@@ -245,7 +271,7 @@ async function reserveStock(vendorId, requestedItems, { now = new Date() } = {})
  * Place a pharmacy order for a patient.
  * payload: { vendorId, items:[{medicineId, quantity}], deliveryAddress, deliveryLocation, prescriptionKey, paymentMode }
  */
-async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', careVisit } = {}) {
+async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', careVisit, checkout } = {}) {
   // `fulfilment`/`careVisit` are set only by internal callers (home-care
   // supplies), never from the request body.
   const { vendorId, deliveryAddress, deliveryLocation, prescriptionKey, paymentMode, quotedSubtotal } = payload;
@@ -295,6 +321,10 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
       throw new ConflictError('This pharmacy does not take prescription orders. Pick another store');
     }
   }
+  // Monthly caps across every store, plus risk flags for the ops review queue.
+  const riskFlags = await compliance.checkPatientLimits(
+    patientId, items.map((i) => ({ medicine: medById.get(String(i.medicineId)), quantity: i.quantity })), vendorId, now
+  );
 
   // Serviceability + delivery promise (before touching stock).
   let deliveryPoint;
@@ -312,7 +342,7 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
   const reserved = await reserveStock(vendorId, items, { now });
 
   try {
-    const orderItems = reserved.map(({ inventory, quantity }) => {
+    const orderItems = reserved.map(({ inventory, quantity, batches }) => {
       const med = inventory.medicine;
       const lineTotal = Math.round(inventory.sellingPrice * quantity * 100) / 100;
       return {
@@ -324,7 +354,9 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
         unitPrice: inventory.sellingPrice,
         mrp: inventory.mrp,
         lineTotal,
-        requiresPrescription: !!med.requiresPrescription
+        requiresPrescription: !!med.requiresPrescription,
+        scheduleType: med.scheduleType,
+        batches: batches || []
       };
     });
 
@@ -380,6 +412,8 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
       // COD orders are live for the store now; PREPAID ones start the clock when paid.
       acceptBy: isCod ? new Date(now.getTime() + getPharmacyOps().acceptSlaSeconds * 1000) : undefined,
       assignmentAttempts: [{ vendor: vendorId, offeredAt: now, outcome: 'PENDING' }],
+      riskFlags,
+      checkout,
       status: 'PLACED'
     });
 
@@ -400,11 +434,8 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
     }
     return order;
   } catch (err) {
-    // Order build failed after reservation — return stock.
-    await Promise.all(reserved.map((r) => VendorInventory.updateOne(
-      { _id: r.inventory._id },
-      { $inc: { stockQty: r.quantity } }
-    ).catch(() => {})));
+    // Order build failed after reservation: return stock (and batches).
+    await rollbackReservation(vendorId, reserved);
     throw err;
   }
 }
@@ -503,16 +534,14 @@ async function restockOrder(order, { kind = 'SYSTEM', id, reason } = {}) {
   const lines = order.items.filter((item) => (item.status || 'AVAILABLE') === 'AVAILABLE');
   const movements = await Promise.all(lines.map(async (item) => {
     try {
-      const updated = await VendorInventory.findOneAndUpdate(
-        { vendor: order.vendor, medicine: item.medicine },
-        { $inc: { stockQty: item.quantity } },
-        { new: true }
-      );
+      // Units from a batch that was quarantined/recalled meanwhile stay off sale.
+      const back = await batchService.returnUnits(order.vendor, item.medicine, item.quantity, item.batches);
+      const updated = back > 0 ? await incListing(order.vendor, item.medicine, back) : null;
       return {
         vendor: order.vendor,
         medicine: item.medicine,
         type: 'ORDER_RELEASED',
-        delta: item.quantity,
+        delta: back,
         balanceAfter: updated ? updated.stockQty : undefined,
         order: order._id,
         actor: { kind, id },
@@ -570,6 +599,11 @@ async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note,
     });
   }
 
+  // A pharmacist must check the prescription before prescription drugs are packed.
+  if (status === 'PREPARING' && order.requiresPrescription && !(order.prescription && order.prescription.verified)) {
+    throw new ConflictError('Verify the prescription before packing this order');
+  }
+
   // Forward progress: one compare-and-set so a concurrent cancel can't be overwritten.
   const now = new Date();
   const milestone = STATUS_MILESTONES[status];
@@ -611,6 +645,9 @@ async function upsertInventoryItem(vendorId, { medicineId, mrp, sellingPrice, st
   }
 
   const before = await VendorInventory.findOne({ vendor: vendorId, medicine: medicineId }).select('stockQty').lean();
+  if (stockQty !== undefined && before && Number(stockQty) !== before.stockQty && await batchService.hasBatches(vendorId, medicineId)) {
+    throw new ConflictError(`${medicine.name} is tracked by batch. Update the batch counts instead`);
+  }
 
   const item = await VendorInventory.findOneAndUpdate(
     { vendor: vendorId, medicine: medicineId },
@@ -633,6 +670,10 @@ async function upsertInventoryItem(vendorId, { medicineId, mrp, sellingPrice, st
   await item.save();
 
   const delta = item.stockQty - ((before && before.stockQty) || 0);
+  // 0 → in stock: tell customers who asked to be notified.
+  if (item.stockQty > 0 && !((before && before.stockQty) > 0) && item.isAvailable) {
+    stockAlerts.onStockAvailable(vendorId, medicineId);
+  }
   if (delta !== 0) {
     await recordMovements([{
       vendor: vendorId,

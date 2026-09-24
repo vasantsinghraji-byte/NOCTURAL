@@ -34,7 +34,15 @@ const OrderItemSchema = new mongoose.Schema({
   // refunded if prepaid, and the store's count zeroed (Instamart/Blinkit style
   // "item missing → auto refund" instead of holding the whole order).
   status: { type: String, enum: ['AVAILABLE', 'UNAVAILABLE'], default: 'AVAILABLE' },
-  unavailableReason: { type: String, maxlength: 200 }
+  unavailableReason: { type: String, maxlength: 200 },
+  scheduleType: String, // snapshot for the Schedule H1 register
+  // Batches the units came from, earliest expiry first (recalls, H1 register).
+  batches: [{
+    _id: false,
+    batchNumber: String,
+    expiryDate: Date,
+    quantity: Number
+  }]
 }, { _id: false });
 
 // One row per store the order was offered to (Zomato-style relay log).
@@ -102,8 +110,23 @@ const PharmacyOrderSchema = new mongoose.Schema({
     // Vendor/admin verification of the uploaded prescription
     verified: { type: Boolean, default: false },
     verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    verifiedAt: Date
+    verifiedAt: Date,
+    // Read off the prescription by the pharmacist (Schedule H1 register fields).
+    prescriber: {
+      name: { type: String, trim: true, maxlength: 120 },
+      registrationNumber: { type: String, trim: true, maxlength: 60 },
+      address: { type: String, trim: true, maxlength: 200 }
+    },
+    prescribedOn: Date
   },
+  // One customer checkout split across stores (models/pharmacyCheckout.js).
+  checkout: { type: mongoose.Schema.Types.ObjectId, ref: 'PharmacyCheckout' },
+  // Automatic risk checks on misuse-prone medicines (ops review queue).
+  riskFlags: [{
+    _id: false,
+    code: { type: String, enum: ['MONTHLY_LIMIT_NEAR', 'MANY_STORES', 'EARLY_REFILL'] },
+    detail: { type: String, maxlength: 200 }
+  }],
 
   // Fulfilment status
   status: {
@@ -252,6 +275,10 @@ PharmacyOrderSchema.index({ deliveryGeohash: 1, createdAt: -1 });
 // Acceptance-timeout sweep (services/pharmacyAssignmentService.js)
 PharmacyOrderSchema.index({ status: 1, acceptBy: 1 }, { partialFilterExpression: { acceptBy: { $exists: true } } });
 PharmacyOrderSchema.index({ 'refunds.status': 1 }, { sparse: true });
+// Monthly per-patient caps and the H1 register / recall lookups.
+PharmacyOrderSchema.index({ patient: 1, 'items.medicine': 1, createdAt: -1 });
+PharmacyOrderSchema.index({ 'items.batches.batchNumber': 1 }, { sparse: true });
+PharmacyOrderSchema.index({ 'riskFlags.0': 1, createdAt: -1 }, { sparse: true });
 
 // Generate a human-friendly order number + seed the timeline on first save.
 // Synchronous (no `next`) hook — matches the codebase convention.

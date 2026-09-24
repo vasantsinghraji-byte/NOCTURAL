@@ -180,7 +180,11 @@ const INVENTORY_MOVEMENT_TYPES = [
   'ORDER_RESERVED', // stock taken for an order (delta < 0)
   'ORDER_RELEASED', // returned on cancel / reject / payment expiry (delta > 0)
   'ADJUSTMENT', // vendor/admin stock count change (either sign)
-  'MARKED_UNAVAILABLE' // store said "don't have it" on an order: count zeroed (delta < 0)
+  'MARKED_UNAVAILABLE', // store said "don't have it" on an order: count zeroed (delta < 0)
+  'BATCH_RECEIVED', // new stock booked in against a batch (delta > 0)
+  'EXPIRY_QUARANTINE', // batch fell inside the minimum shelf life: out of sellable stock
+  'RECALL_QUARANTINE', // batch recalled: out of sellable stock everywhere
+  'PRODUCT_MERGED' // duplicate catalogue product folded into another
 ];
 
 // Why a store turned an order (or items in it) down. The reason decides what

@@ -40,7 +40,11 @@ import type {
   AdminMfaChallenge,
   MedicineAvailability,
   CartPlan,
-  PharmacyRejectionReason
+  PharmacyRejectionReason,
+  InventoryBatch,
+  InventoryImport,
+  DemandItem,
+  Address
 } from './types';
 
 export interface ApiClientOptions {
@@ -150,14 +154,15 @@ export class MedRushApi {
     return qs ? `${url}?${qs}` : url;
   }
 
-  private async request<T>(method: string, path: string, opts: { query?: Query; body?: unknown } = {}): Promise<T> {
+  private async request<T>(method: string, path: string, opts: { query?: Query; body?: unknown; rawBody?: string; contentType?: string } = {}): Promise<T> {
     const headers: Record<string, string> = { Accept: 'application/json' };
-    if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
+    if (opts.rawBody !== undefined) headers['Content-Type'] = opts.contentType || 'text/plain';
+    else if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
 
     const res = await this.send(path, {
       method,
       headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+      body: opts.rawBody !== undefined ? opts.rawBody : opts.body !== undefined ? JSON.stringify(opts.body) : undefined
     }, opts.query);
 
     let payload: any = null;
@@ -430,6 +435,62 @@ export class MedRushApi {
   /** Store has the order but not these items: they're dropped and refunded. */
   vendorMarkItemsUnavailable(id: string, medicineIds: string[], reason?: string) {
     return this.request<{ success: true; order: PharmacyOrder }>('POST', `/pharmacy/vendor/orders/${id}/items/unavailable`, { body: { medicineIds, reason } });
+  }
+
+  // ── Pharmacy: batches, prescriptions, stock files, demand (store side) ───
+  vendorListBatches(medicineId?: string) {
+    return this.request<{ success: true; batches: InventoryBatch[] }>('GET', '/pharmacy/vendor/inventory/batches', { query: medicineId ? { medicineId } : {} });
+  }
+
+  vendorReceiveBatch(body: { medicineId: string; batchNumber: string; expiryDate: string; qty: number; mrp?: number; sellingPrice?: number }) {
+    return this.request<{ success: true; batch: InventoryBatch }>('POST', '/pharmacy/vendor/inventory/batches', { body });
+  }
+
+  vendorSetBatchCount(batchId: string, qty: number) {
+    return this.request<{ success: true; batch: InventoryBatch }>('PATCH', `/pharmacy/vendor/inventory/batches/${batchId}`, { body: { qty } });
+  }
+
+  /** Pharmacist confirms the prescription (required before packing prescription orders). */
+  vendorVerifyPrescription(orderId: string, body: { prescriberName: string; prescriberRegistrationNumber: string; prescriberAddress?: string; prescribedOn: string }) {
+    return this.request<{ success: true; order: PharmacyOrder }>('POST', `/pharmacy/vendor/orders/${orderId}/prescription/verify`, { body });
+  }
+
+  /** Upload a CSV exported from billing software (Marg, GoFrugal, Busy…). */
+  vendorImportInventory(csv: string) {
+    return this.request<{ success: true; import: InventoryImport }>('POST', '/pharmacy/vendor/inventory/import', { rawBody: csv, contentType: 'text/csv' });
+  }
+
+  vendorResolveImportRow(importId: string, line: number, choice: { medicineId?: string; skip?: boolean }) {
+    return this.request<{ success: true; import: InventoryImport }>('POST', `/pharmacy/vendor/inventory/imports/${importId}/rows/${line}`, { body: choice });
+  }
+
+  vendorDemand(days = 14) {
+    return this.request<{ success: true; items: DemandItem[] }>('GET', '/pharmacy/vendor/demand', { query: { days } });
+  }
+
+  /** CSV download of the store's Schedule H1 register (cookie-authenticated link). */
+  h1RegisterLink(from: string, to: string): string {
+    return this.buildUrl(`/pharmacy/vendor/register/h1?format=csv&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  }
+
+  // ── Pharmacy: customer extras ────────────────────────────────────────────
+  /** Tell me when a store near me has this again. */
+  notifyWhenInStock(medicineId: string, coords: { lat: number; lng: number }) {
+    return this.request<{ success: true; alert: { _id: string; status: string } }>('POST', `/pharmacy/medicines/${medicineId}/notify-me`, { body: coords });
+  }
+
+  cancelStockAlert(medicineId: string) {
+    return this.request<{ success: true; cancelled: number }>('DELETE', `/pharmacy/medicines/${medicineId}/notify-me`);
+  }
+
+  /** One checkout, several stores (cash on delivery). */
+  createSplitCheckout(body: {
+    groups: Array<{ vendorId: string; items: Array<{ medicineId: string; quantity: number }>; quotedSubtotal?: number }>;
+    deliveryAddress: Address;
+    deliveryLocation?: { coordinates: [number, number] };
+    prescriptionKey?: string;
+  }) {
+    return this.request<{ success: true; checkout: { _id: string; total: number; status: string }; orders: PharmacyOrder[] }>('POST', '/pharmacy/checkouts', { body });
   }
 
   /** "My stock counts are right" (all listings, or the given ones). */

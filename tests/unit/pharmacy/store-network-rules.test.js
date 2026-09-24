@@ -184,3 +184,36 @@ describe('partial refunds', () => {
     expect(mockRazorpay.payments.refund).not.toHaveBeenCalled();
   });
 });
+
+describe('stock file parsing', () => {
+  const catalog = require('../../../services/pharmacyCatalogService');
+  const { csvCell } = require('../../../services/pharmacyComplianceService');
+
+  it('parses quoted fields, escaped quotes, CRLF and semicolon files', () => {
+    expect(catalog.parseCsv('Name,Qty\r\n"Shelcal, 500",8\r\n"He said ""hi""",2\n')).toEqual([
+      ['Name', 'Qty'], ['Shelcal, 500', '8'], ['He said "hi"', '2']
+    ]);
+    expect(catalog.parseCsv('Name;Qty\nDolo;4')).toEqual([['Name', 'Qty'], ['Dolo', '4']]);
+    expect(catalog.parseCsv('\uFEFFName,Qty\nA,1')[0]).toEqual(['Name', 'Qty']);
+  });
+
+  it('maps common billing-software headers', () => {
+    expect(catalog.mapHeader(['Item Name', 'MRP', 'Sale Rate', 'Closing Stock', 'Batch No', 'Exp Date']))
+      .toEqual({ name: 0, mrp: 1, sellingPrice: 2, stock: 3, batchNumber: 4, expiryDate: 5 });
+  });
+
+  it('reads pack-style expiry dates (MM/YY = end of that month) and Indian day-first dates', () => {
+    expect(catalog.parseExpiry('09/28').toISOString().slice(0, 10)).toBe('2028-09-30');
+    expect(catalog.parseExpiry('02/2028').toISOString().slice(0, 10)).toBe('2028-02-29');
+    expect(catalog.parseExpiry('05/11/2027').toISOString().slice(0, 10)).toBe('2027-11-05');
+    expect(catalog.parseExpiry('2027-11-05').toISOString().slice(0, 10)).toBe('2027-11-05');
+    expect(catalog.parseExpiry('')).toBeUndefined();
+    expect(catalog.parseExpiry('soon')).toBeNull();
+  });
+
+  it('neutralises spreadsheet formulas in exported registers', () => {
+    expect(csvCell('=HYPERLINK("http://x")')).toBe('"\'=HYPERLINK(""http://x"")"');
+    expect(csvCell('+91 98xxxx')).toBe("'+91 98xxxx");
+    expect(csvCell('Dolo, 650')).toBe('"Dolo, 650"');
+  });
+});

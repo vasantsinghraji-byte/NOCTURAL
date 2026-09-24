@@ -10,6 +10,11 @@ const pharmacyAdminService = require('../services/pharmacyAdminService');
 const pharmacyPaymentService = require('../services/pharmacyPaymentService');
 const pharmacyAvailabilityService = require('../services/pharmacyAvailabilityService');
 const pharmacyAssignmentService = require('../services/pharmacyAssignmentService');
+const pharmacyBatchService = require('../services/pharmacyBatchService');
+const pharmacyComplianceService = require('../services/pharmacyComplianceService');
+const pharmacyCatalogService = require('../services/pharmacyCatalogService');
+const pharmacyStockAlertService = require('../services/pharmacyStockAlertService');
+const pharmacyCheckoutService = require('../services/pharmacyCheckoutService');
 const responseHelper = require('../utils/responseHelper');
 const storageConfig = require('../config/storage');
 const { AuthorizationError } = require('../utils/errors');
@@ -374,3 +379,124 @@ exports.adminListMedicines = async (req, res, next) => {
     responseHelper.handleServiceError(error, res, next);
   }
 };
+
+// ── Store network, phase 2: batches, compliance, imports, demand, alerts ──
+
+const wrap = (fn) => async (req, res, next) => {
+  try {
+    await fn(req, res);
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+const patientIdOf = (req) => req.user.id; // protectPatient puts the patient id here
+
+exports.receiveBatch = wrap(async (req, res) => {
+  const batch = await pharmacyBatchService.receiveBatch(resolveVendorId(req), req.body, { actorId: req.user.id });
+  responseHelper.sendSuccess(res, { batch }, 'Batch received', 201);
+});
+
+exports.setBatchCount = wrap(async (req, res) => {
+  const batch = await pharmacyBatchService.setBatchCount(resolveVendorId(req), req.params.batchId, req.body.qty, { actorId: req.user.id });
+  responseHelper.sendSuccess(res, { batch }, 'Batch count updated');
+});
+
+exports.listBatches = wrap(async (req, res) => {
+  const batches = await pharmacyBatchService.listBatches(resolveVendorId(req), { medicineId: req.query.medicineId });
+  responseHelper.sendSuccess(res, { batches }, 'Batches');
+});
+
+exports.verifyPrescription = wrap(async (req, res) => {
+  const order = await pharmacyComplianceService.verifyPrescription(req.params.id, {
+    vendorId: resolveVendorId(req),
+    actorUserId: req.user.id,
+    prescriberName: req.body.prescriberName,
+    prescriberRegistrationNumber: req.body.prescriberRegistrationNumber,
+    prescriberAddress: req.body.prescriberAddress,
+    prescribedOn: req.body.prescribedOn
+  });
+  responseHelper.sendSuccess(res, { order }, 'Prescription verified');
+});
+
+const sendRegister = (res, register, format, filename) => {
+  if (format === 'csv') {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).send(pharmacyComplianceService.h1RegisterCsv(register));
+  }
+  return responseHelper.sendSuccess(res, register, 'Schedule H1 register');
+};
+
+exports.vendorH1Register = wrap(async (req, res) => {
+  const register = await pharmacyComplianceService.h1Register({ vendorId: resolveVendorId(req), from: req.query.from, to: req.query.to });
+  sendRegister(res, register, req.query.format, 'schedule-h1-register.csv');
+});
+
+exports.adminH1Register = wrap(async (req, res) => {
+  const register = await pharmacyComplianceService.h1Register({ vendorId: req.query.vendorId || null, from: req.query.from, to: req.query.to });
+  sendRegister(res, register, req.query.format, 'schedule-h1-register-all.csv');
+});
+
+exports.importInventory = wrap(async (req, res) => {
+  const text = typeof req.body === 'string' ? req.body : '';
+  const result = await pharmacyCatalogService.importInventoryCsv(resolveVendorId(req), text, { actorId: req.user.id });
+  responseHelper.sendSuccess(res, { import: result }, 'Stock file processed', 201);
+});
+
+exports.getImport = wrap(async (req, res) => {
+  const result = await pharmacyCatalogService.getImport(resolveVendorId(req), req.params.importId);
+  responseHelper.sendSuccess(res, { import: result }, 'Stock import');
+});
+
+exports.resolveImportRow = wrap(async (req, res) => {
+  const result = await pharmacyCatalogService.resolveImportRow(resolveVendorId(req), req.params.importId, req.params.line, req.body, { actorId: req.user.id });
+  responseHelper.sendSuccess(res, { import: result }, 'Row updated');
+});
+
+exports.vendorDemand = wrap(async (req, res) => {
+  const items = await pharmacyCatalogService.vendorDemand(resolveVendorId(req), { days: req.query.days });
+  responseHelper.sendSuccess(res, { items }, 'Unmet demand near your store');
+});
+
+exports.adminDemand = wrap(async (req, res) => {
+  const items = await pharmacyCatalogService.adminDemand({ days: req.query.days, geohashPrefix: req.query.geohash });
+  responseHelper.sendSuccess(res, { items }, 'Unmet demand');
+});
+
+exports.adminMergeMedicine = wrap(async (req, res) => {
+  const result = await pharmacyCatalogService.mergeMedicines(req.params.id, req.body.intoId, { force: req.body.force === true });
+  responseHelper.sendSuccess(res, result, 'Products merged');
+});
+
+exports.adminRecallBatch = wrap(async (req, res) => {
+  const result = await pharmacyBatchService.recallBatch({
+    medicineId: req.body.medicineId, batchNumber: req.body.batchNumber, reason: req.body.reason, notifyPatients: req.body.notifyPatients === true
+  });
+  responseHelper.sendSuccess(res, result, 'Batch recalled');
+});
+
+exports.adminFlaggedOrders = wrap(async (req, res) => {
+  const orders = await pharmacyComplianceService.listFlaggedOrders({ days: req.query.days });
+  responseHelper.sendSuccess(res, { orders }, 'Orders flagged for review');
+});
+
+exports.subscribeStockAlert = wrap(async (req, res) => {
+  const alert = await pharmacyStockAlertService.subscribe(patientIdOf(req), req.params.id, { lat: req.body.lat, lng: req.body.lng });
+  responseHelper.sendSuccess(res, { alert }, "We'll tell you when it's back", 201);
+});
+
+exports.unsubscribeStockAlert = wrap(async (req, res) => {
+  const result = await pharmacyStockAlertService.unsubscribe(patientIdOf(req), req.params.id);
+  responseHelper.sendSuccess(res, result, 'Alert removed');
+});
+
+exports.createSplitCheckout = wrap(async (req, res) => {
+  const result = await pharmacyCheckoutService.createSplitCheckout(patientIdOf(req), req.body);
+  responseHelper.sendSuccess(res, result, 'Orders placed', 201);
+});
+
+exports.getCheckout = wrap(async (req, res) => {
+  const result = await pharmacyCheckoutService.getCheckout(patientIdOf(req), req.params.id);
+  responseHelper.sendSuccess(res, result, 'Checkout');
+});

@@ -139,6 +139,44 @@ const updateZoneValidation = [
 
 const mongoIdParam = (name) => [param(name).isMongoId().withMessage(`Invalid ${name}`)];
 
+const batchValidation = [
+  body('medicineId').isMongoId().withMessage('Valid medicineId is required'),
+  body('batchNumber').isString().trim().isLength({ min: 1, max: 40 }).withMessage('batchNumber is required'),
+  body('expiryDate').isISO8601().withMessage('expiryDate must be a date'),
+  body('qty').isInt({ min: 1, max: 100000 }),
+  body('mrp').optional().isFloat({ min: 0 }),
+  body('sellingPrice').optional().isFloat({ min: 0 })
+];
+
+const verifyRxValidation = [
+  body('prescriberName').isString().trim().isLength({ min: 3, max: 120 }),
+  body('prescriberRegistrationNumber').isString().trim().isLength({ min: 3, max: 60 }),
+  body('prescriberAddress').optional().isString().trim().isLength({ max: 200 }),
+  body('prescribedOn').isISO8601().withMessage('prescribedOn must be a date')
+];
+
+const registerValidation = [
+  query('from').optional().isISO8601(),
+  query('to').optional().isISO8601(),
+  query('format').optional().isIn(['json', 'csv'])
+];
+
+const splitCheckoutValidation = [
+  body('groups').isArray({ min: 2, max: 5 }).withMessage('groups must list 2+ pharmacies'),
+  body('groups.*.vendorId').isMongoId(),
+  body('groups.*.items').isArray({ min: 1, max: 50 }),
+  body('groups.*.items.*.medicineId').isMongoId(),
+  body('groups.*.items.*.quantity').isInt({ min: 1, max: 100 }),
+  body('groups.*.quotedSubtotal').optional().isFloat({ min: 0 }),
+  body('deliveryAddress.line1').trim().notEmpty().withMessage('Delivery address line1 is required'),
+  body('deliveryAddress.pincode').trim().matches(/^\d{6}$/).withMessage('Valid 6-digit pincode required'),
+  body('prescriptionKey').optional().isString().trim().isLength({ min: 1, max: 512 }),
+  body('paymentMode').optional().isIn(['COD', 'PREPAID'])
+];
+
+// Stock files from billing software: raw CSV, bigger than the 10 kb JSON cap.
+const csvBody = express.text({ type: ['text/csv', 'text/plain', 'application/csv'], limit: '1mb' });
+
 // ══ Public browse (no auth — powers storefront SSR) ═══════════════════════
 
 router.get('/vendors/nearby', nearbyValidation, validate, ctrl.getNearbyVendors);
@@ -158,6 +196,15 @@ router.patch('/vendor/orders/:id/status', protect, authorize('pharmacy_vendor'),
 router.post('/vendor/orders/:id/items/unavailable', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), markUnavailableValidation, validate, ctrl.markItemsUnavailable);
 router.get('/vendor/inventory', protect, authorize('pharmacy_vendor'), ctrl.listInventory);
 router.post('/vendor/inventory/confirm', protect, authorize('pharmacy_vendor'), confirmInventoryValidation, validate, ctrl.confirmInventory);
+router.get('/vendor/inventory/batches', protect, authorize('pharmacy_vendor'), ctrl.listBatches);
+router.post('/vendor/inventory/batches', protect, authorize('pharmacy_vendor'), batchValidation, validate, ctrl.receiveBatch);
+router.patch('/vendor/inventory/batches/:batchId', protect, authorize('pharmacy_vendor'), mongoIdParam('batchId'), body('qty').isInt({ min: 0, max: 100000 }), validate, ctrl.setBatchCount);
+router.post('/vendor/inventory/import', protect, authorize('pharmacy_vendor'), csvBody, ctrl.importInventory);
+router.get('/vendor/inventory/imports/:importId', protect, authorize('pharmacy_vendor'), mongoIdParam('importId'), validate, ctrl.getImport);
+router.post('/vendor/inventory/imports/:importId/rows/:line', protect, authorize('pharmacy_vendor'), mongoIdParam('importId'), param('line').isInt({ min: 1 }), body('medicineId').optional().isMongoId(), body('skip').optional().isBoolean(), validate, ctrl.resolveImportRow);
+router.post('/vendor/orders/:id/prescription/verify', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), verifyRxValidation, validate, ctrl.verifyPrescription);
+router.get('/vendor/register/h1', protect, authorize('pharmacy_vendor'), registerValidation, validate, ctrl.vendorH1Register);
+router.get('/vendor/demand', protect, authorize('pharmacy_vendor'), query('days').optional().isInt({ min: 1, max: 90 }), validate, ctrl.vendorDemand);
 router.put('/vendor/inventory', protect, authorize('pharmacy_vendor'), inventoryValidation, validate, ctrl.upsertInventory);
 router.patch('/vendor/profile', protect, authorize('pharmacy_vendor'), ctrl.updateVendorProfile);
 
@@ -173,11 +220,20 @@ router.patch('/admin/zones/:id', protect, authorize('admin', 'platform_admin'), 
 router.get('/admin/medicines', protect, authorize('admin', 'platform_admin'), ctrl.adminListMedicines);
 router.post('/admin/medicines', protect, authorize('admin', 'platform_admin'), medicineValidation, validate, ctrl.adminCreateMedicine);
 router.patch('/admin/medicines/:id', protect, authorize('admin', 'platform_admin'), mongoIdParam('id'), validate, ctrl.adminUpdateMedicine);
+router.post('/admin/medicines/:id/merge', protect, authorize('admin', 'platform_admin'), requireRecentAuth, mongoIdParam('id'), body('intoId').isMongoId(), body('force').optional().isBoolean(), validate, ctrl.adminMergeMedicine);
+router.post('/admin/recalls', protect, authorize('admin', 'platform_admin'), requireRecentAuth, body('medicineId').isMongoId(), body('batchNumber').isString().trim().isLength({ min: 1, max: 40 }), body('reason').optional().isString().isLength({ max: 200 }), body('notifyPatients').optional().isBoolean(), validate, ctrl.adminRecallBatch);
+router.get('/admin/demand', protect, authorize('admin', 'platform_admin'), query('days').optional().isInt({ min: 1, max: 90 }), query('geohash').optional().isString().isLength({ max: 6 }), validate, ctrl.adminDemand);
+router.get('/admin/orders/flagged', protect, authorize('admin', 'platform_admin'), ctrl.adminFlaggedOrders);
+router.get('/admin/register/h1', protect, authorize('admin', 'platform_admin'), registerValidation, query('vendorId').optional().isMongoId(), validate, ctrl.adminH1Register);
 
 // ══ Patient orders (role: patient) ════════════════════════════════════════
 
 router.post('/prescriptions', protectPatient, uploadPrescription, ctrl.uploadPrescription);
 router.post('/orders', protectPatient, createOrderValidation, validate, idempotency({ route: 'pharmacy/orders/create' }), ctrl.createOrder);
+router.post('/checkouts', protectPatient, splitCheckoutValidation, validate, idempotency({ route: 'pharmacy/checkouts/create' }), ctrl.createSplitCheckout);
+router.get('/checkouts/:id', protectPatient, mongoIdParam('id'), validate, ctrl.getCheckout);
+router.post('/medicines/:id/notify-me', protectPatient, mongoIdParam('id'), body('lat').isFloat({ min: -90, max: 90 }), body('lng').isFloat({ min: -180, max: 180 }), validate, ctrl.subscribeStockAlert);
+router.delete('/medicines/:id/notify-me', protectPatient, mongoIdParam('id'), validate, ctrl.unsubscribeStockAlert);
 router.get('/orders', protectPatient, ctrl.getMyOrders);
 router.get('/orders/:id', protectPatient, mongoIdParam('id'), validate, ctrl.getOrder);
 router.get('/orders/:id/prescription', protectPatient, mongoIdParam('id'), validate, ctrl.getPrescription);

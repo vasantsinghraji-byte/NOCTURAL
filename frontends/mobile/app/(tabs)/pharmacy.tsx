@@ -78,6 +78,20 @@ export default function Pharmacy() {
     selectVendor(known || ({ _id: storeId, name } as PharmacyVendor));
   }
 
+  /** Back-in-stock alert at the customer's location. */
+  async function notifyMe(medicineId: string) {
+    if (!session || session.kind !== 'patient') {
+      router.push('/login');
+      return;
+    }
+    try {
+      await api.notifyWhenInStock(medicineId, coords || FALLBACK);
+      Alert.alert("We'll let you know", 'You will get a notification when a pharmacy near you has it.');
+    } catch (e) {
+      Alert.alert('Could not set the alert', describeNetworkError(e));
+    }
+  }
+
   /** Out here? Show which nearby store has it, or a same-salt brand that is in stock. */
   async function findElsewhere(medicineId: string, name: string) {
     try {
@@ -91,6 +105,7 @@ export default function Pharmacy() {
       const buttons: Array<{ text: string; style?: 'cancel'; onPress?: () => void }> = [];
       if (other) buttons.push({ text: `Shop at ${other.store.name}`, onPress: () => switchTo(other.store.id, other.store.name) });
       if (!other && sub) buttons.push({ text: `Find ${sub.medicine.name}`, onPress: () => findElsewhere(sub.medicine.id, sub.medicine.name) });
+      if (!other) buttons.push({ text: 'Notify me', onPress: () => notifyMe(medicineId) });
       buttons.push({ text: 'OK', style: 'cancel' });
       const lines = [
         other

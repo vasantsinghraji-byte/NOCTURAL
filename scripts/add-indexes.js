@@ -302,7 +302,7 @@ async function addIndexes() {
         // One index at a time: Model.createIndexes() stops at the first conflict,
         // and users.email is already indexed above as email_unique_idx, which used
         // to skip every later User index (incl. the currentLocation 2dsphere).
-        for (const modelPath of ['../models/pharmacyVendor', '../models/serviceZone', '../models/medicine', '../models/vendorInventory', '../models/inventoryMovement', '../models/pharmacyOrder', '../models/user', '../models/nurseBooking', '../models/otpChallenge', '../models/partnerApplication', '../models/settlementEntry', '../models/membership', '../models/pharmacyDemandSignal']) {
+        for (const modelPath of ['../models/pharmacyVendor', '../models/serviceZone', '../models/medicine', '../models/vendorInventory', '../models/inventoryMovement', '../models/pharmacyOrder', '../models/user', '../models/nurseBooking', '../models/otpChallenge', '../models/partnerApplication', '../models/settlementEntry', '../models/membership', '../models/pharmacyDemandSignal', '../models/inventoryBatch', '../models/stockAlert', '../models/pharmacyCheckout', '../models/pharmacyInventoryImport']) {
             const Model = require(modelPath);
             await Model.init().catch(() => undefined); // ensure the collection exists
             for (const [keys, options] of Model.schema.indexes()) {

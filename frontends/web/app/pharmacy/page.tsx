@@ -11,12 +11,14 @@ import type { MedicineAvailability, PharmacyVendor, Serviceability, StorefrontIt
 // matches the demo seed data so the storefront isn't empty during development.
 const FALLBACK = { lat: 26.9110, lng: 75.8010 };
 
-function NearbyPanel({ result, currentStoreId, onShop, onFind }: {
+function NearbyPanel({ result, currentStoreId, onShop, onFind, onNotify }: {
   result: MedicineAvailability | 'loading' | 'error';
   currentStoreId?: string;
   onShop: (storeId: string, name: string) => void;
   onFind: (medicineId: string) => void;
+  onNotify: () => Promise<string>;
 }) {
+  const [alertMsg, setAlertMsg] = useState<string | null>(null);
   if (result === 'loading') return <p className="muted" style={{ marginTop: 8 }}>Checking nearby pharmacies…</p>;
   if (result === 'error') return <p className="muted" style={{ marginTop: 8 }}>Could not check other stores right now.</p>;
   if (result.blocked) return <div className="notice" style={{ marginTop: 8 }}>{result.message}</div>;
@@ -43,6 +45,11 @@ function NearbyPanel({ result, currentStoreId, onShop, onFind }: {
       ))}
       {others.length === 0 && result.substitutes.length > 0 && (
         <span className="muted" style={{ fontSize: 12 }}>If your prescription names a brand, check with your doctor before switching.</span>
+      )}
+      {others.length === 0 && (
+        alertMsg
+          ? <span className="muted">{alertMsg}</span>
+          : <button className="linkish" style={{ alignSelf: 'flex-start' }} onClick={async () => setAlertMsg(await onNotify())}>Notify me when it&apos;s back</button>
       )}
     </div>
   );
@@ -74,6 +81,17 @@ export default function PharmacyPage() {
     const known = vendors.find((v) => v._id === storeId);
     selectVendor(known || ({ _id: storeId, name } as PharmacyVendor));
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /** Back-in-stock alert at the customer's location (needs a customer login). */
+  async function notifyMe(medicineId: string): Promise<string> {
+    try {
+      await api.notifyWhenInStock(medicineId, coords || FALLBACK);
+      return "Done. We'll tell you when a pharmacy near you has it.";
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      return /log ?in|auth|401|token/i.test(msg) ? 'Log in as a customer to get stock alerts.' : msg || 'Could not set the alert.';
+    }
   }
 
   /** Same-salt brand: open the best nearby store that has it. */
@@ -225,6 +243,7 @@ export default function PharmacyPage() {
                           currentStoreId={activeVendor?._id}
                           onShop={switchTo}
                           onFind={goToSubstitute}
+                          onNotify={() => notifyMe(it.medicine._id)}
                         />
                       )}
                     </div>
