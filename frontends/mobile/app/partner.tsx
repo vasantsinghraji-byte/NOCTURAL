@@ -1,8 +1,8 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Redirect, router } from 'expo-router';
-import { Bike, FlaskConical, IndianRupee, Stethoscope, Store, Wallet, type LucideIcon } from 'lucide-react-native';
+import { Bike, FlaskConical, IndianRupee, ShieldCheck, Stethoscope, Store, Wallet, type LucideIcon } from 'lucide-react-native';
 import { homeForRole, useAuth } from '@/lib/auth';
 import { Wordmark } from '@/lib/Brand';
 import { PressScale, Rise } from '@/lib/motion';
@@ -31,6 +31,14 @@ export default function PartnerWelcome() {
         <Rise delay={100}>
           <Text style={styles.title}>Earn on your{'\n'}own schedule.</Text>
           <Text style={styles.sub}>Join Jaipur’s home-care network. Weekly payouts, clear earnings on every visit, no joining fee.</Text>
+        </Rise>
+
+        <Rise delay={160} style={styles.photoCard}>
+          <Image source={require('../assets/images/welcome/slide-safety.jpg')} style={styles.photo} resizeMode="cover" accessibilityIgnoresInvertColors />
+          <View style={styles.photoBadge}>
+            <ShieldCheck size={14} color={C.brand} />
+            <Text style={styles.photoBadgeText}>Verified professionals only</Text>
+          </View>
         </Rise>
 
         <Rise delay={220} style={styles.stats}>
@@ -78,6 +86,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.night, overflow: 'hidden' },
   orb: { position: 'absolute', width: 380, height: 380, borderRadius: 999, backgroundColor: 'rgba(255,232,196,0.14)' },
   title: { color: C.onNight, fontFamily: F.display, fontSize: 46, lineHeight: 50, marginTop: 34 },
+  photoCard: { marginTop: 22, borderRadius: 26, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', boxShadow: '0 18px 36px -16px rgba(60,10,20,0.6)' },
+  photo: { width: '100%', height: 210 },
+  photoBadge: { position: 'absolute', left: 12, bottom: 12, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,253,249,0.95)', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999 },
+  photoBadgeText: { fontFamily: F.heavy, fontSize: 12, color: '#2a2523' },
   sub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 15, lineHeight: 22, marginTop: 10 },
   stats: { flexDirection: 'row', gap: 10, marginTop: 22 },
   stat: { flex: 1, borderRadius: 18, padding: 14, gap: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },

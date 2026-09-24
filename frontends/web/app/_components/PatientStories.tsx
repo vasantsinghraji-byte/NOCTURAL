@@ -1,142 +1,101 @@
-'use client';
-
 import Image from 'next/image';
-import { BadgeCheck, Heart, MapPin, Quote, Star } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, Check } from 'lucide-react';
 
-interface Story {
+/**
+ * "Who Nabz helps": everyday situations Nabz is built for. These are
+ * illustrative scenarios, not testimonials: no names, ratings or dates, and the
+ * section says the photos are illustrative. Add real reviews only once they
+ * come from real, consenting customers.
+ */
+interface Scenario {
   id: string;
-  name: string;
-  age: number;
-  relation: string;
-  location: string;
+  title: string;
+  body: string;
+  photo: string;
+  alt: string;
+  helps: string[];
   service: string;
-  avatar: string;
-  quote: string;
-  highlight: string;
-  daysAgo: string;
+  cta: string;
 }
 
-const STORIES: Story[] = [
+const SCENARIOS: Scenario[] = [
   {
-    id: 'ramesh',
-    name: 'Ramesh Kumar',
-    age: 68,
-    relation: 'Patient',
-    location: 'C-Scheme, Jaipur',
-    service: 'Post-Op Knee Dressing & Vitals',
-    avatar: '/images/testimonials/avatar-ramesh.jpg',
-    quote:
-      'After my knee replacement surgery, visiting the hospital daily was extremely painful. Asha ji came to our doorstep every morning at exactly 9:00 AM with fresh sterile dressings and checked my vitals. Truly a blessing.',
-    highlight: 'Saved 2 hours of daily hospital travel',
-    daysAgo: '3 days ago'
+    id: 'surgery',
+    title: 'Recovering after surgery',
+    body: 'Dressings and vitals at home, so the first weeks after an operation don’t mean a hospital trip every day.',
+    photo: '/images/people/avatar-ramesh.jpg',
+    alt: 'Older man smiling in his living room',
+    helps: ['Sterile supplies packed nearby', 'Book the same nurse again'],
+    service: 'POST_SURGERY_CARE',
+    cta: 'Post-surgery care'
   },
   {
-    id: 'neha',
-    name: 'Neha Agarwal',
-    age: 32,
-    relation: 'Daughter booking for mother',
-    location: 'Mansarovar, Jaipur',
-    service: 'Elderly Nursing & Insulin Support',
-    avatar: '/images/testimonials/avatar-neha.jpg',
-    quote:
-      'I live and work in Bangalore while my 72-year-old mother lives alone in Mansarovar. The live tracking, verified police badge, and 4-digit door code give me complete peace of mind. I pay only after the nurse finishes the visit.',
-    highlight: 'Live tracking & door security code',
-    daysAgo: 'Yesterday'
+    id: 'parent',
+    title: 'Caring for a parent from afar',
+    body: 'Book for your mother or father from another city, follow the visit live and share the visit code with them.',
+    photo: '/images/people/avatar-neha.jpg',
+    alt: 'Young woman smiling outdoors',
+    helps: ['Live family tracking link', '4-digit code at the door'],
+    service: 'ELDERLY_CARE',
+    cta: 'Elderly care'
   },
   {
-    id: 'vikram',
-    name: 'Vikram Sharma',
-    age: 42,
-    relation: 'Patient',
-    location: 'Malviya Nagar, Jaipur',
-    service: 'Home Physiotherapy (Knee Rehab)',
-    avatar: '/images/testimonials/avatar-vikram.jpg',
-    quote:
-      'Rajesh ji is an exceptional physiotherapist. He brought resistance bands and monitored my range of motion step-by-step. Within 2 weeks of home sessions, I was walking without support.',
-    highlight: 'Walking without support in 14 days',
-    daysAgo: '5 days ago'
+    id: 'rehab',
+    title: 'Getting moving again',
+    body: 'A physiotherapist comes to your living room with the kit for knee, back or post-surgery rehab.',
+    photo: '/images/people/avatar-vikram.jpg',
+    alt: 'Man smiling at home',
+    helps: ['Professional brings the kit', 'Session packages'],
+    service: 'PHYSIOTHERAPY_SESSION',
+    cta: 'Home physiotherapy'
   },
   {
-    id: 'sunita',
-    name: 'Sunita Devi',
-    age: 60,
-    relation: 'Patient',
-    location: 'Vaishali Nagar, Jaipur',
-    service: 'Doorstep Injection & Blood Test',
-    avatar: '/images/testimonials/avatar-sunita.jpg',
-    quote:
-      'No waiting in crowded pathology labs. The nurse arrived in 18 minutes with sterile vacuum collection tubes. Gentle prick, no bruising, and reports arrived on WhatsApp the same evening.',
-    highlight: 'Zero waiting, pain-free sample collection',
-    daysAgo: '1 week ago'
+    id: 'routine',
+    title: 'Routine injections and checks',
+    body: 'Injections, drips and blood-pressure checks at home, with no waiting room and no commute.',
+    photo: '/images/people/avatar-sunita.jpg',
+    alt: 'Older woman in a saree smiling at home',
+    helps: ['Book now or schedule', 'Pay after the visit'],
+    service: 'INJECTION',
+    cta: 'Injection at home'
   }
 ];
 
 export function PatientStories() {
   return (
-    <section className="band patient-stories-section" id="stories">
+    <section className="band patient-stories-section" id="who">
       <div className="container">
         <div className="head">
           <div>
-            <span className="kicker" style={{ color: 'var(--night)' }}>
-              Real patient experiences
-            </span>
-            <h2 className="display">Stories of Care at Home</h2>
+            <span className="kicker" style={{ color: 'var(--night)' }}>Who Nabz helps</span>
+            <h2 className="display">Care that fits real life.</h2>
           </div>
-          <p className="sub">
-            Real families across Jaipur share how doorstep care helped their loved ones recover comfortably and safely.
-          </p>
+          <p className="sub">The everyday situations Nabz is built for, from a first dressing after surgery to a parent who lives alone.</p>
         </div>
 
         <div className="stories-grid">
-          {STORIES.map((s) => (
-            <div key={s.id} className="story-card">
-              <div className="story-header">
-                <div className="story-avatar-wrap">
-                  <Image
-                    src={s.avatar}
-                    alt={s.name}
-                    width={64}
-                    height={64}
-                    className="story-avatar"
-                  />
-                  <span className="verified-badge-icon" title="Verified patient visit">
-                    <BadgeCheck size={18} color="#2f9e6e" fill="#e3f1e8" />
-                  </span>
-                </div>
-
-                <div className="story-meta">
-                  <div className="name-row">
-                    <h4>{s.name}</h4>
-                    <span className="age-pill">{s.age} yrs</span>
-                  </div>
-                  <span className="relation-text">{s.relation}</span>
-                  <span className="location-text">
-                    <MapPin size={12} color="var(--amber)" /> {s.location}
-                  </span>
-                </div>
+          {SCENARIOS.map((s) => (
+            <article key={s.id} className="scenario-card">
+              <div className="scenario-photo">
+                <Image src={s.photo} alt={s.alt} fill sizes="(max-width: 600px) 100vw, (max-width: 1100px) 50vw, 280px" />
               </div>
-
-              <div className="story-stars">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={14} color="#f0c77e" fill="#f0c77e" />
-                ))}
-                <span className="service-tag">{s.service}</span>
+              <div className="scenario-body">
+                <h3>{s.title}</h3>
+                <p>{s.body}</p>
+                <ul>
+                  {s.helps.map((h) => (
+                    <li key={h}><Check size={14} /> {h}</li>
+                  ))}
+                </ul>
+                <Link href={`/nursing?service=${s.service}`} className="scenario-link">
+                  {s.cta} <ArrowRight size={14} />
+                </Link>
               </div>
-
-              <div className="quote-box">
-                <Quote size={20} className="quote-icon" />
-                <p className="quote-text">&ldquo;{s.quote}&rdquo;</p>
-              </div>
-
-              <div className="story-footer">
-                <span className="highlight-pill">
-                  <Heart size={12} color="var(--rose)" fill="var(--rose)" /> {s.highlight}
-                </span>
-                <span className="days-ago">{s.daysAgo}</span>
-              </div>
-            </div>
+            </article>
           ))}
         </div>
+        <p className="illustrative-note">Illustrative situations. Photos are for illustration and do not show Nabz patients.</p>
       </div>
     </section>
   );

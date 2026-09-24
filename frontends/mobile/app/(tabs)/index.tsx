@@ -14,6 +14,7 @@ import { useLiveLocation } from '@/lib/useLiveLocation';
 import { DEMO_AREA_ENABLED } from '@/lib/variant';
 import { LiveMap, type MapPin } from '@/lib/MapView';
 import { DEMO_POINT, inr, shortName } from '@/lib/care';
+import { CareMoments } from '@/lib/CareMoments';
 import { IconTile, serviceIcon, TONES } from '@/lib/icons';
 import { PressScale, Rise, Skeleton } from '@/lib/motion';
 import { C, F, IS_DARK, shadow, ui } from '@/lib/theme';
@@ -245,6 +246,18 @@ export default function BookHome() {
               {service ? (effectiveMode === 'ASAP' ? `${t('home.bookNow')} · ${shortName(service)}` : `${t('home.schedule')} · ${shortName(service)}`) : 'Book'}
             </Text>
           </PressScale>
+
+          {/* Care at home: photo cards that open the matching service */}
+          <Text style={ui.section}>Care at home</Text>
+          <CareMoments
+            available={(type) => !!services?.some((x) => x.serviceType === type)}
+            onPick={(type) => {
+              const s = services?.find((x) => x.serviceType === type);
+              if (!s) return;
+              setSelected(type);
+              book(s, effectiveMode);
+            }}
+          />
 
           {/* Offers (server sends only offers that are actually live) */}
           {feed?.banners?.length ? (

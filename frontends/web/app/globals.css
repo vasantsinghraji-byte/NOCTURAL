@@ -303,26 +303,19 @@ h2, h3 { letter-spacing: -0.02em; font-weight: 800; }
   border-radius: 20px;
   backdrop-filter: blur(10px);
 }
-.avatar-group { display: flex; align-items: center; }
 .avatar-wrap {
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
-  border: 2.5px solid var(--night);
+  border: 2.5px solid rgba(255, 255, 255, 0.85);
   overflow: hidden;
-  margin-left: -12px;
+  flex-shrink: 0;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
   background: #fff;
-  transition: transform 0.2s ease;
 }
-.avatar-wrap:first-child { margin-left: 0; }
-.avatar-wrap:hover { transform: translateY(-3px) scale(1.08); z-index: 10 !important; }
 .avatar-img { width: 100%; height: 100%; object-fit: cover; }
-.trust-content { display: flex; flex-direction: column; gap: 2px; }
-.rating-row { display: flex; align-items: center; gap: 6px; }
-.stars { display: flex; gap: 2px; }
-.rating-score { font-weight: 800; font-size: 13px; color: #f0c77e; }
-.trust-caption { margin: 0; font-size: 12.5px; color: var(--on-night); opacity: 0.95; }
+.trust-caption { margin: 0; flex: 1; min-width: 220px; font-size: 13px; line-height: 1.45; color: var(--on-night-muted); }
+.trust-caption b { color: var(--on-night); }
 .trust-seals { display: flex; gap: 8px; margin-left: auto; }
 .trust-pill {
   display: inline-flex;
@@ -410,7 +403,7 @@ h2, h3 { letter-spacing: -0.02em; font-weight: 800; }
 .gallery-body h3 { margin: 0 0 8px; font-size: 19px; color: var(--ink); }
 .gallery-body p { margin: 0; color: var(--ink-soft); font-size: 13.5px; line-height: 1.55; }
 
-/* ── Real Patient Stories & Testimonials ─────────────────────────────────── */
+/* ── Who Nabz helps (illustrative scenarios, not testimonials) ───────────── */
 .patient-stories-section { padding: 52px 0; }
 .stories-grid {
   display: grid;
@@ -418,85 +411,26 @@ h2, h3 { letter-spacing: -0.02em; font-weight: 800; }
   gap: 18px;
   margin-top: 24px;
 }
-@media (max-width: 1100px) {
-  .stories-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 600px) {
-  .stories-grid { grid-template-columns: 1fr; }
-}
-.story-card {
+@media (max-width: 1100px) { .stories-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .stories-grid { grid-template-columns: 1fr; } }
+.scenario-card {
   background: var(--card);
-  border-radius: 24px;
-  padding: 22px;
+  border-radius: 26px;
+  overflow: hidden;
   box-shadow: var(--clay);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(236, 228, 218, 0.7);
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  position: relative;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.story-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--clay-hover);
-}
-.story-header { display: flex; align-items: center; gap: 12px; }
-.story-avatar-wrap { position: relative; width: 62px; height: 62px; flex-shrink: 0; }
-.story-avatar {
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid #fff;
-  box-shadow: var(--shadow-sm);
-  width: 62px;
-  height: 62px;
-}
-.verified-badge-icon {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  border-radius: 50%;
-  background: #fff;
-  display: flex;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-.story-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.name-row { display: flex; align-items: baseline; gap: 6px; }
-.name-row h4 { margin: 0; font-size: 15px; font-weight: 800; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.age-pill { font-size: 11px; font-weight: 600; color: var(--muted); }
-.relation-text { font-size: 11.5px; color: var(--ink-soft); font-weight: 600; }
-.location-text { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 3px; }
-.story-stars { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; margin-top: -2px; }
-.service-tag {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--brand);
-  background: var(--brand-soft);
-  padding: 2.5px 8px;
-  border-radius: 999px;
-  margin-left: auto;
-  white-space: nowrap;
-}
-.quote-box { position: relative; flex: 1; margin: 4px 0; }
-.quote-icon { color: var(--gold); opacity: 0.6; margin-bottom: 2px; }
-.quote-text { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink); font-style: italic; }
-.story-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
-  font-size: 11px;
-}
-.highlight-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--rose-ink);
-  font-weight: 700;
-  background: var(--rose-soft);
-  padding: 3px 8px;
-  border-radius: 7px;
-  font-size: 10.5px;
-}
-.days-ago { color: var(--muted); font-size: 11px; font-weight: 600; }
+.scenario-card:hover { transform: translateY(-4px); box-shadow: var(--clay-hover); }
+.scenario-photo { position: relative; aspect-ratio: 4 / 3; background: var(--card-alt); }
+.scenario-photo img { object-fit: cover; object-position: center 25%; }
+.scenario-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.scenario-body h3 { margin: 0; font-size: 17px; color: var(--ink); }
+.scenario-body p { margin: 0; color: var(--ink-soft); font-size: 13.5px; line-height: 1.55; }
+.scenario-body ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.scenario-body li { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--brand); }
+.scenario-link { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 13px; color: var(--night); padding-top: 6px; }
+.illustrative-note { margin: 18px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
 

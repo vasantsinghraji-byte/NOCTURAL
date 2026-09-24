@@ -8,7 +8,7 @@ import {
   Text,
   View
 } from 'react-native';
-import { BadgeCheck, Clock3, Heart, ShieldCheck, Star } from 'lucide-react-native';
+import { BadgeCheck, Clock3, Heart, ShieldCheck } from 'lucide-react-native';
 import { C, F } from './theme';
 import { tap } from './motion';
 
@@ -29,29 +29,29 @@ const SLIDES: CareSlide[] = [
   {
     id: 'elderly',
     image: require('../assets/images/welcome/slide-elderly.jpg'),
-    title: 'Elderly Care at Home',
-    subtitle: 'Gentle nursing & daily vitals monitoring for parents',
+    title: 'Elderly care at home',
+    subtitle: 'Gentle nursing and vitals checks for your parents',
     tag: 'Home Nursing',
-    badge1: { icon: Clock3, text: 'Arriving in 12 min', color: C.mint },
-    badge2: { icon: Star, text: '4.9 · 12,500+ visits', color: C.gold }
+    badge1: { icon: Clock3, text: 'Book now or schedule', color: C.mint },
+    badge2: { icon: BadgeCheck, text: 'Pay after the visit', color: C.gold }
   },
   {
     id: 'physio',
     image: require('../assets/images/welcome/slide-physio.jpg'),
-    title: 'Guided Rehabilitation',
+    title: 'Guided rehabilitation',
     subtitle: 'Recover joint mobility comfortably without hospital visits',
     tag: 'Physiotherapy',
-    badge1: { icon: Heart, text: 'Pain Relief & Mobility', color: C.rose },
-    badge2: { icon: ShieldCheck, text: 'Certified Physios', color: C.gold }
+    badge1: { icon: Heart, text: 'Pain relief & mobility', color: C.rose },
+    badge2: { icon: ShieldCheck, text: 'Qualified physios', color: C.gold }
   },
   {
     id: 'safety',
     image: require('../assets/images/welcome/slide-safety.jpg'),
-    title: 'Verified Professionals',
-    subtitle: '100% Police & nursing council checked at the door',
+    title: 'Verified professionals',
+    subtitle: 'ID, council and police checked before their first visit',
     tag: 'Safety Verified',
-    badge1: { icon: ShieldCheck, text: 'Police Verified', color: C.mint },
-    badge2: { icon: BadgeCheck, text: '4-Digit Door Code', color: C.gold }
+    badge1: { icon: ShieldCheck, text: 'Police verified', color: C.mint },
+    badge2: { icon: BadgeCheck, text: '4-digit visit code', color: C.gold }
   }
 ];
 

@@ -13,14 +13,14 @@ const MOMENTS = [
   },
   {
     title: 'Guided Home Rehabilitation',
-    desc: 'Certified physiotherapists bring resistance bands and recovery kits directly to your living room for rapid joint mobility.',
+    desc: 'Qualified physiotherapists bring resistance bands and recovery kits to your living room to help you move comfortably again.',
     img: '/images/patients/physio-recovery.jpg',
     tag: 'Physiotherapy',
     icon: Stethoscope
   },
   {
     title: 'Verified & Trusted Healthcare',
-    desc: 'Every nurse and physiotherapist undergoes thorough government council verification, background checks, and identity matching.',
+    desc: 'Every nurse and physiotherapist is checked before their first visit: ID, council registration and a police background check.',
     img: '/images/staff/nurse-asha.jpg',
     tag: 'Safety Verified',
     icon: ShieldCheck
@@ -29,7 +29,7 @@ const MOMENTS = [
 
 export function CareGallery() {
   return (
-    <section className="band alt care-gallery-section" id="gallery">
+    <section className="band alt bleed care-gallery-section" id="gallery">
       <div className="container">
         <div className="head">
           <div>

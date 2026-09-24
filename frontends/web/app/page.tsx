@@ -163,7 +163,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Real Customer Stories & Testimonials ──────────────────────────── */}
+      {/* ── Who Nabz helps (illustrative scenarios) ───────────────────────── */}
       <PatientStories />
 
       {/* ── Safety ───────────────────────────────────────────────────────── */}
