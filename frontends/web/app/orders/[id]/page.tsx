@@ -98,6 +98,13 @@ export default function OrderDetailPage() {
         <span className="pill status-badge">{order.status}</span>
       </div>
 
+      {order.deliveryOtp?.code && !order.deliveryOtp.verifiedAt && !['DELIVERED', 'CANCELLED', 'REJECTED'].includes(order.status) && (
+        <div className="notice" style={{ marginTop: 10 }}>
+          Delivery code <b style={{ fontSize: 22, letterSpacing: 4, marginLeft: 8 }}>{order.deliveryOtp.code}</b>
+          <div className="muted">Share it with the delivery person only when you receive your medicines.</div>
+        </div>
+      )}
+
       {awaitingPayment(order) && (
         <div className="notice" style={{ marginTop: 10 }}>
           <b>{order.paymentStatus === 'FAILED' ? 'Your last payment attempt failed.' : 'Complete payment to send this order to the pharmacy.'}</b>

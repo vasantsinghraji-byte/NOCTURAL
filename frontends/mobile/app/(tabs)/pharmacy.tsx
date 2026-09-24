@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { pickAndUploadPrescription } from '@/lib/prescription';
 import type { PharmacyVendor, StorefrontItem } from '@medrush/shared';
 import { C, F } from '@/lib/theme';
+import { appAlert } from '@/lib/dialog';
 
 const FALLBACK = { lat: 26.9110, lng: 75.8010 }; // launch city demo area (C-Scheme, Jaipur)
 
@@ -31,9 +32,17 @@ export default function Pharmacy() {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          const pos = await Location.getCurrentPositionAsync({});
-          coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          setCoords(coords); // only a real fix is used as the delivery point
+          // A GPS fix can take ages indoors: use the last known position, and
+          // never wait more than 8 s before showing stores.
+          const fix = await Promise.race([
+            Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000))
+          ]).catch(() => null);
+          const pos = fix || await Location.getLastKnownPositionAsync().catch(() => null);
+          if (pos) {
+            coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            setCoords(coords); // only a real fix is used as the delivery point
+          }
         }
       } catch { /* use fallback */ }
 
@@ -86,9 +95,9 @@ export default function Pharmacy() {
     }
     try {
       await api.notifyWhenInStock(medicineId, coords || FALLBACK);
-      Alert.alert("We'll let you know", 'You will get a notification when a pharmacy near you has it.');
+      appAlert("We'll let you know", 'You will get a notification when a pharmacy near you has it.');
     } catch (e) {
-      Alert.alert('Could not set the alert', describeNetworkError(e));
+      appAlert('Could not set the alert', describeNetworkError(e));
     }
   }
 
@@ -97,7 +106,7 @@ export default function Pharmacy() {
     try {
       const res = await api.getMedicineAvailability(medicineId, coords || FALLBACK);
       if (res.blocked) {
-        Alert.alert(name, res.message || 'This item cannot be ordered online.');
+        appAlert(name, res.message || 'This item cannot be ordered online.');
         return;
       }
       const other = res.stores.find((s) => s.store.id !== active?._id);
@@ -113,9 +122,9 @@ export default function Pharmacy() {
           : 'No other pharmacy near you has it right now.',
         sub ? `Same medicine, other brand: ${sub.medicine.name} from ₹${sub.fromPrice}${sub.medicine.requiresPrescription ? ' (prescription needed)' : ''}. Check with your doctor if your prescription names a brand.` : ''
       ].filter(Boolean);
-      Alert.alert(name, lines.join('\n\n'), buttons);
+      appAlert(name, lines.join('\n\n'), buttons);
     } catch (e) {
-      Alert.alert('Could not check other stores', describeNetworkError(e));
+      appAlert('Could not check other stores', describeNetworkError(e));
     }
   }
   const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
@@ -135,11 +144,11 @@ export default function Pharmacy() {
     }
     if (!active) return;
     if (!address.line1.trim() || !/^\d{6}$/.test(address.pincode)) {
-      Alert.alert('Address needed', 'Enter the delivery address and a 6-digit pincode.');
+      appAlert('Address needed', 'Enter the delivery address and a 6-digit pincode.');
       return;
     }
     if (needsRx && !rx?.key) {
-      Alert.alert('Prescription needed', 'Some items need a prescription photo.');
+      appAlert('Prescription needed', 'Some items need a prescription photo.');
       return;
     }
     setPlacing(true);
@@ -156,9 +165,9 @@ export default function Pharmacy() {
       });
       setCart({});
       setRx(null);
-      Alert.alert('Order placed', `${res.order.orderNumber} — the pharmacy has been notified.`);
+      appAlert('Order placed', `${res.order.orderNumber} — the pharmacy has been notified.`);
     } catch (e) {
-      Alert.alert('Could not place order', describeNetworkError(e));
+      appAlert('Could not place order', describeNetworkError(e));
       refreshPrices();
     } finally {
       setPlacing(false);
@@ -259,7 +268,7 @@ const styles = StyleSheet.create({
   error: { backgroundColor: C.roseSoft, color: C.roseInk, padding: 10, margin: 12, borderRadius: 10, fontFamily: F.semi },
   checkout: { backgroundColor: C.night, padding: 16, gap: 8, borderTopLeftRadius: 22, borderTopRightRadius: 22 },
   cartText: { color: C.onNight, fontFamily: F.bold },
-  input: { backgroundColor: C.card, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: C.ink, fontFamily: F.medium },
+  input: { backgroundColor: C.card, borderRadius: 12, paddingLeft: 16, paddingRight: 16, paddingVertical: 11, color: C.ink, fontFamily: F.medium },
   rxRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   rxText: { color: C.onNight, flex: 1, fontFamily: F.medium },
   rxLink: { color: C.gold, fontFamily: F.bold },

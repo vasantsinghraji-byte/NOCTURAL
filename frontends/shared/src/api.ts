@@ -24,6 +24,7 @@ import type {
   CareSuppliesQuote,
   CreateCareBookingInput,
   CareBooking,
+  CareCancelQuote,
   LoginPortal,
   MembershipStatus,
   VisitTracking,
@@ -172,7 +173,10 @@ export class MedRushApi {
     }
 
     if (!res.ok || (payload && payload.success === false)) {
-      const message = (payload && (payload.message || payload.error)) || `Request failed (${res.status})`;
+      // The server's limiter text ("API rate limit exceeded") means nothing to a customer.
+      const message = res.status === 429
+        ? 'Nabz is busy right now. Please wait a few seconds and try again.'
+        : (payload && (payload.message || payload.error)) || `Request failed (${res.status})`;
       throw new ApiError(res.status, message, payload && payload.details);
     }
     return payload as T;
@@ -259,7 +263,7 @@ export class MedRushApi {
   }
 
   /** Medical staff: confirm / en-route / start (start needs the patient's 4-digit visit code). */
-  updateVisitStep(id: string, step: 'confirm' | 'en-route' | 'start' | 'complete', body?: { visitCode?: string; observations?: string; recommendations?: string }) {
+  updateVisitStep(id: string, step: 'confirm' | 'en-route' | 'start' | 'complete', body?: { visitCode?: string; observations?: string; recommendations?: string; cashCollected?: number }) {
     return this.request<{ success: true; booking: CareBooking }>('PUT', `/bookings/${id}/${step}`, body ? { body } : {});
   }
 
@@ -428,7 +432,7 @@ export class MedRushApi {
     return this.request<{ success: true; orders: PharmacyOrder[]; pagination: Pagination }>('GET', '/pharmacy/vendor/orders', { query: params });
   }
 
-  vendorUpdateOrderStatus(id: string, status: string, note?: string, extra: { reasonCode?: PharmacyRejectionReason; unavailableMedicineIds?: string[] } = {}) {
+  vendorUpdateOrderStatus(id: string, status: string, note?: string, extra: { reasonCode?: PharmacyRejectionReason; unavailableMedicineIds?: string[]; deliveryCode?: string; deliveredWithoutCodeReason?: string } = {}) {
     return this.request<{ success: true; order: PharmacyOrder }>('PATCH', `/pharmacy/vendor/orders/${id}/status`, { body: { status, note, ...extra } });
   }
 
@@ -546,6 +550,18 @@ export class MedRushApi {
 
   cancelCareBooking(id: string, reason: string) {
     return this.request<{ success: true; booking: CareBooking }>('PUT', `/bookings/${id}/cancel`, { body: { reason } });
+  }
+
+  /** What cancelling costs right now (free until the nurse is on the way). */
+  getCareCancelQuote(id: string) {
+    return this.request<{ success: true; quote: CareCancelQuote }>('GET', `/bookings/${id}/cancel-quote`);
+  }
+
+  /** Move a visit nobody has taken yet (e.g. after "no nurse available"). */
+  rescheduleCareBooking(id: string, scheduledDate: string, scheduledTime: string) {
+    return this.request<{ success: true; booking: CareBooking }>('PUT', `/bookings/${id}/reschedule`, {
+      body: { scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes: -new Date().getTimezoneOffset() }
+    });
   }
 
   // ── Nabz Plus membership ─────────────────────────────────────────────────

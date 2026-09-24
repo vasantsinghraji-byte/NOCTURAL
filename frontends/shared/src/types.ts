@@ -279,6 +279,8 @@ export interface PharmacyOrder {
   feeBreakdown?: { base: number; surgeMultiplier: number; surgeAmount: number; nightSurcharge: number; waiver: 'MEMBER' | 'FREE_ABOVE' | 'STAFF_PICKUP' | null };
   careVisit?: { booking: string; serviceType: string; scheduledDate: string; scheduledTime: string };
   cancellationReason?: string;
+  /** Customer only: the 4-digit code to give the delivery person. */
+  deliveryOtp?: { code?: string; verifiedAt?: string };
   rejectionReasonCode?: PharmacyRejectionReason;
   /** The current store must accept by this time or the order moves on. */
   acceptBy?: string;
@@ -472,7 +474,9 @@ export interface CareBooking {
   scheduledDate: string;
   scheduledTime: string;
   status: string;
-  pricing?: { payableAmount?: number; basePrice?: number };
+  pricing?: { payableAmount?: number; basePrice?: number; previousDues?: number };
+  payment?: { status?: string; method?: string; amount?: number };
+  cancellation?: { reason?: string; cancellationFee?: number };
   serviceLocation?: CreateCareBookingInput['serviceLocation'];
   supplies?: {
     items: Array<{ key: string; name: string; quantity: number; source: CareSupplySource; lineTotal?: number }>;
@@ -486,6 +490,9 @@ export interface CareBooking {
   serviceProvider?: { _id: string; name: string } | string;
   createdAt?: string;
 }
+
+/** GET /bookings/:id/cancel-quote */
+export interface CareCancelQuote { allowed: boolean; fee: number; reason: string | null }
 
 /** Password step of an admin login: finish with /auth/admin-mfa/*. */
 export interface AdminMfaChallenge { success: true; mfaRequired: true; mfaToken: string; enrolled: boolean }

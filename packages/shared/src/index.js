@@ -72,4 +72,7 @@ lazyExport('membershipService', () => require('../../../services/membershipServi
 lazyExport('settlementService', () => require('../../../services/settlementService'));
 lazyExport('staffAvailabilityService', () => require('../../../services/staffAvailabilityService'));
 lazyExport('dispatchService', () => require('../../../services/dispatchService'));
+lazyExport('careVisitPolicy', () => require('../../../services/careVisitPolicy'));
+lazyExport('pushNotificationService', () => require('../../../services/pushNotificationService'));
+lazyExport('Notification', () => require('../../../models/notification'));
 lazyExport('adminMfaService', () => require('../../../services/adminMfaService'));

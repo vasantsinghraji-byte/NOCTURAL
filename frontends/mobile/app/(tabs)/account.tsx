@@ -1,5 +1,5 @@
 import { useCallback, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import type { MembershipStatus } from '@medrush/shared';
@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { BadgeCheck, Briefcase, ChevronRight, Crown, Languages, LogOut, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useT } from '@/lib/i18n';
 import { C, F, shadow, ui } from '@/lib/theme';
+import { appAlert } from '@/lib/dialog';
 
 function Row({ icon: Icon, title, desc, href, onPress, right }: { icon: LucideIcon; title: string; desc: string; href?: Href; onPress?: () => void; right?: ReactNode }) {
   return (
@@ -40,9 +41,9 @@ export default function Account() {
     try {
       await api.startMembershipTrial();
       loadPlus();
-      Alert.alert('Welcome to Nabz Plus', 'Free delivery and no platform fee on nurse visits are now on.');
+      appAlert('Welcome to Nabz Plus', 'Free delivery and no platform fee on nurse visits are now on.');
     } catch (e) {
-      Alert.alert('Could not start trial', describeNetworkError(e));
+      appAlert('Could not start trial', describeNetworkError(e));
     } finally {
       setBusy(false);
     }

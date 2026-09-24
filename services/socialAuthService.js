@@ -196,8 +196,14 @@ async function startPhoneSignIn(rawPhone, requestIp) {
     throw new RateLimitError('Please wait 30 seconds before requesting another code.');
   }
   const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
-  await OtpChallenge.create({ phone, codeHash: hashCode(phone, code), expiresAt: new Date(now + OTP_TTL_MS), requestIp });
-  await smsSender({ phone, code });
+  const challenge = await OtpChallenge.create({ phone, codeHash: hashCode(phone, code), expiresAt: new Date(now + OTP_TTL_MS), requestIp });
+  try {
+    await smsSender({ phone, code });
+  } catch (err) {
+    // A code that never went out must not count toward the hourly limit.
+    await OtpChallenge.deleteOne({ _id: challenge._id }).catch(() => undefined);
+    throw err;
+  }
   return { sent: true, expiresInSeconds: OTP_TTL_MS / 1000, resendAfterSeconds: OTP_RESEND_COOLDOWN_MS / 1000 };
 }
 

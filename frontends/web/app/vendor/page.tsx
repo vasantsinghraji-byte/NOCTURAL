@@ -120,6 +120,20 @@ export default function VendorDashboard() {
     }
   }
 
+  // Handover needs the customer's 4-digit code from their app (nurse pickups don't have one).
+  function markDelivered(o: PharmacyOrder) {
+    if (o.fulfilment === 'STAFF_PICKUP') { run(o._id, () => api.vendorUpdateOrderStatus(o._id, 'DELIVERED')); return; }
+    const code = window.prompt('Ask the customer for the 4-digit delivery code shown in their Nabz app. Leave empty if they can’t show it.', '');
+    if (code === null) return;
+    if (code.trim()) {
+      run(o._id, () => api.vendorUpdateOrderStatus(o._id, 'DELIVERED', undefined, { deliveryCode: code.trim() }), 'Order delivered.');
+      return;
+    }
+    const why = window.prompt('Delivering without the code is reviewed by Nabz. Why is there no code?', '');
+    if (!why || !why.trim()) return;
+    run(o._id, () => api.vendorUpdateOrderStatus(o._id, 'DELIVERED', undefined, { deliveredWithoutCodeReason: why.trim() }), 'Order delivered (flagged for review).');
+  }
+
   function decline(o: PharmacyOrder, code: PharmacyRejectionReason) {
     setDeclining(null);
     const status: PharmacyOrderStatus = o.status === 'PLACED' ? 'REJECTED' : 'CANCELLED';
@@ -244,7 +258,7 @@ export default function VendorDashboard() {
                     // Packing waits for the pharmacist's prescription check.
                     const blocked = s === 'PREPARING' && o.requiresPrescription && !o.prescription?.verified;
                     return (
-                      <button key={s} className="btn" disabled={busy || blocked} onClick={() => run(o._id, () => api.vendorUpdateOrderStatus(o._id, s))}>
+                      <button key={s} className="btn" disabled={busy || blocked} onClick={() => (s === 'DELIVERED' ? markDelivered(o) : run(o._id, () => api.vendorUpdateOrderStatus(o._id, s)))}>
                         {blocked ? 'Verify prescription first' : s === 'ACCEPTED' ? 'Accept' : s.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
                       </button>
                     );

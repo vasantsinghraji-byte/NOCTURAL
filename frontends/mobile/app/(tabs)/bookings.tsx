@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import type { CareBooking, PharmacyOrder } from '@medrush/shared';
@@ -9,6 +9,7 @@ import { inr } from '@/lib/care';
 import { IconTile, serviceIcon, TONES } from '@/lib/icons';
 import { Bike, CalendarDays, Lock, Navigation, Star, Store, Stethoscope } from 'lucide-react-native';
 import { C, F, PASTELS, shadow, ui } from '@/lib/theme';
+import { chooseReschedule, confirmCancelVisit } from '@/lib/visitActions';
 
 type Tab = 'visits' | 'orders';
 
@@ -28,10 +29,7 @@ export default function Bookings() {
   useFocusEffect(load);
 
   function cancel(b: CareBooking) {
-    Alert.alert('Cancel visit?', 'Supplies ordered for this visit will be cancelled too.', [
-      { text: 'Keep', style: 'cancel' },
-      { text: 'Cancel visit', style: 'destructive', onPress: () => api.cancelCareBooking(b._id, 'Cancelled by patient').then(load).catch((e) => setError(describeNetworkError(e))) }
-    ]);
+    confirmCancelVisit(b._id, 'Cancelled by patient', load, setError);
   }
 
   return (
@@ -60,11 +58,22 @@ export default function Bookings() {
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={ui.h3}>{b.serviceType.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}</Text>
               <Text style={ui.muted}>{String(b.scheduledDate).slice(0, 10)} · {b.scheduledTime}</Text>
+              {b.status === 'REQUESTED' && b.dispatch?.status === 'NO_STAFF' && (
+                <Text style={[ui.muted, { color: C.night, fontFamily: F.bold }]}>No professional was free. Pick another time.</Text>
+              )}
+              {b.status === 'CANCELLED' && (b.cancellation?.cancellationFee || 0) > 0 && (
+                <Text style={ui.muted}>Cancellation fee {inr(b.cancellation?.cancellationFee || 0)}, added to your next booking</Text>
+              )}
               {b.supplies?.status === 'ORDERED' && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Store size={13} color={C.muted} /><Text style={ui.muted}>Supplies packed · {inr(b.supplies.amount || 0)}</Text></View>
               )}
               <View style={{ flexDirection: 'row', gap: 16, marginTop: 4 }}>
-                {['REQUESTED', 'ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'].includes(b.status) && (
+                {b.status === 'REQUESTED' && b.dispatch?.status === 'NO_STAFF' ? (
+                  <Pressable style={styles.track} onPress={() => chooseReschedule(b._id, load, setError)}>
+                    <CalendarDays size={14} color={C.onNight} />
+                    <Text style={styles.trackText}>Reschedule</Text>
+                  </Pressable>
+                ) : ['REQUESTED', 'ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'].includes(b.status) && (
                   <Pressable style={styles.track} onPress={() => router.push({ pathname: '/track', params: { id: b._id } })}>
                     <Navigation size={14} color={C.onNight} />
                     <Text style={styles.trackText}>{b.status === 'REQUESTED' ? 'Matching' : 'Track live'}</Text>
@@ -91,6 +100,12 @@ export default function Bookings() {
               <Text style={ui.h3}>{o.orderNumber}</Text>
               <Text style={ui.muted}>{o.items.length} item(s) · {inr(o.amounts.total)}</Text>
               {o.fulfilment === 'STAFF_PICKUP' && <Text style={ui.muted}>Brought by your nurse</Text>}
+              {o.deliveryOtp?.code && !o.deliveryOtp.verifiedAt && !['DELIVERED', 'CANCELLED', 'REJECTED'].includes(o.status) && (
+                <View style={styles.codeRow}>
+                  <Text style={styles.codeLabel}>Delivery code</Text>
+                  <Text style={styles.code}>{o.deliveryOtp.code}</Text>
+                </View>
+              )}
             </View>
             <View style={styles.status}><Text style={styles.statusText}>{o.status.replace(/_/g, ' ')}</Text></View>
           </View>
@@ -115,5 +130,8 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 10, fontFamily: F.heavy, color: C.ink },
   cancel: { color: C.rose, fontFamily: F.bold, marginTop: 6 },
   track: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.night, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
-  trackText: { color: C.onNight, fontFamily: F.heavy, fontSize: 12 }
+  trackText: { color: C.onNight, fontFamily: F.heavy, fontSize: 12 },
+  codeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, backgroundColor: C.card, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+  codeLabel: { fontSize: 11, fontFamily: F.bold, color: C.muted },
+  code: { fontSize: 17, fontFamily: F.heavy, color: C.ink, letterSpacing: 3 }
 });

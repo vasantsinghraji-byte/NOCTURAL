@@ -25,12 +25,16 @@ const pushNotificationService = require('./pushNotificationService');
 const pricingService = require('./pricingService');
 const logger = require('../utils/logger');
 const { ConflictError, NotFoundError } = require('../utils/errors');
+const visitPolicy = require('./careVisitPolicy');
+const lazyAccess = () => require('./doctorAccessService');
 
 const OFFER_TTL_MS = 45 * 1000;
 const MAX_ATTEMPTS = 8;
 const SEARCH_RADIUS_KM = 12;
-const GIVE_UP_MS = 10 * 60 * 1000;
-const SCHEDULE_LEAD_MS = 60 * 60 * 1000;
+const GIVE_UP_MS = 10 * 60 * 1000; // "Book now": stop searching after 10 min
+// Scheduled visits: start offering 12 h ahead and keep trying until 30 min before.
+const SCHEDULE_LEAD_MS = 12 * 60 * 60 * 1000;
+const SCHEDULED_STOP_BEFORE_MS = 30 * 60 * 1000;
 const SWEEP_INTERVAL_MS = 10 * 1000;
 const BUSY_STATUSES = ['CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'];
 const PHYSIO_SERVICES = new Set([
@@ -42,14 +46,22 @@ const rolesFor = (serviceType) => (PHYSIO_SERVICES.has(serviceType) ? ['physioth
 const nice = (serviceType) => String(serviceType || '').replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 
 /** When the visit is due (scheduledDate + scheduledTime in its timezone). */
-function visitTime(booking) {
-  const d = new Date(booking.scheduledDate);
-  if (Number.isNaN(d.getTime())) return null;
-  const ymd = d.toISOString().slice(0, 10);
-  const [h, m] = String(booking.scheduledTime || '00:00').split(':').map(Number);
-  const offset = Number.isInteger(booking.scheduledTimezoneOffsetMinutes) ? booking.scheduledTimezoneOffsetMinutes : 330;
-  const utc = Date.UTC(Number(ymd.slice(0, 4)), Number(ymd.slice(5, 7)) - 1, Number(ymd.slice(8, 10)), h || 0, m || 0) - offset * 60000;
-  return new Date(utc);
+const visitTime = (booking) => visitPolicy.visitStart(booking);
+
+/**
+ * Staff who can't take this visit because they already hold one around the
+ * same time. (Previously any confirmed visit, even tomorrow's, made a nurse
+ * "busy" all day, and nothing stopped overlapping visits.)
+ */
+async function busyStaffFor(booking) {
+  const start = booking.dispatch && booking.dispatch.mode === 'ASAP' ? new Date() : (visitTime(booking) || new Date());
+  const held = await NurseBooking.find({
+    status: { $in: BUSY_STATUSES.concat('ASSIGNED') },
+    serviceProvider: { $ne: null },
+    _id: { $ne: booking._id },
+    scheduledDate: { $gte: new Date(start.getTime() - 2 * 86400000), $lte: new Date(start.getTime() + 2 * 86400000) }
+  }).select('serviceProvider status scheduledDate scheduledTime scheduledTimezoneOffsetMinutes').lean();
+  return held.filter((b) => visitPolicy.overlaps(b, start)).map((b) => b.serviceProvider);
 }
 
 async function findCandidate(booking) {
@@ -57,7 +69,7 @@ async function findCandidate(booking) {
   if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) return null;
 
   const [busy, holding] = await Promise.all([
-    NurseBooking.distinct('serviceProvider', { status: { $in: BUSY_STATUSES }, serviceProvider: { $ne: null } }),
+    busyStaffFor(booking),
     NurseBooking.distinct('dispatch.offeredTo', { 'dispatch.status': 'OFFERED', _id: { $ne: booking._id } })
   ]);
   const exclude = [...(booking.dispatch?.declined || []), ...busy, ...holding].filter(Boolean);
@@ -120,20 +132,49 @@ async function notifyPatientMatched(booking, staffName) {
   }
 }
 
+/** Nobody took it: tell the customer (reschedule / cancel free) and ops. */
+async function notifyNoStaff(booking) {
+  try {
+    const title = 'No nurse available right now';
+    const body = `We couldn't find anyone for your ${nice(booking.serviceType).toLowerCase()} visit. Pick another time, or cancel at no charge.`;
+    const data = { type: 'CARE_VISIT_UPDATE', bookingId: String(booking._id) };
+    await Notification.create({
+      user: booking.patient, recipientModel: 'Patient', type: 'CARE_VISIT_UPDATE', title, message: body,
+      priority: 'HIGH', channels: { inApp: true, push: true }, metadata: data, expiresAt: new Date(Date.now() + 7 * 86400000)
+    });
+    await pushNotificationService.sendToOwner({ owner: booking.patient, userType: 'patient', title, body, data }).catch(() => undefined);
+    const ops = await User.find({ role: 'platform_admin', isActive: { $ne: false } }).select('_id').lean();
+    await Promise.all(ops.map((o) => Notification.create({
+      user: o._id, recipientModel: 'User', type: 'CARE_VISIT_UPDATE', priority: 'HIGH',
+      title: 'Visit with no staff', message: `Booking ${booking._id} · ${nice(booking.serviceType)} found nobody. Assign manually?`,
+      channels: { inApp: true, push: false }, metadata: data
+    })));
+  } catch (err) {
+    logger.warn('No-staff notice failed', { bookingId: String(booking._id), error: err.message });
+  }
+}
+
 /** Offer the visit to the next candidate (or mark SEARCHING / NO_STAFF). */
 async function offerNext(bookingId) {
   const booking = await NurseBooking.findById(bookingId);
   if (!booking || booking.status !== 'REQUESTED' || booking.serviceProvider) return null;
   const d = booking.dispatch || {};
   if (['MATCHED', 'CANCELLED', 'NO_STAFF'].includes(d.status)) return null;
-
-  const expired = d.startedAt && Date.now() - new Date(d.startedAt).getTime() > GIVE_UP_MS;
-  if ((d.attempts || 0) >= MAX_ATTEMPTS || expired) {
-    await NurseBooking.updateOne(
+  // "Book now" gives up after 10 minutes; scheduled visits keep trying until
+  // 30 minutes before they're due. Declines stop mattering once everyone's asked.
+  const start = visitTime(booking);
+  const expired = d.mode === 'SCHEDULED' && start
+    ? Date.now() > start.getTime() - SCHEDULED_STOP_BEFORE_MS
+    : d.startedAt && Date.now() - new Date(d.startedAt).getTime() > GIVE_UP_MS;
+  if ((d.mode !== 'SCHEDULED' && (d.attempts || 0) >= MAX_ATTEMPTS) || expired) {
+    const gaveUp = await NurseBooking.findOneAndUpdate(
       { _id: booking._id, status: 'REQUESTED', 'dispatch.status': { $in: ['SEARCHING', 'OFFERED'] } },
       { $set: { 'dispatch.status': 'NO_STAFF' }, $unset: { 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1 } }
     );
-    logger.info('Dispatch gave up: no staff accepted', { bookingId: String(booking._id), attempts: d.attempts });
+    if (gaveUp) {
+      logger.info('Dispatch gave up: no staff accepted', { bookingId: String(booking._id), attempts: d.attempts });
+      await notifyNoStaff(booking);
+    }
     return { status: 'NO_STAFF' };
   }
 
@@ -212,6 +253,13 @@ async function getMyOffer(staffId) {
 
 async function accept(bookingId, staffId) {
   const now = new Date();
+  const pending = await NurseBooking.findById(bookingId).select('dispatch scheduledDate scheduledTime scheduledTimezoneOffsetMinutes').lean();
+  if (pending) {
+    const busy = await busyStaffFor(pending);
+    if (busy.some((id) => String(id) === String(staffId))) {
+      throw new ConflictError('You already have a visit around this time');
+    }
+  }
   const booking = await NurseBooking.findOneAndUpdate(
     {
       _id: bookingId,
@@ -234,6 +282,16 @@ async function accept(bookingId, staffId) {
     { new: true }
   );
   if (!booking) throw new ConflictError('This request is no longer available');
+  // Visit-scoped health data access (previously only admin assignment granted it).
+  try {
+    const start = visitTime(booking) || now;
+    await lazyAccess().grantForVisit({
+      patientId: booking.patient, providerId: staffId, bookingId: booking._id,
+      expiresAt: new Date(Math.max(start.getTime() + 86400000, now.getTime() + 3600000))
+    });
+  } catch (err) {
+    logger.error('Visit access grant failed', { bookingId: String(booking._id), error: err.message });
+  }
   const staff = await User.findById(staffId).select('name').lean();
   await notifyPatientMatched(booking, (staff && staff.name) || 'Your nurse');
   logger.info('Visit matched', { bookingId: String(booking._id), staffId: String(staffId) });
@@ -300,6 +358,8 @@ function stopWorker() {
 
 module.exports = {
   OFFER_TTL_MS,
+  SCHEDULE_LEAD_MS,
+  busyStaffFor,
   startDispatch,
   offerNext,
   getMyOffer,

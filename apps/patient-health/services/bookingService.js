@@ -20,8 +20,10 @@ const { SERVICE_TYPE_TO_CATALOG_NAME } = require('@nocturnal/shared').careServic
 const {
   ValidationError,
   AuthorizationError,
-  NotFoundError
+  NotFoundError,
+  ConflictError
 } = require('@nocturnal/shared').errors;
+const visitPolicy = require('@nocturnal/shared').careVisitPolicy;
 
 // Health Dashboard integrations
 const healthIntakeService = require('./healthIntakeService');
@@ -79,7 +81,7 @@ const buildCompletionVitals = (serviceReport = {}) => {
 };
 
 const resolveCancellationActor = ({ userRole, isPatient = false, isProvider = false }) => {
-  if (userRole === 'admin') return 'ADMIN';
+  if (visitPolicy.isAdminRole(userRole)) return 'ADMIN';
   if (userRole === 'system') return 'SYSTEM';
   if (isPatient || userRole === 'patient') return 'PATIENT';
   if (isProvider || ['doctor', 'nurse', 'physiotherapist', 'medical_staff'].includes(userRole)) return 'PROVIDER';
@@ -184,6 +186,19 @@ class BookingService {
       throw new NotFoundError('Patient', patientId);
     }
 
+    // When can this be booked for? "Book now" uses server time so a phone
+    // with a wrong clock can't book the past; scheduled visits need a lead time.
+    const window = visitPolicy.checkBookingWindow({ mode, scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes });
+    if (window.error) throw new ValidationError(window.error);
+    let visitDate = scheduledDate;
+    let visitTime = scheduledTime;
+    if (window.asap) {
+      const offset = Number.isInteger(scheduledTimezoneOffsetMinutes) ? scheduledTimezoneOffsetMinutes : 330;
+      const local = new Date(Date.now() + offset * 60000);
+      visitDate = local.toISOString().slice(0, 10);
+      visitTime = local.toISOString().slice(11, 16);
+    }
+
     // Get service from catalog (match by name which corresponds to serviceType enum)
     // Convert INJECTION → INJECTION_IM mapping
     const serviceName = resolveCatalogServiceName(serviceType);
@@ -224,8 +239,8 @@ class BookingService {
     // Check for surge pricing
     if (service.pricing.surgePricing?.enabled) {
       const bookingHour = resolveScheduledLocalHour({
-        scheduledDate,
-        scheduledTime,
+        scheduledDate: visitDate,
+        scheduledTime: visitTime,
         scheduledTimezoneOffsetMinutes
       });
       const isSurgeHour = service.pricing.surgePricing.surgeHours.some(sh => {
@@ -247,14 +262,17 @@ class BookingService {
 
     // Price upfront (config/revenue.js): platform fee waived for Nabz Plus members.
     const quote = pricingService.quoteCareVisit({ basePrice, isMember: await membershipService.isMember(safePatientId) });
-    const { platformFee, gst, totalAmount, discount, payableAmount } = quote;
+    const { platformFee, gst, totalAmount, discount } = quote;
+    // A late-cancellation fee from an earlier visit is added to this bill.
+    const previousDues = roundToTwoDecimals(Number(patient.pendingDues) || 0);
+    const payableAmount = roundToTwoDecimals(quote.payableAmount + previousDues);
 
     // Create booking with final pricing in a single operation
     const booking = await NurseBooking.create({
       patient: safePatientId,
       serviceType,
-      scheduledDate,
-      scheduledTime,
+      scheduledDate: visitDate,
+      scheduledTime: visitTime,
       scheduledTimezone,
       scheduledTimezoneOffsetMinutes,
       serviceLocation,
@@ -268,6 +286,7 @@ class BookingService {
         gst,
         discount,
         totalAmount,
+        previousDues,
         payableAmount
       },
       prescriptionUrl: bookingData.prescriptionUrl,
@@ -299,6 +318,11 @@ class BookingService {
         await NurseBooking.deleteOne({ _id: booking._id });
         throw error;
       }
+    }
+
+    // Dues now travel on this booking (restored if it's cancelled for free).
+    if (previousDues > 0) {
+      await Patient.updateOne({ _id: safePatientId, pendingDues: patient.pendingDues }, { $set: { pendingDues: 0 } });
     }
 
     // "Book now": match the nearest online nurse right away (Uber-style).
@@ -358,10 +382,16 @@ class BookingService {
     // Authorization check - only patient, assigned provider, or admin can view
     const isPatient = booking.patient._id.toString() === safeUserId.toString();
     const isProvider = booking.serviceProvider && booking.serviceProvider._id.toString() === safeUserId.toString();
-    const isAdmin = userRole === 'admin';
+    const isAdmin = visitPolicy.isAdminRole(userRole);
 
     if (!isPatient && !isProvider && !isAdmin) {
       throw new AuthorizationError('Not authorized to view this booking');
+    }
+
+    // Nurses see the customer's phone only around the visit, never the email.
+    if (isProvider && !isAdmin && booking.patient && typeof booking.patient === 'object') {
+      booking.patient.email = undefined;
+      if (!visitPolicy.providerMaySeePhone(booking)) booking.patient.phone = undefined;
     }
 
     return booking;
@@ -475,7 +505,7 @@ class BookingService {
     await NurseBooking.updateOne({ _id: booking._id }, { $push: { sos: entry }, $set: { flagged: true, flagReason: `SOS by ${by}` } });
     logger.logSecurity('care_visit_sos', { bookingId: String(booking._id), by });
     try {
-      const Notification = require('../models/notification');
+      const Notification = require('@nocturnal/shared').Notification;
       const ops = await User.find({ role: 'platform_admin', isActive: { $ne: false } }).select('_id').lean();
       await Promise.all(ops.map((o) => Notification.create({
         user: o._id, recipientModel: 'User', type: 'CARE_SOS', priority: 'URGENT',
@@ -607,6 +637,11 @@ class BookingService {
     if (!validRoles.includes(provider.role)) {
       throw new ValidationError('User is not a valid service provider');
     }
+    if (!visitPolicy.isVerifiedStaff(provider)) {
+      throw new ValidationError('This provider is not verified yet (ID, police and council checks)');
+    }
+    const target = await NurseBooking.findById(safeBookingId).select('scheduledDate scheduledTime scheduledTimezoneOffsetMinutes').lean();
+    if (target) await this.assertNoOverlap(safeProviderId, visitPolicy.visitStart(target) || new Date(), safeBookingId);
 
     // Atomic: assign provider only if booking is in assignable status
     const booking = await NurseBooking.findOneAndUpdate(
@@ -617,8 +652,12 @@ class BookingService {
       {
         $set: {
           serviceProvider: safeProviderId,
-          status: 'ASSIGNED'
-        }
+          status: 'ASSIGNED',
+          // Stop any open offer so dispatch and the booking agree.
+          'dispatch.status': 'MATCHED',
+          'dispatch.matchedAt': new Date()
+        },
+        $unset: { 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1 }
       },
       VALIDATED_QUERY_UPDATE_OPTIONS
     );
@@ -632,17 +671,14 @@ class BookingService {
       throw new ValidationError('Booking cannot be assigned - already assigned or in wrong status');
     }
 
-    // Grant health data access to provider for this booking
+    // Visit-scoped health data access (expires a day after the visit).
     try {
-      await doctorAccessService.grantAccess({
+      await doctorAccessService.grantForVisit({
         patientId: booking.patient,
-        doctorId: safeProviderId,
+        providerId: safeProviderId,
         bookingId: booking._id,
-        accessLevel: 'READ_WRITE',
-        allowedResources: ['HEALTH_RECORD', 'HEALTH_METRIC', 'DOCTOR_NOTE'],
-        grantReason: `Assigned to booking ${booking._id}`,
-        adminId: safeAdminId,
-        adminName: 'System'
+        expiresAt: this.accessExpiry(booking),
+        grantedBy: safeAdminId
       });
 
       logger.info('Health data access granted to provider', {
@@ -689,7 +725,7 @@ class BookingService {
   async updateStatus(bookingId, newStatus, userId, note = '', userRole, extra = {}) {
     const safeBookingId = normalizeObjectId(bookingId, 'booking id');
     const safeUserId = normalizeObjectId(userId, 'user id');
-    const booking = await NurseBooking.findById(safeBookingId);
+    let booking = await NurseBooking.findById(safeBookingId);
 
     if (!booking) {
       throw new NotFoundError('Booking', bookingId);
@@ -714,10 +750,19 @@ class BookingService {
 
     // Authorization check — role passed from controller, no extra DB query needed
     const isProvider = booking.serviceProvider && booking.serviceProvider.toString() === safeUserId.toString();
-    const isAdmin = userRole === 'admin';
+    const isAdmin = visitPolicy.isAdminRole(userRole);
 
     if (!isProvider && !isAdmin) {
       throw new AuthorizationError('Not authorized to update booking status');
+    }
+
+    // A nurse who can't make it hands the visit back to dispatch instead of
+    // cancelling it on the customer.
+    if (newStatus === 'CANCELLED' && isProvider && !isAdmin) {
+      return this.releaseVisit(booking._id, safeUserId, note || 'Provider could not make it');
+    }
+    if (newStatus === 'CANCELLED') {
+      return this.cancelBooking(booking._id, safeUserId, note || 'Cancelled by admin', userRole);
     }
 
     // Starting the visit needs the patient's code (Rapido-style ride OTP).
@@ -725,31 +770,27 @@ class BookingService {
       await this.verifyVisitCode(booking._id, extra.visitCode);
     }
 
-    // Update status
+    // Update status with one compare-and-set on the status we just read, so a
+    // customer cancelling at the same moment can't be overwritten (or vice versa).
     const oldStatus = booking.status;
-    booking.status = newStatus;
-
-    // Set timestamps for specific statuses
+    const now = new Date();
+    const set = { status: newStatus };
     if (newStatus === 'IN_PROGRESS') {
-      booking.actualService.startTime = new Date();
+      set['actualService.startTime'] = now;
     } else if (newStatus === 'COMPLETED') {
-      if (!booking.actualService.startTime) {
+      if (!booking.actualService || !booking.actualService.startTime) {
         throw new ValidationError('Cannot complete booking without a start time. Ensure booking was marked IN_PROGRESS first.');
       }
-      booking.actualService.endTime = new Date();
-      booking.actualService.duration = Math.round(
-        (booking.actualService.endTime - booking.actualService.startTime) / (1000 * 60)
-      );
-    } else if (newStatus === 'CANCELLED') {
-      booking.cancellation = {
-        cancelledAt: new Date(),
-        cancelledBy: resolveCancellationActor({ userRole, isProvider }),
-        cancelledByUser: safeUserId,
-        reason: note
-      };
+      set['actualService.endTime'] = now;
+      set['actualService.duration'] = Math.round((now - booking.actualService.startTime) / (1000 * 60));
     }
-
-    await booking.save();
+    const updated = await NurseBooking.findOneAndUpdate(
+      { _id: booking._id, status: oldStatus, ...(isAdmin ? {} : { serviceProvider: safeUserId }) },
+      { $set: set },
+      VALIDATED_QUERY_UPDATE_OPTIONS
+    );
+    if (!updated) throw new ConflictError('This visit just changed (maybe cancelled). Refresh and try again.');
+    booking = updated;
 
     // Invalidate cache
     await invalidateCache('*:/api/bookings*');
@@ -793,8 +834,33 @@ class BookingService {
     const duration = booking.actualService?.startTime
       ? Math.round((endTime - booking.actualService.startTime) / (1000 * 60))
       : null;
+    // Pay-after-visit: the nurse confirms the cash they collected (visit +
+    // any supplies they brought). Older apps don't send it; then the payment
+    // simply stays unrecorded as before.
+    const cashCollected = serviceReport.cashCollected;
+    delete serviceReport.cashCollected;
+    const cashFields = {};
+    if (cashCollected !== undefined && cashCollected !== null && booking.payment?.status !== 'PAID') {
+      const amount = Number(cashCollected);
+      if (!Number.isFinite(amount) || amount < 0 || amount > 100000) throw new ValidationError('Enter the cash you collected');
+      const suppliesDue = booking.supplies && booking.supplies.status === 'ORDERED' ? Number(booking.supplies.amount) || 0 : 0;
+      const due = roundToTwoDecimals((booking.pricing?.payableAmount || 0) + suppliesDue);
+      Object.assign(cashFields, {
+        'payment.method': 'CASH',
+        'payment.status': 'PAID',
+        'payment.amount': roundToTwoDecimals(amount),
+        'payment.paidAt': endTime,
+        'payment.collectedBy': safeProviderId
+      });
+      if (amount + 1 < due) {
+        cashFields.flagged = true;
+        cashFields.flagReason = `Cash short: collected ₹${amount} of ₹${due}`;
+      }
+    }
+
     const completionUpdate = {
       $set: {
+        ...cashFields,
         status: 'COMPLETED',
         'completionAccounting.appliedAt': endTime,
         'statusTimestamps.completedAt': endTime,
@@ -1225,37 +1291,58 @@ class BookingService {
   async cancelBooking(bookingId, userId, reason, userRole) {
     const safeBookingId = normalizeObjectId(bookingId, 'booking id');
     const safeUserId = normalizeObjectId(userId, 'user id');
-    const booking = await NurseBooking.findById(safeBookingId);
+    let booking = await NurseBooking.findById(safeBookingId);
 
     if (!booking) {
       throw new NotFoundError('Booking', bookingId);
     }
 
-    // Check if booking can be cancelled
-    if (['COMPLETED', 'CANCELLED'].includes(booking.status)) {
-      throw new ValidationError('Cannot cancel booking in current status');
-    }
-
     // Authorization check — role passed from controller, no extra DB query needed
     const isPatient = booking.patient.toString() === safeUserId.toString();
     const isProvider = booking.serviceProvider && booking.serviceProvider.toString() === safeUserId.toString();
-    const isAdmin = userRole === 'admin';
+    const isAdmin = visitPolicy.isAdminRole(userRole);
 
     if (!isPatient && !isProvider && !isAdmin) {
       throw new AuthorizationError('Not authorized to cancel this booking');
     }
 
-    // Update booking
-    booking.status = 'CANCELLED';
-    if (booking.dispatch && booking.dispatch.status !== 'MATCHED') booking.dispatch.status = 'CANCELLED';
-    booking.cancellation = {
-      cancelledAt: new Date(),
-      cancelledBy: resolveCancellationActor({ userRole, isPatient, isProvider }),
-      cancelledByUser: safeUserId,
-      reason
-    };
+    const quote = visitPolicy.cancellationQuote(booking, { role: userRole, isPatient, isProvider });
+    if (!quote.allowed) throw new ValidationError(quote.reason || 'Cannot cancel booking in current status');
+    // A nurse cancelling hands the visit back to dispatch.
+    if (quote.releases && !isAdmin) return this.releaseVisit(booking._id, safeUserId, reason || 'Provider could not make it');
 
-    await booking.save();
+    const now = new Date();
+    const cancelled = await NurseBooking.findOneAndUpdate(
+      { _id: booking._id, status: booking.status },
+      {
+        $set: {
+          status: 'CANCELLED',
+          ...(booking.dispatch && booking.dispatch.status !== 'MATCHED' ? { 'dispatch.status': 'CANCELLED' } : {}),
+          cancellation: {
+            cancelledAt: now,
+            cancelledBy: resolveCancellationActor({ userRole, isPatient, isProvider }),
+            cancelledByUser: safeUserId,
+            reason,
+            cancellationFee: quote.fee || 0
+          }
+        },
+        $unset: { 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1 }
+      },
+      VALIDATED_QUERY_UPDATE_OPTIONS
+    );
+    if (!cancelled) throw new ConflictError('This visit just changed. Refresh and try again.');
+
+    // Late cancellation: the nurse is paid for the trip; the customer's next
+    // bill carries the fee. Free cancellations hand back carried-over dues.
+    const carried = Number(cancelled.pricing && cancelled.pricing.previousDues) || 0;
+    const duesChange = carried + (quote.fee || 0); // unpaid either way: back on the customer's balance
+    if (duesChange > 0) await Patient.updateOne({ _id: cancelled.patient }, { $inc: { pendingDues: roundToTwoDecimals(duesChange) } });
+    if (quote.fee > 0 && cancelled.serviceProvider) await settlementService.recordCareCancellationFee(cancelled, quote.fee);
+    await doctorAccessService.revokeForBooking(cancelled._id, 'Visit cancelled');
+    if (cancelled.serviceProvider) {
+      await this.notifyUser(cancelled.serviceProvider, 'User', 'Visit cancelled', `The customer cancelled the ${String(cancelled.serviceType).replace(/_/g, ' ').toLowerCase()} visit.${quote.fee > 0 ? ` You'll be paid ₹${quote.fee} for the trip.` : ''}`, cancelled._id);
+    }
+    booking = cancelled;
 
     // Release the linked supplies order (restocks the pharmacy) if it isn't packed yet.
     await careSuppliesService.cancelSuppliesForBooking(booking, `Home-care visit cancelled: ${reason || 'no reason given'}`);
@@ -1270,6 +1357,150 @@ class BookingService {
     });
 
     return booking;
+  }
+
+  /** What cancelling now would cost this user (shown before they confirm). */
+  async getCancellationQuote(bookingId, userId, userRole) {
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const booking = await NurseBooking.findById(safeBookingId).lean();
+    if (!booking) throw new NotFoundError('Booking', bookingId);
+    const isPatient = String(booking.patient) === String(safeUserId);
+    const isProvider = booking.serviceProvider && String(booking.serviceProvider) === String(safeUserId);
+    if (!isPatient && !isProvider && !visitPolicy.isAdminRole(userRole)) throw new AuthorizationError('Not authorized');
+    const quote = visitPolicy.cancellationQuote(booking, { role: userRole, isPatient, isProvider });
+    return { allowed: quote.allowed, fee: quote.fee, reason: quote.reason || null };
+  }
+
+  /** Health data access lasts until a day after the visit (at least an hour from now). */
+  accessExpiry(booking) {
+    const start = visitPolicy.visitStart(booking) || new Date();
+    return new Date(Math.max(start.getTime() + 24 * 3600000, Date.now() + 3600000));
+  }
+
+  /** A provider can't hold two visits at the same time. */
+  async assertNoOverlap(providerId, start, exceptBookingId) {
+    const nearby = await NurseBooking.find({
+      serviceProvider: providerId,
+      status: { $in: ['ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'] },
+      _id: { $ne: exceptBookingId },
+      scheduledDate: { $gte: new Date(start.getTime() - 2 * 86400000), $lte: new Date(start.getTime() + 2 * 86400000) }
+    }).select('status scheduledDate scheduledTime scheduledTimezoneOffsetMinutes').lean();
+    if (nearby.some((b) => visitPolicy.overlaps(b, start))) {
+      throw new ConflictError('This provider already has a visit around that time');
+    }
+  }
+
+  /** In-app + push notice. Never throws. */
+  async notifyUser(userId, recipientModel, title, message, bookingId) {
+    try {
+      const Notification = require('@nocturnal/shared').Notification;
+      const pushNotificationService = require('@nocturnal/shared').pushNotificationService;
+      await Notification.create({
+        user: userId, recipientModel, type: 'CARE_VISIT_UPDATE', priority: 'HIGH', title, message,
+        channels: { inApp: true, push: true }, metadata: { bookingId: String(bookingId) },
+        expiresAt: new Date(Date.now() + 7 * 86400000)
+      });
+      await pushNotificationService.sendToOwner({
+        owner: userId, userType: recipientModel === 'Patient' ? 'patient' : 'provider', title, body: message,
+        data: { type: 'CARE_VISIT_UPDATE', bookingId: String(bookingId) }
+      }).catch(() => undefined);
+    } catch (err) {
+      logger.warn('Visit notice failed', { bookingId: String(bookingId), error: err.message });
+    }
+  }
+
+  /**
+   * The nurse can't make it (or was taken off the platform): the visit goes
+   * back to dispatch for someone else, the customer is told, and the nurse's
+   * health data access ends. Repeated drops take the nurse offline.
+   */
+  async releaseVisit(bookingId, providerId, reason = 'Provider could not make it', { byAdmin = false } = {}) {
+    const now = new Date();
+    const booking = await NurseBooking.findById(bookingId);
+    if (!booking) throw new NotFoundError('Booking', bookingId);
+    const start = visitPolicy.visitStart(booking) || now;
+    const soon = start.getTime() - now.getTime() <= dispatchService.SCHEDULE_LEAD_MS;
+    const released = await NurseBooking.findOneAndUpdate(
+      {
+        _id: booking._id,
+        serviceProvider: providerId,
+        status: { $in: ['ASSIGNED', 'CONFIRMED', 'EN_ROUTE'] }
+      },
+      {
+        $set: {
+          status: 'REQUESTED',
+          'dispatch.status': soon ? 'SEARCHING' : 'IDLE',
+          'dispatch.startedAt': now,
+          'dispatch.attempts': 0
+        },
+        $unset: { serviceProvider: 1, 'dispatch.matchedAt': 1, 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1 },
+        $addToSet: { 'dispatch.declined': providerId },
+        $push: { 'dispatch.dropped': { provider: providerId, at: now, reason: String(reason).slice(0, 200) } }
+      },
+      VALIDATED_QUERY_UPDATE_OPTIONS
+    );
+    if (!released) throw new ConflictError('This visit just changed. Refresh and try again.');
+    await doctorAccessService.revokeForBooking(released._id, 'Provider released the visit');
+    logger.info('Visit released by provider', { bookingId: String(released._id), providerId: String(providerId), reason });
+
+    // Three drops in a week: take them offline so they stop getting offers.
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const drops = await NurseBooking.countDocuments({ 'dispatch.dropped': { $elemMatch: { provider: providerId, at: { $gte: weekAgo } } } });
+    if (drops >= 3 && !byAdmin) {
+      await User.updateOne({ _id: providerId }, { $set: { isOnline: false, isAvailable: false }, $unset: { currentLocation: 1 } });
+      logger.warn('Provider taken offline after repeated drops', { providerId: String(providerId), drops });
+    }
+
+    await this.notifyUser(released.patient, 'Patient', 'Finding you another nurse',
+      'Your nurse couldn’t make it. We’re matching you with someone else now.', released._id);
+    if (soon) await dispatchService.offerNext(released._id).catch(() => undefined);
+    await invalidateCache('*:/api/bookings*');
+    return released;
+  }
+
+  /** Staff lost verification / deactivated: hand back their upcoming visits. */
+  async releaseProviderVisits(providerId, reason) {
+    const upcoming = await NurseBooking.find({ serviceProvider: providerId, status: { $in: ['ASSIGNED', 'CONFIRMED'] } }).select('_id').lean();
+    let released = 0;
+    for (const b of upcoming) {
+      try {
+        await this.releaseVisit(b._id, providerId, reason, { byAdmin: true });
+        released += 1;
+      } catch (err) {
+        logger.error('Could not release visit', { bookingId: String(b._id), error: err.message });
+      }
+    }
+    return released;
+  }
+
+  /** Customer moves a visit nobody has taken yet (e.g. after "no nurse available"). */
+  async rescheduleBooking(bookingId, patientId, { scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes }) {
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const booking = await NurseBooking.findById(safeBookingId).lean();
+    if (!booking) throw new NotFoundError('Booking', bookingId);
+    if (String(booking.patient) !== String(safePatientId)) throw new AuthorizationError('Not your booking');
+    if (booking.status !== 'REQUESTED' || booking.serviceProvider) {
+      throw new ValidationError('Only visits that no nurse has taken yet can be moved');
+    }
+    const offset = Number.isInteger(scheduledTimezoneOffsetMinutes) ? scheduledTimezoneOffsetMinutes : (booking.scheduledTimezoneOffsetMinutes ?? 330);
+    const window = visitPolicy.checkBookingWindow({ mode: 'SCHEDULED', scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes: offset });
+    if (window.error) throw new ValidationError(window.error);
+    const moved = await NurseBooking.findOneAndUpdate(
+      { _id: safeBookingId, status: 'REQUESTED', serviceProvider: null },
+      {
+        $set: {
+          scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes: offset,
+          'dispatch.mode': 'SCHEDULED', 'dispatch.status': 'IDLE', 'dispatch.attempts': 0, 'dispatch.declined': []
+        },
+        $unset: { 'dispatch.startedAt': 1, 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1 }
+      },
+      VALIDATED_QUERY_UPDATE_OPTIONS
+    );
+    if (!moved) throw new ConflictError('This visit just changed. Refresh and try again.');
+    await invalidateCache('*:/api/bookings*');
+    return moved;
   }
 
   /**

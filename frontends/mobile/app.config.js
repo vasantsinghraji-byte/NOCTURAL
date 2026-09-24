@@ -62,7 +62,16 @@ module.exports = {
       'expo-secure-store',
       [
         'expo-location',
-        { locationWhenInUsePermission: locationWhy }
+        {
+          locationWhenInUsePermission: locationWhy,
+          // Partner app only: stay online (and ring for visit requests) while
+          // the app is in the background, via a location foreground service.
+          ...(IS_PARTNER ? {
+            locationAlwaysAndWhenInUsePermission: 'Nabz Partner uses your location while you are online, even when the app is closed, so nearby patients can book you and track your arrival.',
+            isAndroidBackgroundLocationEnabled: true,
+            isAndroidForegroundServiceEnabled: true
+          } : {})
+        }
       ],
       [
         'expo-image-picker',
@@ -73,7 +82,7 @@ module.exports = {
       ],
       [
         'expo-notifications',
-        { color: '#b83a50', defaultChannel: 'orders' }
+        { color: '#b83a50', defaultChannel: 'orders', sounds: ['./assets/sounds/visit_ring.wav'] }
       ],
       [
         'expo-build-properties',

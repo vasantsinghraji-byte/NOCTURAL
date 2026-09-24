@@ -214,8 +214,9 @@ describe('Pharmacy store network phase 2 (real MongoDB)', () => {
       .rejects.toThrow(/older than/);
 
     await compliance.verifyPrescription(order._id, { vendorId: s1._id, actorUserId, prescriberName: 'Dr A Sharma', prescriberRegistrationNumber: 'RMC-5521', prescribedOn: inDays(-2) });
+    const { deliveryOtp } = await PharmacyOrder.findById(order._id).select('+deliveryOtp.code').lean();
     for (const status of ['PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED']) {
-      await pharmacyService.updateOrderStatus(order._id, { vendorId: s1._id, actorUserId, status });
+      await pharmacyService.updateOrderStatus(order._id, { vendorId: s1._id, actorUserId, status, deliveryCode: deliveryOtp.code });
     }
 
     const register = await compliance.h1Register({ vendorId: s1._id, from: inDays(-1), to: inDays(1) });
@@ -400,5 +401,48 @@ describe('Pharmacy store network phase 2 (real MongoDB)', () => {
     expect(row).toBeTruthy();
     expect(row.unmet).toBeGreaterThanOrEqual(2);
     expect(row.youList).toBe(false);
+  });
+
+  // ── Delivery handover code ────────────────────────────────────────────────
+
+  it('marks delivered only with the customer code, or flags a handover without it', async () => {
+    if (!databaseAvailable) return;
+    const home = newArea();
+    const med = await medicine();
+    const s1 = await store(home, 1);
+    await list(s1, med);
+    const actorUserId = new mongoose.Types.ObjectId();
+    const advance = async (orderId) => {
+      for (const status of ['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY']) {
+        await pharmacyService.updateOrderStatus(orderId, { vendorId: s1._id, actorUserId, status });
+      }
+    };
+
+    const order = await codOrder(home, s1, [[med, 1]]);
+    const { deliveryOtp } = await PharmacyOrder.findById(order._id).select('+deliveryOtp.code').lean();
+    expect(deliveryOtp.code).toMatch(/^\d{4}$/);
+    // Stores never receive the code with the order.
+    expect((await PharmacyOrder.findById(order._id).lean()).deliveryOtp.code).toBeUndefined();
+    await advance(order._id);
+
+    await expect(pharmacyService.updateOrderStatus(order._id, { vendorId: s1._id, actorUserId, status: 'DELIVERED' }))
+      .rejects.toThrow(/delivery code/);
+    const wrong = deliveryOtp.code === '0000' ? '1111' : '0000';
+    await expect(pharmacyService.updateOrderStatus(order._id, { vendorId: s1._id, actorUserId, status: 'DELIVERED', deliveryCode: wrong }))
+      .rejects.toThrow(/not right/);
+    expect((await PharmacyOrder.findById(order._id).lean()).deliveryOtp.failedAttempts).toBe(1);
+
+    await pharmacyService.updateOrderStatus(order._id, { vendorId: s1._id, actorUserId, status: 'DELIVERED', deliveryCode: deliveryOtp.code });
+    const done = await PharmacyOrder.findById(order._id).lean();
+    expect(done.status).toBe('DELIVERED');
+    expect(done.deliveryOtp.verifiedAt).toBeTruthy();
+
+    const other = await codOrder(home, s1, [[med, 1]]);
+    await advance(other._id);
+    await pharmacyService.updateOrderStatus(other._id, { vendorId: s1._id, actorUserId, status: 'DELIVERED', deliveredWithoutCodeReason: 'Customer phone switched off' });
+    const flagged = await PharmacyOrder.findById(other._id).lean();
+    expect(flagged.status).toBe('DELIVERED');
+    expect(flagged.deliveryOtp.verifiedAt).toBeUndefined();
+    expect(flagged.riskFlags.map((f) => f.code)).toContain('DELIVERED_WITHOUT_CODE');
   });
 });

@@ -219,6 +219,12 @@ const PatientSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Unpaid late-cancellation fees, added to the next visit's bill.
+  pendingDues: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
 
   // Health Intake Status (for Patient Analytics Dashboard)
   intakeStatus: {

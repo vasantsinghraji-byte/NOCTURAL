@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Animated, Easing, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View
+  ActivityIndicator, Animated, AppState, Easing, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -14,10 +14,13 @@ import { api, describeNetworkError } from '@/lib/api';
 import { STAFF_ROLES, useAuth } from '@/lib/auth';
 import { DEMO_POINT, inr } from '@/lib/care';
 import { PressScale, Rise, success, tap, warn } from '@/lib/motion';
-import { notifyLocal } from '@/lib/notifications';
+import { registerForServerPush } from '@/lib/notifications';
 import * as SecureStore from 'expo-secure-store';
+import { LIVE_VISITS_KEY, PARTNER_DEMO_KEY, isBackgroundOnline, startBackgroundOnline, stopBackgroundOnline } from '@/lib/partnerOnline';
+import { startRinging, stopRinging } from '@/lib/ringer';
 import { DEMO_AREA_ENABLED } from '@/lib/variant';
 import { C, F, shadow, ui } from '@/lib/theme';
+import { appAlert } from '@/lib/dialog';
 
 type StoreInfo = { name?: string; address?: { line1?: string } };
 type Visit = Omit<CareBooking, 'supplies'> & {
@@ -34,7 +37,6 @@ const LIVE_STATUSES = ['CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'];
 const HEARTBEAT_MS = 30_000;
 const OFFER_POLL_MS = 5_000;
 const OFFER_TTL_S = 45;
-const PARTNER_DEMO_KEY = 'nabz.partnerDemoArea';
 
 const hello = () => {
   const h = new Date().getHours();
@@ -59,11 +61,15 @@ export default function StaffHome() {
   const visitsRef = useRef<Visit[]>([]);
   const offerIdRef = useRef<string | null>(null);
   const demoRef = useRef(false); // staging: working in the Jaipur demo area
+  const [bgHint, setBgHint] = useState<string | null>(null);
 
   const load = useCallback(() => {
     api.getMyAssignedVisits().then((r) => {
       const list = (r.data || []) as Visit[];
       visitsRef.current = list;
+      // The background task shares my location on these visits while the app is closed.
+      SecureStore.setItemAsync(LIVE_VISITS_KEY, JSON.stringify(list.filter((v) => LIVE_STATUSES.includes(v.status)).map((v) => v._id)))
+        .catch(() => undefined);
       setVisits(list);
       setError(null);
     }).catch((e) => setError(describeNetworkError(e)));
@@ -90,8 +96,16 @@ export default function StaffHome() {
     timerRef.current = null;
   }, []);
 
-  const startTracking = useCallback(async () => {
+  const startTracking = useCallback(async (askForBackground = true) => {
     stopTracking();
+    // Preferred: background online mode (foreground service) so requests ring
+    // even when the app is closed or the phone is locked.
+    const background = askForBackground ? await startBackgroundOnline() : await isBackgroundOnline() || await startBackgroundOnline();
+    if (background) {
+      setBgHint(null);
+      return;
+    }
+    setBgHint('Keep Nabz Partner open to get requests. To get them when the app is closed, allow location "All the time" for Nabz Partner in Settings.');
     if (demoRef.current) {
       // Staging demo area: report the Jaipur demo point instead of GPS.
       publish(DEMO_POINT);
@@ -118,7 +132,7 @@ export default function StaffHome() {
       // Server says online (e.g. app restarted): resume heartbeats.
       if (r.availability.online) {
         const perm = demoRef.current ? { granted: true } : await Location.getForegroundPermissionsAsync();
-        if (perm.granted) { setOnline(true); startTracking(); }
+        if (perm.granted) { setOnline(true); startTracking(false); }
       }
     })().catch(() => undefined);
     return () => stopTracking();
@@ -129,16 +143,20 @@ export default function StaffHome() {
     if (!online) { setOffer(null); return undefined; }
     const poll = () => api.getMyOffer().then((r) => {
       const next = r.offer;
-      if (next && offerIdRef.current !== next.bookingId) {
-        warn();
-        notifyLocal('New visit request', `${next.serviceType.replace(/_/g, ' ')} · earn ${inr(next.earnings)}${next.distanceKm !== null ? ` · ${next.distanceKm} km` : ''}`).catch(() => undefined);
-      }
+      // Ring like a phone call until the partner answers or the offer expires.
+      if (next && offerIdRef.current !== next.bookingId && AppState.currentState === 'active') startRinging();
+      if (!next) stopRinging();
       offerIdRef.current = next ? next.bookingId : null;
       setOffer(next);
     }).catch(() => undefined);
     poll();
     const tm = setInterval(poll, OFFER_POLL_MS);
-    return () => clearInterval(tm);
+    // Leaving the screen hands ringing over to the background notification.
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') poll();
+      else stopRinging();
+    });
+    return () => { clearInterval(tm); sub.remove(); stopRinging(); };
   }, [online]);
 
   async function toggleOnline(next: boolean) {
@@ -147,7 +165,7 @@ export default function StaffHome() {
     try {
       if (next) {
         if (DEMO_AREA_ENABLED) {
-          const where = await new Promise<'live' | 'demo' | null>((resolve) => Alert.alert(
+          const where = await new Promise<'live' | 'demo' | null>((resolve) => appAlert(
             'Where are you working today?',
             'Testing from outside Jaipur? Use the Jaipur demo area so Jaipur bookings can reach you.',
             [
@@ -172,9 +190,10 @@ export default function StaffHome() {
         }
         const perm = await Location.requestForegroundPermissionsAsync();
         if (!perm.granted) {
-          Alert.alert('Location needed', 'Allow location so patients near you can book you and track your arrival.');
+          appAlert('Location needed', 'Allow location so patients near you can book you and track your arrival.');
           return;
         }
+        registerForServerPush().catch(() => undefined);
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
         await api.setStaffAvailability(true, { lat: pos.coords.latitude, lng: pos.coords.longitude });
         setOnline(true);
@@ -183,8 +202,11 @@ export default function StaffHome() {
         startTracking();
       } else {
         stopTracking();
+        await stopBackgroundOnline();
+        stopRinging();
         await api.setStaffAvailability(false);
         setOnline(false);
+        setBgHint(null);
         tap();
       }
       load();
@@ -199,6 +221,7 @@ export default function StaffHome() {
     if (!offer) return;
     const id = offer.bookingId;
     setOffer(null);
+    stopRinging();
     try {
       if (accept) { await api.acceptOffer(id); success(); } else { await api.declineOffer(id); tap(); }
     } catch (e) {
@@ -207,7 +230,7 @@ export default function StaffHome() {
     load();
   }
 
-  async function step(v: Visit, s: 'confirm' | 'en-route' | 'start' | 'complete', body?: { visitCode?: string; observations?: string }) {
+  async function step(v: Visit, s: 'confirm' | 'en-route' | 'start' | 'complete', body?: { visitCode?: string; observations?: string; cashCollected?: number }) {
     try {
       await api.updateVisitStep(v._id, s, body);
       success();
@@ -221,14 +244,14 @@ export default function StaffHome() {
   }
 
   function sos(v: Visit) {
-    Alert.alert('Need help?', 'Nabz safety team will be alerted with your location.', [
+    appAlert('Need help?', 'Nabz safety team will be alerted with your location.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Alert Nabz', style: 'destructive', onPress: async () => {
           const pos = await Location.getLastKnownPositionAsync().catch(() => null);
           api.raiseSos(v._id, pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude } : {})
-            .then(() => Alert.alert('Alert sent', 'Our safety team will call you now. For emergencies call 112.'))
-            .catch((e) => Alert.alert('Could not reach Nabz', `${describeNetworkError(e)}\n\nCall 112 for emergencies.`));
+            .then(() => appAlert('Alert sent', 'Our safety team will call you now. For emergencies call 112.'))
+            .catch((e) => appAlert('Could not reach Nabz', `${describeNetworkError(e)}\n\nCall 112 for emergencies.`));
         }
       }
     ]);
@@ -267,7 +290,13 @@ export default function StaffHome() {
               </Text>
             </View>
             {switching ? <ActivityIndicator color={C.onNight} /> : (
-              <Switch value={online} onValueChange={toggleOnline} trackColor={{ true: '#3dd68c', false: 'rgba(255,255,255,0.2)' }} thumbColor="#ffffff" />
+              <Switch
+                value={online}
+                disabled={!online && !!ver && !(ver.id && ver.police && ver.council)}
+                onValueChange={toggleOnline}
+                trackColor={{ true: '#3dd68c', false: 'rgba(255,255,255,0.2)' }}
+                thumbColor="#ffffff"
+              />
             )}
           </View>
 
@@ -281,6 +310,7 @@ export default function StaffHome() {
 
         <View style={{ padding: 16, gap: 12 }}>
           {error && <Text style={ui.error}>{error}</Text>}
+          {online && bgHint && <Text style={styles.bgHint}>{bgHint}</Text>}
 
           {offer && <OfferCard offer={offer} onAccept={() => respond(true)} onDecline={() => respond(false)} />}
 
@@ -303,7 +333,8 @@ export default function StaffHome() {
 
           {ver && !(ver.id && ver.police && ver.council) && (
             <View style={[ui.card, { gap: 8 }]}>
-              <View style={styles.inline}><BadgeCheck size={16} color={C.brand} /><Text style={ui.h3}>Complete verification to get more requests</Text></View>
+              <View style={styles.inline}><BadgeCheck size={16} color={C.brand} /><Text style={ui.h3}>Verification pending</Text></View>
+              <Text style={ui.muted}>You can go online once your ID, police check and council registration are verified.</Text>
               {[['ID proof', ver.id], ['Police verification', ver.police], ['Council registration', ver.council], ['Vaccination', ver.vaccinated]].map(([label, ok]) => (
                 <View key={String(label)} style={styles.inline}>
                   <Circle size={10} color={ok ? C.mint : C.faint} fill={ok ? C.mint : 'transparent'} />
@@ -372,7 +403,7 @@ export default function StaffHome() {
       <CompleteSheet
         visit={completeFor}
         onClose={() => setCompleteFor(null)}
-        onSubmit={async (observations) => { const ok = completeFor ? await step(completeFor, 'complete', observations ? { observations } : undefined) : false; if (ok) setCompleteFor(null); }}
+        onSubmit={async (report) => { const ok = completeFor ? await step(completeFor, 'complete', report) : false; if (ok) setCompleteFor(null); }}
       />
     </View>
   );
@@ -461,11 +492,41 @@ function CodeSheet({ visit, onClose, onSubmit }: { visit: Visit | null; onClose:
   );
 }
 
-function CompleteSheet({ visit, onClose, onSubmit }: { visit: Visit | null; onClose: () => void; onSubmit: (observations: string) => Promise<void> }) {
+/** What the nurse should collect in cash: the visit plus supplies they brought. */
+function cashDue(v: Visit | null) {
+  if (!v || v.payment?.status === 'PAID') return null;
+  const supplies = v.supplies?.status === 'ORDERED' ? v.supplies.amount || 0 : 0;
+  return Math.round(((v.pricing?.payableAmount || 0) + supplies) * 100) / 100;
+}
+
+function CompleteSheet({ visit, onClose, onSubmit }: {
+  visit: Visit | null; onClose: () => void;
+  onSubmit: (report: { observations?: string; cashCollected?: number }) => Promise<void>;
+}) {
   const insets = useSafeAreaInsets();
   const [notes, setNotes] = useState('');
+  const [cash, setCash] = useState('');
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setNotes(''); }, [visit?._id]);
+  const due = cashDue(visit);
+  useEffect(() => { setNotes(''); setCash(due !== null ? String(due) : ''); }, [visit?._id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cashNum = Number(cash);
+  const cashInvalid = due !== null && (cash.trim() === '' || !Number.isFinite(cashNum) || cashNum < 0);
+  async function submit() {
+    if (cashInvalid) return;
+    const go = async () => {
+      setBusy(true);
+      await onSubmit({ ...(notes.trim() ? { observations: notes.trim() } : {}), ...(due !== null ? { cashCollected: cashNum } : {}) });
+      setBusy(false);
+    };
+    if (due !== null && cashNum + 1 < due) {
+      appAlert('Less than the amount due?', `The customer owes ${inr(due)}. You entered ${inr(cashNum)}. Nabz will follow up on the difference.`, [
+        { text: 'Fix amount', style: 'cancel' },
+        { text: 'Submit anyway', onPress: go }
+      ]);
+      return;
+    }
+    await go();
+  }
   return (
     <Modal visible={!!visit} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -474,7 +535,14 @@ function CompleteSheet({ visit, onClose, onSubmit }: { visit: Visit | null; onCl
           <Text style={[ui.display, { fontSize: 30 }]}>Complete visit</Text>
           <TextInput style={[ui.input, { minHeight: 90, textAlignVertical: 'top' }]} multiline value={notes} onChangeText={setNotes}
             placeholder="Visit notes for the patient: what was done, observations (optional)" placeholderTextColor={C.faint} maxLength={1000} />
-          <PressScale style={[ui.btnDark, busy && { opacity: 0.6 }]} disabled={busy} onPress={async () => { setBusy(true); await onSubmit(notes.trim()); setBusy(false); }}>
+          {due !== null ? (
+            <View style={{ gap: 6 }}>
+              <Text style={[ui.h3, { fontSize: 15 }]}>Cash collected</Text>
+              <Text style={ui.muted}>Amount due {inr(due)} (visit{visit?.supplies?.status === 'ORDERED' ? ' + supplies' : ''}). Change it if the customer paid a different amount.</Text>
+              <TextInput style={ui.input} value={cash} onChangeText={(t) => setCash(t.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" maxLength={8} placeholder="Amount in ₹" placeholderTextColor={C.faint} />
+            </View>
+          ) : visit ? <Text style={ui.muted}>Paid online. Nothing to collect.</Text> : null}
+          <PressScale style={[ui.btnDark, (busy || cashInvalid) && { opacity: 0.6 }]} disabled={busy || cashInvalid} onPress={submit}>
             {busy ? <ActivityIndicator color={C.onNight} /> : <Text style={[ui.btnText, { color: C.onNight }]}>Mark completed</Text>}
           </PressScale>
           <Pressable onPress={onClose}><Text style={[ui.muted, { textAlign: 'center', fontFamily: F.bold }]}>Cancel</Text></Pressable>
@@ -485,6 +553,7 @@ function CompleteSheet({ visit, onClose, onSubmit }: { visit: Visit | null; onCl
 }
 
 const styles = StyleSheet.create({
+  bgHint: { backgroundColor: C.amberSoft, color: C.amber, padding: 10, borderRadius: 12, overflow: 'hidden', fontFamily: F.semi, fontSize: 13 },
   head: { backgroundColor: C.night, paddingHorizontal: 18, paddingBottom: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, gap: 14 },
   headRow: { flexDirection: 'row', alignItems: 'center' },
   hello: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 14 },

@@ -234,7 +234,9 @@ exports.updateOrderStatus = async (req, res, next) => {
       status: req.body.status,
       note: req.body.note,
       reasonCode: req.body.reasonCode,
-      unavailableMedicineIds: req.body.unavailableMedicineIds
+      unavailableMedicineIds: req.body.unavailableMedicineIds,
+      deliveryCode: req.body.deliveryCode,
+      deliveredWithoutCodeReason: req.body.deliveredWithoutCodeReason
     });
     responseHelper.sendSuccess(res, { order }, 'Order status updated');
   } catch (error) {

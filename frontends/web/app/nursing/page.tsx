@@ -121,8 +121,25 @@ export default function NursingPage() {
   }
 
   async function cancel(id: string) {
-    if (!window.confirm('Cancel this visit? Any supplies ordered for it will be cancelled too.')) return;
-    try { await api.cancelCareBooking(id, 'Cancelled by patient'); loadVisits(); } catch (e) { setError((e as Error).message); }
+    try {
+      // Free until the professional is on the way; a fee after that; not once started.
+      const { quote } = await api.getCareCancelQuote(id);
+      if (!quote.allowed) { setError(quote.reason || 'This visit has already started and can’t be cancelled.'); return; }
+      const msg = quote.fee > 0
+        ? `Your professional is already on the way, so a cancellation fee of ${inr(quote.fee)} applies. It will be added to your next booking. Cancel anyway?`
+        : 'Cancel this visit? It’s free right now. Any supplies ordered for it will be cancelled too.';
+      if (!window.confirm(msg)) return;
+      await api.cancelCareBooking(id, 'Cancelled by patient');
+      loadVisits();
+    } catch (e) { setError((e as Error).message); }
+  }
+
+  async function reschedule(id: string) {
+    const when = window.prompt('Everyone nearby was busy. Pick another time (YYYY-MM-DD HH:MM):', '');
+    if (!when) return;
+    const m = when.trim().match(/^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}:\d{2})$/);
+    if (!m) { setError('Use the format YYYY-MM-DD HH:MM, for example 2026-09-25 18:00'); return; }
+    try { await api.rescheduleCareBooking(id, m[1], m[2].padStart(5, '0')); loadVisits(); } catch (e) { setError((e as Error).message); }
   }
 
   if (done) {
@@ -258,6 +275,15 @@ export default function NursingPage() {
                 <div className="row"><b style={{ display: 'flex', alignItems: 'center', gap: 8 }}><IconTile icon={serviceIcon(b.serviceType)} size={32} /> {b.serviceType.replace(/_/g, ' ').toLowerCase()}</b><span className="pill">{b.status}</span></div>
                 <div className="muted">{String(b.scheduledDate).slice(0, 10)} · {b.scheduledTime}</div>
                 {b.supplies?.status === 'ORDERED' && <div className="muted">Supplies ordered · {inr(b.supplies.amount || 0)}</div>}
+                {b.status === 'REQUESTED' && b.dispatch?.status === 'NO_STAFF' && (
+                  <div className="row" style={{ justifyContent: 'flex-start', gap: 12 }}>
+                    <span className="muted" style={{ color: 'var(--night)' }}>No professional was free.</span>
+                    <button className="linkbtn" onClick={() => reschedule(b._id)}>Pick another time</button>
+                  </div>
+                )}
+                {b.status === 'CANCELLED' && (b.cancellation?.cancellationFee || 0) > 0 && (
+                  <div className="muted">Cancellation fee {inr(b.cancellation?.cancellationFee || 0)}, added to your next booking</div>
+                )}
                 {!['COMPLETED', 'CANCELLED'].includes(b.status) && (
                   <button className="linkbtn" style={{ paddingLeft: 0 }} onClick={() => cancel(b._id)}>Cancel visit</button>
                 )}

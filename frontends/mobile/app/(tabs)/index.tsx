@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -18,6 +18,7 @@ import { CareMoments } from '@/lib/CareMoments';
 import { IconTile, serviceIcon, TONES } from '@/lib/icons';
 import { PressScale, Rise, Skeleton } from '@/lib/motion';
 import { C, F, IS_DARK, shadow, ui } from '@/lib/theme';
+import { appAlert } from '@/lib/dialog';
 
 type Mode = 'ASAP' | 'SCHEDULED';
 const DEMO_AREA_KEY = 'nabz.demoArea';
@@ -51,7 +52,7 @@ export default function BookHome() {
   const source = demoArea ? 'recent' : live.source;
   function chooseArea() {
     if (!DEMO_AREA_ENABLED) return;
-    Alert.alert('Where should we send care?', 'Nabz is live in Jaipur. Outside Jaipur you can try the app in the Jaipur demo area.', [
+    appAlert('Where should we send care?', 'Nabz is live in Jaipur. Outside Jaipur you can try the app in the Jaipur demo area.', [
       { text: 'My live location', onPress: () => { setDemoArea(false); SecureStore.deleteItemAsync(DEMO_AREA_KEY).catch(() => undefined); } },
       { text: 'Jaipur demo area', onPress: () => { setDemoArea(true); SecureStore.setItemAsync(DEMO_AREA_KEY, '1').catch(() => undefined); } },
       { text: 'Cancel', style: 'cancel' }

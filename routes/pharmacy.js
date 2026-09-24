@@ -73,7 +73,9 @@ const orderStatusValidation = [
   body('note').optional().trim().isLength({ max: 500 }),
   body('reasonCode').optional().isIn(PHARMACY_REJECTION_REASONS).withMessage('Invalid rejection reason'),
   body('unavailableMedicineIds').optional().isArray({ max: 50 }),
-  body('unavailableMedicineIds.*').optional().isMongoId()
+  body('unavailableMedicineIds.*').optional().isMongoId(),
+  body('deliveryCode').optional().isString().isLength({ max: 8 }),
+  body('deliveredWithoutCodeReason').optional().isString().trim().isLength({ max: 200 })
 ];
 
 const inventoryValidation = [

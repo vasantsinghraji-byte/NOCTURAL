@@ -69,7 +69,8 @@ describe('Nabz revenue model + live tracking (real MongoDB)', () => {
     });
     [vendorUser, nurse, admin] = await User.create([
       { name: 'Store', email: `store.${RUN}@nabz.test`, password: PASSWORD, phone: '9876503456', role: 'pharmacy_vendor', pharmacyVendor: vendor._id, isVerified: true },
-      { name: 'Nurse Asha', email: `nurse.${RUN}@nabz.test`, password: PASSWORD, phone: '9876503457', role: 'nurse', isVerified: true },
+      { name: 'Nurse Asha', email: `nurse.${RUN}@nabz.test`, password: PASSWORD, phone: '9876503457', role: 'nurse', isVerified: true,
+        careProfile: { verification: { idVerified: true, policeVerified: true, councilVerified: true } } },
       { name: 'Ops Admin', email: `ops.${RUN}@nabz.test`, password: PASSWORD, phone: '9876503458', role: 'platform_admin', isVerified: true }
     ]);
     vendor.owner = vendorUser._id;
@@ -142,8 +143,10 @@ describe('Nabz revenue model + live tracking (real MongoDB)', () => {
   it('a delivered order books store payout, commission and delivery fee exactly once', async () => {
     if (skip()) return;
     const order = await PharmacyOrder.findOne({ vendor: vendor._id, 'amounts.deliveryFee': { $gt: 0 } });
+    const { deliveryOtp } = await PharmacyOrder.findById(order._id).select('+deliveryOtp.code').lean();
     for (const status of ['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED']) {
-      const res = await request(app).patch(`/api/v1/pharmacy/vendor/orders/${order._id}/status`).set(auth(tokens.vendor)).send({ status });
+      const body = status === 'DELIVERED' ? { status, deliveryCode: deliveryOtp.code } : { status };
+      const res = await request(app).patch(`/api/v1/pharmacy/vendor/orders/${order._id}/status`).set(auth(tokens.vendor)).send(body);
       expect(res.status).toBe(200);
     }
     const rows = await SettlementEntry.find({ 'source.id': order._id }).lean();
@@ -151,10 +154,18 @@ describe('Nabz revenue model + live tracking (real MongoDB)', () => {
     expect(byType.VENDOR_PAYOUT).toMatchObject({ amount: 135, status: 'PENDING' }); // 150 − 10%
     expect(byType.COMMISSION).toMatchObject({ amount: 15, rate: 0.1 });
     expect(byType.DELIVERY_FEE.amount).toBe(order.amounts.deliveryFee);
+    const expected = order.paymentMode === 'COD' ? 4 : 3;
+    if (order.paymentMode === 'COD') {
+      // The store took the cash, so it's netted off the store's payout.
+      expect(byType.CASH_COLLECTED).toMatchObject({ amount: order.amounts.total, status: 'PENDING' });
+      const payouts = await require('../../services/settlementService').getPendingPayouts({});
+      const mine = payouts.find((p) => String(p.partyId) === String(vendor._id));
+      expect(mine.cashHeld).toBeGreaterThanOrEqual(order.amounts.total);
+    }
 
     // Replaying the event adds nothing.
     await require('../../services/settlementService').recordPharmacyOrder(await PharmacyOrder.findById(order._id));
-    expect(await SettlementEntry.countDocuments({ 'source.id': order._id })).toBe(3);
+    expect(await SettlementEntry.countDocuments({ 'source.id': order._id })).toBe(expected);
   });
 
   it('revenue summary is for platform admins only', async () => {

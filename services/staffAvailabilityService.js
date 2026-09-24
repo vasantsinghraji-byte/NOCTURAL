@@ -9,7 +9,8 @@
  */
 
 const User = require('../models/user');
-const { ValidationError, NotFoundError } = require('../utils/errors');
+const { ValidationError, NotFoundError, AuthorizationError } = require('../utils/errors');
+const { VERIFIED_FILTER, isVerifiedStaff } = require('./careVisitPolicy');
 
 const STAFF_ROLES = ['nurse', 'physiotherapist', 'medical_staff'];
 const HEARTBEAT_STALE_MS = 10 * 60 * 1000;
@@ -23,12 +24,13 @@ const coord = (value, min, max, name) => {
 
 const freshSince = () => new Date(Date.now() - HEARTBEAT_STALE_MS);
 
-/** Query for staff who are discoverable right now. */
+/** Query for staff who are discoverable right now (verified ones only). */
 const discoverableFilter = () => ({
   role: { $in: STAFF_ROLES },
   isActive: { $ne: false },
   isOnline: true,
-  'currentLocation.updatedAt': { $gte: freshSince() }
+  'currentLocation.updatedAt': { $gte: freshSince() },
+  ...VERIFIED_FILTER
 });
 
 function present(user) {
@@ -43,6 +45,13 @@ function present(user) {
 
 /** Go online / heartbeat (with location) or go offline. */
 async function setAvailability(userId, { online, lat, lng }) {
+  // We promise customers every professional is ID, council and police checked.
+  if (online) {
+    const me = await User.findById(userId).select('role careProfile.verification isActive').lean();
+    if (!me || !STAFF_ROLES.includes(me.role)) throw new NotFoundError('Staff profile');
+    if (me.isActive === false) throw new AuthorizationError('Your account is paused. Contact partner support.');
+    if (!isVerifiedStaff(me)) throw new AuthorizationError('Verification pending: you can go online once your ID, police check and council registration are verified.');
+  }
   const update = online
     ? {
       $set: {

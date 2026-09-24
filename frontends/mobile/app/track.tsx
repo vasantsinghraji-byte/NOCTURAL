@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -15,6 +15,8 @@ import { NabzMark } from '@/lib/Brand';
 import { PressScale, Radar, Rise, success, warn } from '@/lib/motion';
 import { WEB_BASE_URL } from '@/lib/variant';
 import { C, F, IS_DARK, shadow, ui } from '@/lib/theme';
+import { appAlert } from '@/lib/dialog';
+import { chooseReschedule, confirmCancelVisit } from '@/lib/visitActions';
 
 const STATUS_TEXT: Record<string, string> = {
   ASSIGNED: 'Professional assigned',
@@ -74,14 +76,9 @@ export default function Track() {
     ? Math.max(1, Math.round((new Date(tracking.estimatedArrival).getTime() - Date.now()) / 60000))
     : null;
 
-  async function cancel() {
-    Alert.alert('Cancel this request?', 'Supplies ordered for this visit will be cancelled too.', [
-      { text: 'Keep', style: 'cancel' },
-      {
-        text: 'Cancel request', style: 'destructive',
-        onPress: () => api.cancelCareBooking(id, 'Cancelled by patient while matching').then(() => router.replace('/bookings')).catch((e) => setError(describeNetworkError(e)))
-      }
-    ]);
+  function cancel() {
+    const reason = tracking?.status === 'REQUESTED' ? 'Cancelled by patient while matching' : 'Cancelled by patient';
+    confirmCancelVisit(id, reason, () => router.replace('/bookings'), setError);
   }
 
   async function share() {
@@ -92,7 +89,7 @@ export default function Track() {
 
   function sos() {
     warn();
-    Alert.alert('Emergency?', 'Nabz safety team will be alerted right away with your location.', [
+    appAlert('Emergency?', 'Nabz safety team will be alerted right away with your location.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Call ambulance 108', onPress: () => Linking.openURL('tel:108') },
       {
@@ -104,9 +101,9 @@ export default function Track() {
           } catch { /* location optional */ }
           try {
             const r = await api.raiseSos(id, coords);
-            Alert.alert('Help is on the way', `Our safety team has been alerted. Ambulance ${r.emergencyNumbers.ambulance || '108'} · Police ${r.emergencyNumbers.police || '112'} · Women helpline ${r.emergencyNumbers.women || '1091'}.`);
+            appAlert('Help is on the way', `Our safety team has been alerted. Ambulance ${r.emergencyNumbers.ambulance || '108'} · Police ${r.emergencyNumbers.police || '112'} · Women helpline ${r.emergencyNumbers.women || '1091'}.`);
           } catch (e) {
-            Alert.alert('Could not reach Nabz', `${describeNetworkError(e)}\n\nCall 112 for emergencies.`);
+            appAlert('Could not reach Nabz', `${describeNetworkError(e)}\n\nCall 112 for emergencies.`);
           }
         }
       }
@@ -155,8 +152,8 @@ export default function Track() {
         </View>
         <View style={{ padding: 20, paddingBottom: insets.bottom + 20, gap: 10 }}>
           {noStaff && (
-            <PressScale style={styles.lightBtn} onPress={() => router.replace('/')}>
-              <Text style={styles.lightBtnText}>{t('home.schedule')}</Text>
+            <PressScale style={styles.lightBtn} onPress={() => chooseReschedule(id, load, setError)}>
+              <Text style={styles.lightBtnText}>Pick another time</Text>
             </PressScale>
           )}
           {tracking && (

@@ -30,6 +30,8 @@ const {
   updateReview,
   deleteReview,
   cancelBooking,
+  getCancellationQuote,
+  rescheduleBooking,
   getBookingStats,
   confirmBooking,
   markEnRoute,
@@ -176,6 +178,10 @@ const updateStatusValidation = [
 ];
 
 const completeServiceValidation = [
+  body('cashCollected')
+    .optional()
+    .isFloat({ min: 0, max: 100000 })
+    .withMessage('Cash collected must be an amount in rupees'),
   body('vitalsChecked')
     .optional()
     .isObject()
@@ -262,7 +268,7 @@ router.get(
 
 router.get(
   '/providers/assignable',
-  authorize('admin'),
+  authorize('admin', 'platform_admin'),
   queryCache({ ttl: CACHE_TTL.SHORT }),
   getAssignableProviders
 );
@@ -393,6 +399,26 @@ router.delete(
   deleteReview
 );
 
+// What cancelling would cost right now (shown before the customer confirms)
+router.get(
+  '/:id/cancel-quote',
+  mongoIdValidation,
+  validate,
+  getCancellationQuote
+);
+
+// Customer moves a visit nobody has taken yet (e.g. after "no nurse available")
+router.put(
+  '/:id/reschedule',
+  mongoIdValidation,
+  body('scheduledDate').isISO8601().withMessage('scheduledDate must be a date'),
+  body('scheduledTime').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Invalid time format (use HH:MM)'),
+  body('scheduledTimezoneOffsetMinutes').optional().isInt({ min: -840, max: 840 }),
+  validate,
+  authorize('patient'),
+  rescheduleBooking
+);
+
 // Cancel booking - patient, provider, or admin
 router.put(
   '/:id/cancel',
@@ -405,7 +431,7 @@ router.put(
 // Admin routes
 router.get(
   '/',
-  authorize('admin'),
+  authorize('admin', 'platform_admin'),
   queryCache({ ttl: CACHE_TTL.SHORT }),
   getAllBookings
 );
@@ -415,7 +441,7 @@ router.put(
   mongoIdValidation,
   assignProviderValidation,
   validate,
-  authorize('admin'),
+  authorize('admin', 'platform_admin'),
   assignProvider
 );
 
@@ -424,13 +450,13 @@ router.put(
   mongoIdValidation,
   updateStatusValidation,
   validate,
-  authorize('admin', 'nurse', 'physiotherapist', 'medical_staff'),
+  authorize('admin', 'platform_admin', 'nurse', 'physiotherapist', 'medical_staff'),
   updateStatus
 );
 
 router.get(
   '/stats/overview',
-  authorize('admin'),
+  authorize('admin', 'platform_admin'),
   queryCache({ ttl: CACHE_TTL.MEDIUM }),
   getBookingStats
 );

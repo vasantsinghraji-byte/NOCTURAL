@@ -36,6 +36,7 @@ const socialAuthRoutes = require('../socialAuth');
 const adminMfaRoutes = require('../adminMfa');
 const passwordResetRoutes = require('../passwordReset');
 const partnerRoutes = require('../partners');
+const internalRoutes = require('../internal');
 const funnelEventRoutes = require('../funnelEvents');
 const hospitalWaitlistRoutes = require('../hospitalWaitlist');
 const mobileDeviceRoutes = require('../mobileDevices');
@@ -102,6 +103,8 @@ router.use('/auth/social', socialAuthRoutes);
 router.use('/auth/admin-mfa', adminMfaRoutes);
 router.use('/auth/password', passwordResetRoutes);
 router.use('/partners', partnerRoutes);
+// Scheduler-only (EventBridge): background sweeps. 404 unless CRON_SECRET is set.
+router.use('/internal', internalRoutes);
 router.use('/funnel-events', funnelEventRoutes);
 router.use('/hospital-waitlist', hospitalWaitlistRoutes);
 router.use('/mobile-devices', mobileDeviceRoutes);

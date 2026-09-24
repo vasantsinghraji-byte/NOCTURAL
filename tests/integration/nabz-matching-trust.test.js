@@ -63,9 +63,9 @@ describe('Nabz matching, trust layer and sign-in (real MongoDB)', () => {
     });
     [nearNurse, farNurse, admin] = await User.create([
       { name: 'Asha Verma', email: `asha.${RUN}@nabz.test`, password: PASSWORD, phone: '9876504001', role: 'nurse', isVerified: true,
-        careProfile: { qualification: 'B.Sc Nursing', gender: 'FEMALE', languages: ['Hindi', 'English'], verification: { idVerified: true, councilVerified: true } } },
+        careProfile: { qualification: 'B.Sc Nursing', gender: 'FEMALE', languages: ['Hindi', 'English'], verification: { idVerified: true, policeVerified: true, councilVerified: true } } },
       { name: 'Ravi Kumar', email: `ravi.${RUN}@nabz.test`, password: PASSWORD, phone: '9876504002', role: 'nurse', isVerified: true,
-        careProfile: { qualification: 'GNM', gender: 'MALE' } },
+        careProfile: { qualification: 'GNM', gender: 'MALE', verification: { idVerified: true, policeVerified: true, councilVerified: true } } },
       { name: 'Ops', email: `ops.${RUN}@nabz.test`, password: PASSWORD, phone: '9876504003', role: 'platform_admin', isVerified: true }
     ]);
     tokens.near = await login(nearNurse.email, 'staff');
@@ -209,6 +209,80 @@ describe('Nabz matching, trust layer and sign-in (real MongoDB)', () => {
     const approve = await request(app).patch(`/api/v1/partners/admin/applications/${mine._id}`).set(auth(tokens.admin)).send({ status: 'APPROVED' });
     expect(approve.body.application.status).toBe('APPROVED');
     expect((await request(app).get('/api/v1/partners/admin/applications').set(auth(tokens.near))).status).toBe(403);
+  });
+
+  it('unverified staff cannot go online', async () => {
+    if (skip()) return;
+    const rookie = await User.create({
+      name: 'New Nurse', email: `rookie.${Date.now()}@nabz.test`, password: PASSWORD, phone: '9876504010', role: 'nurse', isVerified: true,
+      careProfile: { qualification: 'GNM', verification: { idVerified: true } }
+    });
+    try {
+      const token = await login(rookie.email, 'staff');
+      const res = await request(app).put('/api/v1/care/staff/availability').set(auth(token)).send({ online: true, lat: HOME.lat, lng: HOME.lng });
+      expect(res.status).toBe(403);
+      expect(res.body.message).toMatch(/Verification pending/);
+    } finally {
+      await User.deleteOne({ _id: rookie._id });
+    }
+  });
+
+  const bookNow = async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const res = await request(app).post('/api/v1/bookings').set(auth(tokens.patient)).send({
+      serviceType: 'INJECTION', mode: 'ASAP', scheduledDate: today, scheduledTime: '10:00',
+      scheduledTimezone: 'Asia/Kolkata', scheduledTimezoneOffsetMinutes: 330,
+      serviceLocation: { type: 'HOME', address: { street: 'Ashok Marg', city: 'Jaipur', pincode: '302001', coordinates: HOME } },
+      patientDetails: { name: 'Meera Sharma', age: 34, gender: 'Female' }
+    });
+    expect(res.status).toBe(201);
+    return res.body.booking;
+  };
+
+  it('cancelling is free until the nurse is on the way; after that the fee carries to the next booking', async () => {
+    if (skip()) return;
+    // Ravi is mid-visit, so the overlap rule sends this one to Asha.
+    const booking = await bookNow();
+    const offer = await request(app).get('/api/v1/bookings/offers/me').set(auth(tokens.near));
+    expect(offer.body.offer.bookingId).toBe(booking._id);
+    expect((await request(app).get('/api/v1/bookings/offers/me').set(auth(tokens.far))).body.offer).toBeNull();
+    expect((await request(app).post(`/api/v1/bookings/${booking._id}/offer/accept`).set(auth(tokens.near))).status).toBe(200);
+
+    const quote = () => request(app).get(`/api/v1/bookings/${booking._id}/cancel-quote`).set(auth(tokens.patient));
+    expect((await quote()).body.quote).toMatchObject({ allowed: true, fee: 0 });
+    await request(app).put(`/api/v1/bookings/${booking._id}/en-route`).set(auth(tokens.near));
+    expect((await quote()).body.quote).toMatchObject({ allowed: true, fee: 100 });
+
+    const cancel = await request(app).put(`/api/v1/bookings/${booking._id}/cancel`).set(auth(tokens.patient)).send({ reason: 'Changed my mind' });
+    expect(cancel.status).toBe(200);
+    const cancelled = await NurseBooking.findById(booking._id).lean();
+    expect(cancelled.status).toBe('CANCELLED');
+    expect(cancelled.cancellation.cancellationFee).toBe(100);
+    const patient = await Patient.findOne({ phone: PHONE }).lean();
+    expect(patient.pendingDues).toBe(100);
+    // The nurse can't start a cancelled visit.
+    expect((await request(app).put(`/api/v1/bookings/${booking._id}/start`).set(auth(tokens.near)).send({ visitCode: '0000' })).status).toBeGreaterThanOrEqual(400);
+
+    const next = await bookNow();
+    expect(next.pricing.previousDues).toBe(100);
+    expect((await Patient.findById(patient._id).lean()).pendingDues).toBe(0);
+    // Cancelled before anyone is on the way: free, and the carried dues come back.
+    await request(app).put(`/api/v1/bookings/${next._id}/cancel`).set(auth(tokens.patient)).send({ reason: 'Not needed' });
+    expect((await Patient.findById(patient._id).lean()).pendingDues).toBe(100);
+  });
+
+  it('a nurse dropping a visit sends it back to matching without them', async () => {
+    if (skip()) return;
+    const booking = await bookNow();
+    expect((await request(app).post(`/api/v1/bookings/${booking._id}/offer/accept`).set(auth(tokens.near))).status).toBe(200);
+    const bookingService = require('../../services/bookingService');
+    await bookingService.releaseVisit(booking._id, nearNurse._id, 'Flat tyre');
+    const released = await NurseBooking.findById(booking._id).lean();
+    expect(released.status).toBe('REQUESTED');
+    expect(released.serviceProvider).toBeFalsy();
+    expect(released.dispatch.declined.map(String)).toContain(String(nearNurse._id));
+    expect(released.dispatch.dropped).toHaveLength(1);
+    await request(app).put(`/api/v1/bookings/${booking._id}/cancel`).set(auth(tokens.patient)).send({ reason: 'Test cleanup' });
   });
 
   it('staff dashboard and the customer Home feed', async () => {

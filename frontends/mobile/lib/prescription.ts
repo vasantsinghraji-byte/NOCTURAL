@@ -1,6 +1,7 @@
-import { Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { api, describeNetworkError } from './api';
+import { appAlert } from './dialog';
 
 export interface UploadedPrescription { key: string; url: string; uri: string }
 
@@ -9,7 +10,7 @@ const MAX_BYTES = 9.5 * 1024 * 1024; // server limit is 10 MB
 /** Ask where the prescription comes from. Resolves null when the user cancels. */
 function chooseSource(): Promise<'camera' | 'library' | null> {
   return new Promise((resolve) => {
-    Alert.alert('Attach prescription', 'Take a clear photo of the whole prescription, or pick one from your gallery.', [
+    appAlert('Attach prescription', 'Take a clear photo of the whole prescription, or pick one from your gallery.', [
       { text: 'Camera', onPress: () => resolve('camera') },
       { text: 'Gallery', onPress: () => resolve('library') },
       { text: 'Cancel', style: 'cancel', onPress: () => resolve(null) }
@@ -37,7 +38,7 @@ export async function pickAndUploadPrescription(): Promise<UploadedPrescription 
     if (source === 'camera') {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Camera permission needed', 'Allow the camera to photograph your prescription, or choose Gallery instead.', [
+        appAlert('Camera permission needed', 'Allow the camera to photograph your prescription, or choose Gallery instead.', [
           { text: 'Open settings', onPress: () => Linking.openSettings() },
           { text: 'OK', style: 'cancel' }
         ]);
@@ -49,14 +50,14 @@ export async function pickAndUploadPrescription(): Promise<UploadedPrescription 
       result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.5, exif: false, allowsMultipleSelection: false });
     }
   } catch (e) {
-    Alert.alert('Couldn’t open the ' + (source === 'camera' ? 'camera' : 'gallery'), e instanceof Error ? e.message : String(e));
+    appAlert('Couldn’t open the ' + (source === 'camera' ? 'camera' : 'gallery'), e instanceof Error ? e.message : String(e));
     return null;
   }
 
   if (result.canceled || !result.assets?.[0]) return null;
   const asset = result.assets[0];
   if (asset.fileSize && asset.fileSize > MAX_BYTES) {
-    Alert.alert('Photo too large', 'Please retake the photo a little further away (max 10 MB).');
+    appAlert('Photo too large', 'Please retake the photo a little further away (max 10 MB).');
     return null;
   }
 
@@ -65,7 +66,7 @@ export async function pickAndUploadPrescription(): Promise<UploadedPrescription 
     const up = await api.uploadPrescription({ uri: asset.uri, name, type }, name);
     return { key: up.key, url: up.url, uri: asset.uri };
   } catch (e) {
-    Alert.alert('Upload failed', describeNetworkError(e));
+    appAlert('Upload failed', describeNetworkError(e));
     return null;
   }
 }

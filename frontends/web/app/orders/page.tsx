@@ -40,6 +40,9 @@ export default function OrdersPage() {
         {orders.map((o) => (
           <Link key={o._id} href={`/orders/${o._id}`} className="card">
             <div className="row"><h3>#{o.orderNumber}</h3><span className="pill">{o.status}</span></div>
+            {o.deliveryOtp?.code && !o.deliveryOtp.verifiedAt && !['DELIVERED', 'CANCELLED', 'REJECTED'].includes(o.status) && (
+              <span className="muted">Delivery code <b style={{ letterSpacing: 3 }}>{o.deliveryOtp.code}</b></span>
+            )}
             <span className="muted">{o.items.length} item(s) · ₹{o.amounts.total} · {o.paymentMode === 'PREPAID' && ['PENDING', 'FAILED'].includes(o.paymentStatus) && o.status === 'PLACED' ? 'Awaiting payment' : o.paymentMode}</span>
           </Link>
         ))}

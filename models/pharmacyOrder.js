@@ -119,12 +119,21 @@ const PharmacyOrderSchema = new mongoose.Schema({
     },
     prescribedOn: Date
   },
+  // Delivery code (like the visit code): the customer's app shows it, the
+  // store or rider must enter it to mark the order delivered. Never sent to stores.
+  deliveryOtp: {
+    code: { type: String, select: false },
+    verifiedAt: Date,
+    failedAttempts: { type: Number, default: 0 },
+    // Handed over without the code (customer's phone dead, etc.): flagged for review.
+    overrideReason: { type: String, maxlength: 200 }
+  },
   // One customer checkout split across stores (models/pharmacyCheckout.js).
   checkout: { type: mongoose.Schema.Types.ObjectId, ref: 'PharmacyCheckout' },
   // Automatic risk checks on misuse-prone medicines (ops review queue).
   riskFlags: [{
     _id: false,
-    code: { type: String, enum: ['MONTHLY_LIMIT_NEAR', 'MANY_STORES', 'EARLY_REFILL'] },
+    code: { type: String, enum: ['MONTHLY_LIMIT_NEAR', 'MANY_STORES', 'EARLY_REFILL', 'DELIVERED_WITHOUT_CODE'] },
     detail: { type: String, maxlength: 200 }
   }],
 

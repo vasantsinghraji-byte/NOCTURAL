@@ -381,6 +381,28 @@ exports.deleteReview = async (req, res, next) => {
  * @route   PUT /api/bookings/:id/cancel
  * @access  Private (Patient/Provider/Admin)
  */
+exports.getCancellationQuote = async (req, res, next) => {
+  try {
+    const quote = await bookingService.getCancellationQuote(req.params.id, req.user.id, req.user.role || (req.userType === 'patient' ? 'patient' : undefined));
+    responseHelper.sendSuccess(res, { quote }, 'Cancellation quote');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+exports.rescheduleBooking = async (req, res, next) => {
+  try {
+    const booking = await bookingService.rescheduleBooking(req.params.id, req.user.id, {
+      scheduledDate: req.body.scheduledDate,
+      scheduledTime: req.body.scheduledTime,
+      scheduledTimezoneOffsetMinutes: req.body.scheduledTimezoneOffsetMinutes
+    });
+    responseHelper.sendSuccess(res, { booking }, 'Visit moved');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
 exports.cancelBooking = async (req, res, next) => {
   try {
     const { reason } = req.body;

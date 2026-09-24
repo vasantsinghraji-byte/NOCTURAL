@@ -7,7 +7,10 @@ import { InstrumentSerif_400Regular, InstrumentSerif_400Regular_Italic } from '@
 import {
   Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold
 } from '@expo-google-fonts/manrope';
+// Registers the Partner background task before anything renders (must be top-level).
+import '@/lib/partnerOnline';
 import { AuthProvider } from '@/lib/auth';
+import { DialogHost } from '@/lib/dialog';
 import { LangProvider } from '@/lib/i18n';
 import { C, F, IS_DARK } from '@/lib/theme';
 
@@ -51,6 +54,7 @@ export default function RootLayout() {
             <Stack.Screen name="staff" options={{ headerShown: false }} />
             <Stack.Screen name="lab" options={{ title: 'Path lab partner', headerBackVisible: false }} />
           </Stack>
+          <DialogHost />
         </AuthProvider>
       </LangProvider>
     </SafeAreaProvider>

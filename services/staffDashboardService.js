@@ -133,7 +133,14 @@ async function setVerification(staffId, adminId, flags) {
   }
   const res = await User.updateOne({ _id: staffId, role: { $in: staffAvailabilityService.STAFF_ROLES } }, { $set: set });
   if (!res.matchedCount) throw new ValidationError('Staff member not found');
-  return { updated: true };
+  // Losing a core check: offline now, and their upcoming visits go to someone else.
+  const revoked = ['id', 'police', 'council'].some((k) => flags[k] === false);
+  let released = 0;
+  if (revoked) {
+    await User.updateOne({ _id: staffId }, { $set: { isOnline: false, isAvailable: false }, $unset: { currentLocation: 1 } });
+    released = await require('./bookingService').releaseProviderVisits(staffId, 'Provider verification withdrawn');
+  }
+  return { updated: true, releasedVisits: released };
 }
 
 module.exports = { getDashboard, updateProfile, setVerification, periodStarts };

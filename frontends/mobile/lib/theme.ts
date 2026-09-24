@@ -133,10 +133,11 @@ export const ui = StyleSheet.create({
   muted: { fontFamily: F.medium, color: C.muted, fontSize: 13 },
   label: { fontFamily: F.bold, color: C.muted, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' },
   section: { fontFamily: F.heavy, fontSize: 17, color: C.ink, marginTop: 20, marginBottom: 10 },
+  // No boxShadow on TextInput: on Android it swallows the left padding and the
+  // text starts at the border.
   input: {
     backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border, borderRadius: 16,
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.ink, fontFamily: F.medium,
-    boxShadow: IS_DARK ? 'inset 0 2px 4px rgba(0,0,0,0.3)' : 'inset 0 2px 4px rgba(122,74,58,0.06)'
+    paddingLeft: 18, paddingRight: 18, paddingVertical: 13, fontSize: 15, color: C.ink, fontFamily: F.medium
   },
   btn: { backgroundColor: C.brand, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', boxShadow: IS_DARK ? '0 10px 20px -8px rgba(111,211,165,0.3), inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -3px 0 rgba(0,0,0,0.15)' : '0 10px 18px -8px rgba(47,125,91,0.5), inset 0 2px 0 rgba(255,255,255,0.25), inset 0 -3px 0 rgba(0,0,0,0.12)' },
   btnText: { color: C.onBrand, fontFamily: F.heavy, fontSize: 15 },

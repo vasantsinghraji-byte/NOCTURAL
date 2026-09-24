@@ -184,10 +184,21 @@ async function seed() {
     }
     console.log(`✅ Inserted ${inventoryCount} inventory rows across ${VENDORS.length} vendors`);
 
+    // Demo staff are pre-verified so test visits can reach them. Never in
+    // production (this script refuses to run there, see the top of the file).
+    const DEMO_VERIFICATION = {
+      'careProfile.verification.idVerified': true,
+      'careProfile.verification.policeVerified': true,
+      'careProfile.verification.councilVerified': true,
+      'careProfile.verification.vaccinated': true
+    };
     for (const partner of DEMO_PARTNERS) {
       if (!(await User.findOne({ email: partner.email }))) {
         await User.create({ ...partner, isVerified: true });
         console.log(`   👤 ${partner.role} login: ${partner.email} (password: SEED_DEMO_PASSWORD)`);
+      }
+      if (['nurse', 'physiotherapist', 'medical_staff'].includes(partner.role)) {
+        await User.updateOne({ email: partner.email }, { $set: DEMO_VERIFICATION });
       }
     }
 

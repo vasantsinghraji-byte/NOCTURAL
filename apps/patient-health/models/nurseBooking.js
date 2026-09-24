@@ -133,6 +133,7 @@ const NurseBookingSchema = new mongoose.Schema({
     gst: Number,
     discount: Number,
     totalAmount: Number,
+    previousDues: Number, // unpaid late-cancellation fees carried onto this bill
     payableAmount: Number
   },
 
@@ -153,6 +154,8 @@ const NurseBookingSchema = new mongoose.Schema({
     amount: Number,
     currency: { type: String, default: 'INR' },
     paidAt: Date,
+    // Pay-after-visit: the provider who took the cash (settlement nets it).
+    collectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     failureReason: String,
     refundId: String,        // Razorpay refund ID
     refundedAt: Date,
@@ -322,7 +325,14 @@ const NurseBookingSchema = new mongoose.Schema({
     declined: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     attempts: { type: Number, default: 0 },
     startedAt: Date,
-    matchedAt: Date
+    matchedAt: Date,
+    // Providers who took the visit and handed it back (reliability + auto-offline).
+    dropped: [{
+      _id: false,
+      provider: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      at: Date,
+      reason: String
+    }]
   },
 
   // Visit code (Rapido-style ride OTP): the patient shares it when the staff

@@ -412,6 +412,8 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
       // COD orders are live for the store now; PREPAID ones start the clock when paid.
       acceptBy: isCod ? new Date(now.getTime() + getPharmacyOps().acceptSlaSeconds * 1000) : undefined,
       assignmentAttempts: [{ vendor: vendorId, offeredAt: now, outcome: 'PENDING' }],
+      // Home deliveries get a 4-digit handover code; nurse pickups don't.
+      deliveryOtp: isStaffPickup ? undefined : { code: String(require('crypto').randomInt(0, 10000)).padStart(4, '0') },
       riskFlags,
       checkout,
       status: 'PLACED'
@@ -450,7 +452,9 @@ function isOwnPrescriptionKey(key, patientId) {
 
 async function getOrderById(orderId, requester) {
   if (!mongoose.isValidObjectId(orderId)) throw new ValidationError('Invalid order id');
+  const isPatient = requester && requester.type === 'patient';
   const order = await PharmacyOrder.findById(orderId)
+    .select(isPatient ? '+deliveryOtp.code' : '')
     .populate('vendor', 'name address location contactPhone')
     .lean();
   if (!order) throw new NotFoundError('Order', orderId);
@@ -477,6 +481,7 @@ async function getPatientOrders(patientId, { status, page = 1, limit = 20 } = {}
 
   const [orders, total] = await Promise.all([
     PharmacyOrder.find(filter)
+      .select('+deliveryOtp.code') // the customer's own orders: they share this code at the door
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
       .limit(limitNum)
@@ -575,9 +580,9 @@ async function listVendorOrders(vendorId, { status, page = 1, limit = 20 } = {})
   return { orders, pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) } };
 }
 
-async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note, reasonCode, unavailableMedicineIds }) {
+async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note, reasonCode, unavailableMedicineIds, deliveryCode, deliveredWithoutCodeReason }) {
   if (!PHARMACY_ORDER_STATUSES.includes(status)) throw new ValidationError('Invalid order status');
-  const order = await PharmacyOrder.findById(orderId);
+  const order = await PharmacyOrder.findById(orderId).select('+deliveryOtp.code');
   if (!order) throw new NotFoundError('Order', orderId);
   if (String(order.vendor) !== String(vendorId)) {
     throw new AuthorizationError('You can only update your own store orders');
@@ -604,6 +609,26 @@ async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note,
     throw new ConflictError('Verify the prescription before packing this order');
   }
 
+  // Delivered needs the customer's handover code (or a reason, flagged for review).
+  const deliveryFlags = [];
+  if (status === 'DELIVERED' && order.deliveryOtp && order.deliveryOtp.code && !order.deliveryOtp.verifiedAt) {
+    const given = String(deliveryCode || '').replace(/[^0-9]/g, '');
+    if (given) {
+      if ((order.deliveryOtp.failedAttempts || 0) >= 5) {
+        throw new ConflictError('Too many wrong codes. Mark delivered without the code and give a reason');
+      }
+      const ok = given.length === 4 && require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(order.deliveryOtp.code));
+      if (!ok) {
+        await PharmacyOrder.updateOne({ _id: order._id }, { $inc: { 'deliveryOtp.failedAttempts': 1 } });
+        throw new ValidationError('That delivery code is not right. Ask the customer for the 4-digit code in their app');
+      }
+    } else {
+      const why = String(deliveredWithoutCodeReason || '').trim();
+      if (why.length < 5) throw new ValidationError('Enter the customer\'s 4-digit delivery code');
+      deliveryFlags.push({ code: 'DELIVERED_WITHOUT_CODE', detail: why.slice(0, 200) });
+    }
+  }
+
   // Forward progress: one compare-and-set so a concurrent cancel can't be overwritten.
   const now = new Date();
   const milestone = STATUS_MILESTONES[status];
@@ -613,9 +638,17 @@ async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note,
       $set: {
         status,
         ...(milestone && !(order.milestones && order.milestones[milestone]) ? { [`milestones.${milestone}`]: now } : {}),
-        ...(status === 'DELIVERED' ? { deliveredAt: now } : {})
+        ...(status === 'DELIVERED' ? { deliveredAt: now } : {}),
+        ...(status === 'DELIVERED' && order.deliveryOtp && order.deliveryOtp.code
+          ? (deliveryFlags.length
+            ? { 'deliveryOtp.overrideReason': deliveryFlags[0].detail }
+            : { 'deliveryOtp.verifiedAt': now })
+          : {})
       },
-      $push: { timeline: { status, at: now, note, by: actorUserId } }
+      $push: {
+        timeline: { status, at: now, note: note || (deliveryFlags.length ? `Delivered without code: ${deliveryFlags[0].detail}` : undefined), by: actorUserId },
+        ...(deliveryFlags.length ? { riskFlags: { $each: deliveryFlags } } : {})
+      }
     },
     { new: true }
   );

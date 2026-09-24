@@ -28,6 +28,9 @@ jest.mock('../../../utils/errors', () => ({
   },
   NotFoundError: class NotFoundError extends Error {
     constructor(t, _id) { super(`${t} not found`); this.name = 'NotFoundError'; }
+  },
+  ConflictError: class ConflictError extends Error {
+    constructor(m) { super(m); this.name = 'ConflictError'; }
   }
 }));
 jest.mock('../../../services/healthIntakeService', () => ({
@@ -40,7 +43,9 @@ jest.mock('../../../services/healthRecordService', () => ({
   captureBookingVitals: jest.fn()
 }));
 jest.mock('../../../services/doctorAccessService', () => ({
-  grantAccess: jest.fn()
+  grantAccess: jest.fn(),
+  grantForVisit: jest.fn(),
+  revokeForBooking: jest.fn()
 }));
 jest.mock('../../../utils/safeMongo', () => {
   const actual = jest.requireActual('../../../utils/safeMongo');
@@ -57,11 +62,13 @@ const User = require('../../../models/user');
 const healthIntakeService = require('../../../services/healthIntakeService');
 const healthMetricService = require('../../../services/healthMetricService');
 const doctorAccessService = require('../../../services/doctorAccessService');
+const visitPolicy = require('../../../services/careVisitPolicy');
 const bookingService = require('../../../services/bookingService');
 
 describe('Phase 2 — Booking Integrity', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(visitPolicy, 'checkBookingWindow').mockReturnValue({});
   });
 
   describe('TXN-003: createBooking uses single insert', () => {
@@ -127,7 +134,8 @@ describe('Phase 2 — Booking Integrity', () => {
       User.findById.mockResolvedValue({
         _id: 'provider1',
         name: 'Nurse A',
-        role: 'nurse'
+        role: 'nurse',
+        careProfile: { verification: { idVerified: true, policeVerified: true, councilVerified: true } }
       });
 
       const mockBooking = {
@@ -136,8 +144,9 @@ describe('Phase 2 — Booking Integrity', () => {
         status: 'ASSIGNED',
         serviceProvider: 'provider1'
       };
+      NurseBooking.findById.mockReturnValueOnce({ select: () => ({ lean: async () => null }) });
       NurseBooking.findOneAndUpdate.mockResolvedValue(mockBooking);
-      doctorAccessService.grantAccess.mockResolvedValue(true);
+      doctorAccessService.grantForVisit.mockResolvedValue(true);
 
       await bookingService.assignProvider('booking1', 'provider1', 'admin1');
 
@@ -157,10 +166,10 @@ describe('Phase 2 — Booking Integrity', () => {
       }));
 
       expect(options).toEqual(expect.objectContaining({ new: true }));
-      expect(doctorAccessService.grantAccess).toHaveBeenCalledWith(expect.objectContaining({
-        doctorId: 'provider1',
+      expect(doctorAccessService.grantForVisit).toHaveBeenCalledWith(expect.objectContaining({
+        providerId: 'provider1',
         bookingId: 'booking1',
-        adminId: 'admin1'
+        grantedBy: 'admin1'
       }));
     });
 
@@ -168,11 +177,13 @@ describe('Phase 2 — Booking Integrity', () => {
       User.findById.mockResolvedValue({
         _id: 'provider1',
         name: 'Nurse A',
-        role: 'nurse'
+        role: 'nurse',
+        careProfile: { verification: { idVerified: true, policeVerified: true, councilVerified: true } }
       });
 
+      NurseBooking.findById.mockReturnValueOnce({ select: () => ({ lean: async () => null }) });
       NurseBooking.findOneAndUpdate.mockResolvedValue(null);
-      NurseBooking.findById.mockResolvedValue({ _id: 'booking1', status: 'ASSIGNED' });
+      NurseBooking.findById.mockResolvedValueOnce({ _id: 'booking1', status: 'ASSIGNED' });
 
       await expect(
         bookingService.assignProvider('booking1', 'provider1', 'admin1')
@@ -509,42 +520,43 @@ describe('Phase 2 — Booking Integrity', () => {
         _id: 'booking1',
         patient: { toString: () => 'patient1' },
         serviceProvider: null,
-        status: 'REQUESTED',
-        save: jest.fn().mockResolvedValue(true)
+        status: 'REQUESTED'
       };
-
       NurseBooking.findById.mockResolvedValue(mockBooking);
+      NurseBooking.findOneAndUpdate.mockImplementation(async (_filter, update) => ({ ...mockBooking, ...update.$set }));
 
       const result = await bookingService.cancelBooking('booking1', 'patient1', 'Need to reschedule', 'patient');
 
       expect(result.cancellation).toEqual(expect.objectContaining({
         cancelledBy: 'PATIENT',
         cancelledByUser: 'patient1',
-        reason: 'Need to reschedule'
+        reason: 'Need to reschedule',
+        cancellationFee: 0
       }));
-      expect(mockBooking.save).toHaveBeenCalledTimes(1);
+      // Compare-and-set: only cancels if nobody changed the visit meanwhile.
+      const [filter] = NurseBooking.findOneAndUpdate.mock.calls[0];
+      expect(filter).toEqual(expect.objectContaining({ _id: 'booking1', status: 'REQUESTED' }));
     });
 
-    it('should map provider status cancellation to PROVIDER enum actor', async () => {
+    it('should hand a provider-cancelled visit back to matching instead of cancelling it', async () => {
       const mockBooking = {
         _id: 'booking1',
         patient: { toString: () => 'patient1' },
         serviceProvider: { toString: () => 'provider1' },
         status: 'ASSIGNED',
-        actualService: {},
-        save: jest.fn().mockResolvedValue(true)
+        actualService: {}
       };
-
       NurseBooking.findById.mockResolvedValue(mockBooking);
+      NurseBooking.findOneAndUpdate.mockImplementation(async (_filter, update) => ({ ...mockBooking, ...update.$set, patient: 'patient1' }));
+      NurseBooking.countDocuments.mockResolvedValue(0);
 
       const result = await bookingService.updateStatus('booking1', 'CANCELLED', 'provider1', 'Unable to reach patient', 'physiotherapist');
 
-      expect(result.cancellation).toEqual(expect.objectContaining({
-        cancelledBy: 'PROVIDER',
-        cancelledByUser: 'provider1',
-        reason: 'Unable to reach patient'
-      }));
-      expect(mockBooking.save).toHaveBeenCalledTimes(1);
+      expect(result.status).toBe('REQUESTED');
+      const [filter, update] = NurseBooking.findOneAndUpdate.mock.calls[0];
+      expect(filter).toEqual(expect.objectContaining({ _id: 'booking1', serviceProvider: 'provider1' }));
+      expect(update.$push['dispatch.dropped']).toEqual(expect.objectContaining({ provider: 'provider1', reason: 'Unable to reach patient' }));
+      expect(update.$addToSet['dispatch.declined']).toBe('provider1');
     });
   });
 

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import type { PharmacyOrder, PharmacyRejectionReason } from '@medrush/shared';
 import { api, describeNetworkError, getAuthToken } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { C, F } from '@/lib/theme';
 import { notifyLocal, registerForServerPush, requestNotificationPermission } from '@/lib/notifications';
+import { appAlert, appPrompt } from '@/lib/dialog';
 
 const POLL_MS = 10_000;
 
@@ -152,6 +153,34 @@ export default function VendorOrders() {
     }
   }
 
+  // Handover needs the customer's 4-digit code from their app (nurse pickups don't have one).
+  async function markDelivered(order: PharmacyOrder) {
+    if (order.fulfilment === 'STAFF_PICKUP') {
+      run(order._id, () => api.vendorUpdateOrderStatus(order._id, 'DELIVERED'));
+      return;
+    }
+    const code = await appPrompt({
+      title: 'Delivery code',
+      message: 'Ask the customer for the 4-digit code shown in their Nabz app.',
+      placeholder: '0000', keyboardType: 'number-pad', maxLength: 4, confirmText: 'Delivered'
+    });
+    if (code === null) return;
+    if (code) {
+      run(order._id, () => api.vendorUpdateOrderStatus(order._id, 'DELIVERED', undefined, { deliveryCode: code }), 'Order delivered.');
+      return;
+    }
+    appAlert('No code?', 'You can hand over without the code, but Nabz reviews these deliveries.', [
+      { text: 'Back', style: 'cancel' },
+      {
+        text: 'Deliver without code', style: 'destructive', onPress: async () => {
+          const why = await appPrompt({ title: 'Why no code?', message: 'For example: customer’s phone is switched off.', placeholder: 'Reason', confirmText: 'Mark delivered', maxLength: 200 });
+          if (!why) return;
+          run(order._id, () => api.vendorUpdateOrderStatus(order._id, 'DELIVERED', undefined, { deliveredWithoutCodeReason: why }), 'Order delivered (flagged for review).');
+        }
+      }
+    ]);
+  }
+
   function decline(order: PharmacyOrder, code: PharmacyRejectionReason) {
     setDeclining(null);
     const status = order.status === 'PLACED' ? 'REJECTED' : 'CANCELLED';
@@ -164,14 +193,14 @@ export default function VendorOrders() {
   }
 
   function markMissing(order: PharmacyOrder, medicineId: string, name: string) {
-    Alert.alert('Not available?', `${name} will be removed and the customer refunded. Your stock for it is set to 0.`, [
+    appAlert('Not available?', `${name} will be removed and the customer refunded. Your stock for it is set to 0.`, [
       { text: 'Keep it', style: 'cancel' },
       { text: 'Remove item', style: 'destructive', onPress: () => run(order._id, () => api.vendorMarkItemsUnavailable(order._id, [medicineId]), `${name} removed.`) }
     ]);
   }
 
   function confirmStock() {
-    Alert.alert('Confirm stock counts?', 'Tell Nabz your shelf matches the counts in the app. Stores with fresh counts rank higher.', [
+    appAlert('Confirm stock counts?', 'Tell Nabz your shelf matches the counts in the app. Stores with fresh counts rank higher.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Counts are right',
@@ -282,7 +311,7 @@ export default function VendorOrders() {
                       // Packing waits for the pharmacist's prescription check.
                       const blocked = a.status === 'PREPARING' && o.requiresPrescription && !o.prescription?.verified;
                       return (
-                        <Pressable key={a.status} disabled={busy || blocked} onPress={() => run(o._id, () => api.vendorUpdateOrderStatus(o._id, a.status))}
+                        <Pressable key={a.status} disabled={busy || blocked} onPress={() => (a.status === 'DELIVERED' ? markDelivered(o) : run(o._id, () => api.vendorUpdateOrderStatus(o._id, a.status)))}
                           style={[styles.action, (busy || blocked) && { opacity: 0.5 }]}>
                           <Text style={styles.actionText}>{blocked ? 'Verify prescription first' : a.label}</Text>
                         </Pressable>
@@ -344,5 +373,5 @@ const styles = StyleSheet.create({
   rxBox: { marginTop: 8, gap: 6, padding: 10, borderRadius: 12, backgroundColor: C.cardAlt },
   rxImage: { width: '100%', height: 220, borderRadius: 10, backgroundColor: C.card },
   rxOk: { color: C.brand, fontFamily: F.bold, fontSize: 12, marginTop: 4 },
-  input: { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, paddingHorizontal: 10, paddingVertical: 8, color: C.ink, fontFamily: F.medium }
+  input: { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, paddingLeft: 14, paddingRight: 14, paddingVertical: 10, color: C.ink, fontFamily: F.medium }
 });

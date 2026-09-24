@@ -26,7 +26,7 @@ locals {
   registry  = "${local.account}.dkr.ecr.${var.region}.amazonaws.com"
   web_url   = var.create_web ? "https://${aws_apprunner_service.web[0].service_url}" : ""
   api_url   = var.create_api ? "https://${aws_apprunner_service.api[0].service_url}" : ""
-  generated = ["JWT_SECRET", "JWT_REFRESH_SECRET", "ENCRYPTION_KEY"]
+  generated = ["JWT_SECRET", "JWT_REFRESH_SECRET", "ENCRYPTION_KEY", "CRON_SECRET", "PROXY_SHARED_SECRET"]
 }
 
 # ── Secrets: generated here (never shown), plus the Atlas string stored by hand ──
@@ -37,6 +37,17 @@ resource "random_password" "jwt" {
 
 resource "random_password" "jwt_refresh" {
   length  = 64
+  special = false
+}
+
+# Scheduler → API (/internal/tick) and website → API (real visitor IP header).
+resource "random_password" "cron" {
+  length  = 48
+  special = false
+}
+
+resource "random_password" "proxy" {
+  length  = 48
   special = false
 }
 
@@ -54,9 +65,11 @@ resource "aws_secretsmanager_secret_version" "generated" {
   for_each  = toset(local.generated)
   secret_id = aws_secretsmanager_secret.generated[each.key].id
   secret_string = {
-    JWT_SECRET         = random_password.jwt.result
-    JWT_REFRESH_SECRET = random_password.jwt_refresh.result
-    ENCRYPTION_KEY     = random_id.encryption_key.hex
+    JWT_SECRET          = random_password.jwt.result
+    JWT_REFRESH_SECRET  = random_password.jwt_refresh.result
+    ENCRYPTION_KEY      = random_id.encryption_key.hex
+    CRON_SECRET         = random_password.cron.result
+    PROXY_SHARED_SECRET = random_password.proxy.result
   }[each.key]
 }
 
@@ -331,6 +344,7 @@ resource "aws_apprunner_service" "api" {
           REDIS_ENABLED     = "false"
           RAZORPAY_ENABLED  = "false"
           LOG_LEVEL         = "info"
+          DEPLOYMENT_ENV    = var.environment
           # STAGING ONLY: test stores deliver India-wide so testers anywhere can order supplies.
           SERVICEABILITY_TEST_RADIUS_KM = tostring(var.test_store_radius_km)
           # Testers need time to open the partner app; production default is 180s.
@@ -377,13 +391,18 @@ resource "aws_apprunner_service" "web" {
       image_repository_type = "ECR"
       image_configuration {
         port = "3000"
+        # Lets the API see the real visitor IP behind this proxy (rate limits).
+        runtime_environment_secrets = {
+          PROXY_SHARED_SECRET = aws_secretsmanager_secret.generated["PROXY_SHARED_SECRET"].arn
+        }
       }
     }
   }
 
   instance_configuration {
-    cpu    = "512"
-    memory = "1024"
+    cpu               = "512"
+    memory            = "1024"
+    instance_role_arn = aws_iam_role.web_instance.arn
   }
 
   health_check_configuration {
@@ -396,5 +415,79 @@ resource "aws_apprunner_service" "web" {
   }
 
   auto_scaling_configuration_arn = aws_apprunner_auto_scaling_configuration_version.small.arn
-  depends_on                     = [aws_iam_role_policy_attachment.apprunner_access]
+  depends_on                     = [aws_iam_role_policy_attachment.apprunner_access, aws_iam_role_policy.web_instance]
+}
+
+# Web runtime role: may read only the proxy secret.
+resource "aws_iam_role" "web_instance" {
+  name = "${local.name}-web-instance"
+  assume_role_policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = [{ Effect = "Allow", Principal = { Service = "tasks.apprunner.amazonaws.com" }, Action = "sts:AssumeRole" }]
+  })
+}
+
+resource "aws_iam_role_policy" "web_instance" {
+  name = "proxy-secret"
+  role = aws_iam_role.web_instance.id
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = [{ Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.generated["PROXY_SHARED_SECRET"].arn }]
+  })
+}
+
+# ── Every-minute tick: App Runner throttles CPU when idle, so background
+#    sweeps are driven by a request from EventBridge (services/cronService.js).
+resource "aws_cloudwatch_event_connection" "tick" {
+  count              = var.create_api ? 1 : 0
+  name               = "${local.name}-tick"
+  authorization_type = "API_KEY"
+  auth_parameters {
+    api_key {
+      key   = "x-cron-secret"
+      value = random_password.cron.result
+    }
+  }
+}
+
+resource "aws_cloudwatch_event_api_destination" "tick" {
+  count                            = var.create_api ? 1 : 0
+  name                             = "${local.name}-tick"
+  invocation_endpoint              = "${local.api_url}/api/v1/internal/tick"
+  http_method                      = "POST"
+  invocation_rate_limit_per_second = 1
+  connection_arn                   = aws_cloudwatch_event_connection.tick[0].arn
+}
+
+resource "aws_iam_role" "events_tick" {
+  count = var.create_api ? 1 : 0
+  name  = "${local.name}-events-tick"
+  assume_role_policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = [{ Effect = "Allow", Principal = { Service = "events.amazonaws.com" }, Action = "sts:AssumeRole" }]
+  })
+}
+
+resource "aws_iam_role_policy" "events_tick" {
+  count = var.create_api ? 1 : 0
+  name  = "invoke-tick"
+  role  = aws_iam_role.events_tick[0].id
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = [{ Effect = "Allow", Action = ["events:InvokeApiDestination"], Resource = aws_cloudwatch_event_api_destination.tick[0].arn }]
+  })
+}
+
+resource "aws_cloudwatch_event_rule" "tick" {
+  count               = var.create_api ? 1 : 0
+  name                = "${local.name}-tick"
+  description         = "Runs Nabz background sweeps every minute"
+  schedule_expression = "rate(1 minute)"
+}
+
+resource "aws_cloudwatch_event_target" "tick" {
+  count    = var.create_api ? 1 : 0
+  rule     = aws_cloudwatch_event_rule.tick[0].name
+  arn      = aws_cloudwatch_event_api_destination.tick[0].arn
+  role_arn = aws_iam_role.events_tick[0].arn
 }
