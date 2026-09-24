@@ -16,8 +16,8 @@ Demo logins (LOCAL DEV ONLY):
 
 | Who | Email | Password | Pick on login screen |
 |---|---|---|---|
-| Customer | `patient.demo@medrush.test` | `SEED_DEMO_PASSWORD` | 🧑 Customer |
-| Pharmacy store | `vendor.jaipur@medrush.test` | `SEED_DEMO_PASSWORD` | 🏪 Pharmacy / staff |
+| Customer | `customer@nabz-staging.test` | `SEED_DEMO_PASSWORD` | 🧑 Customer |
+| Pharmacy store | `pharmacy@nabz-staging.test` | `SEED_DEMO_PASSWORD` | 🏪 Pharmacy / staff |
 
 ## 2. Which server URL?
 

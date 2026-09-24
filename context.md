@@ -160,7 +160,7 @@ consult chat/audio first (video later).
   refresh (access tokens last 15 min), store order queue with alerts (10 s polling + FCM),
   COD checkout + Rx photo, a permissions screen, server picker (preview builds only).
   `app.config.js` (replaces app.json), `eas.json` (preview APK / production AAB). README = testing guide.
-- Seed adds demo patient `patient.demo@medrush.test` (LOCAL DEV ONLY; password = `SEED_DEMO_PASSWORD`).
+- Seed adds demo patient `customer@nabz-staging.test` (LOCAL DEV ONLY; password = `SEED_DEMO_PASSWORD`).
 - Tests: `tests/integration/medrush-mobile-flow.test.js` (login, CORS, notification; real Mongo).
 - Local APK build: copy `frontends/{mobile,shared}` to a short non-OneDrive path (C:\mrb),
   JDK 21 (`C:\Program Files\Android\openjdk\jdk-21.0.8`), `expo prebuild` + `gradlew assembleRelease`.
@@ -180,8 +180,8 @@ consult chat/audio first (video later).
   and returns 403 for other roles *before* any session/cookie. New role `lab_partner`. `medical_staff` can use
   the provider booking routes. Customers stay on `/patients/login` (separate Patient model).
   Partner accounts are NOT self-registrable (admin-created after verification).
-- Demo logins (LOCAL DEV ONLY, `npm run db:seed:pharmacy`): patient.demo@medrush.test,
-  nurse.demo@medrush.test, lab.demo@medrush.test, vendor.jaipur@medrush.test; all use `SEED_DEMO_PASSWORD` from your local `.env`.
+- Demo logins (LOCAL DEV ONLY, `npm run db:seed:pharmacy`): customer@nabz-staging.test,
+  nurse@nabz-staging.test, lab@nabz-staging.test, pharmacy@nabz-staging.test; all use `SEED_DEMO_PASSWORD` from your local `.env`.
 - **Mobile UI**: royal-blue theme, bottom tabs (Home = book medical staff with a Leaflet/OSM map in a WebView,
   Pharmacy, Bookings, Account), booking flow `app/book.tsx` (supplies checklist → date/slots → details →
   confirm modal → booked/failed screen). Partner areas: `/vendor`, `/staff`, `/lab`. Icon fonts didn't render
@@ -260,6 +260,13 @@ consult chat/audio first (video later).
 - `WEB_REDIRECT_URL` (backend, optional): browser visits to the API host redirect to the website (set to
   http://localhost:3000 in local .env; the legacy Nocturnal pages stay for their contract tests).
 - Apps: "Forgot password?" → `app/forgot.tsx`; the emailed link opens the website.
+
+### DONE — Render removed, PR to main (2026-09-24, commit ef80e36)
+- Deleted render.yaml, `.github/workflows/render-smoke.yml`, docs/ops/render-post-deploy-smoke.md; CORS no longer
+  trusts *.onrender.com / RENDER_*; health `deploymentCommit` = `DEPLOYMENT_COMMIT` (CodeBuild passes the SHA).
+- PR **#216** feature/nabz-care-marketplace → main (needs CODEOWNERS review). Render services themselves still run
+  until deleted in the Render dashboard; legacy Nocturnal Android wrapper still points at nocturnal-api.onrender.com.
+- Apps: a saved test-server override is dropped when the build's default server changes (lib/api.ts).
 
 ### NOT done yet
 - SMTP not configured anywhere yet (reset emails are not delivered until it is).

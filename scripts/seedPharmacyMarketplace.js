@@ -30,11 +30,12 @@ if (DEMO_PASSWORD.length < 8) {
   console.error('❌ Set SEED_DEMO_PASSWORD (min 8 chars) in your local .env');
   process.exit(1);
 }
-const DEMO_PATIENT = { name: 'Demo Patient', email: 'patient.demo@medrush.test', password: DEMO_PASSWORD, phone: '9876500099' };
+const DEMO_PATIENT = { name: 'Demo Patient', email: 'customer@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500099' };
 // LOCAL DEV ONLY partner accounts, one per login portal.
 const DEMO_PARTNERS = [
-  { name: 'Demo Nurse', email: 'nurse.demo@medrush.test', password: DEMO_PASSWORD, phone: '9876500077', role: 'nurse' },
-  { name: 'Demo Path Lab', email: 'lab.demo@medrush.test', password: DEMO_PASSWORD, phone: '9876500066', role: 'lab_partner' }
+  { name: 'Demo Nurse', email: 'nurse@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500077', role: 'nurse' },
+  { name: 'Demo Physio', email: 'physio@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500055', role: 'physiotherapist' },
+  { name: 'Demo Path Lab', email: 'lab@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500066', role: 'lab_partner' }
 ];
 
 // Jaipur launch-area demo stores ([lng, lat]). Nabz launches in Jaipur first.
@@ -48,7 +49,7 @@ const VENDORS = [
     serviceRadiusKm: 6,
     deliveryFee: 25,
     minOrderValue: 99,
-    owner: { name: 'C-Scheme Store Manager', email: 'vendor.jaipur@medrush.test', password: DEMO_PASSWORD, phone: '9876500011' }
+    owner: { name: 'C-Scheme Store Manager', email: 'pharmacy@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500011' }
   },
   {
     name: 'MedPlus - Malviya Nagar',
