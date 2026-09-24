@@ -5,7 +5,13 @@ export const LAUNCH_CITY = 'Jaipur';
 
 
 export const shortName = (s: CareService) =>
-  (s.displayName || s.name).replace(/ at Home| \(.*\)|Session/g, '').trim();
+  (s.displayName || s.name)
+    .replace(/ at Home| \(.*\)|Session| - .*$/g, '')
+    .replace(/^Intramuscular /, 'IM ')
+    .replace(/ Insertion & Care$/, ' Care')
+    .replace(/ & Care$/, '')
+    .replace(/ Nursing Care$/, ' Care')
+    .trim();
 
 export const inr = (n: number) => `₹${Math.round(n * 100) / 100}`;
 
