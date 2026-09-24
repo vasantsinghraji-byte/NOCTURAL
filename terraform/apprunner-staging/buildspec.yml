@@ -15,7 +15,7 @@ phases:
             -t "$ECR_REGISTRY/$REPO:$TAG" -t "$ECR_REGISTRY/$REPO:latest" .
         else
           REPO="$API_REPO"
-          docker build -f Dockerfile --build-arg NODE_IMAGE="$NODE_IMAGE" \
+          docker build -f Dockerfile --build-arg NODE_IMAGE="$NODE_IMAGE" --build-arg DEPLOYMENT_COMMIT="${DEPLOYMENT_COMMIT:-unknown}" \
             -t "$ECR_REGISTRY/$REPO:$TAG" -t "$ECR_REGISTRY/$REPO:latest" .
         fi
         docker push "$ECR_REGISTRY/$REPO:$TAG"

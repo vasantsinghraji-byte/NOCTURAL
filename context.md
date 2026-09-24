@@ -248,7 +248,21 @@ consult chat/audio first (video later).
   used to skip users.currentLocation 2dsphere).
 - Staging admin password lives only in Secrets Manager `nabz/staging/ADMIN_PASSWORD`.
 
+### DONE — Forgot password + website redesign (2026-09-24, commit 8e3cf82, deployed)
+- `/auth/password/{forgot,check,reset}` (routes/passwordReset.js, services/passwordResetService.js): one-time
+  SHA-256-hashed tokens (30 min, TTL), no account enumeration, 3 links/hour/account + 3/hour/IP, reset bumps
+  sessionVersion + revokes refresh sessions. Email via services/mailer.js (nodemailer; SMTP_HOST/PORT/USER/PASSWORD,
+  EMAIL_FROM; dev logs the mail, production without SMTP sends nothing). Link = `${WEB_APP_URL||APP_URL}/reset-password`.
+- Fixed: protectPatient ignored sessionVersion; errorHandler crashed on service ValidationError (empty 500).
+- Website in the app theme (Manrope + Instrument Serif via next/font, app/nabz.css): landing `/`, `/login`, `/signup`
+  (`/register` redirects), `/forgot-password`, `/reset-password`, `/partners`; old home moved to `/book`; site footer;
+  phone tab bar for signed-in customers. Signed-in visits to `/` go to `/book`.
+- `WEB_REDIRECT_URL` (backend, optional): browser visits to the API host redirect to the website (set to
+  http://localhost:3000 in local .env; the legacy Nocturnal pages stay for their contract tests).
+- Apps: "Forgot password?" → `app/forgot.tsx`; the emailed link opens the website.
+
 ### NOT done yet
+- SMTP not configured anywhere yet (reset emails are not delivered until it is).
 - Admin passkey (WebAuthn) as a login factor; new-admin-sign-in email alert (needs SMTP).
 - Health vault, referrals, tips (need backend + payments), 3D icon pack, paid map tiles, web redesign to the new palette.
 - **Razorpay webhook** (`payment.captured`/`refund.processed`). The sweeper's reconcile covers

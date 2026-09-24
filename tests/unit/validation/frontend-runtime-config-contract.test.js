@@ -4,7 +4,6 @@ const indexHtmlSrc = readProjectFile('client/public/index.html');
 const frontendSessionSrc = readProjectFile('client/public/js/frontend-session.js');
 const landingSrc = readProjectFile('client/public/js/landing.js');
 const configSrc = readProjectFile('client/public/js/config.js');
-const renderYamlSrc = readProjectFile('render.yaml');
 
 const adminEntryPointPages = [
   'client/public/roles/admin/admin-dashboard.html',
@@ -54,10 +53,5 @@ describe('Frontend Runtime Config Contract', () => {
     expect(configSrc).toContain('getConfiguredApiOrigin');
     expect(configSrc).not.toContain("hostname.includes('render.com')");
     expect(configSrc).not.toContain('https://nocturnal-api.onrender.com');
-  });
-
-  it('should keep the Render blueprint aligned with same-origin /api rewrites', () => {
-    expect(renderYamlSrc).toContain('source: /api/*');
-    expect(renderYamlSrc).toContain('destination: https://nocturnal-api.onrender.com/api/*');
   });
 });

@@ -149,7 +149,7 @@ router.get('/health', async (req, res) => {
   const health = {
     status: dbStatus === 'connected' ? 'healthy' : 'degraded',
     version: 'v1',
-    deploymentCommit: process.env.RENDER_GIT_COMMIT || 'unknown',
+    deploymentCommit: process.env.DEPLOYMENT_COMMIT || 'unknown',
     timestamp: new Date().toISOString(),
     uptime: {
       seconds: Math.floor(uptime),

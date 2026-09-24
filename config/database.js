@@ -265,7 +265,7 @@ const connectDB = async (options = {}) => {
       retryWrites: true,
       retryReads: true,
       writeConcern: { w: 'majority', j: true, wtimeout: 10000 },
-      // Default to primaryPreferred to match render.yaml and give read-after-write
+      // Default to primaryPreferred for read-after-write
       // consistency for health data. Set MONGODB_READ_PREFERENCE=secondaryPreferred
       // to offload reads on a true replica set when eventual consistency is acceptable.
       readPreference: process.env.MONGODB_READ_PREFERENCE || 'primaryPreferred'

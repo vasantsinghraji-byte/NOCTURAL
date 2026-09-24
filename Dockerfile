@@ -70,6 +70,10 @@ COPY --from=builder --chown=nodejs:nodejs /app/scripts ./scripts
 RUN mkdir -p uploads logs && \
     chown -R nodejs:nodejs uploads logs
 
+# Git SHA of this build, reported by /api/v1/health as deploymentCommit
+ARG DEPLOYMENT_COMMIT=unknown
+ENV DEPLOYMENT_COMMIT=${DEPLOYMENT_COMMIT}
+
 # Switch to non-root user
 USER nodejs
 

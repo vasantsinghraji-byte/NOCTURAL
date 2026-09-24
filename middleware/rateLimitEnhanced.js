@@ -24,7 +24,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 // memory store. Render services without a provisioned Redis therefore need
 // REDIS_ENABLED=false in their environment or the process exits 1 at boot
 // (this crashed two production deploys on 2026-07-06; see PR #160 and
-// docs/ops/render-post-deploy-smoke.md).
+// terraform/apprunner-staging/README.md).
 if (isProduction && !isRateLimitingDisabled && !isRedisDisabled && !process.env.REDIS_URL) {
   throw new Error('REDIS_URL is required for production rate limiting');
 }

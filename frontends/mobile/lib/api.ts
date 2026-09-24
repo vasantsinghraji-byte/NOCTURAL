@@ -37,11 +37,19 @@ export function normalizeServerUrl(input: string): string {
   return trimmed;
 }
 
-/** Restore a tester's saved server (preview builds only). */
+/**
+ * Restore a tester's saved server (preview builds only). The override remembers
+ * which built-in server it replaced: after installing a build that points at a
+ * different server (e.g. laptop → AWS), an old override is dropped instead of
+ * silently keeping the app on a stale address.
+ */
 export async function loadServerUrl(): Promise<string> {
   if (ALLOW_SERVER_OVERRIDE) {
-    const saved = await SecureStore.getItemAsync(SERVER_KEY).catch(() => null);
-    if (saved) api.setBaseUrl(saved);
+    const raw = await SecureStore.getItemAsync(SERVER_KEY).catch(() => null);
+    let saved: { url?: string; forDefault?: string } | null = null;
+    try { saved = raw ? JSON.parse(raw) : null; } catch { saved = null; } // legacy plain-string value
+    if (saved?.url && saved.forDefault === DEFAULT_API_BASE_URL) api.setBaseUrl(saved.url);
+    else if (raw) await SecureStore.deleteItemAsync(SERVER_KEY).catch(() => undefined);
   }
   return api.getBaseUrl();
 }
@@ -50,7 +58,8 @@ export async function saveServerUrl(input: string): Promise<string> {
   if (!ALLOW_SERVER_OVERRIDE) return api.getBaseUrl();
   const url = normalizeServerUrl(input);
   api.setBaseUrl(url);
-  await SecureStore.setItemAsync(SERVER_KEY, url);
+  if (url === DEFAULT_API_BASE_URL) await SecureStore.deleteItemAsync(SERVER_KEY).catch(() => undefined);
+  else await SecureStore.setItemAsync(SERVER_KEY, JSON.stringify({ url, forDefault: DEFAULT_API_BASE_URL }));
   return url;
 }
 
@@ -58,6 +67,10 @@ export async function saveServerUrl(input: string): Promise<string> {
 export function describeNetworkError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
   if (/network request failed|failed to fetch|timeout/i.test(message)) {
+    // Cloud server: it's the phone's connection, not a laptop setup problem.
+    if (api.getBaseUrl().startsWith('https://')) {
+      return 'Can’t reach Nabz right now. Check your internet connection and try again.';
+    }
     return `Can't reach ${api.getBaseUrl()}. Emulator: use http://10.0.2.2:5000. Phone: use your laptop's Wi-Fi IP, `
       + 'same Wi-Fi network, and allow port 5000 in Windows Firewall.';
   }
