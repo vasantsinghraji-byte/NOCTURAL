@@ -177,11 +177,11 @@ export default function Pharmacy() {
       </View>
       {error && <Text style={styles.error}>{error}</Text>}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vendorBar} contentContainerStyle={{ padding: 12, gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vendorBar} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 8, alignItems: 'center' }}>
         {vendors.map((v) => (
           <Pressable key={v._id} onPress={() => selectVendor(v)}
             style={[styles.chip, active?._id === v._id && styles.chipActive]}>
-            <Text style={[styles.chipText, active?._id === v._id && styles.chipTextActive]}>{v.name}</Text>
+            <Text style={[styles.chipText, active?._id === v._id && styles.chipTextActive]} numberOfLines={1} maxFontSizeMultiplier={1.3}>{v.name}</Text>
           </Pressable>
         ))}
       </ScrollView>
@@ -241,10 +241,11 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.bg },
   title: { fontFamily: F.display, fontSize: 34, color: C.ink },
-  vendorBar: { maxHeight: 60, flexGrow: 0 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.border },
+  // No fixed height: large phone font sizes must not clip the store names.
+  vendorBar: { flexGrow: 0, flexShrink: 0 },
+  chip: { minHeight: 40, maxWidth: 260, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.border },
   chipActive: { backgroundColor: C.brand, borderColor: C.brand },
-  chipText: { color: C.ink, fontFamily: F.semi },
+  chipText: { color: C.ink, fontFamily: F.semi, fontSize: 14, lineHeight: 20 },
   chipTextActive: { color: C.onBrand },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
   name: { fontSize: 15, fontFamily: F.bold, color: C.ink },
