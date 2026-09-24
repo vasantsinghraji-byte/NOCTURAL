@@ -43,6 +43,22 @@ module.exports = {
     newArchEnabled: true,
     plugins: [
       'expo-router',
+      // Embed the brand fonts natively (android assets/fonts) so they render even
+      // if runtime font loading fails; names match the F.* families in lib/theme.ts.
+      [
+        'expo-font',
+        {
+          fonts: [
+            'node_modules/@expo-google-fonts/instrument-serif/400Regular/InstrumentSerif_400Regular.ttf',
+            'node_modules/@expo-google-fonts/instrument-serif/400Regular_Italic/InstrumentSerif_400Regular_Italic.ttf',
+            'node_modules/@expo-google-fonts/manrope/400Regular/Manrope_400Regular.ttf',
+            'node_modules/@expo-google-fonts/manrope/500Medium/Manrope_500Medium.ttf',
+            'node_modules/@expo-google-fonts/manrope/600SemiBold/Manrope_600SemiBold.ttf',
+            'node_modules/@expo-google-fonts/manrope/700Bold/Manrope_700Bold.ttf',
+            'node_modules/@expo-google-fonts/manrope/800ExtraBold/Manrope_800ExtraBold.ttf'
+          ]
+        }
+      ],
       'expo-secure-store',
       [
         'expo-location',

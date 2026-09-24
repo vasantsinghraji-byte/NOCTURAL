@@ -17,8 +17,8 @@ const html = `<!doctype html><html><head>
   html,body,#m{margin:0;height:100%;background:#efe9e1}
   /* Muted, cool-toned "custom" map look over OSM tiles (dark variant for dark mode). */
   .leaflet-tile-pane{filter:grayscale(.5) sepia(.18) saturate(.7) contrast(.96) brightness(1.04)}
-  body.dark,body.dark #m{background:#1b1715}
-  body.dark .leaflet-tile-pane{filter:invert(1) hue-rotate(200deg) grayscale(.35) brightness(.85) contrast(.9)}
+  body.dark,body.dark #m{background:#131014}
+  body.dark .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) grayscale(.7) brightness(.78) contrast(.92) sepia(.08)}
   .route{stroke:#2a2523;stroke-width:5;stroke-linecap:round;fill:none}
   body.dark .route{stroke:#f3f5fb}
   .me{width:18px;height:18px;border-radius:50%;background:#b83a50;border:3px solid #fff;box-shadow:0 0 0 8px rgba(184,58,80,.22)}
@@ -74,7 +74,7 @@ export function LiveMap({ center, pins, fit = false, dark = false, route }: {
         onLoadEnd={() => ref.current?.postMessage(payload)}
         javaScriptEnabled
         scrollEnabled={false}
-        style={{ backgroundColor: dark ? '#1b1715' : '#efe9e1' }}
+        style={{ backgroundColor: dark ? '#131014' : '#efe9e1' }}
       />
     </View>
   );

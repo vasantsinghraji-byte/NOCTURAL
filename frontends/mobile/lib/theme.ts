@@ -42,38 +42,42 @@ const LIGHT = {
   shadow: '#7a4a3a'
 };
 
+/**
+ * Dark: a deep plum-black (not brown) so the rose and green read as jewel
+ * tones; surfaces step up in lightness instead of relying on shadows.
+ */
 const DARK: typeof LIGHT = {
-  bg: '#1b1715',
-  card: '#262019',
-  cardAlt: '#2f2822',
-  ink: '#f6efe8',
-  inkSoft: '#d8cec5',
-  muted: '#a3978c',
-  faint: '#5c524a',
-  border: '#3a3129',
-  brand: '#5cc99a',
-  brandDark: '#8adbb7',
-  brandSoft: '#1d3328',
-  onBrand: '#10201a',
-  night: '#c9475d',
-  nightAlt: '#a93a4e',
+  bg: '#131014',
+  card: '#1d191e',
+  cardAlt: '#272128',
+  ink: '#f7f1f2',
+  inkSoft: '#dcd2d6',
+  muted: '#a0959b',
+  faint: '#5a5058',
+  border: '#332b33',
+  brand: '#6fd3a5', // mint-jade
+  brandDark: '#9be3c2',
+  brandSoft: '#15302a',
+  onBrand: '#0d1f18',
+  night: '#d4506a', // rose, a touch brighter so it glows on plum-black
+  nightAlt: '#b8425a',
   onNight: '#fff8f6',
-  onNightMuted: '#f8d7dc',
-  accent: '#f07a8c',
-  accentSoft: '#3a1f24',
-  rose: '#f07a8c',
-  roseSoft: '#3a1f24',
-  roseInk: '#ffc2cb',
-  amber: '#e2a64a',
-  amberSoft: '#3a2c14',
-  mint: '#5cc99a',
-  mintSoft: '#1d3328',
-  violet: '#c49ad6',
-  violetSoft: '#2e2233',
-  sky: '#7fb4d6',
-  skySoft: '#1c2a33',
-  gold: '#e2b56a',
-  overlay: 'rgba(0,0,0,0.6)',
+  onNightMuted: '#fbd9df',
+  accent: '#f28b9b',
+  accentSoft: '#3a1c26',
+  rose: '#f28b9b',
+  roseSoft: '#3a1c26',
+  roseInk: '#ffc4cd',
+  amber: '#e8b25a',
+  amberSoft: '#33270f',
+  mint: '#6fd3a5',
+  mintSoft: '#15302a',
+  violet: '#c9a3dc',
+  violetSoft: '#2a2030',
+  sky: '#86bde0',
+  skySoft: '#162630',
+  gold: '#ecc684',
+  overlay: 'rgba(0,0,0,0.65)',
   shadow: '#000000'
 };
 
@@ -108,17 +112,19 @@ export const shadow = {
  * light edge on top and a gentle inner shade at the bottom. Subtle by design.
  */
 export const clay: ViewStyle = IS_DARK
-  ? { boxShadow: '0 10px 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)' }
+  ? { boxShadow: '0 14px 30px -10px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -3px 8px rgba(0,0,0,0.25)' }
   : { boxShadow: '0 12px 26px -8px rgba(122,74,58,0.22), inset 0 2px 1px rgba(255,255,255,0.9), inset 0 -3px 8px rgba(122,74,58,0.06)' };
 
 /** Clay for filled buttons: puffy, with a light top edge and darker base. */
 export const clayButton: ViewStyle = {
-  boxShadow: '0 10px 18px -8px rgba(184,58,80,0.55), inset 0 2px 0 rgba(255,255,255,0.28), inset 0 -3px 0 rgba(0,0,0,0.14)'
+  boxShadow: IS_DARK
+    ? '0 10px 22px -8px rgba(212,80,106,0.45), inset 0 2px 0 rgba(255,255,255,0.22), inset 0 -3px 0 rgba(0,0,0,0.2)'
+    : '0 10px 18px -8px rgba(184,58,80,0.55), inset 0 2px 0 rgba(255,255,255,0.28), inset 0 -3px 0 rgba(0,0,0,0.14)'
 };
 
 export const ui = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  card: { backgroundColor: C.card, borderRadius: 24, padding: 16, borderWidth: IS_DARK ? 1 : 0, borderColor: C.border, ...clay },
+  card: { backgroundColor: C.card, borderRadius: 24, padding: 16, borderWidth: IS_DARK ? 1 : 0, borderColor: 'rgba(255,255,255,0.05)', ...clay },
   display: { fontFamily: F.display, fontSize: 38, color: C.ink, letterSpacing: -0.5, lineHeight: 42 },
   h1: { fontFamily: F.display, fontSize: 30, color: C.onNight, letterSpacing: -0.3, lineHeight: 34 },
   h2: { fontFamily: F.heavy, fontSize: 19, color: C.ink, letterSpacing: -0.3 },
@@ -130,9 +136,9 @@ export const ui = StyleSheet.create({
   input: {
     backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border, borderRadius: 16,
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.ink, fontFamily: F.medium,
-    boxShadow: IS_DARK ? undefined : 'inset 0 2px 4px rgba(122,74,58,0.06)'
+    boxShadow: IS_DARK ? 'inset 0 2px 4px rgba(0,0,0,0.3)' : 'inset 0 2px 4px rgba(122,74,58,0.06)'
   },
-  btn: { backgroundColor: C.brand, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 18px -8px rgba(47,125,91,0.5), inset 0 2px 0 rgba(255,255,255,0.25), inset 0 -3px 0 rgba(0,0,0,0.12)' },
+  btn: { backgroundColor: C.brand, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', boxShadow: IS_DARK ? '0 10px 20px -8px rgba(111,211,165,0.3), inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -3px 0 rgba(0,0,0,0.15)' : '0 10px 18px -8px rgba(47,125,91,0.5), inset 0 2px 0 rgba(255,255,255,0.25), inset 0 -3px 0 rgba(0,0,0,0.12)' },
   btnText: { color: C.onBrand, fontFamily: F.heavy, fontSize: 15 },
   btnDark: { backgroundColor: C.night, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', ...clayButton },
   btnOutline: { borderWidth: 1.5, borderColor: C.brand, borderRadius: 18, paddingVertical: 13, alignItems: 'center' },
