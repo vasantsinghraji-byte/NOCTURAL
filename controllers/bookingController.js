@@ -6,6 +6,7 @@
  */
 
 const bookingService = require('../services/bookingService');
+const dispatchService = require('../services/dispatchService');
 const responseHelper = require('../utils/responseHelper');
 
 /**
@@ -43,6 +44,66 @@ exports.getBooking = async (req, res, next) => {
  * @route   GET /api/bookings
  * @access  Private (Admin)
  */
+// Staff app: live location while heading to / at the visit
+exports.updateLocation = async (req, res, next) => {
+  try {
+    const tracking = await bookingService.updateProviderLocation(req.params.id, req.user.id, {
+      lat: req.body.lat,
+      lng: req.body.lng
+    });
+    responseHelper.sendSuccess(res, { tracking });
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+// Partner app: the visit request offered to me (Uber-style), if any
+exports.getMyOffer = async (req, res, next) => {
+  try {
+    const offer = await dispatchService.getMyOffer(req.user.id);
+    responseHelper.sendSuccess(res, { offer });
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+exports.acceptOffer = async (req, res, next) => {
+  try {
+    const booking = await dispatchService.accept(req.params.id, req.user.id);
+    responseHelper.sendSuccess(res, { booking }, 'Visit accepted');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+exports.declineOffer = async (req, res, next) => {
+  try {
+    responseHelper.sendSuccess(res, await dispatchService.decline(req.params.id, req.user.id));
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+// Patient or provider: SOS during a visit
+exports.raiseSos = async (req, res, next) => {
+  try {
+    const result = await bookingService.raiseSos(req.params.id, req.user.id, req.user.role, req.body || {});
+    responseHelper.sendSuccess(res, result, 'Help is being alerted');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+// Customer app: live tracking of the assigned staff
+exports.getTracking = async (req, res, next) => {
+  try {
+    const tracking = await bookingService.getTracking(req.params.id, req.user.id, req.user.role);
+    responseHelper.sendSuccess(res, { tracking });
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
 exports.getAllBookings = async (req, res, next) => {
   try {
     const {
@@ -221,7 +282,8 @@ exports.startService = async (req, res, next) => {
       'IN_PROGRESS',
       req.user.id,
       'Service started',
-      req.user.role
+      req.user.role,
+      { visitCode: req.body && req.body.visitCode }
     );
 
     responseHelper.sendSuccess(res, { booking }, 'Service started successfully');
@@ -256,7 +318,7 @@ exports.completeService = async (req, res, next) => {
  */
 exports.addReview = async (req, res, next) => {
   try {
-    const { stars, comment } = req.body;
+    const { stars, comment, tags } = req.body;
 
     if (!stars || stars < 1 || stars > 5) {
       return responseHelper.sendBadRequest(res, 'Rating must be between 1 and 5 stars');
@@ -265,7 +327,7 @@ exports.addReview = async (req, res, next) => {
     const booking = await bookingService.addReview(
       req.params.id,
       req.user.id,
-      { stars, comment }
+      { stars, comment, tags }
     );
 
     responseHelper.sendSuccess(res, { booking }, 'Review added successfully');
@@ -319,6 +381,28 @@ exports.deleteReview = async (req, res, next) => {
  * @route   PUT /api/bookings/:id/cancel
  * @access  Private (Patient/Provider/Admin)
  */
+exports.getCancellationQuote = async (req, res, next) => {
+  try {
+    const quote = await bookingService.getCancellationQuote(req.params.id, req.user.id, req.user.role || (req.userType === 'patient' ? 'patient' : undefined));
+    responseHelper.sendSuccess(res, { quote }, 'Cancellation quote');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+exports.rescheduleBooking = async (req, res, next) => {
+  try {
+    const booking = await bookingService.rescheduleBooking(req.params.id, req.user.id, {
+      scheduledDate: req.body.scheduledDate,
+      scheduledTime: req.body.scheduledTime,
+      scheduledTimezoneOffsetMinutes: req.body.scheduledTimezoneOffsetMinutes
+    });
+    responseHelper.sendSuccess(res, { booking }, 'Visit moved');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
 exports.cancelBooking = async (req, res, next) => {
   try {
     const { reason } = req.body;

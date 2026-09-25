@@ -231,6 +231,22 @@ const UserSchema = new mongoose.Schema({
     min: 0,
     select: false
   },
+  // Admin two-step login (authenticator app). Secrets are AES-GCM encrypted and
+  // never selected by default; recovery codes are stored only as HMAC hashes.
+  adminMfa: {
+    totpSecret: { type: String, select: false },
+    pendingSecret: { type: String, select: false },
+    pendingCreatedAt: { type: Date, select: false },
+    enabledAt: Date,
+    lastUsedStep: { type: Number, select: false },
+    recoveryCodes: {
+      type: [{ hash: { type: String, required: true }, usedAt: Date, _id: false }],
+      select: false,
+      default: undefined
+    },
+    failedAttempts: { type: Number, default: 0, select: false },
+    lockUntil: { type: Date, select: false }
+  },
   webAuthnCredentials: {
     type: [{
       credentialId: { type: String, required: true },
@@ -251,6 +267,52 @@ const UserSchema = new mongoose.Schema({
   smokeTestExpiresAt: {
     type: Date,
     select: false
+  },
+
+  // ── MedRush quick-commerce fields ──────────────────────────────────────
+  // Pharmacy store this account belongs to (role: pharmacy_vendor).
+  pharmacyVendor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PharmacyVendor'
+  },
+  // Live GeoJSON location for on-field staff/riders (distinct from the
+  // address-style `location` field above). Used for nearest-match queries.
+  // NOTE: no `default` on `type` — a default would create a partial
+  // { type:'Point' } (no coordinates) on every user, which a 2dsphere index
+  // rejects. Writers must set both `type` and `coordinates` together.
+  currentLocation: {
+    type: { type: String, enum: ['Point'] },
+    // No default: an empty array would make the 2dsphere index reject the user.
+    coordinates: { type: [Number], default: undefined }, // [lng, lat]
+    updatedAt: Date // heartbeat: staff are discoverable only while this is fresh
+  },
+  // Real-time availability for dispatch (staff / riders).
+  isOnline: { type: Boolean, default: false },
+  isAvailable: { type: Boolean, default: false },
+  averageResponseTimeMs: { type: Number, default: 0 },
+  // Home-service catalog entries this provider offers.
+  servicesOffered: [{ type: String }],
+  // Home-care staff profile shown to patients (trust layer). Verification flags
+  // are set only by platform admins after checking documents.
+  careProfile: {
+    qualification: String, // e.g. B.Sc Nursing, GNM, BPT
+    registrationNumber: String, // nursing council / physio council registration
+    gender: { type: String, enum: ['FEMALE', 'MALE', 'OTHER'] },
+    languages: [{ type: String }],
+    bio: { type: String, maxlength: 400 },
+    verification: {
+      idVerified: { type: Boolean, default: false },
+      policeVerified: { type: Boolean, default: false },
+      councilVerified: { type: Boolean, default: false },
+      vaccinated: { type: Boolean, default: false },
+      verifiedAt: Date,
+      verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }
+  },
+  // Delivery partner vehicle details.
+  vehicle: {
+    type: { type: String, enum: ['BIKE', 'SCOOTER', 'BICYCLE', 'CAR', 'OTHER'] },
+    registrationNumber: String
   }
 
 }, {
@@ -401,5 +463,9 @@ UserSchema.index({ role: 1, rating: -1, completedDuties: -1 }); // Top-rated doc
 UserSchema.index({ role: 1, isAvailableForShifts: 1, isActive: 1 }); // Available doctors
 UserSchema.index({ lastActive: -1 }); // Recent activity tracking
 UserSchema.index({ smokeTestExpiresAt: 1 }, { expireAfterSeconds: 0 });
+// MedRush: nearest-available staff/rider dispatch and vendor scoping
+UserSchema.index({ currentLocation: '2dsphere' });
+UserSchema.index({ role: 1, isOnline: 1, isAvailable: 1 });
+UserSchema.index({ pharmacyVendor: 1 });
 
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema);

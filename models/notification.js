@@ -39,7 +39,13 @@ const notificationSchema = new mongoose.Schema({
       'INTAKE_CHANGES_REQUIRED',
       'INTAKE_REJECTED',
       'MESSAGE_RECEIVED',
-      'SYSTEM_ANNOUNCEMENT'
+      'SYSTEM_ANNOUNCEMENT',
+      'PHARMACY_ORDER_NEW',
+      'PHARMACY_ORDER_UPDATE',
+      'CARE_VISIT_REQUEST',
+      'CARE_VISIT_MATCHED',
+      'CARE_SOS',
+      'CARE_VISIT_UPDATE'
     ],
     required: true
   },

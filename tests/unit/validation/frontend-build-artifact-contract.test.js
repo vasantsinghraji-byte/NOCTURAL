@@ -6,7 +6,6 @@ describe('Frontend build artifact contract', () => {
   const buildConfigSrc = readProjectFile('client/build.config.js');
   const webpackSimpleSrc = readProjectFile('client/webpack.config.simple.js');
   const dockerfileSrc = readProjectFile('Dockerfile');
-  const renderYamlSrc = readProjectFile('render.yaml');
 
   test('root build scripts delegate to the shared client build command', () => {
     expect(rootPackage.scripts['dev:all']).toBe('concurrently "npm run dev" "npm --prefix client run serve"');
@@ -46,11 +45,9 @@ describe('Frontend build artifact contract', () => {
     expect(buildConfigSrc).toContain("path.join('js', 'auth-setup.js')");
   });
 
-  test('Docker and Render use the same client build command and publish dist', () => {
+  test('Docker builds the client with the shared build:frontend script and ships dist', () => {
     expect(dockerfileSrc).toContain('RUN npm run build:frontend');
     expect(dockerfileSrc).toContain('/app/client/dist ./client/dist');
 
-    expect(renderYamlSrc).toContain('buildCommand: npm --prefix client ci && npm --prefix client run build');
-    expect(renderYamlSrc).toContain('staticPublishPath: client/dist');
   });
 });

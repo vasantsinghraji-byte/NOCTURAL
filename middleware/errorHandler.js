@@ -23,9 +23,13 @@ const errorHandler = (err, req, res, _next) => {
     error.statusCode = 400;
   }
 
-  // Mongoose validation error
+  // Mongoose validation error (has `errors`) or our service ValidationError
+  // (utils/errors, has statusCode but no `errors`: reading it used to throw
+  // inside the handler and turn a 400 into an empty 500).
   if (err.name === 'ValidationError') {
-    error.message = Object.values(err.errors).map(val => val.message).join(', ');
+    if (err.errors && typeof err.errors === 'object') {
+      error.message = Object.values(err.errors).map(val => val.message).join(', ');
+    }
     error.statusCode = 400;
   }
 

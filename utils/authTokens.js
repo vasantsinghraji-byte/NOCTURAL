@@ -78,16 +78,30 @@ const signToken = (payload, secret, expiresIn, identityType, sessionVersion = 0)
   }
 );
 
-const generateAccessToken = (id, identityType = IDENTITY_TYPES.USER, sessionVersion = 0) => signToken(
-  { id },
+/**
+ * Optional `auth` claims describe how the session was established:
+ *   mfa: true       the second factor was verified (required for admin roles)
+ *   authTime: secs  when the user last proved their identity (admin session age / step-up)
+ * Refresh carries them forward unchanged, so they can only be set at sign-in.
+ */
+const authClaims = (auth) => {
+  if (!auth) return {};
+  const claims = {};
+  if (auth.mfa === true) claims.mfa = true;
+  if (Number.isFinite(Number(auth.authTime)) && Number(auth.authTime) > 0) claims.authTime = Math.floor(Number(auth.authTime));
+  return claims;
+};
+
+const generateAccessToken = (id, identityType = IDENTITY_TYPES.USER, sessionVersion = 0, auth) => signToken(
+  { id, ...authClaims(auth) },
   process.env.JWT_SECRET,
   process.env.JWT_ACCESS_EXPIRE || '15m',
   identityType,
   sessionVersion
 );
 
-const generateRefreshToken = (id, identityType = IDENTITY_TYPES.USER, sessionVersion = 0) => signToken(
-  { id, type: 'refresh' },
+const generateRefreshToken = (id, identityType = IDENTITY_TYPES.USER, sessionVersion = 0, auth) => signToken(
+  { id, type: 'refresh', ...authClaims(auth) },
   process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
   process.env.JWT_REFRESH_EXPIRE || '7d',
   identityType,

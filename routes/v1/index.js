@@ -28,6 +28,15 @@ const adminFunnelRoutes = require('../admin/funnel');
 const adminSecurityAuditRoutes = require('../admin/securityAudit');
 const patientRoutes = require('../patient');
 const bookingRoutes = require('../booking');
+const pharmacyRoutes = require('../pharmacy');
+const careRoutes = require('../care');
+const membershipRoutes = require('../membership');
+const revenueRoutes = require('../revenue');
+const socialAuthRoutes = require('../socialAuth');
+const adminMfaRoutes = require('../adminMfa');
+const passwordResetRoutes = require('../passwordReset');
+const partnerRoutes = require('../partners');
+const internalRoutes = require('../internal');
 const funnelEventRoutes = require('../funnelEvents');
 const hospitalWaitlistRoutes = require('../hospitalWaitlist');
 const mobileDeviceRoutes = require('../mobileDevices');
@@ -72,6 +81,7 @@ router.use('/analytics', analyticsRoutes);
 router.use('/admin/metrics', metricsRouter.router);
 router.use('/admin/funnel', adminFunnelRoutes);
 router.use('/admin/security-audit', adminSecurityAuditRoutes);
+router.use('/admin/revenue', revenueRoutes);
 router.use('/shift-series', shiftSeriesRoutes);
 router.use('/hospital-settings', hospitalSettingsRoutes);
 router.use('/uploads', uploadsRoutes);
@@ -84,6 +94,17 @@ router.use('/security', securityRoutes);
 // B2C routes
 router.use('/patients', patientRoutes);
 router.use('/bookings', bookingRoutes);
+
+// MedRush pharmacy-vendor marketplace (public browse + patient/vendor/admin)
+router.use('/pharmacy', pharmacyRoutes);
+router.use('/care', careRoutes);
+router.use('/membership', membershipRoutes);
+router.use('/auth/social', socialAuthRoutes);
+router.use('/auth/admin-mfa', adminMfaRoutes);
+router.use('/auth/password', passwordResetRoutes);
+router.use('/partners', partnerRoutes);
+// Scheduler-only (EventBridge): background sweeps. 404 unless CRON_SECRET is set.
+router.use('/internal', internalRoutes);
 router.use('/funnel-events', funnelEventRoutes);
 router.use('/hospital-waitlist', hospitalWaitlistRoutes);
 router.use('/mobile-devices', mobileDeviceRoutes);
@@ -131,7 +152,7 @@ router.get('/health', async (req, res) => {
   const health = {
     status: dbStatus === 'connected' ? 'healthy' : 'degraded',
     version: 'v1',
-    deploymentCommit: process.env.RENDER_GIT_COMMIT || 'unknown',
+    deploymentCommit: process.env.DEPLOYMENT_COMMIT || 'unknown',
     timestamp: new Date().toISOString(),
     uptime: {
       seconds: Math.floor(uptime),

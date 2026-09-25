@@ -131,12 +131,27 @@ const PatientSchema = new mongoose.Schema({
     }
   },
 
-  // Emergency Contact
+  // Emergency Contact (primary — retained for backward compatibility)
   emergencyContact: {
     name: String,
     relation: String,
     phone: String,
     email: String
+  },
+
+  // MedRush SOS: multiple contacts notified when an emergency booking is
+  // triggered (in addition to the primary contact above).
+  emergencyContacts: [{
+    name: String,
+    relation: String,
+    phone: String,
+    notifyOnSos: { type: Boolean, default: true }
+  }],
+
+  // Preferred UI / communication language.
+  preferredLanguage: {
+    type: String,
+    default: 'en'
   },
 
   // Insurance Details
@@ -184,6 +199,12 @@ const PatientSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Linked Google account (Continue with Google). Sparse-unique: one Nabz
+  // account per Google identity.
+  googleId: {
+    type: String,
+    select: false
+  },
   emailVerified: {
     type: Boolean,
     default: false
@@ -197,6 +218,12 @@ const PatientSchema = new mongoose.Schema({
   totalSpent: {
     type: Number,
     default: 0
+  },
+  // Unpaid late-cancellation fees, added to the next visit's bill.
+  pendingDues: {
+    type: Number,
+    default: 0,
+    min: 0
   },
 
   // Health Intake Status (for Patient Analytics Dashboard)
@@ -303,6 +330,7 @@ PatientSchema.pre('save', function() {
 // Indexes
 // Note: email and phone already indexed via unique: true in schema
 PatientSchema.index({ referralCode: 1 });
+PatientSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 PatientSchema.index({ 'address.city': 1, 'address.pincode': 1 });
 PatientSchema.index({ isActive: 1, isVerified: 1 });
 PatientSchema.index({ createdAt: -1 });

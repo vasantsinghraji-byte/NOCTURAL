@@ -1,0 +1,21 @@
+# cp environments/production.tfvars.example environments/production.tfvars
+# Secrets are NOT set here: GitHub token via TF_VAR_github_access_token,
+# app secrets via Secrets Manager (see docs/MEDRUSH_AWS_DEPLOYMENT.md).
+environment       = "production"
+domain_name       = "medrush.in"           # your domain
+github_repository = "your-org/your-repo"   # owner/repo
+web_branch        = "main"
+
+create_hosted_zone          = false # true if Route53 should host the zone
+create_github_oidc_provider = true  # false if the account already has it
+
+desired_count = 2
+min_capacity  = 2
+max_capacity  = 6
+cpu           = 512
+memory        = 1024
+
+alarm_email = "ops@example.com"
+
+# After adding these keys to the app secret:
+# extra_app_secret_keys = ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"]
