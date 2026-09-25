@@ -96,6 +96,65 @@ async function request(email, { ip } = {}) {
   logger.logSecurity('password_reset_requested', { accountId: String(account.doc._id), accountType: account.type });
 }
 
+const INVITE_TTL_HOURS = 72;
+
+function inviteBody(name, link) {
+  const first = String(name || '').split(' ')[0] || 'there';
+  const safeFirst = first.replace(/[<>&"]/g, '');
+  const text = [
+    `Hi ${first},`,
+    '',
+    'Your Nabz Partner application is approved. Open this link to set your password and sign in:',
+    link,
+    '',
+    `The link works once and expires in ${INVITE_TTL_HOURS} hours.`,
+    'Our team will finish your verification before you can go live.',
+    '',
+    'Nabz'
+  ].join('\n');
+  const html = `<!doctype html><html><body style="margin:0;background:#f6f7fb;font-family:Arial,Helvetica,sans-serif;color:#0a0f24">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
+  <table role="presentation" width="100%" style="max-width:520px;background:#ffffff;border-radius:20px;padding:32px">
+    <tr><td style="font-size:22px;font-weight:800;letter-spacing:-0.5px">nabz partner</td></tr>
+    <tr><td style="padding-top:20px;font-size:16px;line-height:24px">Hi ${safeFirst},<br><br>
+      Your Nabz Partner application is approved. Set your password to sign in.</td></tr>
+    <tr><td style="padding:24px 0"><a href="${link}" style="display:inline-block;background:#0a0f24;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:14px">Set my password</a></td></tr>
+    <tr><td style="font-size:13px;line-height:20px;color:#7a8299">The link works once and expires in ${INVITE_TTL_HOURS} hours.
+      Our team will finish your verification before you can go live.</td></tr>
+  </table></td></tr></table></body></html>`;
+  return { text, html };
+}
+
+/**
+ * Invite a newly approved partner (User account) to set their password.
+ * Same one-time token as a reset, with a longer life.
+ * @returns {Promise<{ sent: boolean, link?: string }>} `link` only outside
+ *   production when email isn't configured, so staging ops can hand it over.
+ */
+async function invite(user) {
+  const token = crypto.randomBytes(32).toString('base64url');
+  await PasswordResetToken.create({
+    accountType: 'user',
+    account: user._id,
+    tokenHash: hashToken(token),
+    expiresAt: new Date(Date.now() + INVITE_TTL_HOURS * 3600 * 1000)
+  });
+  const link = `${webBase()}/reset-password?token=${encodeURIComponent(token)}`;
+  const { text, html } = inviteBody(user.name, link);
+  let sent = false;
+  try {
+    sent = (await mailer.sendMail({ to: user.email, subject: 'Welcome to Nabz Partner: set your password', text, html })).sent === true;
+  } catch (error) {
+    logger.error('Partner invite email failed', { accountId: String(user._id), error: error.message });
+  }
+  logger.logSecurity('partner_invite_created', { accountId: String(user._id), emailed: sent });
+  // WARNING: a set-password link lets whoever holds it take over the account.
+  // It is only returned to the approving admin on staging without SMTP; in
+  // production it goes to the partner's email and nowhere else.
+  const mayReturnLink = !sent && process.env.DEPLOYMENT_ENV !== 'production';
+  return mayReturnLink ? { sent, link } : { sent };
+}
+
 async function reset(token, password, { ip } = {}) {
   const tokenHash = hashToken(token);
   // Single use: claim the token atomically before touching the password.
@@ -147,4 +206,4 @@ async function check(token) {
   return { valid: !!doc, expiresAt: doc ? doc.expiresAt : null };
 }
 
-module.exports = { request, reset, check, TOKEN_TTL_MINUTES };
+module.exports = { request, reset, check, invite, TOKEN_TTL_MINUTES, INVITE_TTL_HOURS };

@@ -71,6 +71,30 @@ describe('Internal tick + rate-limit keys', () => {
     expect((await cron.lastRun()).lastRunAt).toBeTruthy();
   });
 
+  it('sign-in limits are shared across instances (MongoDB store)', async () => {
+    if (!db) return;
+    const { MongoRateLimitStore, COLLECTION } = require('../../middleware/mongoRateLimitStore');
+    const key = `test-${Date.now()}`;
+    // Two stores = two App Runner instances counting the same visitor.
+    const a = new MongoRateLimitStore({ prefix: 'rl:test:' });
+    const b = new MongoRateLimitStore({ prefix: 'rl:test:' });
+    a.init({ windowMs: 60000 });
+    b.init({ windowMs: 60000 });
+    expect((await a.increment(key)).totalHits).toBe(1);
+    expect((await b.increment(key)).totalHits).toBe(2);
+    expect((await a.increment(key)).totalHits).toBe(3);
+    expect((await b.get(key)).totalHits).toBe(3);
+    await a.decrement(key);
+    expect((await b.get(key)).totalHits).toBe(2);
+
+    // A finished window starts again from 1.
+    await mongoose.connection.db.collection(COLLECTION).updateOne({ _id: `rl:test:${key}` }, { $set: { resetAt: new Date(Date.now() - 1000) } });
+    expect(await a.get(key)).toBeUndefined();
+    expect((await b.increment(key)).totalHits).toBe(1);
+    await a.resetKey(key);
+    expect(await b.get(key)).toBeUndefined();
+  });
+
   describe('rate-limit caller keys', () => {
     const { clientIp, callerKey } = require('../../middleware/rateLimitEnhanced');
     const fakeReq = (headers = {}, ip = '10.0.0.1') => ({

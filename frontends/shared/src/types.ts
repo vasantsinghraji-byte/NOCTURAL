@@ -609,6 +609,17 @@ export interface PartnerApplicationInput {
   vehicle?: string;
 }
 
+/** Admin review queue row (GET /partners/admin/applications). */
+export interface PartnerApplication extends Omit<PartnerApplicationInput, 'qualification' | 'registrationNumber' | 'experienceYears' | 'businessName' | 'gstin' | 'address' | 'vehicle'> {
+  _id: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  details?: Omit<PartnerApplicationInput, 'kind' | 'name' | 'phone' | 'email' | 'city'>;
+  createdAt?: string;
+  provisioned?: { user?: string; vendor?: string; inviteEmailed?: boolean };
+  /** Only on the approve response: whether the set-password invite was emailed. */
+  invite?: { sent: boolean; link?: string };
+}
+
 export interface StaffAvailability { online: boolean; wentStale: boolean; lastSeenAt: string | null }
 
 export interface NearbyStaff { count: number; nearestKm: number | null; staff: Array<{ role: string; lat: number; lng: number }> }

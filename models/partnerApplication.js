@@ -37,6 +37,13 @@ const PartnerApplicationSchema = new mongoose.Schema({
     by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     at: Date,
     note: String
+  },
+  // Accounts created on approval (staff / pharmacy); verification still pending.
+  provisioned: {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'PharmacyVendor' },
+    inviteEmailed: Boolean,
+    at: Date
   }
 }, { timestamps: true });
 

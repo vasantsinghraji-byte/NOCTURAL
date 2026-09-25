@@ -5,10 +5,10 @@ import { router, useFocusEffect, type Href } from 'expo-router';
 import type { MembershipStatus } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { BadgeCheck, Briefcase, ChevronRight, Crown, Languages, LogOut, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react-native';
+import { BadgeCheck, Briefcase, ChevronRight, Crown, Languages, LogOut, ShieldCheck, Trash2, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useT } from '@/lib/i18n';
 import { C, F, shadow, ui } from '@/lib/theme';
-import { appAlert } from '@/lib/dialog';
+import { appAlert, appPrompt } from '@/lib/dialog';
 
 function Row({ icon: Icon, title, desc, href, onPress, right }: { icon: LucideIcon; title: string; desc: string; href?: Href; onPress?: () => void; right?: ReactNode }) {
   return (
@@ -26,6 +26,28 @@ function Row({ icon: Icon, title, desc, href, onPress, right }: { icon: LucideIc
 export default function Account() {
   const insets = useSafeAreaInsets();
   const { session, logout, setExplored } = useAuth();
+
+  function deleteAccount() {
+    appAlert('Delete your account?', 'Your name, phone, email, addresses and health profile are erased and you are signed out everywhere. Past orders and visits stay only as anonymous records we must keep by law. This can’t be undone.', [
+      { text: 'Keep account', style: 'cancel' },
+      {
+        text: 'Continue', style: 'destructive', onPress: async () => {
+          const typed = await appPrompt({ title: 'Type DELETE', message: 'To confirm, type DELETE in capitals.', placeholder: 'DELETE', confirmText: 'Delete account', maxLength: 10 });
+          if (typed === null) return;
+          if (typed !== 'DELETE') { appAlert('Not deleted', 'The text didn’t match, so your account is unchanged.'); return; }
+          try {
+            await api.deleteMyAccount(typed);
+            await logout();
+            setExplored(false);
+            router.replace('/welcome');
+            appAlert('Account deleted', 'Your personal data has been erased. Thank you for using Nabz.');
+          } catch (e) {
+            appAlert('Could not delete account', describeNetworkError(e));
+          }
+        }
+      }
+    ]);
+  }
   const { t, lang, setLang } = useT();
   const [plus, setPlus] = useState<MembershipStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -95,6 +117,7 @@ export default function Account() {
       <Row icon={ShieldCheck} title="Permissions" desc="Location, notifications, camera, photos" href="/permissions" />
       <Row icon={Briefcase} title="Work with Nabz" desc="Nurses, physios, pharmacies, labs: apply to join" href="/partner-apply" />
       {session && <Row icon={LogOut} title="Log out" desc={`Signed in as ${session.email}`} onPress={async () => { await logout(); setExplored(false); router.replace('/welcome'); }} />}
+      {session?.kind === 'patient' && <Row icon={Trash2} title="Delete account" desc="Erase your personal data from Nabz" onPress={deleteAccount} />}
 
       <Text style={[ui.muted, { textAlign: 'center', marginTop: 20 }]}>Nabz · care at your doorstep</Text>
     </ScrollView>

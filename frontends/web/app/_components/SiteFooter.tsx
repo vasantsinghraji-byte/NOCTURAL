@@ -26,13 +26,13 @@ export default function SiteFooter() {
           <Link href="/partners">Join as a partner</Link>
           <Link href="/staff/login">Medical staff login</Link>
           <Link href="/vendor/login">Pharmacy login</Link>
-          <Link href="/lab/login">Path lab login</Link>
         </div>
         <div>
           <h4>Account</h4>
           <Link href="/login">Sign in</Link>
           <Link href="/signup">Create account</Link>
           <Link href="/forgot-password">Forgot password</Link>
+          <Link href="/account/delete">Delete account</Link>
         </div>
       </div>
       <div className="container footer-legal">

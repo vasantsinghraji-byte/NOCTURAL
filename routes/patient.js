@@ -27,7 +27,8 @@ const {
   changePassword,
   listSessions,
   revokeSession,
-  revokeAllSessions
+  revokeAllSessions,
+  deleteMe
 } = require('../controllers/patientController');
 
 // Validation rules
@@ -154,7 +155,9 @@ router.use(protectPatient);
 // Profile routes
 router.route('/me')
   .get(getMe)
-  .put(updateMe);
+  .put(updateMe)
+  // Typed confirmation guards against one-tap deletes from a stolen session.
+  .delete(body('confirm').equals('DELETE').withMessage('Type DELETE to confirm'), validate, deleteMe);
 
 router.get('/me/stats', getBookingStats);
 router.post('/me/verify-password', verifyPasswordValidation, validate, verifyPassword);

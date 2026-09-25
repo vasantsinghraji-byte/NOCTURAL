@@ -25,6 +25,7 @@ import type {
   CreateCareBookingInput,
   CareBooking,
   CareCancelQuote,
+  PartnerApplication,
   LoginPortal,
   MembershipStatus,
   VisitTracking,
@@ -197,6 +198,11 @@ export class MedRushApi {
 
   me() {
     return this.request<{ success: true; patient: PatientProfile }>('GET', '/patients/me');
+  }
+
+  /** Delete my customer account (personal data erased; needs confirm = 'DELETE'). */
+  deleteMyAccount(confirm: string) {
+    return this.request<{ success: true }>('DELETE', '/patients/me', { body: { confirm } });
   }
 
   logout() {
@@ -612,6 +618,15 @@ export class MedRushApi {
   }
 
   // ── Pharmacy: admin ──────────────────────────────────────────────────────
+  adminListPartnerApplications(status: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING') {
+    return this.request<{ success: true; applications: PartnerApplication[] }>('GET', '/partners/admin/applications', { query: { status } });
+  }
+
+  /** Approving a nurse/physio or pharmacy creates their login and sends a set-password invite. */
+  adminReviewPartnerApplication(id: string, body: { status: 'APPROVED' | 'REJECTED'; note?: string; email?: string }) {
+    return this.request<{ success: true; application: PartnerApplication }>('PATCH', `/partners/admin/applications/${id}`, { body });
+  }
+
   adminListVendors(params: { status?: string; page?: number; limit?: number } = {}) {
     return this.request<{ success: true; vendors: PharmacyVendor[]; pagination: Pagination }>('GET', '/pharmacy/admin/vendors', { query: params });
   }

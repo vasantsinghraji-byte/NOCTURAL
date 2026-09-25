@@ -64,7 +64,7 @@ export default function LoginPage() {
       <p className="switch">New to Nabz? <Link href="/signup" className="link">Create an account</Link></p>
       <div className="divider">Partners</div>
       <p className="switch" style={{ marginTop: 0 }}>
-        <Link href="/staff/login" className="link">Medical staff</Link> · <Link href="/vendor/login" className="link">Pharmacy</Link> · <Link href="/lab/login" className="link">Path lab</Link>
+        <Link href="/staff/login" className="link">Medical staff</Link> · <Link href="/vendor/login" className="link">Pharmacy</Link>
       </p>
     </AuthShell>
   );

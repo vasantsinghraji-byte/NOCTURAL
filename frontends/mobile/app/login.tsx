@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { FlaskConical, Stethoscope, Store, type LucideIcon } from 'lucide-react-native';
+import { Stethoscope, Store, type LucideIcon } from 'lucide-react-native';
 import { homeForRole, useAuth, type AccountKind } from '@/lib/auth';
 import { ALLOW_SERVER_OVERRIDE, api, describeNetworkError, saveServerUrl } from '@/lib/api';
 import { IconTile } from '@/lib/icons';
@@ -15,11 +15,11 @@ type Mode = 'login' | 'register';
 // medical-staff area and vice versa. Customers never see this chooser.
 const PARTNER_PORTALS: Array<{ kind: AccountKind; icon: LucideIcon; title: string; hint: string; tone: string; fg: string }> = [
   { kind: 'staff', icon: Stethoscope, title: 'Medical staff', hint: 'Nurses & physios', tone: C.violetSoft, fg: C.violet },
-  { kind: 'pharmacy', icon: Store, title: 'Pharmacy', hint: 'Store partner', tone: C.mintSoft, fg: C.mint },
-  { kind: 'lab', icon: FlaskConical, title: 'Path lab', hint: 'Lab partner', tone: C.amberSoft, fg: C.amber }
+  { kind: 'pharmacy', icon: Store, title: 'Pharmacy', hint: 'Store partner', tone: C.mintSoft, fg: C.mint }
+  // Path lab and delivery partners sign in once their dashboards ship (audit M7).
 ];
 
-/** Email sign-in. Customer app: customers only. Nabz Partner: staff / pharmacy / lab. */
+/** Email sign-in. Customer app: customers only. Nabz Partner: staff / pharmacy. */
 export default function Login() {
   const { login, register } = useAuth();
   const params = useLocalSearchParams<{ kind?: AccountKind }>();

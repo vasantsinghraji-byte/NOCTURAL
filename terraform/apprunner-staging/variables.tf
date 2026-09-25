@@ -47,3 +47,9 @@ variable "pharmacy_accept_sla_seconds" {
   type    = number
   default = 600
 }
+
+variable "alert_email" {
+  description = "Email for staging alarms (tick stopped/failed, API 5xx). Empty = alarms go to the SNS topic only."
+  type        = string
+  default     = ""
+}

@@ -22,8 +22,24 @@ Plan steps 1 and 2 are done and deployed to staging (commit `32d441c`).
 - **Also fixed:** "API rate limit exceeded" for normal use.
   - Limits are now per signed-in account.
   - The website forwards the visitor's real IP in a signed header (`PROXY_SHARED_SECRET`), so visitors no longer share one limit.
-- **Still open (step 3, before real users):** M3, M5, M6, M7, P1, P2, P4.
-  - P2 (rotate the Atlas password) is the most urgent.
+- **Step 3 (25 Sep 2026):** M3, M5, M6, M7 and P4 are fixed.
+  - **M3:** login, sensitive-action and password-reset limits count in MongoDB, so they hold across instances. They fall back to memory if the database is down.
+  - **M5:** customers can delete their account in the app (Account → Delete account) or at `/account/delete`.
+    - Personal data is erased and every session is revoked.
+    - Order, visit and invoice records stay anonymised.
+    - Deletion is refused while a visit or order is in progress, or while dues are unpaid.
+    - **Open legal question:** health records and metrics are kept for now. Someone must confirm the required retention period for medical records.
+  - **M6:** approving a nurse, physio or pharmacy application creates the login with verification pending and emails a 72-hour set-password link.
+    - Pharmacies get a PENDING store that isn't visible to customers.
+    - On staging without SMTP, the admin panel shows the one-time link instead of emailing it. Production never shows it.
+  - **M7:** lab and delivery logins are hidden. Their applications are a waitlist.
+  - **P4:** CloudWatch alarms fire when the tick stops or fails, and when the API returns 5xx errors. They publish to the SNS topic `nabz-staging-alerts`.
+    - Set `alert_email` in Terraform to receive them by email.
+- **Still open, needs you:**
+  - **P2:** rotate the Atlas password and restrict network access. This is the most urgent.
+  - **P1:** move to MongoDB M10 for backups.
+  - Choose an email address for the alarms.
+  - SMTP credentials, so partner invites and password resets actually get emailed.
 
 ---
 

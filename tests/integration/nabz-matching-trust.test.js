@@ -206,8 +206,34 @@ describe('Nabz matching, trust layer and sign-in (real MongoDB)', () => {
     const queue = await request(app).get('/api/v1/partners/admin/applications').set(auth(tokens.admin));
     const mine = queue.body.applications.find((a) => a.phone === '9876504999');
     expect(mine.status).toBe('PENDING');
-    const approve = await request(app).patch(`/api/v1/partners/admin/applications/${mine._id}`).set(auth(tokens.admin)).send({ status: 'APPROVED' });
+    // Staff approval creates the login, so it needs an email for the invite.
+    const noEmail = await request(app).patch(`/api/v1/partners/admin/applications/${mine._id}`).set(auth(tokens.admin)).send({ status: 'APPROVED' });
+    expect(noEmail.status).toBe(400);
+    const email = `pooja.${Date.now()}@nabz.test`;
+    const approve = await request(app).patch(`/api/v1/partners/admin/applications/${mine._id}`).set(auth(tokens.admin)).send({ status: 'APPROVED', email });
+    expect(approve.status).toBe(200);
     expect(approve.body.application.status).toBe('APPROVED');
+    // No SMTP in tests and not production: the link comes back for ops to hand over.
+    expect(approve.body.application.invite.sent).toBe(false);
+    expect(approve.body.application.invite.link).toMatch(/reset-password\?token=/);
+
+    const partner = await User.findOne({ email }).lean();
+    try {
+      expect(partner).toMatchObject({ role: 'nurse', phone: '9876504999', isVerified: false });
+      expect(String(approve.body.application.provisioned.user)).toBe(String(partner._id));
+      expect(partner.careProfile.verification.policeVerified).toBe(false);
+
+      // The invite sets their password; they can sign in but not go online until verified.
+      const token = decodeURIComponent(approve.body.application.invite.link.split('token=')[1]);
+      const setPassword = await request(app).post('/api/v1/auth/password/reset').send({ token, password: 'Partner@Nabz2026x', confirmPassword: 'Partner@Nabz2026x' });
+      expect(setPassword.status).toBe(200);
+      const signIn = await request(app).post('/api/v1/auth/login').set(MOBILE).send({ email, password: 'Partner@Nabz2026x', portal: 'staff' });
+      expect(signIn.status).toBe(200);
+      const online = await request(app).put('/api/v1/care/staff/availability').set(auth(signIn.body.tokens.accessToken)).send({ online: true, lat: HOME.lat, lng: HOME.lng });
+      expect(online.status).toBe(403);
+    } finally {
+      await User.deleteOne({ email });
+    }
     expect((await request(app).get('/api/v1/partners/admin/applications').set(auth(tokens.near))).status).toBe(403);
   });
 

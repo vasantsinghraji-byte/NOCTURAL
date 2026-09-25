@@ -11,8 +11,8 @@ import { C, F } from '@/lib/theme';
 const ROLES: Array<{ icon: LucideIcon; title: string; line: string }> = [
   { icon: Stethoscope, title: 'Nurses & physios', line: 'Go online, get visit requests nearby, earn per visit' },
   { icon: Store, title: 'Pharmacies', line: 'Receive orders and nurse pickups from your area' },
-  { icon: FlaskConical, title: 'Path labs', line: 'Home sample collection requests' },
-  { icon: Bike, title: 'Delivery partners', line: 'Medicine deliveries in your area' }
+  { icon: FlaskConical, title: 'Path labs', line: 'Home sample collection requests (coming soon)' },
+  { icon: Bike, title: 'Delivery partners', line: 'Medicine deliveries in your area (coming soon)' }
 ];
 
 /** Nabz Partner: first screen (sign in or apply). */

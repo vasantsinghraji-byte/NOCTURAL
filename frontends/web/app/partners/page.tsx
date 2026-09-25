@@ -7,11 +7,12 @@ import type { PartnerApplicationInput, PartnerKind } from '@medrush/shared';
 import { api } from '@/lib/api';
 import AuthShell from '../_components/AuthShell';
 
-const KINDS: Array<{ kind: PartnerKind; icon: LucideIcon; title: string; login: string }> = [
+// Lab and delivery partners join a waitlist: their dashboards aren't built yet (audit M7).
+const KINDS: Array<{ kind: PartnerKind; icon: LucideIcon; title: string; login: string | null }> = [
   { kind: 'MEDICAL_STAFF', icon: Stethoscope, title: 'Nurse / physio', login: '/staff/login' },
   { kind: 'PHARMACY', icon: Store, title: 'Pharmacy', login: '/vendor/login' },
-  { kind: 'PATH_LAB', icon: FlaskConical, title: 'Path lab', login: '/lab/login' },
-  { kind: 'DELIVERY', icon: Bike, title: 'Delivery', login: '/staff/login' }
+  { kind: 'PATH_LAB', icon: FlaskConical, title: 'Path lab', login: null },
+  { kind: 'DELIVERY', icon: Bike, title: 'Delivery', login: null }
 ];
 
 type Field = { key: keyof PartnerApplicationInput; label: string; numeric?: boolean };
@@ -116,7 +117,9 @@ export default function PartnersPage() {
         {error && <div className="notice bad" style={{ marginTop: 14 }}>{error}</div>}
         <button className="btn block lg" type="submit" disabled={busy} style={{ marginTop: 20 }}>{busy ? 'Submitting…' : 'Submit application'}</button>
       </form>
-      <p className="switch">Already a partner? <Link href={active.login} className="link">Sign in</Link></p>
+      {active.login
+        ? <p className="switch">Already a partner? <Link href={active.login} className="link">Sign in</Link></p>
+        : <p className="switch">{active.title} partnerships open soon. Apply now and we&apos;ll call you when they do.</p>}
     </AuthShell>
   );
 }

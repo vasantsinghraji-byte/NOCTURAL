@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = rateLimit;
 const rateLimitRedis = require('rate-limit-redis');
 const RedisStore = rateLimitRedis.RedisStore || rateLimitRedis.default || rateLimitRedis;
+const { MongoRateLimitStore } = require('./mongoRateLimitStore');
 const Redis = require('ioredis');
 const { scanKeys } = require('../config/redis');
 const logger = require('../utils/logger');
@@ -111,7 +112,9 @@ const createRateLimiter = (options) => {
     skipFailedRequests = false,
     keyGenerator,
     handler = null,
-    onLimitReached = null
+    onLimitReached = null,
+    // Sign-in / recovery limiters: count across all instances even without Redis.
+    shared = false
   } = options;
 
   const config = {
@@ -164,6 +167,9 @@ const createRateLimiter = (options) => {
       prefix: 'rl:', // rate limit prefix
       sendCommand: (...args) => redisClient.call(...args)
     });
+  } else if (shared && process.env.NODE_ENV !== 'test') {
+    // Tests share one database across suites, so they keep per-process counts.
+    config.store = new MongoRateLimitStore({ prefix: `rl:${options.name || 'shared'}:` });
   }
 
   return rateLimit(config);
@@ -186,6 +192,8 @@ const globalRateLimiter = createRateLimiter({
  * 5 requests per 15 minutes per IP
  */
 const strictRateLimiter = createRateLimiter({
+  name: 'strict',
+  shared: true,
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: 'Too many attempts, please try again later',
@@ -197,6 +205,8 @@ const strictRateLimiter = createRateLimiter({
  * 5 attempts per 15 minutes per IP
  */
 const authRateLimiter = createRateLimiter({
+  name: 'auth',
+  shared: true,
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: 'Too many authentication attempts, please try again later',
@@ -227,6 +237,8 @@ const hospitalWaitlistRateLimiter = createRateLimiter({
  * 3 attempts per hour per IP
  */
 const passwordResetRateLimiter = createRateLimiter({
+  name: 'password-reset',
+  shared: true,
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 3,
   message: 'Too many password reset attempts, please try again later'
