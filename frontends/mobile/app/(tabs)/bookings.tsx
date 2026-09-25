@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import type { CareBooking, PharmacyOrder } from '@medrush/shared';
+import type { CareBooking, OnlinePayMethod, PharmacyOrder } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { inr } from '@/lib/care';
@@ -10,6 +10,9 @@ import { IconTile, serviceIcon, TONES } from '@/lib/icons';
 import { Bike, CalendarDays, Lock, Navigation, Star, Store, Stethoscope } from 'lucide-react-native';
 import { C, F, PASTELS, shadow, ui } from '@/lib/theme';
 import { chooseReschedule, confirmCancelVisit } from '@/lib/visitActions';
+import { appAlert } from '@/lib/dialog';
+import { PaymentSheet } from '@/lib/paymentSheet';
+import { PaymentDismissedError, awaitingPayment, payOrderOnline } from '@/lib/payments';
 
 type Tab = 'visits' | 'orders';
 
@@ -20,6 +23,7 @@ export default function Bookings() {
   const [visits, setVisits] = useState<CareBooking[]>([]);
   const [orders, setOrders] = useState<PharmacyOrder[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [paying, setPaying] = useState<PharmacyOrder | null>(null);
 
   const load = useCallback(() => {
     if (session?.kind !== 'patient') return;
@@ -27,6 +31,17 @@ export default function Bookings() {
     api.getMyOrders({ limit: 20 }).then((r) => setOrders(r.orders)).catch(() => undefined);
   }, [session?.kind]);
   useFocusEffect(load);
+
+  async function pay(order: PharmacyOrder, method: OnlinePayMethod) {
+    setPaying(null);
+    try {
+      await payOrderOnline(order._id, method, { name: session?.name, email: session?.email });
+      appAlert('Paid', `${order.orderNumber}: payment received and the pharmacy has been notified.`);
+    } catch (e) {
+      if (!(e instanceof PaymentDismissedError)) setError(describeNetworkError(e));
+    }
+    load();
+  }
 
   function cancel(b: CareBooking) {
     confirmCancelVisit(b._id, 'Cancelled by patient', load, setError);
@@ -100,6 +115,11 @@ export default function Bookings() {
               <Text style={ui.h3}>{o.orderNumber}</Text>
               <Text style={ui.muted}>{o.items.length} item(s) · {inr(o.amounts.total)}</Text>
               {o.fulfilment === 'STAFF_PICKUP' && <Text style={ui.muted}>Brought by your nurse</Text>}
+              {awaitingPayment(o) && (
+                <Pressable style={[styles.track, { alignSelf: 'flex-start', marginTop: 6 }]} onPress={() => setPaying(o)}>
+                  <Text style={styles.trackText}>{o.paymentStatus === 'FAILED' ? 'Retry payment' : 'Pay now'}</Text>
+                </Pressable>
+              )}
               {o.deliveryOtp?.code && !o.deliveryOtp.verifiedAt && !['DELIVERED', 'CANCELLED', 'REJECTED'].includes(o.status) && (
                 <View style={styles.codeRow}>
                   <Text style={styles.codeLabel}>Delivery code</Text>
@@ -111,6 +131,8 @@ export default function Bookings() {
           </View>
         ))
       )}
+      <PaymentSheet visible={!!paying} amount={paying?.amounts.total} online allowCash={false}
+        onPick={(m) => { if (paying && m !== 'cod') pay(paying, m); }} onClose={() => setPaying(null)} />
     </ScrollView>
   );
 }

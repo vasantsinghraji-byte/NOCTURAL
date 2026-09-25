@@ -1,4 +1,4 @@
-import type { PharmacyOrder, RazorpayHandlerResponse } from '@medrush/shared';
+import { razorpayCheckoutConfig, type OnlinePayMethod, type PharmacyOrder, type RazorpayHandlerResponse } from '@medrush/shared';
 import { api } from '@/lib/api';
 
 const CHECKOUT_SRC = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -45,8 +45,11 @@ function loadCheckout(): Promise<RazorpayCtor> {
  */
 export async function payForOrder(
   orderId: string,
-  prefill: { name?: string; email?: string; contact?: string } = {}
+  prefill: { name?: string; email?: string; contact?: string } = {},
+  method?: OnlinePayMethod
 ): Promise<PharmacyOrder> {
+  // Phones' browsers can hand off to a UPI app; desktops get a UPI QR / UPI ID.
+  const intent = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
   const [Razorpay, checkout] = await Promise.all([loadCheckout(), api.startPayment(orderId)]);
 
   const response = await new Promise<RazorpayHandlerResponse>((resolve, reject) => {
@@ -59,6 +62,7 @@ export async function payForOrder(
       name: 'Nabz',
       description: `Order #${checkout.order.orderNumber}`,
       prefill,
+      ...(method ? { config: razorpayCheckoutConfig(method, { intent }) } : {}),
       theme: { color: '#2f7d5b' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: {

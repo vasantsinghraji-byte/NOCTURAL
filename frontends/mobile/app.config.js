@@ -43,6 +43,8 @@ module.exports = {
     newArchEnabled: true,
     plugins: [
       'expo-router',
+      // Lets Razorpay open UPI apps directly (Android 11+ package visibility).
+      './plugins/withUpiQueries',
       // Embed the brand fonts natively (android assets/fonts) so they render even
       // if runtime font loading fails; names match the F.* families in lib/theme.ts.
       [

@@ -10,7 +10,12 @@ import { payForOrder } from '@/lib/razorpay';
 import { loadDeliveryCoords } from '@/lib/location';
 import type { PaymentOptions } from '@medrush/shared';
 
-type PayMode = 'PREPAID' | 'COD';
+type PayMode = 'upi' | 'card' | 'netbanking' | 'cod';
+const ONLINE_MODES: Array<{ mode: Exclude<PayMode, 'cod'>; label: string; hint: string }> = [
+  { mode: 'upi', label: 'UPI', hint: 'GPay, PhonePe, Paytm or any UPI app (scan a QR on a computer)' },
+  { mode: 'card', label: 'Credit / debit card', hint: 'Visa, Mastercard, RuPay' },
+  { mode: 'netbanking', label: 'Netbanking', hint: 'All major banks' }
+];
 
 export default function CheckoutPage() {
   const { patient, loading } = useAuth();
@@ -22,14 +27,14 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [payOptions, setPayOptions] = useState<PaymentOptions | null>(null);
-  const [mode, setMode] = useState<PayMode>('COD');
+  const [mode, setMode] = useState<PayMode>('cod');
 
   // Offer online payment only when the backend has Razorpay configured.
   useEffect(() => {
     api.getPaymentOptions()
       .then((opts) => {
         setPayOptions(opts);
-        if (opts.online) setMode('PREPAID');
+        if (opts.online) setMode('upi');
       })
       .catch(() => setPayOptions(null));
   }, []);
@@ -109,14 +114,14 @@ export default function CheckoutPage() {
           const c = loadDeliveryCoords();
           return c ? { coordinates: [c.lng, c.lat] as [number, number] } : undefined;
         })(),
-        paymentMode: mode
+        paymentMode: mode === 'cod' ? 'COD' : 'PREPAID'
       });
       cart.clear();
       const orderId = res.order._id;
-      if (mode === 'PREPAID') {
+      if (mode !== 'cod') {
         // Stock is reserved; if the modal is closed the order page offers "Pay now".
         try {
-          await payForOrder(orderId, { name: patient!.name, email: patient!.email, contact: addr.contactPhone });
+          await payForOrder(orderId, { name: patient!.name, email: patient!.email, contact: addr.contactPhone }, mode);
         } catch {
           /* handled on the order page */
         }
@@ -168,16 +173,14 @@ export default function CheckoutPage() {
 
         <h3 style={{ marginBottom: 6 }}>Payment</h3>
         {payOptions?.online ? (
-          <div role="radiogroup" aria-label="Payment method">
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 'normal' }}>
-              <input type="radio" name="paymode" checked={mode === 'PREPAID'} onChange={() => setMode('PREPAID')} />
-              Pay online — UPI, cards, netbanking (Razorpay)
-            </label>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 'normal' }}>
-              <input type="radio" name="paymode" checked={mode === 'COD'} onChange={() => setMode('COD')} />
-              Cash on delivery
-            </label>
-            {mode === 'PREPAID' && (
+          <div role="radiogroup" aria-label="Payment method" style={{ display: 'grid', gap: 8 }}>
+            {[...ONLINE_MODES, { mode: 'cod' as const, label: 'Cash on delivery', hint: 'Cash or UPI to the delivery person' }].map((m) => (
+              <label key={m.mode} className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', fontWeight: 'normal', padding: '10px 14px', cursor: 'pointer', outline: mode === m.mode ? '2px solid var(--brand)' : undefined }}>
+                <input type="radio" name="paymode" checked={mode === m.mode} onChange={() => setMode(m.mode)} />
+                <span><b>{m.label}</b><br /><span className="muted" style={{ fontSize: 12 }}>{m.hint}</span></span>
+              </label>
+            ))}
+            {mode !== 'cod' && (
               <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
                 Your items are held for {payOptions.paymentWindowMinutes} minutes while you pay. The pharmacy sees the order once payment succeeds.
               </p>
@@ -188,8 +191,8 @@ export default function CheckoutPage() {
         )}
         {error && <div className="error">{error}</div>}
         <button className="btn" type="submit" disabled={busy} style={{ marginTop: 14, width: '100%' }}>
-          {busy ? (mode === 'PREPAID' ? 'Processing payment…' : 'Placing order…')
-            : mode === 'PREPAID' ? `Continue to payment · ₹${cart.subtotal}` : `Place order · ₹${cart.subtotal}`}
+          {busy ? (mode !== 'cod' ? 'Processing payment…' : 'Placing order…')
+            : mode !== 'cod' ? `Continue to payment · ₹${cart.subtotal}` : `Place order · ₹${cart.subtotal}`}
         </button>
       </form>
     </>

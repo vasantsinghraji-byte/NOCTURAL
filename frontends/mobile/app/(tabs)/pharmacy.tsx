@@ -6,9 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { pickAndUploadPrescription } from '@/lib/prescription';
-import type { PharmacyVendor, StorefrontItem } from '@medrush/shared';
+import type { PayMethod, PharmacyVendor, StorefrontItem } from '@medrush/shared';
 import { C, F } from '@/lib/theme';
 import { appAlert } from '@/lib/dialog';
+import { PaymentSheet } from '@/lib/paymentSheet';
+import { PaymentDismissedError, payOrderOnline } from '@/lib/payments';
 
 const FALLBACK = { lat: 26.9110, lng: 75.8010 }; // launch city demo area (C-Scheme, Jaipur)
 
@@ -19,6 +21,8 @@ export default function Pharmacy() {
   const [address, setAddress] = useState({ line1: '', pincode: '' });
   const [rx, setRx] = useState<{ uri: string; key?: string } | null>(null);
   const [placing, setPlacing] = useState(false);
+  const [paySheet, setPaySheet] = useState(false);
+  const [onlinePay, setOnlinePay] = useState(false);
   const [vendors, setVendors] = useState<PharmacyVendor[]>([]);
   const [active, setActive] = useState<PharmacyVendor | null>(null);
   const [items, setItems] = useState<StorefrontItem[]>([]);
@@ -137,7 +141,11 @@ export default function Pharmacy() {
     if (up) setRx({ uri: up.uri, key: up.key });
   }
 
-  async function placeOrder() {
+  useEffect(() => {
+    api.getPaymentOptions().then((o) => setOnlinePay(o.online && !!o.razorpayKeyId)).catch(() => setOnlinePay(false));
+  }, []);
+
+  function placeOrder() {
     if (!session || session.kind !== 'patient') {
       router.push('/login');
       return;
@@ -151,6 +159,13 @@ export default function Pharmacy() {
       appAlert('Prescription needed', 'Some items need a prescription photo.');
       return;
     }
+    setPaySheet(true);
+  }
+
+  async function submitOrder(method: PayMethod) {
+    setPaySheet(false);
+    if (!active) return;
+    const prepaid = method !== 'cod';
     setPlacing(true);
     try {
       const res = await api.createOrder({
@@ -159,13 +174,29 @@ export default function Pharmacy() {
         deliveryAddress: { line1: address.line1.trim(), pincode: address.pincode },
         deliveryLocation: coords ? { coordinates: [coords.lng, coords.lat] } : undefined,
         prescriptionKey: rx?.key,
-        paymentMode: 'COD', // online payment in the app comes with react-native-razorpay
+        paymentMode: prepaid ? 'PREPAID' : 'COD',
         // The server refuses the order if the store changed a price since this screen loaded.
         quotedSubtotal: Math.round(cartTotal * 100) / 100
       });
       setCart({});
       setRx(null);
-      appAlert('Order placed', `${res.order.orderNumber} — the pharmacy has been notified.`);
+      if (!prepaid) {
+        appAlert('Order placed', `${res.order.orderNumber}: the pharmacy has been notified.`);
+        return;
+      }
+      try {
+        await payOrderOnline(res.order._id, method, { name: session?.name, email: session?.email });
+        appAlert('Paid', `${res.order.orderNumber}: payment received and the pharmacy has been notified.`);
+      } catch (payErr) {
+        const mins = res.order.paymentExpiresAt ? Math.max(1, Math.round((new Date(res.order.paymentExpiresAt).getTime() - Date.now()) / 60000)) : 15;
+        appAlert(
+          payErr instanceof PaymentDismissedError ? 'Payment not finished' : 'Payment failed',
+          `${payErr instanceof PaymentDismissedError ? '' : `${describeNetworkError(payErr)}
+
+`}Your order ${res.order.orderNumber} is saved for ${mins} min. Pay from Bookings → Medicine orders.`,
+          [{ text: 'Go to Bookings', onPress: () => router.push('/bookings') }, { text: 'OK', style: 'cancel' }]
+        );
+      }
     } catch (e) {
       appAlert('Could not place order', describeNetworkError(e));
       refreshPrices();
@@ -237,11 +268,12 @@ export default function Pharmacy() {
           )}
           <Pressable style={[styles.placeBtn, placing && { opacity: 0.6 }]} disabled={placing} onPress={placeOrder}>
             {placing ? <ActivityIndicator color={C.onBrand} /> : (
-              <Text style={styles.addBtnText}>{session?.kind === 'patient' ? 'Place order · Cash on delivery' : 'Log in as a customer to order'}</Text>
+              <Text style={styles.addBtnText}>{session?.kind === 'patient' ? 'Choose payment & place order' : 'Log in as a customer to order'}</Text>
             )}
           </Pressable>
         </View>
       )}
+      <PaymentSheet visible={paySheet} online={onlinePay} onPick={submitOrder} onClose={() => setPaySheet(false)} />
     </View>
   );
 }
