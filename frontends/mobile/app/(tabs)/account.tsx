@@ -28,7 +28,7 @@ export default function Account() {
   const { session, logout, setExplored } = useAuth();
 
   function deleteAccount() {
-    appAlert('Delete your account?', 'Your name, phone, email, addresses and health profile are erased and you are signed out everywhere. Past orders and visits stay only as anonymous records we must keep by law. This can’t be undone.', [
+    appAlert('Delete your account?', 'Your name, phone, email and addresses are erased and you are signed out everywhere. Your health records are kept as your medical history, and past orders and visits stay as records we must keep by law, no longer linked to your name. This can’t be undone.', [
       { text: 'Keep account', style: 'cancel' },
       {
         text: 'Continue', style: 'destructive', onPress: async () => {

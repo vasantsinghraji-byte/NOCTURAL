@@ -4,15 +4,14 @@
  * What happens:
  * - Refused while a visit or medicine order is still in progress, or money is
  *   owed, so nobody is left mid-service or with an unsettled bill.
- * - Personal data on the account is erased: name, email, phone, addresses,
- *   medical history, emergency contacts, insurance, saved payment methods,
- *   passkeys and the Google link. Every session is revoked.
+ * - Identity and contact data is erased: name, email, phone, addresses,
+ *   emergency contacts, insurance, saved payment methods, passkeys and the
+ *   Google link. Every session is revoked.
+ * - The patient's health history is kept (product decision, 25 Sep 2026):
+ *   medical history on the account, health records and metrics stay as the
+ *   patient's medical history, now attached to an anonymous account.
  * - Records the law requires us to keep (invoices, settlements, the Schedule
- *   H1 register, visit and order history) stay, pointing at the now-anonymous
- *   account.
- *
- * Health records and metrics are kept as-is pending a legal decision on
- * medical-record retention periods; see docs/AUDIT_2026-09-24_ALL_ROLES.md (M5).
+ *   H1 register, visit and order history) stay too.
  */
 
 const crypto = require('crypto');
@@ -64,7 +63,8 @@ async function deletePatientAccount(patientId) {
         webAuthnCredentials: []
       },
       $unset: {
-        dateOfBirth: 1, gender: 1, bloodGroup: 1, profilePhoto: 1, address: 1, medicalHistory: 1,
+        // medicalHistory, bloodGroup, gender and date of birth stay with the health history.
+        profilePhoto: 1, address: 1,
         emergencyContact: 1, insurance: 1, googleId: 1, referralCode: 1, preferences: 1
       },
       $inc: { sessionVersion: 1 } // every access token stops working

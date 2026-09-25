@@ -31,7 +31,9 @@ describe('Customer account deletion (real MongoDB)', () => {
     app = require('../../app');
     patient = await Patient.create({
       name: 'Riya Sharma', email: `riya.${RUN}@nabz.test`, password: PASSWORD, phone: `8${String(RUN).slice(-9)}`,
-      savedAddresses: [{ label: 'Home', line1: '12 Ashok Marg', city: 'Jaipur', pincode: '302001' }]
+      savedAddresses: [{ label: 'Home', line1: '12 Ashok Marg', city: 'Jaipur', pincode: '302001' }],
+      medicalHistory: { allergies: [{ allergen: 'Penicillin', reaction: 'Rash', severity: 'Moderate' }] },
+      bloodGroup: 'B+'
     });
     const login = await request(app).post('/api/v1/patients/login').set(MOBILE).send({ email: patient.email, password: PASSWORD });
     token = login.body.tokens.accessToken;
@@ -72,6 +74,9 @@ describe('Customer account deletion (real MongoDB)', () => {
     expect(gone.phone).not.toBe(patient.phone);
     expect(gone.savedAddresses).toEqual([]);
     expect(JSON.stringify(gone)).not.toMatch(/Ashok Marg|Riya/);
+    // Health history stays with the (now anonymous) account.
+    expect(gone.medicalHistory.allergies[0]).toMatchObject({ allergen: 'Penicillin' });
+    expect(gone.bloodGroup).toBe('B+');
 
     // Old token is dead; the old password doesn't sign in; order history is still linked.
     expect((await request(app).get('/api/v1/patients/me').set(auth())).status).toBe(401);

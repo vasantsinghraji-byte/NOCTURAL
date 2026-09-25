@@ -44,7 +44,7 @@ export default function DeleteAccount() {
   return (
     <section className="card" style={{ marginTop: 20, padding: 28, maxWidth: 560 }}>
       <h2 style={{ marginTop: 0 }}>Delete your Nabz account</h2>
-      <p>This erases your name, phone number, email, addresses, health profile, emergency contacts and saved passkeys, and signs you out on every device.</p>
+      <p>This erases your name, phone number, email, addresses, emergency contacts and saved passkeys, and signs you out on every device. Your health records are kept as your medical history, no longer linked to your name.</p>
       <p className="muted">
         Past orders, visits and invoices stay as anonymous records because Indian law requires us to keep them
         (tax and pharmacy registers). You can&apos;t delete while a visit or medicine order is in progress.

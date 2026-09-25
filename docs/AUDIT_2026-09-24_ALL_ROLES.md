@@ -28,7 +28,7 @@ Plan steps 1 and 2 are done and deployed to staging (commit `32d441c`).
     - Personal data is erased and every session is revoked.
     - Order, visit and invoice records stay anonymised.
     - Deletion is refused while a visit or order is in progress, or while dues are unpaid.
-    - **Open legal question:** health records and metrics are kept for now. Someone must confirm the required retention period for medical records.
+    - Health records, metrics and the medical history on the account are kept as the patient's history (decided 25 Sep 2026), attached to the anonymous account.
   - **M6:** approving a nurse, physio or pharmacy application creates the login with verification pending and emails a 72-hour set-password link.
     - Pharmacies get a PENDING store that isn't visible to customers.
     - On staging without SMTP, the admin panel shows the one-time link instead of emailing it. Production never shows it.
