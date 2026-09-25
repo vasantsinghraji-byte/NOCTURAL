@@ -183,20 +183,21 @@ describe('Nabz revenue model + live tracking (real MongoDB)', () => {
     const nearby = () => request(app).get('/api/v1/care/staff/nearby').query({ ...HOME, radiusKm: 5 });
     const nurseAt = { lat: HOME.lat + 1 / 111.2, lng: HOME.lng };
 
-    expect((await nearby()).body.count).toBe(0);
+    // Other suites may have staff online near the same test area: compare, don't assume empty.
+    const before = (await nearby()).body.count;
     const on = await request(app).put('/api/v1/care/staff/availability').set(auth(tokens.nurse)).send({ online: true, ...nurseAt });
     expect(on.status).toBe(200);
     expect(on.body.availability.online).toBe(true);
 
     const seen = await nearby();
-    expect(seen.body.count).toBe(1);
-    expect(seen.body.staff[0]).not.toHaveProperty('name');
-    expect(Math.abs(seen.body.staff[0].lat - nurseAt.lat)).toBeLessThan(0.006); // blurred, not exact
+    expect(seen.body.count).toBe(before + 1);
+    seen.body.staff.forEach((s) => expect(s).not.toHaveProperty('name'));
+    expect(seen.body.staff.some((s) => Math.abs(s.lat - nurseAt.lat) < 0.006)).toBe(true); // blurred, not exact
     expect((await request(app).get('/api/v1/bookings/providers/assignable').set(auth(tokens.admin))).status).toBeLessThan(500);
 
     // A stale heartbeat (app killed / no signal) hides them without an explicit offline.
     await User.updateOne({ _id: nurse._id }, { $set: { 'currentLocation.updatedAt': new Date(Date.now() - 11 * 60 * 1000) } });
-    expect((await nearby()).body.count).toBe(0);
+    expect((await nearby()).body.count).toBe(before);
 
     const off = await request(app).put('/api/v1/care/staff/availability').set(auth(tokens.nurse)).send({ online: false });
     expect(off.body.availability.online).toBe(false);
