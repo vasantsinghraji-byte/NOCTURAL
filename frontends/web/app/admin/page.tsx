@@ -100,7 +100,7 @@ export default function AdminConsole() {
       <div className="section-title" style={{ margin: '16px 0 8px' }}>Admin — {user?.name}</div>
       <nav className="admin-tabs" role="tablist" aria-label="Admin sections">
         {TABS.filter((t) => !t.platformOnly || user?.role === 'platform_admin').map((t) => (
-          <button key={t.key} role="tab" aria-selected={tab === t.key} className={tab === t.key ? 'on' : ''} onClick={() => setTab(t.key)}>{t.label}</button>
+          <button key={t.key} role="tab" aria-selected={tab === t.key} className={tab === t.key ? 'on' : ''} onClick={(e) => { setTab(t.key); e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'center' }); }}>{t.label}</button>
         ))}
       </nav>
       {user?.role === 'platform_admin' && tab === 'payments' && <RevenuePanel />}

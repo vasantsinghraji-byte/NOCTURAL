@@ -52,10 +52,10 @@ export default function PartnerAccountPage() {
     <>
       <section className="hero staff-hero">
         <Link href={back} className="link-on" aria-label="Back to dashboard"><ArrowLeft size={16} aria-hidden="true" /> Dashboard</Link>
-        <span className="eyebrow" style={{ display: 'block', marginTop: 12 }}>My account</span>
+        <div style={{ marginTop: 12 }}><span className="eyebrow">My account</span></div>
         <h1 style={{ fontSize: 34, margin: '6px 0 4px' }}>{acct?.name || ' '}</h1>
         <p style={{ margin: 0 }}>
-          {acct?.kind === 'PHARMACY' ? acct.store?.name || 'Pharmacy partner' : [acct?.role, acct?.profile?.qualification].filter(Boolean).join(' · ')}
+          {acct?.kind === 'PHARMACY' ? acct.store?.name || 'Pharmacy partner' : [acct?.role && acct.role.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()), acct?.profile?.qualification].filter(Boolean).join(' · ')}
         </p>
         {acct && (
           <p className="muted-on" style={{ marginTop: 6 }}>

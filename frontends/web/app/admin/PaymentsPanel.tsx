@@ -56,7 +56,7 @@ export default function PaymentsPanel() {
             <button key={k.key} className={`card stat stat-filter ${kind === k.key ? 'on' : ''}`} aria-pressed={kind === k.key} onClick={() => setKind(kind === k.key ? '' : k.key)}>
               <span className="muted">{k.label}</span>
               <b className="stat-value">{inr(data.totals[k.key].amount)}</b>
-              <span className="muted" style={{ fontSize: 12 }}>{data.totals[k.key].count} entries</span>
+              <span className="muted" style={{ fontSize: 12 }}>{data.totals[k.key].count} {data.totals[k.key].count === 1 ? 'entry' : 'entries'}</span>
             </button>
           ))}
         </div>

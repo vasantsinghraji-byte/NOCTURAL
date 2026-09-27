@@ -354,3 +354,6 @@
 .feed-card .row { justify-content: flex-start; gap: 8px; flex-wrap: wrap; margin-top: auto; padding-top: 4px; }
 .feed-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 800; letter-spacing: .08em; background: rgba(255, 255, 255, .14); border: 1px dashed rgba(255, 255, 255, .5); color: var(--on-night); border-radius: 10px; padding: 5px 10px; cursor: pointer; font-size: 13px; }
 .feed-cta { color: var(--gold); font-weight: 800; font-size: 14px; }
+
+/* Notices keep their own text colour inside dark heroes. */
+.notice { color: var(--ink); }
