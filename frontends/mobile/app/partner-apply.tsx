@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Bike, CircleCheck, Droplets, FlaskConical, Hospital, Stethoscope, Store, Syringe, type LucideIcon } from 'lucide-react-native';
 import { PEOPLE_PARTNER_KINDS, type PartnerApplicationInput, type PartnerKind } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
@@ -56,7 +56,8 @@ const EXTRA: Record<PartnerKind, Field[]> = {
 
 /** Apply to join as a partner. Ops review every application before creating a login. */
 export default function PartnerApply() {
-  const [kind, setKind] = useState<PartnerKind>('MEDICAL_STAFF');
+  const params = useLocalSearchParams<{ kind?: PartnerKind }>();
+  const [kind, setKind] = useState<PartnerKind>(params.kind && KINDS.some((k) => k.kind === params.kind) ? params.kind : 'MEDICAL_STAFF');
   const [form, setForm] = useState<Record<string, string>>({ city: 'Jaipur' });
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);

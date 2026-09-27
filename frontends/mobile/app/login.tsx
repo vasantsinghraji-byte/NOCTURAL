@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Stethoscope, Store, type LucideIcon } from 'lucide-react-native';
+import { Bike, FlaskConical, Stethoscope, Store, type LucideIcon } from 'lucide-react-native';
 import { homeForRole, useAuth, type AccountKind } from '@/lib/auth';
 import { ALLOW_SERVER_OVERRIDE, api, describeNetworkError, saveServerUrl } from '@/lib/api';
 import { IconTile } from '@/lib/icons';
@@ -16,14 +16,28 @@ type Mode = 'login' | 'register';
 const PARTNER_PORTALS: Array<{ kind: AccountKind; icon: LucideIcon; title: string; hint: string; tone: string; fg: string }> = [
   { kind: 'staff', icon: Stethoscope, title: 'Medical staff', hint: 'Nurses & physios', tone: C.violetSoft, fg: C.violet },
   { kind: 'pharmacy', icon: Store, title: 'Pharmacy', hint: 'Store partner', tone: C.mintSoft, fg: C.mint }
-  // Path lab and delivery partners sign in once their dashboards ship (audit M7).
 ];
 
-/** Email sign-in. Customer app: customers only. Nabz Partner: staff / pharmacy. */
+// Delivery and path-lab partners are onboarding now; their dashboards open next
+// (sign-in stays off until then so nobody lands on an empty screen).
+type WaitlistRole = 'DELIVERY' | 'PATH_LAB';
+const WAITLIST: Array<{ role: WaitlistRole; icon: LucideIcon; title: string; hint: string; tone: string; fg: string; steps: string[] }> = [
+  {
+    role: 'DELIVERY', icon: Bike, title: 'Delivery partner', hint: 'Medicine deliveries', tone: C.skySoft, fg: C.sky,
+    steps: ['Get delivery requests from partner pharmacies near you', 'Pick up the packed order at the store', 'Hand it over with the customer’s delivery code', 'Earn per delivery, paid weekly']
+  },
+  {
+    role: 'PATH_LAB', icon: FlaskConical, title: 'Path lab', hint: 'Nabz-certified labs', tone: C.amberSoft, fg: C.amber,
+    steps: ['A customer books a test at the Nabz common rate', 'A certified collector takes the sample at home and brings it to your lab', 'You confirm receipt, run the test and upload the report', 'The report reaches the patient directly in the Nabz app']
+  }
+];
+
+/** Email sign-in. Customer app: customers only. Nabz Partner: staff / pharmacy (delivery and path lab: apply). */
 export default function Login() {
   const { login, register } = useAuth();
   const params = useLocalSearchParams<{ kind?: AccountKind }>();
   const [kind, setKind] = useState<AccountKind>(IS_PARTNER_APP ? (params.kind || 'staff') : 'patient');
+  const [waitlist, setWaitlist] = useState<WaitlistRole | null>(null);
   const [mode, setMode] = useState<Mode>('login');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -74,15 +88,40 @@ export default function Login() {
         {IS_PARTNER_APP && (
           <View style={styles.grid}>
             {PARTNER_PORTALS.map((p) => (
-              <Pressable key={p.kind} onPress={() => { setKind(p.kind); setError(null); }} style={[styles.portal, kind === p.kind && styles.portalOn]}>
+              <Pressable key={p.kind} onPress={() => { setKind(p.kind); setWaitlist(null); setError(null); }} style={[styles.portal, !waitlist && kind === p.kind && styles.portalOn]}>
                 <IconTile icon={p.icon} bg={p.tone} color={p.fg} size={42} />
                 <Text style={ui.h3}>{p.title}</Text>
                 <Text style={ui.muted}>{p.hint}</Text>
               </Pressable>
             ))}
+            {WAITLIST.map((w) => (
+              <Pressable key={w.role} onPress={() => { setWaitlist(w.role); setError(null); }} style={[styles.portal, waitlist === w.role && styles.portalOn]}>
+                <IconTile icon={w.icon} bg={w.tone} color={w.fg} size={42} />
+                <Text style={ui.h3}>{w.title}</Text>
+                <Text style={ui.muted}>{w.hint}</Text>
+              </Pressable>
+            ))}
           </View>
         )}
 
+        {IS_PARTNER_APP && waitlist ? (() => {
+          const w = WAITLIST.find((x) => x.role === waitlist)!;
+          return (
+            <View style={[ui.card, { gap: 10 }]}>
+              <Text style={ui.label}>{w.title}: onboarding now</Text>
+              <Text style={ui.muted}>Your dashboard opens after verification. How it works:</Text>
+              {w.steps.map((step, i) => (
+                <View key={step} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+                  <View style={styles.stepDot}><Text style={styles.stepNum}>{i + 1}</Text></View>
+                  <Text style={[ui.body, { flex: 1 }]}>{step}</Text>
+                </View>
+              ))}
+              <PressScale style={ui.btnDark} onPress={() => router.push({ pathname: '/partner-apply', params: { kind: w.role } })}>
+                <Text style={[ui.btnText, { color: C.onNight }]}>Apply as {w.title.toLowerCase()}</Text>
+              </PressScale>
+            </View>
+          );
+        })() : (
         <View style={[ui.card, { gap: 10 }]}>
           {IS_PARTNER_APP && active && <Text style={ui.label}>{active.title} login</Text>}
           {isRegister && (
@@ -118,6 +157,7 @@ export default function Login() {
             </Pressable>
           )}
         </View>
+        )}
 
         {ALLOW_SERVER_OVERRIDE && (
           <View style={[ui.card, { gap: 8 }]}>
@@ -137,8 +177,10 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', gap: 10 },
-  portal: { flex: 1, borderRadius: 18, padding: 12, gap: 4, borderWidth: 2, borderColor: C.border, backgroundColor: C.card },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  portal: { width: '48%', flexGrow: 1, borderRadius: 18, padding: 12, gap: 4, borderWidth: 2, borderColor: C.border, backgroundColor: C.card },
+  stepDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  stepNum: { color: C.onNight, fontFamily: F.heavy, fontSize: 12 },
   portalOn: { borderColor: C.ink, ...shadow },
   link: { color: C.brand, textAlign: 'center', fontFamily: F.bold, paddingVertical: 4 }
 });
