@@ -94,3 +94,32 @@ Rules:
   doctor) and how we handle them.
 - Plain, confident language. No hype words.
 ```
+
+---
+
+## 3. Code context document prompt (to regenerate CODE_CONTEXT.md after changes)
+
+```text
+You are a staff engineer documenting the Nabz codebase for new engineers and for AI coding
+assistants. Read the repository (start with CLAUDE.md, docs/ARCHITECTURE.md, routes/v1/index.js,
+models/, services/, frontends/mobile/app, frontends/web/app, frontends/shared/src,
+terraform/apprunner-staging) and write docs/product/CODE_CONTEXT.md.
+
+Sections, in this order:
+1. What Nabz is (one paragraph) and the surfaces (customer app, Partner app, website, API)
+   with their folders and tech stack.
+2. Staging environment: URLs, AWS services, how deploys and APK builds work.
+3. Roles and what each can do today (customer, nurse/physio, pharmacy, delivery, path lab,
+   phlebotomist, admin), marking each "built", "waitlist" or "not built", with the main files.
+4. Key flows and where they live (booking, dispatch, cancellations, pharmacy orders and stock
+   reservation, payments and refunds, settlement and payouts, referrals, partner onboarding,
+   account deletion), as a table: flow → files.
+5. Data model: collections and what they hold.
+6. Work on other branches not yet merged.
+7. Conventions that matter (API versioning, compare-and-set state changes, transactions need
+   primary reads, staging-only switches, commits, tests).
+8. Known gaps and open decisions (from docs/AUDIT_*.md and docs/plans/).
+
+Rules: describe only what the code does today; quote file paths; say "not built" rather than
+guessing; no marketing language; tables where they help; under 250 lines.
+```
