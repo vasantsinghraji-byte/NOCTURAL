@@ -294,6 +294,14 @@ const UserSchema = new mongoose.Schema({
   servicesOffered: [{ type: String }],
   // Home-care staff profile shown to patients (trust layer). Verification flags
   // are set only by platform admins after checking documents.
+  // Partner referral programme (services/partnerReferralService.js).
+  referral: {
+    code: { type: String, uppercase: true, trim: true },
+    credits: { type: Number, default: 0, min: 0 }, // jobs left at the reduced commission
+    successful: { type: Number, default: 0 },
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    rewardedAt: Date // when this partner's first job rewarded their referrer
+  },
   careProfile: {
     qualification: String, // e.g. B.Sc Nursing, GNM, BPT
     registrationNumber: String, // nursing council / physio council registration
@@ -452,6 +460,7 @@ UserSchema.methods.comparePassword = async function(candidatePassword) {
 // Database Indexes for Performance
 // Note: email index created automatically by unique: true in schema
 UserSchema.index({ role: 1 });
+UserSchema.index({ 'referral.code': 1 }, { unique: true, sparse: true });
 UserSchema.index({ 'professional.primarySpecialization': 1 });
 UserSchema.index({ 'professional.mciNumber': 1 });
 UserSchema.index({ createdAt: -1 });

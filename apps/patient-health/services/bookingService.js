@@ -13,7 +13,7 @@ const User = require('@nocturnal/shared').User;
 const { invalidateCache } = require('@nocturnal/shared').queryCache;
 const logger = require('@nocturnal/shared').logger;
 const { roundToTwoDecimals } = require('@nocturnal/shared').number;
-const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('@nocturnal/shared').queryUpdateOptions;
+const { VALIDATED_QUERY_UPDATE_OPTIONS, TRANSACTION_OPTIONS } = require('@nocturnal/shared').queryUpdateOptions;
 const { hasReviewAggregateStateChanged } = require('../utils/bookingReviewAggregate');
 const { PAGINATION } = require('../constants');
 const { SERVICE_TYPE_TO_CATALOG_NAME } = require('@nocturnal/shared').careServices;
@@ -35,6 +35,7 @@ const careSuppliesService = require('@nocturnal/shared').careSuppliesService;
 const pricingService = require('@nocturnal/shared').pricingService;
 const membershipService = require('@nocturnal/shared').membershipService;
 const settlementService = require('@nocturnal/shared').settlementService;
+const partnerReferralService = require('@nocturnal/shared').partnerReferralService;
 const staffAvailabilityService = require('@nocturnal/shared').staffAvailabilityService;
 const dispatchService = require('@nocturnal/shared').dispatchService;
 const crypto = require('crypto');
@@ -947,7 +948,7 @@ class BookingService {
     if (mongoose.connection.readyState === 1) {
       const session = await mongoose.startSession();
       try {
-        await session.withTransaction(() => claimCompletion(session));
+        await session.withTransaction(() => claimCompletion(session), TRANSACTION_OPTIONS);
       } finally {
         await session.endSession();
       }
@@ -959,8 +960,24 @@ class BookingService {
       throw new ValidationError('Service has already been completed or is no longer in progress');
     }
 
+    // Referral credit: this visit may carry the reduced Nabz commission.
+    try {
+      const reduced = await partnerReferralService.claimReducedCommission(completedBooking.serviceProvider, NurseBooking, completedBooking._id);
+      if (reduced !== null) completedBooking.commissionOverride = { rate: reduced, reason: 'REFERRAL' };
+    } catch (err) {
+      logger.error('Referral commission check failed', { bookingId: String(completedBooking._id), error: err.message });
+    }
+
     // Book the provider's payout, our commission and the platform fee.
     await settlementService.recordCareBooking(completedBooking);
+
+    // First completed visit of a referred customer / partner rewards whoever referred them.
+    try {
+      await partnerReferralService.onPatientCompletion(completedBooking.patient, completedBooking.pricing && completedBooking.pricing.payableAmount);
+      await partnerReferralService.onPartnerCompletion(completedBooking.serviceProvider);
+    } catch (err) {
+      logger.error('Referral reward failed', { bookingId: String(completedBooking._id), error: err.message });
+    }
 
     if (vitals.length > 0) {
       logger.info('Health metrics captured from booking', {

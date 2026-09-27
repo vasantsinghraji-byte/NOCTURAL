@@ -68,8 +68,11 @@ function quoteCareVisit({ basePrice, isMember = false }) {
 }
 
 /** Who earns what on a delivered pharmacy order. */
+// A referral credit can lower the rate for one job (commissionOverride).
+const rateFor = (doc, normal) => (doc && doc.commissionOverride && Number.isFinite(doc.commissionOverride.rate) ? doc.commissionOverride.rate : normal);
+
 function splitPharmacyOrder(order) {
-  const rate = getRevenuePolicy().pharmacy.commissionRate;
+  const rate = rateFor(order, getRevenuePolicy().pharmacy.commissionRate);
   const items = round2(order.amounts && order.amounts.itemsSubtotal);
   const commission = round2(items * rate);
   return {
@@ -83,7 +86,7 @@ function splitPharmacyOrder(order) {
 
 /** Who earns what on a completed home-care visit. */
 function splitCareBooking(booking) {
-  const rate = getRevenuePolicy().care.providerCommissionRate;
+  const rate = rateFor(booking, getRevenuePolicy().care.providerCommissionRate);
   const base = round2(booking.pricing && booking.pricing.basePrice);
   const commission = round2(base * rate);
   return {

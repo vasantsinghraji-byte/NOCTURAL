@@ -267,6 +267,9 @@ const PatientSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Patient'
   },
+  // A Nabz partner's code used at sign-up; rewards them after the first order.
+  referredByPartner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  partnerReferralRewardedAt: Date,
 
   // Security
   passwordChangedAt: Date,

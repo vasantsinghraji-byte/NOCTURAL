@@ -13,7 +13,7 @@ const User = require('../models/user');
 const { invalidateCache } = require('../middleware/queryCache');
 const logger = require('../utils/logger');
 const { roundToTwoDecimals } = require('../utils/number');
-const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
+const { VALIDATED_QUERY_UPDATE_OPTIONS, TRANSACTION_OPTIONS } = require('../utils/queryUpdateOptions');
 const { hasReviewAggregateStateChanged } = require('../utils/bookingReviewAggregate');
 const { PAGINATION } = require('../constants');
 const { SERVICE_TYPE_TO_CATALOG_NAME } = require('../constants/careServices');
@@ -35,6 +35,7 @@ const careSuppliesService = require('./careSuppliesService');
 const pricingService = require('./pricingService');
 const membershipService = require('./membershipService');
 const settlementService = require('./settlementService');
+const partnerReferralService = require('./partnerReferralService');
 const staffAvailabilityService = require('./staffAvailabilityService');
 const dispatchService = require('./dispatchService');
 const crypto = require('crypto');
@@ -947,7 +948,7 @@ class BookingService {
     if (mongoose.connection.readyState === 1) {
       const session = await mongoose.startSession();
       try {
-        await session.withTransaction(() => claimCompletion(session));
+        await session.withTransaction(() => claimCompletion(session), TRANSACTION_OPTIONS);
       } finally {
         await session.endSession();
       }
@@ -959,8 +960,24 @@ class BookingService {
       throw new ValidationError('Service has already been completed or is no longer in progress');
     }
 
+    // Referral credit: this visit may carry the reduced Nabz commission.
+    try {
+      const reduced = await partnerReferralService.claimReducedCommission(completedBooking.serviceProvider, NurseBooking, completedBooking._id);
+      if (reduced !== null) completedBooking.commissionOverride = { rate: reduced, reason: 'REFERRAL' };
+    } catch (err) {
+      logger.error('Referral commission check failed', { bookingId: String(completedBooking._id), error: err.message });
+    }
+
     // Book the provider's payout, our commission and the platform fee.
     await settlementService.recordCareBooking(completedBooking);
+
+    // First completed visit of a referred customer / partner rewards whoever referred them.
+    try {
+      await partnerReferralService.onPatientCompletion(completedBooking.patient, completedBooking.pricing && completedBooking.pricing.payableAmount);
+      await partnerReferralService.onPartnerCompletion(completedBooking.serviceProvider);
+    } catch (err) {
+      logger.error('Referral reward failed', { bookingId: String(completedBooking._id), error: err.message });
+    }
 
     if (vitals.length > 0) {
       logger.info('Health metrics captured from booking', {

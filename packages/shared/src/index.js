@@ -70,6 +70,7 @@ lazyExport('careServices', () => require('../../../constants/careServices'));
 lazyExport('pricingService', () => require('../../../services/pricingService'));
 lazyExport('membershipService', () => require('../../../services/membershipService'));
 lazyExport('settlementService', () => require('../../../services/settlementService'));
+lazyExport('partnerReferralService', () => require('../../../services/partnerReferralService'));
 lazyExport('staffAvailabilityService', () => require('../../../services/staffAvailabilityService'));
 lazyExport('dispatchService', () => require('../../../services/dispatchService'));
 lazyExport('careVisitPolicy', () => require('../../../services/careVisitPolicy'));

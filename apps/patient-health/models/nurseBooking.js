@@ -127,6 +127,12 @@ const NurseBookingSchema = new mongoose.Schema({
   },
 
   // Pricing
+  // Referral reward: this job carries a reduced Nabz commission (partnerReferralService).
+  commissionOverride: {
+    rate: { type: Number, min: 0, max: 1 },
+    reason: { type: String, enum: ['REFERRAL'] },
+    at: Date
+  },
   pricing: {
     basePrice: Number, // Service charge
     platformFee: Number, // Our commission

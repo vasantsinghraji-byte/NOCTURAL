@@ -654,7 +654,24 @@ async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note,
   );
   if (!updated) throw new ConflictError('This order just changed. Refresh to see its latest status');
   // Delivered: book the store's payout, our commission and the delivery fee.
-  if (status === 'DELIVERED') await settlementService.recordPharmacyOrder(updated);
+  if (status === 'DELIVERED') {
+    const referral = require('./partnerReferralService');
+    const store = await PharmacyVendor.findById(updated.vendor).select('owner').lean().catch(() => null);
+    const ownerId = store && store.owner;
+    try {
+      const reduced = await referral.claimReducedCommission(ownerId, PharmacyOrder, updated._id);
+      if (reduced !== null) updated.commissionOverride = { rate: reduced, reason: 'REFERRAL' };
+    } catch (err) {
+      logger.error('Referral commission check failed', { orderId: String(updated._id), error: err.message });
+    }
+    await settlementService.recordPharmacyOrder(updated);
+    try {
+      await referral.onPatientCompletion(updated.patient, updated.amounts && updated.amounts.total);
+      await referral.onPartnerCompletion(ownerId);
+    } catch (err) {
+      logger.error('Referral reward failed', { orderId: String(updated._id), error: err.message });
+    }
+  }
   return updated;
 }
 

@@ -119,6 +119,12 @@ const PharmacyOrderSchema = new mongoose.Schema({
     },
     prescribedOn: Date
   },
+  // Referral reward: this job carries a reduced Nabz commission (partnerReferralService).
+  commissionOverride: {
+    rate: { type: Number, min: 0, max: 1 },
+    reason: { type: String, enum: ['REFERRAL'] },
+    at: Date
+  },
   // Delivery code (like the visit code): the customer's app shows it, the
   // store or rider must enter it to mark the order delivered. Never sent to stores.
   deliveryOtp: {
