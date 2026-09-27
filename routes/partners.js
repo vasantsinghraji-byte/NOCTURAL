@@ -4,6 +4,7 @@
  *   GET   /partners/admin/applications            platform_admin: review queue
  *   PATCH /partners/admin/applications/:id        platform_admin: approve / reject
  *   PATCH /partners/admin/staff/:id/verification  platform_admin: set trust badges
+ *   GET   /partners/me/account                     partner: profile, earnings, rating, referral
  */
 
 const express = require('express');
@@ -13,6 +14,7 @@ const { protect, authorize, requireRecentAuth } = require('../middleware/auth');
 const partnerApplicationService = require('../services/partnerApplicationService');
 const staffDashboardService = require('../services/staffDashboardService');
 const PartnerApplication = require('../models/partnerApplication');
+const partnerAccountService = require('../services/partnerAccountService');
 
 const router = express.Router();
 const admin = [protect, authorize('platform_admin')];
@@ -41,13 +43,23 @@ router.post(
     body('businessName').optional().isString().isLength({ max: 120 }),
     body('gstin').optional().isString().isLength({ max: 20 }),
     body('address').optional().isString().isLength({ max: 300 }),
-    body('vehicle').optional().isString().isLength({ max: 40 })
+    body('vehicle').optional().isString().isLength({ max: 40 }),
+    body('referralCode').optional({ values: 'falsy' }).isString().isLength({ max: 20 }),
+    body('acceptTerms').optional().isBoolean()
   ],
   validate,
   wrap(async (req, res) => {
     const application = await partnerApplicationService.apply(req.body);
     res.status(201).json({ success: true, application });
   })
+);
+
+const PARTNER_ROLES = ['nurse', 'physiotherapist', 'medical_staff', 'pharmacy_vendor', 'phlebotomist', 'delivery_partner', 'lab_partner'];
+router.get(
+  '/me/account',
+  protect,
+  authorize(...PARTNER_ROLES),
+  wrap(async (req, res) => res.json({ success: true, account: await partnerAccountService.getAccount(req.user._id) }))
 );
 
 router.get(

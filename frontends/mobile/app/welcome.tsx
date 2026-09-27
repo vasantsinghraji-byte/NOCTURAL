@@ -14,6 +14,7 @@ import { PressScale, Rise } from '@/lib/motion';
 import { WelcomeCareCarousel } from '@/lib/WelcomeCareCarousel';
 import { GOOGLE_CONFIGURED } from '@/lib/variant';
 import { C, F } from '@/lib/theme';
+import { TermsCheckbox } from '@/lib/fields';
 
 /** First screen of the customer app: phone / Google / email, or explore first. */
 export default function Welcome() {
@@ -22,6 +23,9 @@ export default function Welcome() {
   const { adoptPatientSession, setExplored } = useAuth();
   const [methods, setMethods] = useState<SignInMethods>({ google: false, phone: true, email: true });
   const [error, setError] = useState<string | null>(null);
+  // Signing in or up needs the Terms accepted (browsing with "Explore" doesn't).
+  const [agreed, setAgreed] = useState(false);
+  const needTerms = () => { if (agreed) return false; setError('Please tick the box to accept the Terms and Conditions.'); return true; };
 
   useEffect(() => {
     api.getSignInMethods().then((r) => setMethods(r.methods)).catch(() => undefined);
@@ -73,18 +77,22 @@ export default function Welcome() {
         <View style={{ flex: 1, minHeight: 20 }} />
 
         <Rise delay={260} style={{ gap: 10 }}>
+          <TermsCheckbox checked={agreed} onChange={(v) => { setAgreed(v); if (v) setError(null); }} tone="dark"
+            label="I agree to the" linkText="Terms and Conditions and Privacy Policy" />
           {error && <Text style={styles.error}>{error}</Text>}
           {methods.phone && (
-            <PressScale style={styles.primary} onPress={() => router.push('/phone')}>
+            <PressScale style={[styles.primary, !agreed && { opacity: 0.6 }]} onPress={() => { if (!needTerms()) router.push('/phone'); }}>
               <Phone size={18} color={C.night} />
               <Text style={styles.primaryText}>{t('welcome.phone')}</Text>
             </PressScale>
           )}
           {GOOGLE_CONFIGURED && methods.google && (
-            <GoogleButton label={t('welcome.google')} onResult={onGoogle} onError={setError} />
+            <View pointerEvents={agreed ? 'auto' : 'none'} style={!agreed && { opacity: 0.6 }}>
+              <GoogleButton label={t('welcome.google')} onResult={onGoogle} onError={setError} />
+            </View>
           )}
           <View style={styles.links}>
-            <Pressable hitSlop={8} onPress={() => router.push('/login')}><Text style={styles.link}>{t('welcome.email')}</Text></Pressable>
+            <Pressable hitSlop={8} onPress={() => { if (!needTerms()) router.push('/login'); }}><Text style={styles.link}>{t('welcome.email')}</Text></Pressable>
             <View style={styles.sep} />
             <Pressable hitSlop={8} onPress={explore}><Text style={styles.link}>{t('welcome.explore')}</Text></Pressable>
           </View>
@@ -94,7 +102,6 @@ export default function Welcome() {
           <BadgeCheck size={18} color={C.gold} />
           <Text style={styles.partnerText}>{t('welcome.partner')} <Text style={{ color: C.gold, fontFamily: F.bold }}>{t('welcome.partnerCta')}</Text></Text>
         </Pressable>
-        <Text style={styles.terms}>{t('welcome.terms')}</Text>
       </ScrollView>
     </View>
   );

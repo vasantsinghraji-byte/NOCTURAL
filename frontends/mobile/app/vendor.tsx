@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Redirect } from 'expo-router';
+import { ActivityIndicator, AppState, FlatList, Image, Linking, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Redirect, router } from 'expo-router';
 import type { PharmacyOrder, PharmacyRejectionReason } from '@medrush/shared';
 import { api, describeNetworkError, getAuthToken } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -223,6 +223,7 @@ export default function VendorOrders() {
         <Pressable onPress={() => notifyLocal('Test alert', 'If you can see and hear this, order alerts work on this phone.')}>
           <Text style={styles.link}>Test alert</Text>
         </Pressable>
+        <Pressable onPress={() => router.push('/partner-account')}><Text style={styles.link}>My account</Text></Pressable>
         <Pressable onPress={logout}><Text style={[styles.link, { color: C.roseInk }]}>Log out</Text></Pressable>
       </View>
       <Pressable style={styles.confirmBar} onPress={confirmStock}>
@@ -282,6 +283,12 @@ export default function VendorOrders() {
                   {o.requiresPrescription ? ' · Rx required' : ''}
                 </Text>
                 {o.deliveryAddress && <Text style={styles.muted}>{o.deliveryAddress.line1}, {o.deliveryAddress.pincode}</Text>}
+                {o.deliveryAddress?.contactName ? (
+                  // Ordered for someone else: hand it to (and call) the receiver.
+                  <Pressable onPress={() => o.deliveryAddress?.contactPhone && Linking.openURL(`tel:${o.deliveryAddress.contactPhone}`)} accessibilityRole="button">
+                    <Text style={[styles.muted, { color: C.brand, fontFamily: F.bold }]}>Deliver to {o.deliveryAddress.contactName}{o.deliveryAddress.contactPhone ? ' · Call' : ''}</Text>
+                  </Pressable>
+                ) : null}
 
                 {needsRxCheck(o) && (
                   <RxPanel order={o} busy={busy} onVerify={(body) => run(o._id, () => api.vendorVerifyPrescription(o._id, body), 'Prescription verified.')} />

@@ -161,6 +161,15 @@ router.route('/me')
 
 router.get('/me/stats', getBookingStats);
 router.post('/me/verify-password', verifyPasswordValidation, validate, verifyPassword);
+// A Nabz partner's referral code (before the first order); rewards the partner.
+router.post('/me/referral', body('code').isString().trim().isLength({ min: 4, max: 20 }).withMessage('Enter a referral code'), validate, async (req, res, next) => {
+  try {
+    const result = await require('../services/partnerReferralService').attachPatient(req.user.id, req.body.code);
+    res.json({ success: true, message: `Referral applied: thanks to ${result.referredBy}`, ...result });
+  } catch (error) {
+    require('../utils/responseHelper').handleServiceError(error, res, next);
+  }
+});
 router.put('/me/change-password', changePasswordValidation, validate, idempotency({ route: 'patients/change-password', required: true }), changePassword);
 router.get('/me/sessions', listSessions);
 router.delete('/me/sessions/:sessionId', revokeSession);

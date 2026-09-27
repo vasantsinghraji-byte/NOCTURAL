@@ -52,6 +52,7 @@ export default function RootLayout() {
             <Stack.Screen name="partner-apply" options={{ title: 'Join Nabz Partner' }} />
             <Stack.Screen name="vendor" options={{ title: 'Store orders', headerBackVisible: false }} />
             <Stack.Screen name="staff" options={{ headerShown: false }} />
+            <Stack.Screen name="partner-account" options={{ headerShown: false }} />
             <Stack.Screen name="lab" options={{ title: 'Path lab partner', headerBackVisible: false }} />
           </Stack>
           <DialogHost />

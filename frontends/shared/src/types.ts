@@ -50,6 +50,8 @@ export interface Address {
   city?: string;
   state?: string;
   pincode: string;
+  /** Ordering for someone else: who receives it. */
+  contactName?: string;
   contactPhone?: string;
 }
 
@@ -610,6 +612,10 @@ export interface PartnerApplicationInput {
   email?: string;
   city?: string;
   gender?: 'FEMALE' | 'MALE' | 'OTHER';
+  /** Another partner's referral code. */
+  referralCode?: string;
+  /** Accepted the partner terms (required by the API). */
+  acceptTerms?: boolean;
   qualification?: string;
   registrationNumber?: string;
   experienceYears?: number;
@@ -628,6 +634,22 @@ export interface PartnerApplication extends Omit<PartnerApplicationInput, 'quali
   provisioned?: { user?: string; vendor?: string; inviteEmailed?: boolean };
   /** Only on the approve response: whether the set-password invite was emailed. */
   invite?: { sent: boolean; link?: string };
+}
+
+/** GET /partners/me/account: the partner's Account screen. */
+export interface PartnerAccount {
+  kind: 'STAFF' | 'PHARMACY';
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  memberSince?: string;
+  profile?: { qualification?: string; registrationNumber?: string; gender?: string; languages: string[] };
+  verification?: { id: boolean; police: boolean; council: boolean; vaccinated: boolean };
+  store?: { name: string; status: string; isOpen?: boolean; address?: string; licence?: string } | null;
+  rating: { average: number | null; count: number };
+  earnings: { today: number; todayJobs: number; week: number; allTime: number; jobs: number; pendingPayout: number; cashHeld: number; netPayout: number } | null;
+  referral: { code: string; credits: number; successful: number; reducedCommissionPercent: number; rewardJobs: number; minFirstOrder: number };
 }
 
 export interface StaffAvailability { online: boolean; wentStale: boolean; lastSeenAt: string | null }

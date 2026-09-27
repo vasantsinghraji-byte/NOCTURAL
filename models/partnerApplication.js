@@ -19,6 +19,10 @@ const PartnerApplicationSchema = new mongoose.Schema({
   email: { type: String, trim: true, lowercase: true, maxlength: 160 },
   // People partners: lets ops track the physio hiring mix (target 2 : 8 male : female).
   gender: { type: String, enum: ['FEMALE', 'MALE', 'OTHER'] },
+  // Another partner's referral code (rewards them after this partner's first job).
+  referralCode: { type: String, uppercase: true, trim: true, maxlength: 20 },
+  // Consent to the partner terms (version shown at /terms when they applied).
+  terms: { acceptedAt: Date, version: String },
   city: { type: String, trim: true, maxlength: 80, default: 'Jaipur' },
   // Role-specific credentials (checked by ops before approval).
   details: {

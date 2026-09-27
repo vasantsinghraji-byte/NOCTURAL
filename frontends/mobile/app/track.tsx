@@ -14,6 +14,7 @@ import { LiveMap, type MapPin } from '@/lib/MapView';
 import { NabzMark } from '@/lib/Brand';
 import { PressScale, Radar, Rise, success, warn } from '@/lib/motion';
 import { WEB_BASE_URL } from '@/lib/variant';
+import { TextArea } from '@/lib/fields';
 import { C, F, IS_DARK, shadow, ui } from '@/lib/theme';
 import { appAlert } from '@/lib/dialog';
 import { chooseReschedule, confirmCancelVisit } from '@/lib/visitActions';
@@ -289,8 +290,8 @@ export default function Track() {
                     );
                   })}
                 </View>
-                <TextInput style={[ui.input, { minHeight: 64, textAlignVertical: 'top' }]} multiline value={comment} onChangeText={setComment}
-                  placeholder={stars <= 3 ? 'What went wrong? We read every report.' : 'Anything to add? (optional)'} placeholderTextColor={C.faint} />
+                <TextArea minHeight={76} value={comment} onChangeText={setComment}
+                  placeholder={stars <= 3 ? 'What went wrong? We read every report.' : 'Anything to add? (optional)'} />
                 <PressScale style={[ui.btnDark, busy && { opacity: 0.6 }]} disabled={busy} onPress={submitRating}>
                   {busy ? <ActivityIndicator color={C.onNight} /> : <Text style={[ui.btnText, { color: C.onNight }]}>{t('rate.submit')}</Text>}
                 </PressScale>

@@ -1,5 +1,6 @@
 'use client';
 
+import PasswordField from './PasswordField';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -78,7 +79,7 @@ export default function PortalLogin({ portal }: { portal: LoginPortal }) {
           <label htmlFor={`${portal}-password`}>Password</label>
           <Link href="/forgot-password" style={{ color: 'var(--brand)', fontWeight: 700, fontSize: 13 }}>Forgot password?</Link>
         </div>
-        <input id={`${portal}-password`} className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <PasswordField id={`${portal}-password`} value={password} onChange={setPassword} autoComplete="current-password" />
         {error && <div className="notice bad" style={{ marginTop: 12 }}>{error}</div>}
         <button className="btn block" type="submit" disabled={busy} style={{ marginTop: 18 }}>
           {busy ? 'Signing in…' : 'Sign in'}

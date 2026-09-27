@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Bike, CircleCheck, Droplets, FlaskConical, Hospital, Stethoscope, Store, Syringe, type LucideIcon } from 'lucide-react-native';
 import { PEOPLE_PARTNER_KINDS, type PartnerApplicationInput, type PartnerKind } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
+import { TermsCheckbox } from '@/lib/fields';
 import { IconTile } from '@/lib/icons';
 import { PressScale, Rise, success } from '@/lib/motion';
 import { C, F, shadow, ui } from '@/lib/theme';
@@ -71,8 +72,10 @@ export default function PartnerApply() {
     if (!/^[6-9]\d{9}$/.test(form.phone || '')) { setError('Enter a valid 10-digit mobile number.'); return; }
     setBusy(true);
     try {
-      const input: PartnerApplicationInput = { kind, name: form.name.trim(), phone: form.phone, city: form.city || 'Jaipur' };
+      if (form.agree !== 'yes') { setError('Please accept the partner terms to apply.'); setBusy(false); return; }
+      const input: PartnerApplicationInput = { kind, name: form.name.trim(), phone: form.phone, city: form.city || 'Jaipur', acceptTerms: true };
       if (form.email) input.email = form.email.trim();
+      if (form.referralCode) input.referralCode = form.referralCode.trim().toUpperCase();
       if (PEOPLE_PARTNER_KINDS.includes(kind)) {
         if (!form.gender) { setError('Choose your gender (patients can ask for a female or male professional).'); setBusy(false); return; }
         input.gender = form.gender as PartnerApplicationInput['gender'];
@@ -130,6 +133,8 @@ export default function PartnerApply() {
           <TextInput style={ui.input} placeholder="Email (optional)" placeholderTextColor={C.faint} keyboardType="email-address" autoCapitalize="none"
             value={form.email || ''} onChangeText={set('email')} />
           <TextInput style={ui.input} placeholder="City" placeholderTextColor={C.faint} value={form.city || ''} onChangeText={set('city')} />
+          <TextInput style={ui.input} placeholder="Referral code from a Nabz partner (optional)" placeholderTextColor={C.faint} autoCapitalize="characters"
+            maxLength={12} value={form.referralCode || ''} onChangeText={set('referralCode')} />
           {PEOPLE_PARTNER_KINDS.includes(kind) && (
             <View style={{ flexDirection: 'row', gap: 8 }} accessibilityRole="radiogroup">
               {(['FEMALE', 'MALE', 'OTHER'] as const).map((g) => (
@@ -145,6 +150,8 @@ export default function PartnerApply() {
             <TextInput key={`${kind}-${f.key}`} style={ui.input} placeholder={f.label} placeholderTextColor={C.faint}
               keyboardType={f.keyboard} maxLength={f.max} value={form[f.key] || ''} onChangeText={set(f.key)} />
           ))}
+          <TermsCheckbox checked={form.agree === 'yes'} onChange={(v) => set('agree')(v ? 'yes' : '')} section="partners"
+            label="I agree to the" linkText="Nabz partner terms" />
           {error && <Text style={ui.error}>{error}</Text>}
           <PressScale style={[ui.btnDark, busy && { opacity: 0.6 }]} disabled={busy} onPress={submit}>
             {busy ? <ActivityIndicator color={C.onNight} /> : <Text style={[ui.btnText, { color: C.onNight }]}>Submit application</Text>}

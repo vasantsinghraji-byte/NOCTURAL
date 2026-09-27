@@ -33,6 +33,7 @@ export default function SiteFooter() {
           <Link href="/signup">Create account</Link>
           <Link href="/forgot-password">Forgot password</Link>
           <Link href="/account/delete">Delete account</Link>
+          <Link href="/terms">Terms and Conditions</Link>
         </div>
       </div>
       <div className="container footer-legal">

@@ -7,6 +7,7 @@ import { ALLOW_SERVER_OVERRIDE, api, describeNetworkError, saveServerUrl } from 
 import { IconTile } from '@/lib/icons';
 import { PressScale } from '@/lib/motion';
 import { IS_PARTNER_APP } from '@/lib/variant';
+import { PasswordInput } from '@/lib/fields';
 import { C, F, shadow, ui } from '@/lib/theme';
 
 type Mode = 'login' | 'register';
@@ -132,8 +133,7 @@ export default function Login() {
           )}
           <TextInput style={ui.input} placeholder="Email" placeholderTextColor={C.faint} autoCapitalize="none" keyboardType="email-address"
             autoComplete="email" value={email} onChangeText={setEmail} />
-          <TextInput style={ui.input} placeholder="Password" placeholderTextColor={C.faint} secureTextEntry autoComplete="password"
-            value={password} onChangeText={setPassword} />
+          <PasswordInput placeholder="Password" autoComplete="password" value={password} onChangeText={setPassword} />
 
           {!isRegister && (
             <Pressable onPress={() => router.push('/forgot')} hitSlop={8} style={{ alignSelf: 'flex-end' }}>

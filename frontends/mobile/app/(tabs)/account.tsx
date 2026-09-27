@@ -5,7 +5,7 @@ import { router, useFocusEffect, type Href } from 'expo-router';
 import type { MembershipStatus } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { BadgeCheck, Briefcase, ChevronRight, Crown, Languages, LogOut, ShieldCheck, Trash2, UserRound, type LucideIcon } from 'lucide-react-native';
+import { BadgeCheck, Briefcase, ChevronRight, Crown, Gift, Languages, LogOut, ShieldCheck, Trash2, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useT } from '@/lib/i18n';
 import { C, F, shadow, ui } from '@/lib/theme';
 import { appAlert, appPrompt } from '@/lib/dialog';
@@ -26,6 +26,17 @@ function Row({ icon: Icon, title, desc, href, onPress, right }: { icon: LucideIc
 export default function Account() {
   const insets = useSafeAreaInsets();
   const { session, logout, setExplored } = useAuth();
+
+  async function enterReferral() {
+    const code = await appPrompt({ title: 'Referral code', message: 'Got a code from a Nabz nurse, physio or pharmacy? Enter it before your first order.', placeholder: 'NZXXXXXX', confirmText: 'Apply', maxLength: 12 });
+    if (!code) return;
+    try {
+      const r = await api.applyPartnerReferral(code.trim().toUpperCase());
+      appAlert('Referral applied', r.message);
+    } catch (e) {
+      appAlert('Could not apply the code', describeNetworkError(e));
+    }
+  }
 
   function deleteAccount() {
     appAlert('Delete your account?', 'Your name, phone, email and addresses are erased and you are signed out everywhere. Your health records are kept as your medical history, and past orders and visits stay as records we must keep by law, no longer linked to your name. This can’t be undone.', [
@@ -117,6 +128,7 @@ export default function Account() {
       <Row icon={ShieldCheck} title="Permissions" desc="Location, notifications, camera, photos" href="/permissions" />
       <Row icon={Briefcase} title="Work with Nabz" desc="Nurses, physios, pharmacies, labs: apply to join" href="/partner-apply" />
       {session && <Row icon={LogOut} title="Log out" desc={`Signed in as ${session.email}`} onPress={async () => { await logout(); setExplored(false); router.replace('/welcome'); }} />}
+      {session?.kind === 'patient' && <Row icon={Gift} title="Have a referral code?" desc="From a Nabz nurse, physio or pharmacy" onPress={enterReferral} />}
       {session?.kind === 'patient' && <Row icon={Trash2} title="Delete account" desc="Erase your personal data from Nabz" onPress={deleteAccount} />}
 
       <Text style={[ui.muted, { textAlign: 'center', marginTop: 20 }]}>Nabz · care at your doorstep</Text>

@@ -174,6 +174,8 @@ const PharmacyOrderSchema = new mongoose.Schema({
     city: String,
     state: String,
     pincode: String,
+    // Ordering for someone else: who receives it at this address.
+    contactName: String,
     contactPhone: String
   },
   // No `default` on `type` — see the geo note on the models above; a partial

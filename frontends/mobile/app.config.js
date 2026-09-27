@@ -123,10 +123,14 @@ module.exports = {
         'android.permission.VIBRATE',
         'android.permission.RECEIVE_BOOT_COMPLETED'
       ],
-      // Background location, SMS, contacts, etc. are deliberately NOT requested:
-      // Play Store rejects apps that ask for permissions they don't need.
+      // Only what each app needs (Play Store rejects extra permissions):
+      // - Partner app keeps background location (rings for visit requests while
+      //   online and minimised; see docs/play-store-background-location.md).
+      // - Customer app reads one contact the user picks ("book for someone else");
+      //   it never writes contacts.
       blockedPermissions: [
-        'android.permission.ACCESS_BACKGROUND_LOCATION',
+        ...(IS_PARTNER ? ['android.permission.READ_CONTACTS'] : ['android.permission.ACCESS_BACKGROUND_LOCATION']),
+        'android.permission.WRITE_CONTACTS',
         'android.permission.RECORD_AUDIO',
         'android.permission.READ_EXTERNAL_STORAGE',
         'android.permission.WRITE_EXTERNAL_STORAGE',

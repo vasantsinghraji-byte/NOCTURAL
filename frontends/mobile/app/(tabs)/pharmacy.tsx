@@ -10,6 +10,7 @@ import type { PayMethod, PharmacyVendor, StorefrontItem } from '@medrush/shared'
 import { C, F } from '@/lib/theme';
 import { appAlert } from '@/lib/dialog';
 import { PaymentSheet } from '@/lib/paymentSheet';
+import { RecipientPicker, rememberRecipient } from '@/lib/recipients';
 import { PaymentDismissedError, payOrderOnline } from '@/lib/payments';
 
 const FALLBACK = { lat: 26.9110, lng: 75.8010 }; // launch city demo area (C-Scheme, Jaipur)
@@ -22,6 +23,9 @@ export default function Pharmacy() {
   const [rx, setRx] = useState<{ uri: string; key?: string } | null>(null);
   const [placing, setPlacing] = useState(false);
   const [paySheet, setPaySheet] = useState(false);
+  // Ordering medicines for someone else (e.g. parents in another city).
+  const [forOther, setForOther] = useState(false);
+  const [recipient, setRecipient] = useState({ name: '', phone: '' });
   const [onlinePay, setOnlinePay] = useState(false);
   const [vendors, setVendors] = useState<PharmacyVendor[]>([]);
   const [active, setActive] = useState<PharmacyVendor | null>(null);
@@ -159,6 +163,10 @@ export default function Pharmacy() {
       appAlert('Prescription needed', 'Some items need a prescription photo.');
       return;
     }
+    if (forOther && (recipient.name.trim().length < 2 || !/^[6-9]\d{9}$/.test(recipient.phone))) {
+      appAlert('Who receives it?', 'Add the name and 10-digit mobile number of the person receiving the order.');
+      return;
+    }
     setPaySheet(true);
   }
 
@@ -171,7 +179,11 @@ export default function Pharmacy() {
       const res = await api.createOrder({
         vendorId: active._id,
         items: cartItems.map((it) => ({ medicineId: it.medicine._id, quantity: cart[it.medicine._id] })),
-        deliveryAddress: { line1: address.line1.trim(), pincode: address.pincode },
+        deliveryAddress: {
+          line1: address.line1.trim(),
+          pincode: address.pincode,
+          ...(forOther ? { contactName: recipient.name.trim(), contactPhone: recipient.phone } : {})
+        },
         deliveryLocation: coords ? { coordinates: [coords.lng, coords.lat] } : undefined,
         prescriptionKey: rx?.key,
         paymentMode: prepaid ? 'PREPAID' : 'COD',
@@ -180,6 +192,7 @@ export default function Pharmacy() {
       });
       setCart({});
       setRx(null);
+      if (forOther) rememberRecipient(recipient).catch(() => undefined);
       if (!prepaid) {
         appAlert('Order placed', `${res.order.orderNumber}: the pharmacy has been notified.`);
         return;
@@ -256,7 +269,24 @@ export default function Pharmacy() {
       {cartCount > 0 && (
         <View style={styles.checkout}>
           <Text style={styles.cartText}>{cartCount} item(s) · ₹{Math.round(cartTotal * 100) / 100}</Text>
-          <TextInput style={styles.input} placeholder="Delivery address" placeholderTextColor={C.muted}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {[{ v: false, t: 'For me' }, { v: true, t: 'For someone else' }].map((o) => (
+              <Pressable key={o.t} onPress={() => setForOther(o.v)} style={[styles.chip, forOther === o.v && styles.chipActive]}
+                accessibilityRole="radio" accessibilityState={{ checked: forOther === o.v }}>
+                <Text style={[styles.chipText, forOther === o.v && styles.chipTextActive]}>{o.t}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {forOther && (
+            <>
+              <RecipientPicker onPick={(r) => setRecipient({ name: r.name, phone: r.phone })} />
+              <TextInput style={styles.input} placeholder="Receiver’s name" placeholderTextColor={C.muted}
+                value={recipient.name} onChangeText={(name) => setRecipient((r) => ({ ...r, name }))} />
+              <TextInput style={styles.input} placeholder="Receiver’s mobile (10 digits)" placeholderTextColor={C.muted} keyboardType="phone-pad" maxLength={10}
+                value={recipient.phone} onChangeText={(v) => setRecipient((r) => ({ ...r, phone: v.replace(/\D/g, '') }))} />
+            </>
+          )}
+          <TextInput style={styles.input} placeholder={forOther ? 'Their delivery address' : 'Delivery address'} placeholderTextColor={C.muted}
             value={address.line1} onChangeText={(line1) => setAddress((a) => ({ ...a, line1 }))} />
           <TextInput style={styles.input} placeholder="Pincode" placeholderTextColor={C.muted} keyboardType="number-pad" maxLength={6}
             value={address.pincode} onChangeText={(pincode) => setAddress((a) => ({ ...a, pincode }))} />

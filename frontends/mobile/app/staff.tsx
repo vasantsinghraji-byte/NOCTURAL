@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, AppState, Easing, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import * as Location from 'expo-location';
 import {
   BadgeCheck, Circle, Flame, IndianRupee, LogOut, MapPin, Navigation, Package, Phone, ShieldAlert, Star, Store, UserRound, Wallet
@@ -17,6 +17,7 @@ import * as SecureStore from 'expo-secure-store';
 import { LIVE_VISITS_KEY, PARTNER_DEMO_KEY, isBackgroundOnline, startBackgroundOnline, stopBackgroundOnline } from '@/lib/partnerOnline';
 import { startRinging, stopRinging } from '@/lib/ringer';
 import { DEMO_AREA_ENABLED } from '@/lib/variant';
+import { TextArea } from '@/lib/fields';
 import { C, F, shadow, ui } from '@/lib/theme';
 import { appAlert } from '@/lib/dialog';
 
@@ -272,8 +273,8 @@ export default function StaffHome() {
               <Text style={styles.hello}>{hello()},</Text>
               <Text style={styles.name}>{first}</Text>
             </View>
-            <Pressable hitSlop={10} onPress={async () => { if (online) await toggleOnline(false); logout(); }} style={styles.iconBtn}>
-              <LogOut size={18} color={C.onNightMuted} />
+            <Pressable hitSlop={10} onPress={() => router.push('/partner-account')} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel="My account">
+              <UserRound size={18} color={C.onNightMuted} />
             </Pressable>
           </View>
 
@@ -541,8 +542,8 @@ function CompleteSheet({ visit, onClose, onSubmit }: {
         <View style={[styles.modal, { paddingBottom: insets.bottom + 20 }]}>
           <View style={styles.grabber} />
           <Text style={[ui.display, { fontSize: 30 }]}>Complete visit</Text>
-          <TextInput style={[ui.input, { minHeight: 90, textAlignVertical: 'top' }]} multiline value={notes} onChangeText={setNotes}
-            placeholder="Visit notes for the patient: what was done, observations (optional)" placeholderTextColor={C.faint} maxLength={1000} />
+          <TextArea minHeight={100} value={notes} onChangeText={setNotes}
+            placeholder="Visit notes for the patient: what was done, observations (optional)" maxLength={1000} />
           {due !== null ? (
             <View style={{ gap: 6 }}>
               <Text style={[ui.h3, { fontSize: 15 }]}>Cash collected</Text>

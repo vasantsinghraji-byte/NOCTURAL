@@ -10,6 +10,8 @@ import { pickAndUploadPrescription } from '@/lib/prescription';
 import { IconTile, serviceIcon } from '@/lib/icons';
 import { PressScale, success } from '@/lib/motion';
 import { ArrowLeft, Camera, Check, CircleCheck, CircleX, FileText, MapPin, Store, Zap } from 'lucide-react-native';
+import { TextArea } from '@/lib/fields';
+import { RecipientPicker, rememberRecipient } from '@/lib/recipients';
 import { C, F, shadow, ui } from '@/lib/theme';
 
 type Mode = 'ASAP' | 'SCHEDULED';
@@ -127,6 +129,7 @@ export default function Book() {
         prescriptionUrl: rx?.url
       });
       success();
+      if (forOther) rememberRecipient({ name: other.name, phone: other.contactPhone }).catch(() => undefined);
       setConfirming(false);
       if (mode === 'ASAP') {
         // Straight into the matching moment (radar → nurse accepted → live route).
@@ -270,6 +273,7 @@ export default function Book() {
             {forOther && (
               <View style={{ gap: 8 }}>
                 <Text style={ui.muted}>For a parent or relative at the address above. The professional calls the contact below, not you, and you can track the visit live.</Text>
+                <RecipientPicker onPick={(r) => setOther({ name: r.name, contactName: '', contactPhone: r.phone })} />
                 <TextInput style={ui.input} value={other.name} onChangeText={(name) => setOther({ ...other, name })} placeholder="Patient’s full name" placeholderTextColor={C.faint} />
                 <TextInput style={ui.input} value={other.contactName} onChangeText={(contactName) => setOther({ ...other, contactName })} placeholder="Contact at the address (if not the patient)" placeholderTextColor={C.faint} />
                 <TextInput style={ui.input} value={other.contactPhone} onChangeText={(v) => setOther({ ...other, contactPhone: v.replace(/\D/g, '') })} placeholder="Their mobile number" keyboardType="phone-pad" maxLength={10} placeholderTextColor={C.faint} />
@@ -292,7 +296,7 @@ export default function Book() {
                 </Pressable>
               ))}
             </View>
-            <TextInput style={[ui.input, { minHeight: 70, textAlignVertical: 'top', marginTop: 6 }]} multiline value={form.notes} onChangeText={(notes) => setForm({ ...form, notes })} placeholder="Notes: allergies, floor, gate code (optional)" placeholderTextColor={C.faint} />
+            <TextArea minHeight={80} style={{ marginTop: 6 }} value={form.notes} onChangeText={(notes) => setForm({ ...form, notes })} placeholder="Notes: allergies, floor, gate code (optional)" />
             {needsRx && (
               <Pressable style={ui.btnOutline} onPress={attachRx}>
                 <View style={styles.inline}>

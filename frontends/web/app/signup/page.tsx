@@ -70,7 +70,7 @@ export default function SignupPage() {
         <p className="hint">8+ characters with uppercase, lowercase and a number. A symbol makes it stronger.</p>
         <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontWeight: 600, fontSize: 13 }}>
           <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ marginTop: 2 }} />
-          <span>I agree to the Terms and Privacy Policy, and to be contacted about my bookings.</span>
+          <span>I agree to the <a href="/terms" target="_blank" rel="noreferrer" className="link">Terms and Conditions</a> and Privacy Policy, and to be contacted about my bookings.</span>
         </label>
         {error && <div className="notice bad" style={{ marginTop: 14 }}>{error}</div>}
         <button className="btn block lg" type="submit" disabled={busy} style={{ marginTop: 20 }}>

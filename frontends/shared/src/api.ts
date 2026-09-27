@@ -27,6 +27,7 @@ import type {
   CareCancelQuote,
   PartnerApplication,
   StaffMix,
+  PartnerAccount,
   LoginPortal,
   MembershipStatus,
   VisitTracking,
@@ -621,6 +622,16 @@ export class MedRushApi {
   // ── Pharmacy: admin ──────────────────────────────────────────────────────
   adminListPartnerApplications(status: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING') {
     return this.request<{ success: true; applications: PartnerApplication[] }>('GET', '/partners/admin/applications', { query: { status } });
+  }
+
+  /** Partner: profile, earnings, rating and referral code. */
+  getPartnerAccount() {
+    return this.request<{ success: true; account: PartnerAccount }>('GET', '/partners/me/account');
+  }
+
+  /** Customer: use a Nabz partner's referral code (before the first order). */
+  applyPartnerReferral(code: string) {
+    return this.request<{ success: true; message: string; referredBy: string }>('POST', '/patients/me/referral', { body: { code } });
   }
 
   adminStaffMix() {

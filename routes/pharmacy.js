@@ -38,6 +38,8 @@ const createOrderValidation = [
   body('items.*.quantity').isInt({ min: 1 }).withMessage('Each item needs quantity >= 1'),
   body('deliveryAddress.line1').trim().notEmpty().withMessage('Delivery address line1 is required'),
   body('deliveryAddress.pincode').trim().matches(/^\d{6}$/).withMessage('Valid 6-digit pincode required'),
+  body('deliveryAddress.contactName').optional({ values: 'falsy' }).isString().trim().isLength({ max: 80 }),
+  body('deliveryAddress.contactPhone').optional({ values: 'falsy' }).matches(/^(\+?91)?[6-9]\d{9}$/).withMessage('Enter a valid mobile number for the recipient'),
   body('prescriptionKey').optional().isString().trim().isLength({ min: 1, max: 512 }).withMessage('prescriptionKey must be the key returned by POST /prescriptions'),
   body('paymentMode').optional().isIn(['PREPAID', 'COD']),
   body('quotedSubtotal').optional().isFloat({ min: 0 }).withMessage('quotedSubtotal must be the items total shown to the customer')
@@ -172,6 +174,8 @@ const splitCheckoutValidation = [
   body('groups.*.quotedSubtotal').optional().isFloat({ min: 0 }),
   body('deliveryAddress.line1').trim().notEmpty().withMessage('Delivery address line1 is required'),
   body('deliveryAddress.pincode').trim().matches(/^\d{6}$/).withMessage('Valid 6-digit pincode required'),
+  body('deliveryAddress.contactName').optional({ values: 'falsy' }).isString().trim().isLength({ max: 80 }),
+  body('deliveryAddress.contactPhone').optional({ values: 'falsy' }).matches(/^(\+?91)?[6-9]\d{9}$/).withMessage('Enter a valid mobile number for the recipient'),
   body('prescriptionKey').optional().isString().trim().isLength({ min: 1, max: 512 }),
   body('paymentMode').optional().isIn(['COD', 'PREPAID'])
 ];

@@ -13,6 +13,7 @@ const passwordResetService = require('./passwordResetService');
 const logger = require('../utils/logger');
 const { ValidationError, NotFoundError, ConflictError } = require('../utils/errors');
 
+const TERMS_VERSION = '0.9-2026-09-27';
 const clean = (v, max = 120) => (v === undefined || v === null ? undefined : String(v).trim().slice(0, max));
 
 async function apply(input, applicant = { kind: 'ANONYMOUS' }) {
@@ -29,6 +30,9 @@ async function apply(input, applicant = { kind: 'ANONYMOUS' }) {
     email: clean(input.email, 160),
     city: clean(input.city, 80) || 'Jaipur',
     gender: ['FEMALE', 'MALE', 'OTHER'].includes(input.gender) ? input.gender : undefined,
+    referralCode: clean(input.referralCode, 20) ? clean(input.referralCode, 20).toUpperCase() : undefined,
+    // Current apps require the box; older app versions don't send it yet.
+    terms: input.acceptTerms === true ? { acceptedAt: new Date(), version: TERMS_VERSION } : undefined,
     details: {
       qualification: clean(input.qualification, 80),
       registrationNumber: clean(input.registrationNumber, 60),
@@ -99,6 +103,7 @@ async function provision(app, email, adminId) {
     if (vendor) await PharmacyVendor.deleteOne({ _id: vendor._id }).catch(() => undefined);
     throw err;
   }
+  if (app.referralCode) await require('./partnerReferralService').attachPartner(user._id, app.referralCode);
   const invite = await passwordResetService.invite(user);
   logger.info('Partner account provisioned', { applicationId: String(app._id), userId: String(user._id), by: String(adminId) });
   return { user, vendor, invite };

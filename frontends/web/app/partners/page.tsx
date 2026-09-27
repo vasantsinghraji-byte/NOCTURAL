@@ -66,10 +66,12 @@ export default function PartnersPage() {
     setError(null);
     if ((form.name || '').trim().length < 2) { setError('Enter your full name.'); return; }
     if (!/^[6-9]\d{9}$/.test(form.phone || '')) { setError('Enter a valid 10-digit mobile number.'); return; }
+    if (form.agree !== 'yes') { setError('Please accept the partner terms to apply.'); return; }
     setBusy(true);
     try {
-      const input: PartnerApplicationInput = { kind, name: form.name.trim(), phone: form.phone, city: form.city || 'Jaipur' };
+      const input: PartnerApplicationInput = { kind, name: form.name.trim(), phone: form.phone, city: form.city || 'Jaipur', acceptTerms: true };
       if (form.email) input.email = form.email.trim();
+      if (form.referralCode) input.referralCode = form.referralCode.trim().toUpperCase();
       if (PEOPLE_PARTNER_KINDS.includes(kind)) {
         if (!form.gender) { setError('Choose your gender (patients can ask for a female or male professional).'); setBusy(false); return; }
         input.gender = form.gender as PartnerApplicationInput['gender'];
@@ -128,6 +130,8 @@ export default function PartnersPage() {
         <input id="p-email" className="input" type="email" autoComplete="email" value={form.email || ''} onChange={set('email')} />
         <label htmlFor="p-city">City</label>
         <input id="p-city" className="input" value={form.city || ''} onChange={set('city')} />
+        <label htmlFor="p-ref">Referral code from a Nabz partner (optional)</label>
+        <input id="p-ref" className="input" maxLength={12} style={{ textTransform: 'uppercase' }} value={form.referralCode || ''} onChange={set('referralCode')} />
         {PEOPLE_PARTNER_KINDS.includes(kind) && (
           <>
             <label>Gender</label>
@@ -148,6 +152,10 @@ export default function PartnersPage() {
             <input id={`p-${f.key}`} className="input" inputMode={f.numeric ? 'numeric' : undefined} value={form[f.key] || ''} onChange={set(f.key)} />
           </div>
         ))}
+        <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontWeight: 600, fontSize: 13, marginTop: 14 }}>
+          <input type="checkbox" checked={form.agree === 'yes'} onChange={(e) => setForm((f) => ({ ...f, agree: e.target.checked ? 'yes' : '' }))} style={{ marginTop: 2 }} />
+          <span>I agree to the <a href="/terms#partners" target="_blank" rel="noreferrer" className="link">Nabz partner terms</a> and consent to document and background verification.</span>
+        </label>
         {error && <div className="notice bad" style={{ marginTop: 14 }}>{error}</div>}
         <button className="btn block lg" type="submit" disabled={busy} style={{ marginTop: 20 }}>{busy ? 'Submitting…' : 'Submit application'}</button>
       </form>
