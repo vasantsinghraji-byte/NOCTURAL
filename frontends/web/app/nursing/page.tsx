@@ -14,6 +14,10 @@ const DEMO_COORDS: Coords = { lat: 26.9110, lng: 75.8010 }; // launch city demo 
 const tomorrow = () => new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
 const inr = (n: number) => `₹${Math.round(n * 100) / 100}`;
 
+/** Short two-line label for the phone icon grid, e.g. "Physiotherapy" over "10 Sessions". */
+const tileLabel = (s: CareService) => (s.displayName || s.name)
+  .replace(/ at Home/i, '').replace(/\s*\(.*?\)/g, '').replace(/ Package$/i, '').replace(' - ', '\n').trim();
+
 export default function NursingPage() {
   const { patient } = useAuth();
   const [services, setServices] = useState<CareService[]>([]);
@@ -194,7 +198,10 @@ export default function NursingPage() {
           <button key={s.serviceType} type="button" className={`choice ${serviceType === s.serviceType ? 'on' : ''}`}
             onClick={() => setServiceType(s.serviceType)}>
             <IconTile icon={serviceIcon(s.serviceType)} bg={TONES[services.indexOf(s) % TONES.length].bg} color={TONES[services.indexOf(s) % TONES.length].fg} size={48} />
-            <h3 style={{ margin: '6px 0 2px' }}>{s.displayName || s.name}</h3>
+            <h3 style={{ margin: '6px 0 2px' }}>
+              <span className="label-full">{s.displayName || s.name}</span>
+              <span className="label-short">{tileLabel(s)}</span>
+            </h3>
             <div className="muted">{s.shortDescription}</div>
             <div className="row" style={{ marginTop: 8 }}>
               <span className="price">from ₹{s.pricing.basePrice}</span>
@@ -204,6 +211,16 @@ export default function NursingPage() {
         ))}
         {services.length === 0 && !error && <div className="muted">Loading services…</div>}
       </div>
+      {service && (
+        // Phones show services as icons only; the picked one's details appear here.
+        <div className="picked-summary" aria-live="polite">
+          <b>{service.displayName || service.name}</b>
+          <span className="muted">
+            from ₹{service.pricing.basePrice}{service.serviceDetails?.duration ? ` · ${service.serviceDetails.duration} min` : ''}
+          </span>
+          {service.shortDescription && <span className="muted">{service.shortDescription}</span>}
+        </div>
+      )}
 
       {service && (
         <form onSubmit={book}>

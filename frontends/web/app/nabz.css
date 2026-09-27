@@ -162,3 +162,48 @@
   .tabbar a.on { color: var(--ink); }
   body:has(.tabbar) .site-footer { padding-bottom: 90px; }
 }
+
+/* Phones: booking cards become a 3-up icon grid (icon + short name only),
+   like the app's home screen; details show on larger screens and after picking. */
+@media (max-width: 640px) {
+  .service-grid,
+  .grid.cats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+
+  .service-card,
+  .grid.cats .choice {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start; text-align: center;
+    gap: 8px; padding: 14px 6px 12px; border-radius: 20px; min-width: 0;
+  }
+  .service-card .top { justify-content: center; }
+  .service-card h3,
+  .grid.cats .choice h3 {
+    margin: 0 !important; font-size: 12.5px; line-height: 1.25; font-weight: 700;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+  .service-card .muted,
+  .service-card .go,
+  .grid.cats .choice .muted,
+  .grid.cats .choice .row { display: none; }
+  .service-card:hover,
+  .grid.cats .choice:hover { transform: none; }
+}
+
+/* Details of the picked service: shown on phones only (cards carry them on larger screens). */
+.picked-summary { display: none; }
+@media (max-width: 640px) {
+  .picked-summary {
+    display: flex; flex-direction: column; gap: 2px; margin-top: 12px; padding: 12px 14px;
+    border-radius: 16px; background: var(--brand-soft); border: 1px solid var(--border);
+  }
+  .picked-summary b { font-size: 15px; }
+  .picked-summary .muted { font-size: 13px; }
+}
+
+/* Service names: full on larger screens, short two-line label in the phone icon grid. */
+.label-short { display: none; }
+@media (max-width: 640px) {
+  .grid.cats .choice .label-full { display: none; }
+  .grid.cats .choice .label-short { display: inline; white-space: pre-line; }
+}
