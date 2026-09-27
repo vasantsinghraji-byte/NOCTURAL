@@ -2,7 +2,7 @@
 
 Read this before writing a PRD, a plan or code for Nabz. It describes what is
 built and running today, so new work refines it instead of starting over.
-Branch `feature/nabz-care-marketplace` (PR #216), staging commit `6d49cba`.
+Branch `feature/nabz-care-marketplace` (PR #216), staging commit `2f849fa` (updated 27 Sep evening).
 
 ## What Nabz is
 
@@ -17,7 +17,7 @@ Two Android apps and a website:
 | Surface | Who | Where |
 |---|---|---|
 | **Nabz** app | Customers | `frontends/mobile` (Expo SDK 52, React Native 0.76), `APP_VARIANT` unset |
-| **Nabz Partner** app | Nurses, physios, pharmacies | Same codebase, `APP_VARIANT=partner` |
+| **Nabz Partner** app | Nurses, physios, pharmacies (delivery and path labs: onboarding cards) | Same codebase, `APP_VARIANT=partner` |
 | Website | Customers, partners, admins | `frontends/web` (Next.js 15) |
 | API | All of the above | Repo root: Node 22, Express 5, Mongoose 9 (MongoDB Atlas) |
 
@@ -42,21 +42,26 @@ Shared TypeScript API client and types for both frontends: `frontends/shared/src
 | **Nurse / physiotherapist** (`nurse`, `physiotherapist`) | Built | `app/staff.tsx`, `services/dispatchService.js`, `services/bookingService.js` |
 | **Pharmacy** (`pharmacy_vendor`) | Built | `app/vendor.tsx`, `services/pharmacyService.js`, `docs/pharmacy/` |
 | **Platform admin** (`platform_admin`) | Built (web) | `frontends/web/app/admin`, admin sign-in with 2-step verification |
-| **Path lab** (`lab_partner`) | Waitlist only | Login hidden; lab module lives on branch `feature/medrush-core` (see below) |
-| **Phlebotomist** | Role exists, no flow | `constants/enums.js` STAFF_ROLES |
-| **Delivery rider** (`delivery_partner`) | Waitlist only | Pharmacies deliver themselves or nurses pick up |
+| **Path lab** (`lab_partner`) | Waitlist (apply) | Partner app shows how the lab flow works; lab module lives on branch `feature/medrush-core` (see below) |
+| **Phlebotomist**, **PRP technician**, **hospital / nursing home** | Waitlist (apply) | Partner applications (`services/partnerApplicationService.js`) |
+| **Delivery rider** (`delivery_partner`) | Waitlist (apply) | Pharmacies deliver themselves or nurses pick up |
 
 ### Customer
 
 - **Accounts:** sign in with phone OTP, Google or email.
-- **Home visits:** book an ASAP or scheduled visit. Customers can prefer a female or male professional, see the professional's profile and verification badges, and give them a 4-digit visit code at the door.
+- **Home visits:** book an ASAP or scheduled visit. Customers can prefer a female or male professional, **choose a specific verified professional** (or best available, with or without a substitute), see their profile and verification badges, and give them a 4-digit visit code at the door.
+- **Packages:** book every session at once (chosen weekdays and time). The same professional comes to every session; "Change professional" moves the upcoming ones.
+- **Book for someone else:** a parent in another city, picked from phone contacts or recent people; the professional calls the on-site contact. Works for medicine orders too.
+- **Saved preferences:** address, gender preference, favourite professional, substitute choice.
+- **Referral codes:** a customer can enter a Nabz partner's code before their first order.
 - **Visit tracking:** follow the visit live on a map, press SOS, and share a family tracking link.
 - **Cancelling and rebooking:** cancelling is free until the professional is on the way, then ₹100. If nobody is free, the customer picks another time.
 - **Medicines:** order from nearby stores with a prescription upload.
   - The customer pays with the Nabz payment sheet (UPI apps, card or cash) or cash on delivery.
   - They give the rider a 4-digit delivery code at handover.
 - **Nabz Plus:** a membership with free delivery and no visit platform fee.
-- **Account deletion:** health history is kept; identity and contact details are erased.
+- **Account deletion:** health history is kept; identity and contact details are erased (app or `/account/delete`).
+- **Terms:** consent checkbox at sign-in; `/terms` page (draft for legal review).
 
 ### Nurse / physio (Partner app)
 
@@ -64,6 +69,8 @@ Shared TypeScript API client and types for both frontends: `frontends/shared/src
 - **Visit requests:** while online, the app rings loudly and vibrates for a new request nearby, even in the background (foreground location service).
 - **Offers:** accept or decline. Going on the way, starting the visit (needs the patient's code) and completing it (with the cash collected) are the steps.
 - **Dropping a visit:** hands it back to matching. Three drops in a week takes them offline.
+- **Account page:** profile, verification, rating, earnings (today / week / all time), commission tier this month, referral code, payouts.
+- **Payouts:** add a UPI ID or bank account (encrypted), withdraw the available balance (earnings minus cash held, minimum ₹100); admin pays and marks paid with the UTR.
 
 ### Pharmacy (Partner app / website)
 
@@ -76,6 +83,7 @@ Shared TypeScript API client and types for both frontends: `frontends/shared/src
 - **Stores and catalogue:** approve and suspend stores; manage the medicine catalogue.
 - **Partner applications:** approving a nurse, physio or pharmacy creates their login and emails a set-password link.
 - **Revenue:** revenue and pending partner payouts, netted against cash they collected.
+- **Withdrawals:** reveal payout details and mark paid (fresh 2-step code); physio/nurse M : F mix against the 2 : 8 target.
 
 ## Key flows and where they live
 
@@ -88,6 +96,10 @@ Shared TypeScript API client and types for both frontends: `frontends/shared/src
 | Pharmacy order state machine, store reassignment on decline or timeout | `services/pharmacyService.js`, `services/pharmacyAssignmentService.js` |
 | Payments (Razorpay orders, verification, refunds) | `services/pharmacyPaymentService.js`, `services/paymentService.js`, `frontends/shared/src/payments.ts` |
 | Revenue ledger (commission, delivery fee, payouts, cash held) | `services/settlementService.js`, `docs/NABZ_REVENUE_MODEL.md` |
+| Commission: monthly tiers for visits (1–10: 20%, 11–30: 15%, 31+: 12%), pharmacy flat 10%, referral credit = min(5%, tier) | `services/commissionService.js`, `config/revenue.js` |
+| Referrals (codes, rewards, credits) | `services/partnerReferralService.js` |
+| Choose a professional, packages as linked sessions, change professional | `services/dispatchService.js` (`findCandidate`, `lockSeriesProvider`), `bookingService.createPackageSeries`, `changeSeriesProvider` |
+| Partner account and withdrawals | `services/partnerAccountService.js`, `services/payoutService.js`, `models/withdrawalRequest.js` |
 | Partner onboarding (apply, approve, invite) | `services/partnerApplicationService.js`, `routes/partners.js` |
 | Service catalogue (visit types, prices, packages) | `models/serviceCatalog.js`, `constants/careServices.js`, `scripts/seedServiceCatalog.js` |
 
@@ -102,7 +114,8 @@ Shared TypeScript API client and types for both frontends: `frontends/shared/src
 | `pharmacyvendors`, `vendorinventories`, `inventorybatches`, `medicines` | Stores, their stock and batches, and the shared medicine catalogue |
 | `pharmacyorders`, `pharmacycheckouts` | Medicine orders (one checkout can span several stores) |
 | `settlemententries` | Money ledger for every paid event |
-| `partnerapplications` | Partner sign-ups and review state |
+| `partnerapplications` | Partner sign-ups (with gender, referral code, terms consent) and review state |
+| `withdrawalrequests` | Partner withdrawals and the ledger entries they settle |
 | `notifications`, `pushtokens`, `jobleases`, `ratelimitcounters` | Supporting data |
 
 ## Built on another branch, not deployed
