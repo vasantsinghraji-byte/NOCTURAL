@@ -462,9 +462,13 @@ function OfferCard({ offer, onAccept, onDecline }: { offer: VisitOffer; onAccept
           <Text style={styles.offerMeta}>Pick up at {offer.supplies.store || 'partner pharmacy'}: {offer.supplies.items.join(', ')}</Text>
         </View>
       )}
-      <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-        <PressScale style={styles.decline} onPress={onDecline}><Text style={styles.declineText}>Decline</Text></PressScale>
-        <PressScale style={styles.accept} onPress={onAccept}><Text style={styles.acceptText}>Accept</Text></PressScale>
+      <View style={styles.offerActions}>
+        <PressScale style={styles.decline} onPress={onDecline} accessibilityRole="button" accessibilityLabel="Decline this visit">
+          <Text style={styles.declineText}>Decline</Text>
+        </PressScale>
+        <PressScale style={styles.accept} onPress={onAccept} accessibilityRole="button" accessibilityLabel={`Accept this visit and earn ${inr(offer.earnings)}`}>
+          <Text style={styles.acceptText}>Accept · {inr(offer.earnings)}</Text>
+        </PressScale>
       </View>
     </Rise>
   );
@@ -592,10 +596,12 @@ const styles = StyleSheet.create({
   offerEarn: { color: C.onNight, fontFamily: F.display, fontSize: 48, lineHeight: 52, marginTop: 4 },
   offerService: { color: C.onNight, fontFamily: F.bold, fontSize: 15 },
   offerMeta: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 13, flexShrink: 1 },
-  decline: { flex: 1, borderRadius: 16, paddingVertical: 15, alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.22)' },
-  declineText: { color: C.onNight, fontFamily: F.bold },
-  accept: { flex: 2, borderRadius: 16, paddingVertical: 15, alignItems: 'center', backgroundColor: '#3dd68c' },
-  acceptText: { color: '#2a2523', fontFamily: F.heavy, fontSize: 16 },
+  // Decline (1 part) · Accept (2 parts): same height, one row, text centred.
+  offerActions: { flexDirection: 'row', gap: 10, marginTop: 10, alignItems: 'stretch' },
+  decline: { flex: 1, minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)' },
+  declineText: { color: C.onNight, fontFamily: F.bold, fontSize: 15 },
+  accept: { flex: 2, minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#3dd68c' },
+  acceptText: { color: '#10251b', fontFamily: F.heavy, fontSize: 16 },
   overlay: { flex: 1, backgroundColor: C.overlay, justifyContent: 'flex-end' },
   modal: { backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, gap: 12 },
   grabber: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: C.border },

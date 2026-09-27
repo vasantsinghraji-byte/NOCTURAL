@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Animated, Easing, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { C } from './theme';
 
@@ -8,20 +8,35 @@ export const tap = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light
 export const success = () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined); };
 export const warn = () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined); };
 
+const OUTER_KEYS = new Set([
+  'flex', 'flexGrow', 'flexShrink', 'flexBasis', 'alignSelf', 'width', 'minWidth', 'maxWidth',
+  'margin', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'marginHorizontal', 'marginVertical',
+  'position', 'top', 'bottom', 'left', 'right', 'zIndex'
+]);
+
 /** Pressable that springs down slightly when touched (+ haptic tick). */
 export function PressScale({ children, style, onPress, haptic = true, ...rest }: PressableProps & {
   children: ReactNode; style?: StyleProp<ViewStyle>; haptic?: boolean;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
   const to = (v: number) => Animated.spring(scale, { toValue: v, useNativeDriver: true, speed: 40, bounciness: 6 }).start();
+  // Layout props (flex, width, margins, alignSelf…) size the touch target in its
+  // parent, so they go on the Pressable; the look (colour, padding, radius…)
+  // stays on the animated view. Without this, flex: 1 buttons shrank to their text.
+  const flat = (StyleSheet.flatten(style) || {}) as ViewStyle & Record<string, unknown>;
+  const outer: Record<string, unknown> = {};
+  const inner: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(flat)) (OUTER_KEYS.has(k) ? outer : inner)[k] = v;
+  if (outer.flex !== undefined || outer.flexGrow !== undefined || outer.width !== undefined || outer.alignSelf === 'stretch') inner.flexGrow = 1;
   return (
     <Pressable
       {...rest}
+      style={outer as ViewStyle}
       onPressIn={() => to(0.97)}
       onPressOut={() => to(1)}
       onPress={(e) => { if (haptic) tap(); onPress?.(e); }}
     >
-      <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>
+      <Animated.View style={[inner as ViewStyle, { transform: [{ scale }] }]}>{children}</Animated.View>
     </Pressable>
   );
 }

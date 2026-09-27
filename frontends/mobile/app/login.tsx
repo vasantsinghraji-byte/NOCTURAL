@@ -127,34 +127,53 @@ export default function Login() {
           {IS_PARTNER_APP && active && <Text style={ui.label}>{active.title} login</Text>}
           {isRegister && (
             <>
-              <TextInput style={ui.input} placeholder="Full name" placeholderTextColor={C.faint} value={name} onChangeText={setName} />
-              <TextInput style={ui.input} placeholder="Mobile (10 digits)" placeholderTextColor={C.faint} keyboardType="phone-pad" value={phone} onChangeText={setPhone} maxLength={10} />
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Full name</Text>
+                <TextInput style={ui.input} placeholder="As on your ID" placeholderTextColor={C.faint} value={name} onChangeText={setName} autoComplete="name" />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Mobile number</Text>
+                <TextInput style={ui.input} placeholder="10 digits" placeholderTextColor={C.faint} keyboardType="phone-pad" value={phone} onChangeText={setPhone} maxLength={10} />
+              </View>
             </>
           )}
-          <TextInput style={ui.input} placeholder="Email" placeholderTextColor={C.faint} autoCapitalize="none" keyboardType="email-address"
-            autoComplete="email" value={email} onChangeText={setEmail} />
-          <PasswordInput placeholder="Password" autoComplete="password" value={password} onChangeText={setPassword} />
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Email</Text>
+            <TextInput style={ui.input} placeholder="you@example.com" placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false} keyboardType="email-address"
+              autoComplete="email" value={email} onChangeText={setEmail} />
+          </View>
+          <View style={styles.field}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>Password</Text>
+              {!isRegister && (
+                <Pressable onPress={() => router.push('/forgot')} hitSlop={10} accessibilityRole="link">
+                  <Text style={styles.inlineLink}>Forgot password?</Text>
+                </Pressable>
+              )}
+            </View>
+            <PasswordInput placeholder={isRegister ? 'At least 8 characters' : 'Your password'} autoComplete="password" value={password} onChangeText={setPassword} />
+          </View>
 
-          {!isRegister && (
-            <Pressable onPress={() => router.push('/forgot')} hitSlop={8} style={{ alignSelf: 'flex-end' }}>
-              <Text style={styles.link}>Forgot password?</Text>
-            </Pressable>
-          )}
+          {error && <Text style={ui.error} accessibilityLiveRegion="polite">{error}</Text>}
 
-          {error && <Text style={ui.error}>{error}</Text>}
-
-          <PressScale style={[ui.btnDark, busy && { opacity: 0.6 }]} onPress={submit} disabled={busy}>
+          <PressScale style={[ui.btnDark, styles.submit, busy && { opacity: 0.6 }]} onPress={submit} disabled={busy}>
             {busy ? <ActivityIndicator color={C.onNight} /> : <Text style={[ui.btnText, { color: C.onNight }]}>{isRegister ? 'Create account' : 'Sign in'}</Text>}
           </PressScale>
 
           {IS_PARTNER_APP ? (
-            <Pressable onPress={() => router.push('/partner-apply')}>
-              <Text style={styles.link}>New partner? Apply to join Nabz</Text>
-            </Pressable>
+            <View style={styles.altRow}>
+              <Text style={styles.altText}>New partner?</Text>
+              <Pressable onPress={() => router.push('/partner-apply')} hitSlop={10} accessibilityRole="link">
+                <Text style={styles.inlineLink}>Apply to join Nabz</Text>
+              </Pressable>
+            </View>
           ) : (
-            <Pressable onPress={() => setMode(isRegister ? 'login' : 'register')}>
-              <Text style={styles.link}>{isRegister ? 'Have an account? Sign in' : 'New to Nabz? Create an account'}</Text>
-            </Pressable>
+            <View style={styles.altRow}>
+              <Text style={styles.altText}>{isRegister ? 'Have an account?' : 'New to Nabz?'}</Text>
+              <Pressable onPress={() => setMode(isRegister ? 'login' : 'register')} hitSlop={10} accessibilityRole="link">
+                <Text style={styles.inlineLink}>{isRegister ? 'Sign in' : 'Create an account'}</Text>
+              </Pressable>
+            </View>
           )}
         </View>
         )}
@@ -182,5 +201,13 @@ const styles = StyleSheet.create({
   stepDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   stepNum: { color: C.onNight, fontFamily: F.heavy, fontSize: 12 },
   portalOn: { borderColor: C.ink, ...shadow },
-  link: { color: C.brand, textAlign: 'center', fontFamily: F.bold, paddingVertical: 4 }
+  link: { color: C.brand, textAlign: 'center', fontFamily: F.bold, paddingVertical: 4 },
+  // Form: label above each field, one left edge; secondary actions sit on the label row or centred under the button.
+  field: { gap: 6 },
+  fieldLabel: { fontFamily: F.bold, fontSize: 13, color: C.inkSoft },
+  labelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  inlineLink: { fontFamily: F.bold, fontSize: 13, color: C.brand },
+  submit: { marginTop: 4 },
+  altRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingTop: 2 },
+  altText: { fontFamily: F.medium, fontSize: 13, color: C.muted }
 });
