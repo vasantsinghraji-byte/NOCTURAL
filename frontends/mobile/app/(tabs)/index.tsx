@@ -154,7 +154,7 @@ export default function BookHome() {
             <View style={styles.searchBox}>
               <Search size={18} color={C.muted} />
               <TextInput value={query} onChangeText={setQuery} placeholder={t('home.search')} placeholderTextColor={C.muted} style={styles.searchInput} />
-              {query ? <Pressable hitSlop={10} onPress={() => setQuery('')}><X size={16} color={C.muted} /></Pressable> : null}
+              {query ? <Pressable hitSlop={10} onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search"><X size={16} color={C.muted} /></Pressable> : null}
             </View>
             <View style={[styles.chip, nearby.count ? { backgroundColor: C.mintSoft } : null]}>
               <Radio size={13} color={nearby.count ? C.mint : C.muted} />

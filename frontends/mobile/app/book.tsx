@@ -242,7 +242,7 @@ export default function Book() {
   return (
     <KeyboardAvoidingView style={ui.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable hitSlop={12} style={styles.back} onPress={() => (stepIdx === 0 ? router.back() : setStepIdx((i) => i - 1))}>
+        <Pressable hitSlop={12} style={styles.back} onPress={() => (stepIdx === 0 ? router.back() : setStepIdx((i) => i - 1))} accessibilityRole="button" accessibilityLabel="Back">
           <ArrowLeft size={22} color={C.ink} />
         </Pressable>
         <Text style={styles.headerTitle}>{TITLES[step]}</Text>

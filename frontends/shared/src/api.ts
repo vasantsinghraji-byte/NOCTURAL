@@ -28,6 +28,10 @@ import type {
   PartnerApplication,
   StaffMix,
   PartnerAccount,
+  PayoutDetails,
+  PayoutDetailsInput,
+  PayoutSummary,
+  Withdrawal,
   CareProvider,
   CarePreferences,
   CarePackageInput,
@@ -648,6 +652,37 @@ export class MedRushApi {
 
   saveCarePreferences(prefs: Omit<CarePreferences, 'preferredProvider'> & { preferredProvider?: string | null }) {
     return this.request<{ success: true; preferences: CarePreferences }>('PUT', '/patients/me/care-preferences', { body: prefs });
+  }
+
+  /** Partner: balance, payout details and recent withdrawals. */
+  getPayouts() {
+    return this.request<{ success: true; payouts: PayoutSummary }>('GET', '/partners/me/payouts');
+  }
+
+  savePayoutDetails(input: PayoutDetailsInput) {
+    return this.request<{ success: true; details: PayoutDetails }>('PUT', '/partners/me/payout-details', { body: input });
+  }
+
+  /** Withdraw the whole available balance. */
+  requestWithdrawal() {
+    return this.request<{ success: true; withdrawal: Withdrawal }>('POST', '/partners/me/withdrawals');
+  }
+
+  adminListWithdrawals(status: 'REQUESTED' | 'PAID' | 'REJECTED' = 'REQUESTED') {
+    return this.request<{ success: true; withdrawals: Withdrawal[] }>('GET', '/partners/admin/withdrawals', { query: { status } });
+  }
+
+  /** Bank / UPI details to make the transfer (needs a fresh admin 2FA code). */
+  adminWithdrawalDestination(id: string) {
+    return this.request<{ success: true; destination: { method: 'UPI' | 'BANK'; upiId?: string; accountName?: string; accountNumber?: string; ifsc?: string; bankName?: string } }>('GET', `/partners/admin/withdrawals/${id}/destination`);
+  }
+
+  adminMarkWithdrawalPaid(id: string, utr: string, note?: string) {
+    return this.request<{ success: true; withdrawal: Withdrawal }>('POST', `/partners/admin/withdrawals/${id}/paid`, { body: { utr, note } });
+  }
+
+  adminRejectWithdrawal(id: string, note?: string) {
+    return this.request<{ success: true; withdrawal: Withdrawal }>('POST', `/partners/admin/withdrawals/${id}/reject`, { body: { note } });
   }
 
   /** Partner: profile, earnings, rating and referral code. */

@@ -675,6 +675,33 @@ export type CarePackageInput = Omit<CreateCareBookingInput, 'scheduledDate' | 's
   weekdays: number[];
 };
 
+/** Partner payouts (GET /partners/me/payouts). */
+export interface PayoutDetails { method: 'UPI' | 'BANK'; display: string; accountName?: string; ifsc?: string; updatedAt?: string; withdrawalsFrom?: string | null }
+export interface Withdrawal {
+  _id: string;
+  amount: number;
+  status: 'REQUESTED' | 'PAID' | 'REJECTED';
+  destination: { method: 'UPI' | 'BANK'; display: string };
+  utr?: string;
+  note?: string;
+  createdAt: string;
+  processedAt?: string;
+  user?: { _id: string; name: string; phone?: string; email?: string; role: string };
+}
+export interface PayoutSummary {
+  available: number;
+  earned: number;
+  cashHeld: number;
+  owes: number;
+  minimum: number;
+  details: PayoutDetails | null;
+  canWithdraw: boolean;
+  history: Withdrawal[];
+}
+export type PayoutDetailsInput =
+  | { method: 'UPI'; upiId: string; accountName?: string }
+  | { method: 'BANK'; accountNumber: string; ifsc: string; accountName: string; bankName?: string };
+
 /** GET /partners/me/account: the partner's Account screen. */
 export interface PartnerAccount {
   kind: 'STAFF' | 'PHARMACY';

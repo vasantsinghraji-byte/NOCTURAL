@@ -25,7 +25,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#fbf8f3',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fbf8f3' },
+    { media: '(prefers-color-scheme: dark)', color: '#131014' }
+  ],
   width: 'device-width',
   initialScale: 1
 };
@@ -34,11 +37,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${manrope.variable} ${instrument.variable}`}>
       <body>
+        <a href="#main" className="skip-link">Skip to content</a>
         <Providers>
           <header className="header">
             <SiteNav />
           </header>
-          <main className="container main">{children}</main>
+          <main id="main" className="container main" tabIndex={-1}>{children}</main>
           <SiteFooter />
           <AppTabBar />
         </Providers>

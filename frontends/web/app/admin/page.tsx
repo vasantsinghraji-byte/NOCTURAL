@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import RevenuePanel from './RevenuePanel';
 import ApplicationsPanel from './ApplicationsPanel';
+import WithdrawalsPanel from './WithdrawalsPanel';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { ApiError, type AuthUser, type Medicine, type PharmacyVendor } from '@medrush/shared';
@@ -18,7 +19,7 @@ const VENDOR_ACTIONS: Record<string, string[]> = {
 export default function AdminConsole() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checking, setChecking] = useState(true);
-  const [tab, setTab] = useState<'vendors' | 'medicines' | 'partners'>('vendors');
+  const [tab, setTab] = useState<'vendors' | 'medicines' | 'partners' | 'withdrawals'>('vendors');
   const [vendors, setVendors] = useState<PharmacyVendor[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +85,9 @@ export default function AdminConsole() {
           {user?.role === 'platform_admin' && (
             <button className={tab === 'partners' ? 'btn' : 'btn secondary'} onClick={() => setTab('partners')}>Partner applications</button>
           )}
+          {user?.role === 'platform_admin' && (
+            <button className={tab === 'withdrawals' ? 'btn' : 'btn secondary'} onClick={() => setTab('withdrawals')}>Withdrawals</button>
+          )}
         </div>
       </div>
       {user?.role === 'platform_admin' && <RevenuePanel />}
@@ -112,6 +116,7 @@ export default function AdminConsole() {
       )}
 
       {tab === 'partners' && <ApplicationsPanel sensitive={sensitive} />}
+      {tab === 'withdrawals' && <WithdrawalsPanel sensitive={sensitive} />}
 
       {tab === 'medicines' && (
         <>

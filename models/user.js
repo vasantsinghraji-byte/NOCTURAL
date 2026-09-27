@@ -294,6 +294,18 @@ const UserSchema = new mongoose.Schema({
   servicesOffered: [{ type: String }],
   // Home-care staff profile shown to patients (trust layer). Verification flags
   // are set only by platform admins after checking documents.
+  // Where partner payouts go (services/payoutService.js). The account number
+  // is encrypted and never returned by default.
+  payout: {
+    method: { type: String, enum: ['UPI', 'BANK'] },
+    upiId: { type: String, lowercase: true, trim: true },
+    accountName: String,
+    accountNumberEnc: { type: String, select: false },
+    accountLast4: String,
+    ifsc: { type: String, uppercase: true },
+    bankName: String,
+    updatedAt: Date
+  },
   // Partner referral programme (services/partnerReferralService.js).
   referral: {
     code: { type: String, uppercase: true, trim: true },

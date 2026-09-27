@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { inr } from '@/lib/care';
 import { appAlert } from '@/lib/dialog';
 import { stopBackgroundOnline } from '@/lib/partnerOnline';
+import { PayoutsCard } from '@/lib/payoutsCard';
 import { C, F, clay, ui } from '@/lib/theme';
 
 const STAFF_ROLES = ['nurse', 'physiotherapist', 'medical_staff'];
@@ -85,9 +86,10 @@ export default function PartnerAccountScreen() {
             {e.cashHeld > 0 && (
               <Text style={ui.muted}>You hold {inr(e.cashHeld)} in cash from customers; it’s taken off your payout ({inr(e.pendingPayout)} earned − {inr(e.cashHeld)} cash).</Text>
             )}
-            <Text style={ui.muted}>Payouts go to your bank every Monday. Add or change your bank account by contacting Nabz support.</Text>
           </>
         )}
+
+        {acct && <PayoutsCard />}
 
         {acct?.commission && (
           <View style={[styles.card, { gap: 8 }]}>

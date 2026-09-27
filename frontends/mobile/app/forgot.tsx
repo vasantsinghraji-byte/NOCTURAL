@@ -37,7 +37,7 @@ export default function ForgotPassword() {
   return (
     <KeyboardAvoidingView style={ui.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 20, flex: 1 }}>
-        <Pressable hitSlop={12} onPress={() => router.back()} style={styles.back}><ArrowLeft size={22} color={C.ink} /></Pressable>
+        <Pressable hitSlop={12} onPress={() => router.back()} style={styles.back} accessibilityRole="button" accessibilityLabel="Back"><ArrowLeft size={22} color={C.ink} /></Pressable>
 
         {sent ? (
           <Rise style={{ alignItems: 'center', gap: 14, marginTop: 30 }}>

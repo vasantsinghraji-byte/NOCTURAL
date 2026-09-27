@@ -73,7 +73,7 @@ export default function BookPage() {
           </div>
 
           {service && (
-            <div className="where" style={{ background: '#fff', border: '1px solid var(--border)' }}>
+            <div className="where" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
               <IconTile icon={serviceIcon(service.serviceType)} size={46} />
               <div style={{ flex: 1 }}>
                 <b>{service.displayName || service.name}</b>

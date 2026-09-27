@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import type { CareBooking, CareService, CareSuppliesQuote, CareSupplySource } from '@medrush/shared';
+import type { CareBooking, CareProvider, CareService, CareSuppliesQuote, CareSupplySource } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { loadDeliveryCoords, saveDeliveryCoords, type Coords } from '@/lib/location';
@@ -25,6 +25,15 @@ export default function NursingPage() {
   // Booking for a parent / relative at their address (e.g. from another city).
   const [forOther, setForOther] = useState(false);
   const [contact, setContact] = useState({ name: '', phone: '' });
+  // Choose a professional (or best available) and whether a substitute may come.
+  const [providers, setProviders] = useState<CareProvider[]>([]);
+  const [chosen, setChosen] = useState('');
+  const [allowSub, setAllowSub] = useState(true);
+  useEffect(() => {
+    setChosen('');
+    if (!serviceType) { setProviders([]); return; }
+    api.listCareProviders(serviceType).then((r) => setProviders(r.providers)).catch(() => setProviders([]));
+  }, [serviceType]);
   const [form, setForm] = useState({
     date: tomorrow(), time: '10:00', street: '', city: 'Jaipur', pincode: '',
     name: '', age: '', gender: 'Female' as 'Male' | 'Female' | 'Other', notes: ''
@@ -99,6 +108,7 @@ export default function NursingPage() {
       }
       const res = await api.createCareBooking({
         serviceType: service.serviceType,
+        ...(chosen ? { requestedProvider: chosen, allowSubstitute: allowSub } : {}),
         scheduledDate: form.date,
         scheduledTime: form.time,
         scheduledTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata',
@@ -236,6 +246,23 @@ export default function NursingPage() {
               <div><label className="muted">House / street</label><input className="input" value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} required placeholder="Flat 4B, 12th Main" /></div>
               <div><label className="muted">City</label><input className="input" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} required /></div>
               <div><label className="muted">Pincode</label><input className="input" value={form.pincode} onChange={(e) => setForm({ ...form, pincode: e.target.value })} required pattern="\d{6}" placeholder="560034" /></div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="muted" htmlFor="n-pro">Professional</label>
+                <select id="n-pro" className="input" value={chosen} onChange={(e) => setChosen(e.target.value)}>
+                  <option value="">Best available (nearest verified professional)</option>
+                  {providers.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {[p.name, p.qualification, p.gender === 'FEMALE' ? 'Female' : p.gender === 'MALE' ? 'Male' : null, p.rating ? `★ ${p.rating.toFixed(1)}` : 'New'].filter(Boolean).join(' · ')}
+                    </option>
+                  ))}
+                </select>
+                {chosen && (
+                  <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 600, fontSize: 13, marginTop: 6 }}>
+                    <input type="checkbox" checked={allowSub} onChange={(e) => setAllowSub(e.target.checked)} />
+                    If they’re busy, send another verified professional instead of asking me
+                  </label>
+                )}
+              </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label className="muted">Who is the visit for?</label>
                 <div style={{ display: 'flex', gap: 8 }} role="radiogroup" aria-label="Who is the visit for">

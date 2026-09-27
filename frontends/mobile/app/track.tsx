@@ -130,7 +130,7 @@ export default function Track() {
     return (
       <View style={styles.findScreen}>
         <StatusBar style="light" />
-        <Pressable style={[styles.backDark, { top: insets.top + 10 }]} onPress={() => router.back()}>
+        <Pressable style={[styles.backDark, { top: insets.top + 10 }]} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
           <ArrowLeft size={22} color={C.onNight} />
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 }}>
@@ -183,7 +183,7 @@ export default function Track() {
       <View style={StyleSheet.absoluteFill}>
         <LiveMap center={tracking.destination || null} pins={pins} fit={pins.length > 0} dark={IS_DARK} route={route} />
       </View>
-      <Pressable style={[styles.back, { top: insets.top + 10 }]} onPress={() => router.back()}>
+      <Pressable style={[styles.back, { top: insets.top + 10 }]} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
         <ArrowLeft size={22} color={C.ink} />
       </Pressable>
       {live && (
@@ -273,7 +273,7 @@ export default function Track() {
           <Rise style={{ gap: 12 }}>
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((n) => (
-                <Pressable key={n} hitSlop={6} onPress={() => setStars(n)}>
+                <Pressable key={n} hitSlop={6} onPress={() => setStars(n)} accessibilityRole="button" accessibilityLabel={`${n} star${n > 1 ? 's' : ''}`} accessibilityState={{ selected: stars >= n }}>
                   <Star size={38} color={C.gold} fill={n <= stars ? C.gold : 'transparent'} strokeWidth={1.5} />
                 </Pressable>
               ))}
