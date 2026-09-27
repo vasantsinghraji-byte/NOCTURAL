@@ -63,7 +63,7 @@ Shared TypeScript API client and types for both frontends: `frontends/shared/src
 - **Account deletion:** health history is kept; identity and contact details are erased (app or `/account/delete`).
 - **Terms:** consent checkbox at sign-in; `/terms` page (draft for legal review).
 
-### Nurse / physio (Partner app)
+### Nurse / physio (Partner app and website `/staff`, `/partner/account`)
 
 - **Going online:** only verified staff (ID, police check, council registration) can go online.
 - **Visit requests:** while online, the app rings loudly and vibrates for a new request nearby, even in the background (foreground location service).
@@ -84,6 +84,11 @@ Shared TypeScript API client and types for both frontends: `frontends/shared/src
 - **Partner applications:** approving a nurse, physio or pharmacy creates their login and emails a set-password link.
 - **Revenue:** revenue and pending partner payouts, netted against cash they collected.
 - **Withdrawals:** reveal payout details and mark paid (fresh 2-step code); physio/nurse M : F mix against the 2 : 8 target.
+- **Users:** customers and partners with email and phone masked. Showing full contact details, and suspending or restoring an account, need a fresh 2-step code and a reason; both go to the security audit log.
+- **Verification:** the queue of nurses and physios missing ID, police or council checks. Ticking or removing a check is audited; removing a core check takes them offline and reassigns their upcoming visits.
+- **Payments:** every money movement in a period: online payments, cash collected, refunds, failed payments and partner withdrawals, with gateway references.
+- **Live logs:** recent server log lines, refreshed every 3 seconds. Secrets are removed and emails and phone numbers masked before a line is stored. They are held in memory per API instance; older logs are in CloudWatch.
+- **Campaigns:** offers and announcements for customers, all partners, nurses and physios, or pharmacies. They can be scheduled, carry an offer code and an in-app button, and show in the "Offers & updates" feed on the website and in both apps. An optional push notification is sent once at the start time (needs Firebase; otherwise the campaign is marked "push skipped").
 
 ## Key flows and where they live
 
@@ -101,6 +106,9 @@ Shared TypeScript API client and types for both frontends: `frontends/shared/src
 | Choose a professional, packages as linked sessions, change professional | `services/dispatchService.js` (`findCandidate`, `lockSeriesProvider`), `bookingService.createPackageSeries`, `changeSeriesProvider` |
 | Partner account and withdrawals | `services/partnerAccountService.js`, `services/payoutService.js`, `models/withdrawalRequest.js` |
 | Partner onboarding (apply, approve, invite) | `services/partnerApplicationService.js`, `routes/partners.js` |
+| Admin panel operations (users, reveal, suspend, verification queue, payment log) | `services/adminOpsService.js`, `routes/adminOps.js` (`/api/v1/admin/ops`) |
+| Live logs (redacted in-memory buffer) | `utils/logBuffer.js`, `utils/logRedaction.js`, wired in `utils/logger.js` |
+| Campaigns and the Offers & updates feed | `services/campaignService.js`, `models/campaign.js`, `GET /patients/me/offers`, `GET /partners/me/updates`, tick step `campaignPush` |
 | Service catalogue (visit types, prices, packages) | `models/serviceCatalog.js`, `constants/careServices.js`, `scripts/seedServiceCatalog.js` |
 
 ## Data model (MongoDB collections)
@@ -116,6 +124,8 @@ Shared TypeScript API client and types for both frontends: `frontends/shared/src
 | `settlemententries` | Money ledger for every paid event |
 | `partnerapplications` | Partner sign-ups (with gender, referral code, terms consent) and review state |
 | `withdrawalrequests` | Partner withdrawals and the ledger entries they settle |
+| `campaigns` | Admin offers and announcements: audience, schedule, push status, opens |
+| `securityauditevents` | Audit trail, including admin contact reveals, suspensions, verification changes and campaigns |
 | `notifications`, `pushtokens`, `jobleases`, `ratelimitcounters` | Supporting data |
 
 ## Built on another branch, not deployed
