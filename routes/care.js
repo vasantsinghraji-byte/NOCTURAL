@@ -94,6 +94,16 @@ router.get(
 // Staff app: my online status / go online (+ heartbeat with location) / go offline.
 const staffOnly = [protect, authorize(...staffAvailabilityService.STAFF_ROLES)];
 
+// Customers choose a professional: verified, active nurses / physios with the
+// public parts of their profile only (first name + initial, never contacts).
+router.get('/providers', [query('serviceType').optional().isString().isLength({ max: 60 })], validate, async (req, res, next) => {
+  try {
+    res.json({ success: true, providers: await staffAvailabilityService.listBookableProviders(req.query.serviceType) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/staff/availability', staffOnly, async (req, res, next) => {
   try {
     res.json({ success: true, availability: await staffAvailabilityService.getAvailability(req.user._id) });

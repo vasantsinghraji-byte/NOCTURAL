@@ -110,7 +110,35 @@ async function findNearbyOnline({ lat, lng, radiusKm = 10, limit = 30 }) {
   };
 }
 
+const PHYSIO_TYPES = /PHYSIO|THERAPY|REHAB/;
+
+/** Verified professionals a customer can choose (public profile fields only). */
+async function listBookableProviders(serviceType) {
+  const roles = PHYSIO_TYPES.test(String(serviceType || '')) ? ['physiotherapist'] : serviceType ? ['nurse', 'medical_staff'] : ['nurse', 'physiotherapist', 'medical_staff'];
+  const rows = await User.find({ role: { $in: roles }, isActive: { $ne: false }, ...VERIFIED_FILTER })
+    .select('name role rating totalReviews isOnline careProfile.gender careProfile.qualification careProfile.languages careProfile.verification professional.yearsOfExperience')
+    .sort({ rating: -1, totalReviews: -1 })
+    .limit(30)
+    .lean();
+  return rows.map((u) => {
+    const [first, ...rest] = String(u.name || '').trim().split(/\s+/);
+    return {
+      _id: u._id,
+      name: rest.length ? `${first} ${rest[rest.length - 1][0]}.` : first,
+      role: u.role,
+      gender: u.careProfile && u.careProfile.gender,
+      qualification: u.careProfile && u.careProfile.qualification,
+      languages: (u.careProfile && u.careProfile.languages) || [],
+      experienceYears: u.professional && u.professional.yearsOfExperience,
+      rating: u.rating || null,
+      reviews: u.totalReviews || 0,
+      vaccinated: !!(u.careProfile && u.careProfile.verification && u.careProfile.verification.vaccinated)
+    };
+  });
+}
+
 module.exports = {
+  listBookableProviders,
   STAFF_ROLES,
   HEARTBEAT_STALE_MS,
   discoverableFilter,

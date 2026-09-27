@@ -32,6 +32,8 @@ const {
   cancelBooking,
   getCancellationQuote,
   rescheduleBooking,
+  bookPackage,
+  changeSeriesProvider,
   getBookingStats,
   confirmBooking,
   markEnRoute,
@@ -162,7 +164,9 @@ const createBookingValidation = [
   body('preferredGender')
     .optional()
     .isIn(['FEMALE', 'MALE', 'ANY'])
-    .withMessage('Invalid preferred gender')
+    .withMessage('Invalid preferred gender'),
+  body('requestedProvider').optional({ values: 'falsy' }).isMongoId().withMessage('Invalid professional'),
+  body('allowSubstitute').optional().isBoolean()
 ];
 
 const assignProviderValidation = [
@@ -251,6 +255,40 @@ const mongoIdValidation = [
 
 // Protected routes - require authentication (both patients and providers)
 router.use(protectBoth);
+
+// A package as linked sessions (same professional for the whole package)
+router.post(
+  '/package',
+  authorize('patient'),
+  body('serviceType').isString().notEmpty(),
+  body('startDate').isISO8601().withMessage('Pick a start date'),
+  body('time').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Pick a session time'),
+  body('weekdays').isArray({ min: 1, max: 7 }).withMessage('Pick at least one day'),
+  body('weekdays.*').isInt({ min: 0, max: 6 }),
+  body('serviceLocation.address.street').trim().notEmpty().withMessage('Street address is required'),
+  body('serviceLocation.address.city').trim().notEmpty().withMessage('City is required'),
+  body('serviceLocation.address.pincode').matches(/^\d{6}$/).withMessage('Valid 6-digit pincode required'),
+  body('serviceLocation.contactPhone').optional({ values: 'falsy' }).matches(/^[6-9]\d{9}$/),
+  body('patientDetails.name').trim().notEmpty(),
+  body('patientDetails.age').isInt({ min: 0, max: 150 }),
+  body('patientDetails.gender').isIn(['Male', 'Female', 'Other']),
+  body('preferredGender').optional().isIn(['FEMALE', 'MALE', 'ANY']),
+  body('requestedProvider').optional({ values: 'falsy' }).isMongoId(),
+  body('allowSubstitute').optional().isBoolean(),
+  validate,
+  idempotency({ route: 'bookings/package' }),
+  bookPackage
+);
+
+// Change the professional for a package's remaining sessions (null = best available)
+router.put(
+  '/series/:seriesId/provider',
+  authorize('patient'),
+  param('seriesId').isHexadecimal().isLength({ min: 16, max: 16 }),
+  body('providerId').optional({ values: 'null' }).isMongoId(),
+  validate,
+  changeSeriesProvider
+);
 
 // Patient routes - create booking and view own bookings
 router.post(

@@ -9,6 +9,8 @@ const User = require('../models/user');
 const PharmacyVendor = require('../models/pharmacyVendor');
 const SettlementEntry = require('../models/settlementEntry');
 const referral = require('./partnerReferralService');
+const commissionService = require('./commissionService');
+const { getRevenuePolicy } = require('../config/revenue');
 const { NotFoundError } = require('../utils/errors');
 
 const IST_OFFSET_MS = 330 * 60000;
@@ -80,6 +82,7 @@ async function getAccount(userId) {
       kind: 'PHARMACY',
       store: store && { name: store.name, status: store.status, isOpen: store.isOpen, address: store.address && store.address.line1, licence: store.drugLicenseNumber },
       rating: store && store.rating ? { average: store.rating.average || null, count: store.rating.count || 0 } : { average: null, count: 0 },
+      commission: { currentRatePercent: Math.round(getRevenuePolicy().pharmacy.commissionRate * 100), flat: true },
       earnings: store ? await ledger('VENDOR', store._id, 'VENDOR_PAYOUT') : null
     };
   }
@@ -96,6 +99,7 @@ async function getAccount(userId) {
     },
     verification: { id: !!v.idVerified, police: !!v.policeVerified, council: !!v.councilVerified, vaccinated: !!v.vaccinated },
     rating: { average: user.rating || null, count: user.totalReviews || 0 },
+    commission: await commissionService.tierStatus(user._id),
     earnings: await ledger('PROVIDER', user._id, 'PROVIDER_PAYOUT')
   };
 }

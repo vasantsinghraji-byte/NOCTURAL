@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import type { CareService, CareSuppliesQuote, CareSupplySource } from '@medrush/shared';
+import type { CarePreferences, CareService, CareSuppliesQuote, CareSupplySource } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { inr, shortName } from '@/lib/care';
@@ -12,6 +12,7 @@ import { PressScale, success } from '@/lib/motion';
 import { ArrowLeft, Camera, Check, CircleCheck, CircleX, FileText, MapPin, Store, Zap } from 'lucide-react-native';
 import { TextArea } from '@/lib/fields';
 import { RecipientPicker, rememberRecipient } from '@/lib/recipients';
+import { ProviderPicker } from '@/lib/providerPicker';
 import { C, F, shadow, ui } from '@/lib/theme';
 
 type Mode = 'ASAP' | 'SCHEDULED';
@@ -52,6 +53,13 @@ export default function Book() {
   const [pref, setPref] = useState<'ANY' | 'FEMALE' | 'MALE'>('ANY');
   // Booking for a parent / relative at their address (e.g. from another city).
   const [forOther, setForOther] = useState(false);
+  // Choose a professional; packages keep them for every session.
+  const [chosen, setChosen] = useState<string | null>(null);
+  const [allowSub, setAllowSub] = useState(true);
+  const [weekdays, setWeekdays] = useState<number[]>([1, 3, 5]);
+  // Saved preferences: "Use my saved preferences" / "Save for next time".
+  const [saved, setSaved] = useState<CarePreferences | null>(null);
+  const [savePrefs, setSavePrefs] = useState(false);
   const [other, setOther] = useState({ name: '', contactName: '', contactPhone: '' });
   const [rx, setRx] = useState<{ key: string; url: string } | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -63,6 +71,7 @@ export default function Book() {
 
   useEffect(() => {
     if (session?.kind === 'patient') api.getMembership().then((m) => setIsMember(m.active)).catch(() => undefined);
+    if (session?.kind === 'patient') api.getCarePreferences().then((r) => setSaved(r.preferences)).catch(() => undefined);
     api.listCareServices().then((r) => setService(r.services.find((s) => s.serviceType === params.serviceType) || null)).catch((e) => setError(describeNetworkError(e)));
     api.quoteCareSupplies({ serviceType: params.serviceType, ...point })
       .then((r) => {
@@ -72,6 +81,32 @@ export default function Book() {
       .catch((e) => setError(describeNetworkError(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.serviceType]);
+
+  const isPackage = service?.category === 'PACKAGE';
+  const sessions = service?.pricing.packageDetails?.sessions || 0;
+  // Package start: the first chosen weekday on/after the picked date.
+  const sessionDates = useMemo(() => {
+    if (!isPackage || !sessions || !weekdays.length) return [];
+    const out: Date[] = [];
+    const start = new Date(`${date}T00:00:00`);
+    for (let i = 0; out.length < sessions && i < 112; i += 1) {
+      const d = new Date(start.getTime() + i * 86400000);
+      if (weekdays.includes(d.getDay())) out.push(d);
+    }
+    return out;
+  }, [isPackage, sessions, weekdays, date]);
+
+  // Packages keep one professional: don't substitute unless the customer allows it.
+  useEffect(() => { if (isPackage) setAllowSub(false); }, [isPackage]);
+
+  function applySaved() {
+    if (!saved) return;
+    setForm((f) => ({ ...f, street: saved.street || f.street, city: saved.city || f.city, pincode: saved.pincode || f.pincode }));
+    if (saved.preferredGender) setPref(saved.preferredGender);
+    const provider = saved.preferredProvider && typeof saved.preferredProvider === 'object' ? saved.preferredProvider._id : saved.preferredProvider || null;
+    setChosen(provider || null);
+    if (typeof saved.allowSubstitute === 'boolean') setAllowSub(saved.allowSubstitute);
+  }
 
   const items = quote?.items || [];
   const bringing = items.filter((i) => bring[i.key]);
@@ -91,6 +126,7 @@ export default function Book() {
         return;
       }
       if (needsRx && !rx) { setError('Attach the prescription for this visit.'); return; }
+      if (isPackage && sessionDates.length < sessions) { setError('Pick the days of the week for your sessions.'); return; }
       setConfirming(true);
       return;
     }
@@ -108,14 +144,49 @@ export default function Book() {
     setBusy(true);
     const now = new Date();
     try {
-      const res = await api.createCareBooking({
+      const common = {
         serviceType: service.serviceType,
-        mode,
         preferredGender: pref,
+        requestedProvider: chosen || undefined,
+        allowSubstitute: chosen ? allowSub : undefined,
+        scheduledTimezone: 'Asia/Kolkata',
+        scheduledTimezoneOffsetMinutes: -new Date().getTimezoneOffset() || 330
+      };
+      if (savePrefs) {
+        api.saveCarePreferences({
+          preferredGender: pref, preferredProvider: chosen, allowSubstitute: allowSub,
+          street: form.street.trim(), city: form.city.trim(), pincode: form.pincode
+        }).then((r) => setSaved(r.preferences)).catch(() => undefined);
+      }
+      if (isPackage) {
+        const pkg = await api.bookCarePackage({
+          ...common,
+          startDate: date,
+          time,
+          weekdays,
+          serviceLocation: {
+            type: 'HOME',
+            address: { street: form.street.trim(), city: form.city.trim(), pincode: form.pincode, coordinates: point },
+            ...(forOther ? { contactPerson: other.contactName.trim() || other.name.trim(), contactPhone: other.contactPhone } : {})
+          },
+          patientDetails: { name: forOther ? other.name.trim() : session.name, age: Number(form.age), gender: form.gender },
+          specialRequirements: form.notes.trim() || undefined
+        });
+        success();
+        if (forOther) rememberRecipient({ name: other.name, phone: other.contactPhone }).catch(() => undefined);
+        setConfirming(false);
+        const first = pkg.sessions[0];
+        setResult({
+          ok: true,
+          message: `${pkg.sessions.length} sessions booked from ${String(first?.scheduledDate).slice(0, 10)} at ${fmtTime(time)}. ${chosen ? 'Your chosen professional comes to every session.' : 'Whoever takes the first session keeps the whole package.'} You can change them from Bookings.`
+        });
+        return;
+      }
+      const res = await api.createCareBooking({
+        ...common,
+        mode,
         scheduledDate: mode === 'ASAP' ? ymd(now) : date,
         scheduledTime: mode === 'ASAP' ? hm(now) : time,
-        scheduledTimezone: 'Asia/Kolkata',
-        scheduledTimezoneOffsetMinutes: -new Date().getTimezoneOffset() || 330,
         serviceLocation: {
           type: 'HOME',
           address: { street: form.street.trim(), city: form.city.trim(), pincode: form.pincode, coordinates: point },
@@ -238,6 +309,27 @@ export default function Book() {
                 );
               })}
             </ScrollView>
+            {isPackage && (
+              <View style={{ gap: 8 }}>
+                <Text style={ui.section}>{sessions} sessions · which days?</Text>
+                <View style={styles.slots}>
+                  {DAYS.map((d, i) => {
+                    const on = weekdays.includes(i);
+                    return (
+                      <Pressable key={d} onPress={() => setWeekdays((w) => (on ? w.filter((x) => x !== i) : [...w, i].sort()))}
+                        style={[styles.slot, on && styles.slotOn]} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+                        <Text style={[styles.slotText, on && { color: C.onNight }]}>{d.slice(0, 1) + d.slice(1).toLowerCase()}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {sessionDates.length > 0 && (
+                  <Text style={ui.muted}>
+                    First session {sessionDates[0].toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}, last {sessionDates[sessionDates.length - 1].toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}. Same time each day.
+                  </Text>
+                )}
+              </View>
+            )}
             {Object.entries(SLOTS).map(([label, slots]) => (
               <View key={label} style={{ gap: 8 }}>
                 <Text style={ui.section}>{label}</Text>
@@ -255,6 +347,12 @@ export default function Book() {
 
         {step === 'details' && (
           <View style={[ui.card, { gap: 10 }]}>
+            {saved && (
+              <Pressable style={styles.savedBtn} onPress={applySaved} accessibilityRole="button">
+                <Check size={16} color={C.brand} />
+                <Text style={[ui.btnOutlineText, { fontSize: 14 }]}>Use my saved preferences</Text>
+              </Pressable>
+            )}
             <Text style={ui.label}>Address</Text>
             <TextInput style={ui.input} value={form.street} onChangeText={(street) => setForm({ ...form, street })} placeholder="House / flat / street" placeholderTextColor={C.faint} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -295,6 +393,14 @@ export default function Book() {
                   <Text style={[styles.slotText, pref === p.value && { color: C.onNight }]}>{p.label}</Text>
                 </Pressable>
               ))}
+            </View>
+            {service && (
+              <ProviderPicker serviceType={service.serviceType} value={chosen} onChange={(id) => setChosen(id)}
+                allowSubstitute={allowSub} onAllowSubstitute={setAllowSub} gender={pref} isPackage={isPackage} />
+            )}
+            <View style={styles.saveRow}>
+              <Text style={[ui.muted, { flex: 1 }]}>Save these preferences (address, gender, professional) for next time</Text>
+              <Switch value={savePrefs} onValueChange={setSavePrefs} trackColor={{ true: C.brand, false: C.border }} thumbColor="#ffffff" />
             </View>
             <TextArea minHeight={80} style={{ marginTop: 6 }} value={form.notes} onChangeText={(notes) => setForm({ ...form, notes })} placeholder="Notes: allergies, floor, gate code (optional)" />
             {needsRx && (
@@ -371,6 +477,8 @@ function fmtTime(t: string) {
 }
 
 const styles = StyleSheet.create({
+  savedBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', borderWidth: 1.5, borderColor: C.brand, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 },
+  saveRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 10, backgroundColor: C.bg },
   back: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border },
   headerTitle: { fontSize: 17, fontFamily: F.heavy, color: C.ink },

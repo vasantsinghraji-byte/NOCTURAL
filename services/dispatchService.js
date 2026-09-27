@@ -29,6 +29,17 @@ const visitPolicy = require('./careVisitPolicy');
 const lazyAccess = () => require('./doctorAccessService');
 
 const OFFER_TTL_MS = 45 * 1000;
+// A chosen professional gets longer to answer a scheduled visit (they may be offline).
+const REQUESTED_OFFER_TTL_MS = 20 * 60 * 1000;
+
+function haversineMeters(a, b) {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(h)));
+}
 const MAX_ATTEMPTS = 8;
 const SEARCH_RADIUS_KM = 12;
 const GIVE_UP_MS = 10 * 60 * 1000; // "Book now": stop searching after 10 min
@@ -82,6 +93,26 @@ async function findCandidate(booking) {
   const gender = booking.dispatch && booking.dispatch.preferredGender;
   if (gender === 'FEMALE' || gender === 'MALE') query['careProfile.gender'] = gender;
 
+  // The customer chose a professional (or a package locked one in): offer to
+  // them first. Scheduled visits don't need them online right now (they get a
+  // push and a longer window); "Book now" does.
+  const requested = booking.dispatch && booking.dispatch.requestedProvider;
+  if (requested && !exclude.some((id) => String(id) === String(requested))) {
+    const who = await User.findOne({
+      _id: requested,
+      role: { $in: rolesFor(booking.serviceType) },
+      isActive: { $ne: false },
+      ...visitPolicy.VERIFIED_FILTER,
+      ...(booking.dispatch.mode === 'ASAP' ? staffAvailabilityService.discoverableFilter() : {})
+    }).select('_id name currentLocation').lean();
+    if (who) {
+      const loc = who.currentLocation && who.currentLocation.coordinates;
+      const distanceMeters = loc ? haversineMeters(coords, { lat: loc[1], lng: loc[0] }) : 0;
+      return { _id: who._id, name: who.name, distanceMeters, requested: true };
+    }
+  }
+  if (requested && booking.dispatch.allowSubstitute === false) return null;
+
   const [candidate] = await User.aggregate([
     {
       $geoNear: {
@@ -99,9 +130,19 @@ async function findCandidate(booking) {
   return candidate || null;
 }
 
+/** What this professional would earn for the visit at their current monthly tier. */
+async function payoutPreview(booking, staffId) {
+  try {
+    const rate = await require('./commissionService').previewCareRate(staffId);
+    return pricingService.splitCareBooking({ ...(booking.toObject ? booking.toObject() : booking), commissionOverride: { rate } }).providerPayout;
+  } catch {
+    return pricingService.splitCareBooking(booking).providerPayout;
+  }
+}
+
 async function notifyStaffOfOffer(staffId, booking, distanceKm) {
   try {
-    const payout = pricingService.splitCareBooking(booking).providerPayout;
+    const payout = await payoutPreview(booking, staffId);
     const title = `New visit · ${nice(booking.serviceType)}`;
     const body = `${distanceKm} km away · you earn ₹${payout} · accept within 45 s`;
     const data = { type: 'CARE_VISIT_REQUEST', bookingId: String(booking._id) };
@@ -133,10 +174,10 @@ async function notifyPatientMatched(booking, staffName) {
 }
 
 /** Nobody took it: tell the customer (reschedule / cancel free) and ops. */
-async function notifyNoStaff(booking) {
+async function notifyNoStaff(booking, customMessage) {
   try {
-    const title = 'No nurse available right now';
-    const body = `We couldn't find anyone for your ${nice(booking.serviceType).toLowerCase()} visit. Pick another time, or cancel at no charge.`;
+    const title = customMessage ? 'Your chosen professional isn’t available' : 'No nurse available right now';
+    const body = customMessage || `We couldn't find anyone for your ${nice(booking.serviceType).toLowerCase()} visit. Pick another time, or cancel at no charge.`;
     const data = { type: 'CARE_VISIT_UPDATE', bookingId: String(booking._id) };
     await Notification.create({
       user: booking.patient, recipientModel: 'Patient', type: 'CARE_VISIT_UPDATE', title, message: body,
@@ -179,6 +220,15 @@ async function offerNext(bookingId) {
   }
 
   const candidate = await findCandidate(booking);
+  const chosen = d.requestedProvider;
+  if (!candidate && chosen && d.allowSubstitute === false && (d.declined || []).some((id) => String(id) === String(chosen))) {
+    const stopped = await NurseBooking.findOneAndUpdate(
+      { _id: booking._id, status: 'REQUESTED', 'dispatch.status': { $in: ['IDLE', 'SEARCHING', 'OFFERED'] } },
+      { $set: { 'dispatch.status': 'NO_STAFF' }, $unset: { 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1 } }
+    );
+    if (stopped) await notifyNoStaff(booking, 'Your chosen professional can’t make this time. Pick another time, or let us send another verified professional.');
+    return { status: 'NO_STAFF' };
+  }
   if (!candidate) {
     await NurseBooking.updateOne(
       { _id: booking._id, status: 'REQUESTED', 'dispatch.status': { $in: ['IDLE', 'SEARCHING', 'OFFERED'] } },
@@ -193,7 +243,7 @@ async function offerNext(bookingId) {
       $set: {
         'dispatch.status': 'OFFERED',
         'dispatch.offeredTo': candidate._id,
-        'dispatch.offerExpiresAt': new Date(Date.now() + OFFER_TTL_MS)
+        'dispatch.offerExpiresAt': new Date(Date.now() + (candidate.requested && d.mode === 'SCHEDULED' ? REQUESTED_OFFER_TTL_MS : OFFER_TTL_MS))
       },
       $inc: { 'dispatch.attempts': 1 }
     },
@@ -244,11 +294,35 @@ async function getMyOffer(staffId) {
     area: [booking.serviceLocation?.address?.street, booking.serviceLocation?.address?.pincode].filter(Boolean).join(', '),
     distanceKm,
     when: booking.dispatch.mode === 'ASAP' ? 'Now' : `${new Date(booking.scheduledDate).toISOString().slice(0, 10)} ${booking.scheduledTime}`,
-    earnings: pricingService.splitCareBooking(booking).providerPayout,
+    earnings: await payoutPreview(booking, staffId),
     patientFirstName: String(booking.patientDetails?.name || '').split(' ')[0] || undefined,
     supplies: bring.length ? { store: booking.supplies?.pharmacyVendor?.name, items: bring } : null,
     expiresAt: booking.dispatch.offerExpiresAt
   };
+}
+
+/**
+ * Packages keep one professional: once someone takes a session, the later
+ * sessions of the same series are offered to them first (and only them),
+ * unless the customer already chose someone or changes it later.
+ */
+async function lockSeriesProvider(booking, staffId) {
+  if (!booking.series || !booking.series.id) return 0;
+  try {
+    const res = await NurseBooking.updateMany(
+      {
+        'series.id': booking.series.id,
+        'series.index': { $gt: booking.series.index || 0 },
+        status: 'REQUESTED',
+        'dispatch.requestedProvider': { $exists: false }
+      },
+      { $set: { 'dispatch.requestedProvider': staffId, 'dispatch.allowSubstitute': false } }
+    );
+    return res.modifiedCount;
+  } catch (err) {
+    logger.error('Series provider lock failed', { seriesId: booking.series.id, error: err.message });
+    return 0;
+  }
 }
 
 async function accept(bookingId, staffId) {
@@ -292,6 +366,7 @@ async function accept(bookingId, staffId) {
   } catch (err) {
     logger.error('Visit access grant failed', { bookingId: String(booking._id), error: err.message });
   }
+  await lockSeriesProvider(booking, staffId);
   const staff = await User.findById(staffId).select('name').lean();
   await notifyPatientMatched(booking, (staff && staff.name) || 'Your nurse');
   logger.info('Visit matched', { bookingId: String(booking._id), staffId: String(staffId) });
@@ -358,6 +433,7 @@ function stopWorker() {
 
 module.exports = {
   OFFER_TTL_MS,
+  lockSeriesProvider,
   SCHEDULE_LEAD_MS,
   busyStaffFor,
   startDispatch,

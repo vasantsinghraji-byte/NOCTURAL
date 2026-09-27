@@ -161,6 +161,30 @@ router.route('/me')
 
 router.get('/me/stats', getBookingStats);
 router.post('/me/verify-password', verifyPasswordValidation, validate, verifyPassword);
+// Saved booking preferences ("Use my saved preferences" when booking).
+router.get('/me/care-preferences', async (req, res, next) => {
+  try {
+    res.json({ success: true, preferences: await require('../services/bookingService').getCarePreferences(req.user.id) });
+  } catch (error) {
+    require('../utils/responseHelper').handleServiceError(error, res, next);
+  }
+});
+router.put('/me/care-preferences', [
+  body('preferredGender').optional().isIn(['ANY', 'FEMALE', 'MALE']),
+  body('preferredProvider').optional({ values: 'null' }).isMongoId(),
+  body('allowSubstitute').optional().isBoolean(),
+  body('language').optional().isString().isLength({ max: 30 }),
+  body('street').optional().isString().isLength({ max: 200 }),
+  body('city').optional().isString().isLength({ max: 80 }),
+  body('pincode').optional({ values: 'falsy' }).matches(/^\d{6}$/)
+], validate, async (req, res, next) => {
+  try {
+    res.json({ success: true, preferences: await require('../services/bookingService').saveCarePreferences(req.user.id, req.body) });
+  } catch (error) {
+    require('../utils/responseHelper').handleServiceError(error, res, next);
+  }
+});
+
 // A Nabz partner's referral code (before the first order); rewards the partner.
 router.post('/me/referral', body('code').isString().trim().isLength({ min: 4, max: 20 }).withMessage('Enter a referral code'), validate, async (req, res, next) => {
   try {

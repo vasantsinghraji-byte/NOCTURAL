@@ -127,10 +127,18 @@ const NurseBookingSchema = new mongoose.Schema({
   },
 
   // Pricing
+  // Package sessions: one booking per session, linked by series.id; the same
+  // professional is kept for every session unless the customer changes them.
+  series: {
+    id: { type: String, index: true },
+    index: Number, // 1-based session number
+    total: Number
+  },
   // Referral reward: this job carries a reduced Nabz commission (partnerReferralService).
   commissionOverride: {
     rate: { type: Number, min: 0, max: 1 },
-    reason: { type: String, enum: ['REFERRAL'] },
+    reason: { type: String, enum: ['REFERRAL', 'TIER'] },
+    jobOfMonth: Number,
     at: Date
   },
   pricing: {
@@ -332,6 +340,10 @@ const NurseBookingSchema = new mongoose.Schema({
     attempts: { type: Number, default: 0 },
     startedAt: Date,
     matchedAt: Date,
+    // The customer chose this professional (or a package locked them in).
+    requestedProvider: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    // If the chosen professional can't take it: offer it to others (true) or stop and ask the customer (false).
+    allowSubstitute: { type: Boolean, default: true },
     // Providers who took the visit and handed it back (reliability + auto-offline).
     dropped: [{
       _id: false,

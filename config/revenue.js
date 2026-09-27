@@ -6,6 +6,21 @@
  * ECS task env) without a code change. Rates are fractions (0.2 = 20%).
  */
 
+/**
+ * Monthly commission tiers for home-care visits: "10:0.20,30:0.15,0:0.12" =
+ * jobs 1–10 of the month at 20%, 11–30 at 15%, 31+ at 12% (0 = no upper bound).
+ */
+function parseTiers(raw) {
+  const tiers = String(raw).split(',').map((part) => {
+    const [upTo, rate] = part.split(':').map(Number);
+    if (!Number.isFinite(upTo) || !Number.isFinite(rate) || rate < 0 || rate > 1) {
+      throw new Error('REVENUE_CARE_COMMISSION_TIERS must look like "10:0.20,30:0.15,0:0.12"');
+    }
+    return Object.freeze({ upTo: upTo > 0 ? upTo : Infinity, rate });
+  });
+  return Object.freeze(tiers.sort((a, b) => a.upTo - b.upTo));
+}
+
 const num = (name, fallback, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) => {
   const raw = process.env[name];
   if (raw === undefined || raw === '') return fallback;
@@ -26,6 +41,8 @@ function loadRevenuePolicy() {
     care: Object.freeze({
       customerFeeRate: num('REVENUE_CARE_CUSTOMER_FEE_RATE', 0.15, { max: 1 }),
       providerCommissionRate: num('REVENUE_CARE_PROVIDER_COMMISSION_RATE', 0.20, { max: 1 }),
+      // Monthly volume tiers (reset each calendar month, IST). See docs/NABZ_REVENUE_MODEL.md.
+      commissionTiers: parseTiers(process.env.REVENUE_CARE_COMMISSION_TIERS || '10:0.20,30:0.15,0:0.12'),
       memberFeeWaived: process.env.REVENUE_CARE_MEMBER_FEE_WAIVED !== 'false'
     }),
 

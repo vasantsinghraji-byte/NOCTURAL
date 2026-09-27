@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import type { CareBooking, OnlinePayMethod, PharmacyOrder } from '@medrush/shared';
@@ -12,6 +12,7 @@ import { C, F, PASTELS, shadow, ui } from '@/lib/theme';
 import { chooseReschedule, confirmCancelVisit } from '@/lib/visitActions';
 import { appAlert } from '@/lib/dialog';
 import { PaymentSheet } from '@/lib/paymentSheet';
+import { ProviderPicker } from '@/lib/providerPicker';
 import { PaymentDismissedError, awaitingPayment, payOrderOnline } from '@/lib/payments';
 
 type Tab = 'visits' | 'orders';
@@ -24,6 +25,21 @@ export default function Bookings() {
   const [orders, setOrders] = useState<PharmacyOrder[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [paying, setPaying] = useState<PharmacyOrder | null>(null);
+  // Change the professional for a package's remaining sessions.
+  const [changing, setChanging] = useState<CareBooking | null>(null);
+  const [newPro, setNewPro] = useState<string | null>(null);
+
+  async function confirmChange() {
+    if (!changing?.series) return;
+    try {
+      const r = await api.changeCareSeriesProvider(changing.series.id, newPro);
+      appAlert('Professional changed', r.moved ? `${r.moved} upcoming session(s) will go to ${newPro ? 'your chosen professional' : 'the best available professional'}.` : 'There were no upcoming sessions to move.');
+      setChanging(null);
+      load();
+    } catch (e) {
+      appAlert('Could not change', describeNetworkError(e));
+    }
+  }
 
   const load = useCallback(() => {
     if (session?.kind !== 'patient') return;
@@ -73,6 +89,16 @@ export default function Bookings() {
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={ui.h3}>{b.serviceType.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}</Text>
               <Text style={ui.muted}>{String(b.scheduledDate).slice(0, 10)} · {b.scheduledTime}</Text>
+              {b.series && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <Text style={[ui.muted, { fontFamily: F.bold }]}>Session {b.series.index} of {b.series.total}</Text>
+                  {['REQUESTED', 'ASSIGNED', 'CONFIRMED'].includes(b.status) && (
+                    <Pressable onPress={() => { setNewPro(null); setChanging(b); }} accessibilityRole="button">
+                      <Text style={[styles.cancel, { color: C.brand, marginTop: 0 }]}>Change professional</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
               {b.status === 'REQUESTED' && b.dispatch?.status === 'NO_STAFF' && (
                 <Text style={[ui.muted, { color: C.night, fontFamily: F.bold }]}>No professional was free. Pick another time.</Text>
               )}
@@ -131,6 +157,22 @@ export default function Bookings() {
           </View>
         ))
       )}
+      <Modal visible={!!changing} transparent animationType="slide" onRequestClose={() => setChanging(null)}>
+        <Pressable style={styles.overlay} onPress={() => setChanging(null)}>
+          <Pressable style={styles.sheet} onPress={() => undefined}>
+            <Text style={styles.title}>Change professional</Text>
+            <Text style={ui.muted}>All upcoming sessions of this package move to who you pick. Sessions already done stay as they are.</Text>
+            {changing && (
+              <ProviderPicker serviceType={changing.serviceType} value={newPro} onChange={(id) => setNewPro(id)}
+                allowSubstitute={false} onAllowSubstitute={() => undefined} isPackage />
+            )}
+            <Pressable style={[ui.btnDark, { marginTop: 8 }]} onPress={confirmChange} accessibilityRole="button">
+              <Text style={[ui.btnText, { color: C.onNight }]}>Move upcoming sessions</Text>
+            </Pressable>
+            <Pressable onPress={() => setChanging(null)} style={{ alignItems: 'center', padding: 8 }}><Text style={ui.muted}>Cancel</Text></Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
       <PaymentSheet visible={!!paying} amount={paying?.amounts.total} online allowCash={false}
         onPick={(m) => { if (paying && m !== 'cod') pay(paying, m); }} onClose={() => setPaying(null)} />
     </ScrollView>
@@ -143,6 +185,8 @@ function Empty({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   title: { fontSize: 38, fontFamily: F.display, color: C.ink },
+  overlay: { flex: 1, backgroundColor: C.overlay, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 34, gap: 10 },
   segment: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 14, padding: 4 },
   segBtn: { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center' },
   segOn: { backgroundColor: C.night },

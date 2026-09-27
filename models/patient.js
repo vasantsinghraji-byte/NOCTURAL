@@ -267,6 +267,17 @@ const PatientSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Patient'
   },
+  // Saved booking preferences ("Use my saved preferences").
+  carePreferences: {
+    preferredGender: { type: String, enum: ['ANY', 'FEMALE', 'MALE'] },
+    preferredProvider: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    allowSubstitute: Boolean,
+    language: { type: String, maxlength: 30 },
+    street: { type: String, maxlength: 200 },
+    city: { type: String, maxlength: 80 },
+    pincode: { type: String, maxlength: 6 },
+    updatedAt: Date
+  },
   // A Nabz partner's code used at sign-up; rewards them after the first order.
   referredByPartner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   partnerReferralRewardedAt: Date,

@@ -177,3 +177,26 @@ Set the env var. No code change or deploy is needed beyond a task restart. On AW
 - Promo codes and first-order discounts (the `discount` field already exists on orders and bookings).
 - Plus checkout inside the mobile app (needs `react-native-razorpay`). The web checkout works today.
 - B2B contracts and sponsored listings (§1, rows 7–8).
+
+## Commission tiers (decided 27 Sep 2026)
+
+Home-care visits (nurse / physio) use monthly volume tiers that reset on the
+1st of every month (IST). The job number is the professional's completed
+visits this month, including this one.
+
+| Jobs this month | Nabz commission | Professional keeps |
+|---|---|---|
+| 1–10 | 20% | 80% |
+| 11–30 | 15% | 85% |
+| 31+ | 12% | 88% |
+
+- Configure with `REVENUE_CARE_COMMISSION_TIERS` (default `10:0.20,30:0.15,0:0.12`).
+- The rate is decided once, when the visit completes, and stamped on the booking
+  (`commissionOverride`), so payouts, the ledger and replays always agree
+  (`services/commissionService.js`).
+- Offers show the professional's real earnings at their current tier.
+- **Referral credits**: a job uses 5% or the tier rate, whichever is lower; the
+  credit is only spent when it lowers the rate.
+- **Pharmacy**: flat 10% on items (`REVENUE_PHARMACY_COMMISSION_RATE`, keep within
+  8–12% because medicine margins are thin), with the same referral rule.
+- Customer platform fees, delivery fees and Nabz Plus stay alongside commission.

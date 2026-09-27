@@ -89,6 +89,34 @@ export default function PartnerAccountScreen() {
           </>
         )}
 
+        {acct?.commission && (
+          <View style={[styles.card, { gap: 8 }]}>
+            <View style={styles.inline}><IndianRupee size={18} color={C.brand} /><Text style={ui.h3}>Your Nabz commission: {acct.commission.currentRatePercent}%</Text></View>
+            {acct.commission.flat ? (
+              <Text style={ui.muted}>A flat {acct.commission.currentRatePercent}% on the medicines in each delivered order.</Text>
+            ) : (
+              <>
+                <Text style={ui.muted}>
+                  {acct.commission.jobsThisMonth} visits this month.
+                  {acct.commission.jobsToNextTier ? ` ${acct.commission.jobsToNextTier} more and it drops to ${acct.commission.nextRatePercent}%.` : ' You’re on the lowest rate.'}
+                  {' '}Resets on the 1st of every month.
+                </Text>
+                <View style={styles.tiers}>
+                  {(acct.commission.tiers || []).map((t) => {
+                    const on = t.ratePercent === acct.commission?.currentRatePercent;
+                    return (
+                      <View key={t.from} style={[styles.tier, on && styles.tierOn]}>
+                        <Text style={[styles.tierRate, on && { color: C.onNight }]}>{t.ratePercent}%</Text>
+                        <Text style={[styles.tierJobs, on && { color: C.onNightMuted }]}>{t.to ? `jobs ${t.from}–${t.to}` : `jobs ${t.from}+`}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+          </View>
+        )}
+
         {acct?.referral && (
           <View style={[styles.card, { gap: 10 }]}>
             <View style={styles.inline}><Gift size={18} color={C.brand} /><Text style={ui.h3}>Refer and keep more</Text></View>
@@ -179,6 +207,11 @@ const styles = StyleSheet.create({
   inline: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   codeBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.brand, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12 },
   code: { fontFamily: F.heavy, fontSize: 22, letterSpacing: 3, color: C.ink },
+  tiers: { flexDirection: 'row', gap: 8 },
+  tier: { flex: 1, alignItems: 'center', borderRadius: 14, paddingVertical: 10, backgroundColor: C.cardAlt },
+  tierOn: { backgroundColor: C.night },
+  tierRate: { fontFamily: F.heavy, fontSize: 18, color: C.ink },
+  tierJobs: { fontFamily: F.medium, fontSize: 11, color: C.muted },
   pill: { fontFamily: F.bold, fontSize: 11, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, overflow: 'hidden' },
   pillOk: { backgroundColor: C.mintSoft, color: C.mint },
   pillWait: { backgroundColor: C.amberSoft, color: C.amber }

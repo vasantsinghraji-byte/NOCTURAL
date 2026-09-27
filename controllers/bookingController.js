@@ -390,6 +390,26 @@ exports.getCancellationQuote = async (req, res, next) => {
   }
 };
 
+/** POST /bookings/package: book every session of a package (same professional throughout). */
+exports.bookPackage = async (req, res, next) => {
+  try {
+    const result = await bookingService.createPackageSeries(req.body, req.user.id);
+    responseHelper.sendCreated(res, result, `Package booked: ${result.sessions.length} sessions`);
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+/** PUT /bookings/series/:seriesId/provider: change (or clear) the professional for the remaining sessions. */
+exports.changeSeriesProvider = async (req, res, next) => {
+  try {
+    const result = await bookingService.changeSeriesProvider(req.params.seriesId, req.user.id, req.body.providerId || null);
+    responseHelper.sendSuccess(res, result, result.moved ? 'Remaining sessions moved' : 'No upcoming sessions to move');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
 exports.rescheduleBooking = async (req, res, next) => {
   try {
     const booking = await bookingService.rescheduleBooking(req.params.id, req.user.id, {

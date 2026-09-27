@@ -409,7 +409,7 @@ export interface CareService {
   category: 'NURSING' | 'PHYSIOTHERAPY' | 'PACKAGE';
   subCategory?: string;
   shortDescription?: string;
-  pricing: { basePrice: number; currency?: string };
+  pricing: { basePrice: number; currency?: string; packageDetails?: { sessions?: number; totalPrice?: number; pricePerSession?: number; duration?: number } };
   serviceDetails?: { duration?: number };
   requirements?: { prescriptionRequired?: boolean; advanceBookingHours?: number };
   included?: string[];
@@ -462,6 +462,10 @@ export interface CreateCareBookingInput {
     contactPhone?: string;
   };
   patientDetails: { name: string; age: number; gender: 'Male' | 'Female' | 'Other' };
+  /** A professional the customer chose (GET /care/providers). */
+  requestedProvider?: string;
+  /** If the chosen professional can't come: send another (true) or ask me (false). */
+  allowSubstitute?: boolean;
   specialRequirements?: string;
   supplies?: Array<{ key: string; source: CareSupplySource }>;
   suppliesVendorId?: string;
@@ -483,6 +487,8 @@ export interface CareBooking {
   cancellation?: { reason?: string; cancellationFee?: number };
   serviceLocation?: CreateCareBookingInput['serviceLocation'];
   patientDetails?: { name?: string; age?: number; gender?: string };
+  /** Package session: n of total, linked by id. */
+  series?: { id: string; index: number; total: number };
   supplies?: {
     items: Array<{ key: string; name: string; quantity: number; source: CareSupplySource; lineTotal?: number }>;
     pharmacyVendor?: string;
@@ -636,6 +642,39 @@ export interface PartnerApplication extends Omit<PartnerApplicationInput, 'quali
   invite?: { sent: boolean; link?: string };
 }
 
+/** GET /care/providers: a professional the customer can choose (public profile only). */
+export interface CareProvider {
+  _id: string;
+  name: string;
+  role: string;
+  gender?: 'FEMALE' | 'MALE' | 'OTHER';
+  qualification?: string;
+  languages: string[];
+  experienceYears?: number;
+  rating: number | null;
+  reviews: number;
+  vaccinated?: boolean;
+}
+
+/** Saved booking preferences ("Use my saved preferences"). */
+export interface CarePreferences {
+  preferredGender?: 'ANY' | 'FEMALE' | 'MALE';
+  preferredProvider?: { _id: string; name: string } | string | null;
+  allowSubstitute?: boolean;
+  language?: string;
+  street?: string;
+  city?: string;
+  pincode?: string;
+}
+
+/** POST /bookings/package: every session of a package, same professional throughout. */
+export type CarePackageInput = Omit<CreateCareBookingInput, 'scheduledDate' | 'scheduledTime' | 'mode'> & {
+  startDate: string;
+  time: string;
+  /** 0 = Sunday … 6 = Saturday */
+  weekdays: number[];
+};
+
 /** GET /partners/me/account: the partner's Account screen. */
 export interface PartnerAccount {
   kind: 'STAFF' | 'PHARMACY';
@@ -650,6 +689,15 @@ export interface PartnerAccount {
   rating: { average: number | null; count: number };
   earnings: { today: number; todayJobs: number; week: number; allTime: number; jobs: number; pendingPayout: number; cashHeld: number; netPayout: number } | null;
   referral: { code: string; credits: number; successful: number; reducedCommissionPercent: number; rewardJobs: number; minFirstOrder: number };
+  /** Nabz commission: monthly tiers for visits, flat for pharmacies. */
+  commission?: {
+    currentRatePercent: number;
+    flat?: boolean;
+    jobsThisMonth?: number;
+    nextRatePercent?: number | null;
+    jobsToNextTier?: number | null;
+    tiers?: Array<{ from: number; to: number | null; ratePercent: number }>;
+  };
 }
 
 export interface StaffAvailability { online: boolean; wentStale: boolean; lastSeenAt: string | null }

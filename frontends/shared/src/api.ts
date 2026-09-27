@@ -28,6 +28,9 @@ import type {
   PartnerApplication,
   StaffMix,
   PartnerAccount,
+  CareProvider,
+  CarePreferences,
+  CarePackageInput,
   LoginPortal,
   MembershipStatus,
   VisitTracking,
@@ -622,6 +625,29 @@ export class MedRushApi {
   // ── Pharmacy: admin ──────────────────────────────────────────────────────
   adminListPartnerApplications(status: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING') {
     return this.request<{ success: true; applications: PartnerApplication[] }>('GET', '/partners/admin/applications', { query: { status } });
+  }
+
+  /** Verified professionals the customer can choose for a service. */
+  listCareProviders(serviceType?: string) {
+    return this.request<{ success: true; providers: CareProvider[] }>('GET', '/care/providers', { query: { serviceType } });
+  }
+
+  /** Book all sessions of a package (e.g. 10 physio sessions on Mon/Wed/Fri). */
+  bookCarePackage(input: CarePackageInput) {
+    return this.request<{ success: true; seriesId: string; sessions: CareBooking[] }>('POST', '/bookings/package', { body: input });
+  }
+
+  /** Change the professional for a package's remaining sessions (null = best available). */
+  changeCareSeriesProvider(seriesId: string, providerId: string | null) {
+    return this.request<{ success: true; moved: number }>('PUT', `/bookings/series/${seriesId}/provider`, { body: { providerId } });
+  }
+
+  getCarePreferences() {
+    return this.request<{ success: true; preferences: CarePreferences | null }>('GET', '/patients/me/care-preferences');
+  }
+
+  saveCarePreferences(prefs: Omit<CarePreferences, 'preferredProvider'> & { preferredProvider?: string | null }) {
+    return this.request<{ success: true; preferences: CarePreferences }>('PUT', '/patients/me/care-preferences', { body: prefs });
   }
 
   /** Partner: profile, earnings, rating and referral code. */

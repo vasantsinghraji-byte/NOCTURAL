@@ -36,6 +36,7 @@ const pricingService = require('@nocturnal/shared').pricingService;
 const membershipService = require('@nocturnal/shared').membershipService;
 const settlementService = require('@nocturnal/shared').settlementService;
 const partnerReferralService = require('@nocturnal/shared').partnerReferralService;
+const commissionService = require('@nocturnal/shared').commissionService;
 const staffAvailabilityService = require('@nocturnal/shared').staffAvailabilityService;
 const dispatchService = require('@nocturnal/shared').dispatchService;
 const crypto = require('crypto');
@@ -164,7 +165,7 @@ class BookingService {
    * @param {String} patientId - Patient ID
    * @returns {Promise<Object>} Created booking
    */
-  async createBooking(bookingData, patientId) {
+  async createBooking(bookingData, patientId, internal = {}) {
     const safePatientId = normalizeObjectId(patientId, 'patient id');
     const {
       serviceType,
@@ -178,8 +179,12 @@ class BookingService {
       isPackage,
       packageDetails,
       mode,
-      preferredGender
+      preferredGender,
+      requestedProvider,
+      allowSubstitute
     } = bookingData;
+    // Package sessions after the first can fall beyond the normal booking horizon.
+    const laterSession = internal.series && internal.series.index > 1;
 
     // Verify patient exists
     const patient = await Patient.findById(safePatientId);
@@ -189,7 +194,8 @@ class BookingService {
 
     // When can this be booked for? "Book now" uses server time so a phone
     // with a wrong clock can't book the past; scheduled visits need a lead time.
-    const window = visitPolicy.checkBookingWindow({ mode, scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes });
+    const window = visitPolicy.checkBookingWindow({ mode, scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes }, undefined,
+      laterSession ? { ...visitPolicy.getVisitPolicy(), maxAdvanceDays: 120 } : undefined);
     if (window.error) throw new ValidationError(window.error);
     let visitDate = scheduledDate;
     let visitTime = scheduledTime;
@@ -231,7 +237,11 @@ class BookingService {
 
     // Calculate pricing
     let basePrice;
-    if (isPackage && service.pricing.packageDetails) {
+    if (internal.series && service.pricing.packageDetails) {
+      // One session of a package: the package price split evenly per session.
+      const pd = service.pricing.packageDetails;
+      basePrice = roundToTwoDecimals((pd.totalPrice || service.pricing.basePrice) / (pd.sessions || internal.series.total || 1));
+    } else if (isPackage && service.pricing.packageDetails) {
       basePrice = service.pricing.packageDetails.totalPrice;
     } else {
       basePrice = service.pricing.basePrice;
@@ -261,11 +271,20 @@ class BookingService {
       }
     }
 
+    // A professional the customer picked: must be a verified, active one of the right kind.
+    let chosenProvider = null;
+    if (requestedProvider) {
+      const safeChosen = normalizeObjectId(requestedProvider, 'professional id');
+      const pro = await User.findOne({ _id: safeChosen, isActive: { $ne: false }, role: { $in: ['nurse', 'physiotherapist', 'medical_staff'] }, ...visitPolicy.VERIFIED_FILTER }).select('_id').lean();
+      if (!pro) throw new ValidationError('That professional isn’t available for booking');
+      chosenProvider = pro._id;
+    }
+
     // Price upfront (config/revenue.js): platform fee waived for Nabz Plus members.
     const quote = pricingService.quoteCareVisit({ basePrice, isMember: await membershipService.isMember(safePatientId) });
     const { platformFee, gst, totalAmount, discount } = quote;
     // A late-cancellation fee from an earlier visit is added to this bill.
-    const previousDues = roundToTwoDecimals(Number(patient.pendingDues) || 0);
+    const previousDues = laterSession ? 0 : roundToTwoDecimals(Number(patient.pendingDues) || 0);
     const payableAmount = roundToTwoDecimals(quote.payableAmount + previousDues);
 
     // Create booking with final pricing in a single operation
@@ -294,8 +313,11 @@ class BookingService {
       status: 'REQUESTED',
       dispatch: {
         mode: mode === 'ASAP' ? 'ASAP' : 'SCHEDULED',
-        preferredGender: ['FEMALE', 'MALE'].includes(preferredGender) ? preferredGender : 'ANY'
+        preferredGender: ['FEMALE', 'MALE'].includes(preferredGender) ? preferredGender : 'ANY',
+        ...(chosenProvider ? { requestedProvider: chosenProvider } : {}),
+        allowSubstitute: chosenProvider ? allowSubstitute !== false : true
       },
+      ...(internal.series ? { series: internal.series, isPackage: true } : {}),
       // Visit code the patient shares at the door (never sent to the provider).
       visitOtp: { code: String(crypto.randomInt(0, 10000)).padStart(4, '0') },
       // Family tracking link token.
@@ -686,6 +708,9 @@ class BookingService {
       throw new ValidationError('Booking cannot be assigned - already assigned or in wrong status');
     }
 
+    // A package keeps this professional for its later sessions.
+    await dispatchService.lockSeriesProvider(booking, safeProviderId);
+
     // Visit-scoped health data access (expires a day after the visit).
     try {
       await doctorAccessService.grantForVisit({
@@ -960,12 +985,12 @@ class BookingService {
       throw new ValidationError('Service has already been completed or is no longer in progress');
     }
 
-    // Referral credit: this visit may carry the reduced Nabz commission.
+    // Commission for this visit: this month's tier, or a referral credit's 5% if lower.
     try {
-      const reduced = await partnerReferralService.claimReducedCommission(completedBooking.serviceProvider, NurseBooking, completedBooking._id);
-      if (reduced !== null) completedBooking.commissionOverride = { rate: reduced, reason: 'REFERRAL' };
+      const rate = await commissionService.decideCareCommission(completedBooking.serviceProvider, completedBooking._id);
+      completedBooking.commissionOverride = { rate };
     } catch (err) {
-      logger.error('Referral commission check failed', { bookingId: String(completedBooking._id), error: err.message });
+      logger.error('Commission decision failed; standard rate applies', { bookingId: String(completedBooking._id), error: err.message });
     }
 
     // Book the provider's payout, our commission and the platform fee.
@@ -1488,6 +1513,136 @@ class BookingService {
     if (soon) await dispatchService.offerNext(released._id).catch(() => undefined);
     await invalidateCache('*:/api/bookings*');
     return released;
+  }
+
+  /**
+   * Book a package as a series of sessions (e.g. 10 physio sessions on
+   * Mon/Wed/Fri at 18:00). Each session is its own visit, linked by series.id;
+   * whoever takes the first session is kept for the rest (dispatchService.lockSeriesProvider).
+   * @param {Object} data createBooking fields + { startDate, weekdays: [0-6], time }
+   */
+  async createPackageSeries(data, patientId) {
+    const serviceName = resolveCatalogServiceName(data.serviceType);
+    const service = await ServiceCatalog.findOne({ name: serviceName, 'availability.isActive': true }).lean();
+    if (!service) throw new NotFoundError('Service');
+    const pd = service.pricing && service.pricing.packageDetails;
+    const total = pd && Number(pd.sessions);
+    if (!total || total < 2 || total > 40) throw new ValidationError('This service isn’t a multi-session package');
+    const weekdays = [...new Set((data.weekdays || []).map(Number))].filter((d) => d >= 0 && d <= 6);
+    if (!weekdays.length) throw new ValidationError('Pick at least one day of the week');
+    if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(String(data.time || ''))) throw new ValidationError('Pick a session time');
+    const first = new Date(`${data.startDate}T00:00:00Z`);
+    if (Number.isNaN(first.getTime())) throw new ValidationError('Pick a start date');
+
+    // Session dates: the chosen weekdays from the start date on, up to 16 weeks.
+    const dates = [];
+    for (let i = 0; dates.length < total && i < 112; i += 1) {
+      const d = new Date(first.getTime() + i * 86400000);
+      if (weekdays.includes(d.getUTCDay())) dates.push(d.toISOString().slice(0, 10));
+    }
+    if (dates.length < total) throw new ValidationError('Pick more days a week so the package fits in 16 weeks');
+
+    const seriesId = crypto.randomBytes(8).toString('hex');
+    const created = [];
+    try {
+      for (const [i, date] of dates.entries()) {
+        const booking = await this.createBooking(
+          {
+            ...data,
+            mode: 'SCHEDULED',
+            scheduledDate: date,
+            scheduledTime: data.time,
+            scheduledTimezone: data.scheduledTimezone || 'Asia/Kolkata',
+            scheduledTimezoneOffsetMinutes: Number.isInteger(data.scheduledTimezoneOffsetMinutes) ? data.scheduledTimezoneOffsetMinutes : 330,
+            isPackage: undefined,
+            packageDetails: undefined
+          },
+          patientId,
+          { series: { id: seriesId, index: i + 1, total } }
+        );
+        created.push(booking);
+      }
+    } catch (err) {
+      // All or nothing: undo the sessions already created.
+      if (created.length) await NurseBooking.deleteMany({ _id: { $in: created.map((b) => b._id) } });
+      throw err;
+    }
+    logger.info('Package series booked', { seriesId, sessions: total, patientId: String(patientId) });
+    return { seriesId, sessions: created };
+  }
+
+  /**
+   * Customer changes the professional for the remaining sessions of a package.
+   * @param {String|null} newProviderId  a chosen professional, or null for "best available"
+   */
+  async changeSeriesProvider(seriesId, patientId, newProviderId) {
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const sessions = await NurseBooking.find({ 'series.id': String(seriesId), patient: safePatientId }).lean();
+    if (!sessions.length) throw new NotFoundError('Package');
+    let chosen = null;
+    if (newProviderId) {
+      const pro = await User.findOne({ _id: normalizeObjectId(newProviderId, 'professional id'), isActive: { $ne: false }, ...visitPolicy.VERIFIED_FILTER }).select('_id').lean();
+      if (!pro) throw new ValidationError('That professional isn’t available for booking');
+      chosen = pro._id;
+    }
+    const now = Date.now();
+    const upcoming = sessions.filter((s) => ['REQUESTED', 'ASSIGNED', 'CONFIRMED'].includes(s.status)
+      && (visitPolicy.visitStart(s) || new Date(0)).getTime() > now);
+    let moved = 0;
+    const previous = new Set();
+    for (const s of upcoming) {
+      if (s.serviceProvider) previous.add(String(s.serviceProvider));
+      const res = await NurseBooking.updateOne(
+        { _id: s._id, status: s.status },
+        {
+          $set: {
+            status: 'REQUESTED',
+            'dispatch.status': 'IDLE',
+            'dispatch.attempts': 0,
+            'dispatch.allowSubstitute': !chosen,
+            ...(chosen ? { 'dispatch.requestedProvider': chosen } : {})
+          },
+          $unset: {
+            serviceProvider: 1, 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1, 'dispatch.matchedAt': 1,
+            ...(chosen ? {} : { 'dispatch.requestedProvider': 1 })
+          },
+          // Don't offer the old professional the sessions again.
+          ...(s.serviceProvider || (s.dispatch && s.dispatch.requestedProvider)
+            ? { $addToSet: { 'dispatch.declined': s.serviceProvider || s.dispatch.requestedProvider } } : {})
+        }
+      );
+      if (res.modifiedCount) {
+        moved += 1;
+        if (s.serviceProvider) await doctorAccessService.revokeForBooking(s._id, 'Customer changed professional').catch(() => undefined);
+      }
+    }
+    for (const providerId of previous) {
+      await this.notifyUser(providerId, 'User', 'Package sessions reassigned', 'The customer asked for a different professional for their remaining sessions.');
+    }
+    await invalidateCache('*:/api/bookings*');
+    return { moved };
+  }
+
+  /** Saved booking preferences (gender, favourite professional, substitutes, address). */
+  async getCarePreferences(patientId) {
+    const p = await Patient.findById(normalizeObjectId(patientId, 'patient id')).select('carePreferences')
+      .populate('carePreferences.preferredProvider', 'name careProfile.gender rating').lean();
+    return (p && p.carePreferences) || null;
+  }
+
+  async saveCarePreferences(patientId, prefs = {}) {
+    const clean = {
+      preferredGender: ['ANY', 'FEMALE', 'MALE'].includes(prefs.preferredGender) ? prefs.preferredGender : 'ANY',
+      allowSubstitute: prefs.allowSubstitute !== false,
+      language: prefs.language ? String(prefs.language).slice(0, 30) : undefined,
+      street: prefs.street ? String(prefs.street).slice(0, 200) : undefined,
+      city: prefs.city ? String(prefs.city).slice(0, 80) : undefined,
+      pincode: /^\d{6}$/.test(String(prefs.pincode || '')) ? String(prefs.pincode) : undefined,
+      preferredProvider: prefs.preferredProvider ? normalizeObjectId(prefs.preferredProvider, 'professional id') : undefined,
+      updatedAt: new Date()
+    };
+    await Patient.updateOne({ _id: normalizeObjectId(patientId, 'patient id') }, { $set: { carePreferences: clean } });
+    return this.getCarePreferences(patientId);
   }
 
   /** Staff lost verification / deactivated: hand back their upcoming visits. */
