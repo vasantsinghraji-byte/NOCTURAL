@@ -235,3 +235,60 @@
   /* Picked-service summary slides in when a service is chosen. */
   .picked-summary { animation: nabz-rise .45s cubic-bezier(.16, 1, .3, 1) both; }
 }
+
+/* ── Staff dashboard (website version of the Partner app staff screen) ── */
+.staff-hero { padding: 26px; }
+.staff-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.staff-head p { display: inline-flex; align-items: center; gap: 6px; }
+.online-card {
+  margin-top: 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  padding: 16px 18px; border-radius: 20px; background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .22);
+}
+.online-card.on { background: rgba(111, 211, 165, .22); border-color: rgba(143, 230, 186, .6); }
+.muted-on { color: var(--on-night-muted); font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+@media (max-width: 760px) { .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat { display: flex; flex-direction: column; gap: 4px; color: var(--brand); }
+.stat-value { font-size: 22px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.offer-card {
+  margin-top: 16px; padding: 20px; border-radius: 24px; background: var(--night); color: var(--on-night);
+  border: 1px solid rgba(255, 232, 196, .5); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 8px;
+}
+.offer-kicker { color: var(--gold); font-weight: 800; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.offer-earn { font-family: var(--font-display); font-size: 48px; line-height: 1.05; }
+.offer-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 8px; }
+.offer-actions .btn { min-height: 52px; justify-content: center; }
+.offer-decline { background: transparent; color: var(--on-night); border: 1.5px solid rgba(255, 255, 255, .35); box-shadow: none; }
+.offer-accept { background: #3dd68c; color: #10251b; }
+.dialog-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(20, 12, 16, .55); display: grid; place-items: center; padding: 16px; overscroll-behavior: contain; }
+.dialog { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ── Partner account (website version of the Partner app Account screen) ── */
+.link { color: var(--brand); font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+.link-on { color: var(--on-night); font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.link-on:hover { text-decoration: underline; }
+.account-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; align-items: start; }
+@media (max-width: 760px) { .account-grid { grid-template-columns: 1fr; } }
+.inline-title { margin: 0; display: flex; align-items: center; gap: 8px; }
+.inline-title svg { color: var(--brand); flex: none; }
+.tier-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
+.tier { border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; background: var(--card-alt); }
+.tier b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.tier span { font-size: 12px; color: var(--muted); }
+.tier.on { background: var(--night); border-color: var(--night); color: var(--on-night); }
+.tier.on span { color: var(--on-night-muted); }
+.check-row { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.check-row.ok { color: var(--ink); }
+.check-row.ok > svg:last-child { color: var(--mint); }
+.code-box {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 24px; font-weight: 800; letter-spacing: .14em;
+  text-align: center; padding: 14px; border-radius: 14px; border: 1.5px dashed var(--faint); background: var(--card-alt); user-select: all;
+}
+.dest-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border-radius: 14px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--card-alt); color: var(--ink); font: inherit;
+}
+.dest-row:hover { border-color: var(--faint); }
+.warn-text { margin: 0; color: var(--amber); font-size: 14px; }
+.eyebrow-dark { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.dialog .segmented { align-self: flex-start; margin-bottom: 6px; }
