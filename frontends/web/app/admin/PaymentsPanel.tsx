@@ -74,13 +74,14 @@ export default function PaymentsPanel() {
                 <td><span className={`pill ${KINDS.find((k) => k.key === e.kind)?.tone || ''}`}>{e.kind === 'PAYMENT' ? 'Paid' : e.kind === 'CASH' ? 'Cash' : e.kind === 'REFUND' ? 'Refund' : e.kind === 'FAILED' ? 'Failed' : 'Withdrawal'}</span></td>
                 <td>{e.source === 'CARE' ? `Care${e.service ? ` · ${e.service.replace(/_/g, ' ').toLowerCase()}` : ''}` : e.source === 'PHARMACY' ? 'Pharmacy' : e.source === 'MEMBERSHIP' ? 'Nabz Plus' : 'Payout'}</td>
                 <td className="mono">{e.ref}</td>
-                <td>{e.who || '—'}{e.partner ? <span className="muted"> · by {e.partner}</span> : null}</td>
+                <td>{e.who || '-'}{e.partner ? <span className="muted"> · by {e.partner}</span> : null}</td>
                 <td className="num"><b>{e.kind === 'REFUND' || e.kind === 'WITHDRAWAL' ? '−' : ''}{inr(e.amount)}</b></td>
                 <td>{e.status.replace(/_/g, ' ').toLowerCase()}</td>
-                <td className="mono muted">{e.gatewayRef || e.note || '—'}</td>
+                <td className="mono muted">{e.gatewayRef || e.note || '-'}</td>
               </tr>
             ))}
-            {data && data.entries.length === 0 && <tr><td colSpan={8} className="muted">No payments in this period.</td></tr>}
+            {!data && !error && [0, 1, 2, 3, 4].map((i) => <tr key={i} aria-hidden="true"><td colSpan={8}><span className="skeleton" style={{ width: `${80 - i * 9}%` }} /></td></tr>)}
+            {data && data.entries.length === 0 && <tr><td colSpan={8} className="muted">No money moved in this period. Pick a longer period above.</td></tr>}
           </tbody>
         </table>
       </div>

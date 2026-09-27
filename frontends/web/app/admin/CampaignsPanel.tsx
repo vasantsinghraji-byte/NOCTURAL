@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Megaphone } from 'lucide-react';
 import type { Campaign, CampaignAudience } from '@medrush/shared';
 import { api } from '@/lib/api';
+import { confirmDialog } from '../_components/Dialog';
 
 type Sensitive = (action: () => Promise<void>) => Promise<void>;
 const AUDIENCES: Array<{ key: CampaignAudience; label: string }> = [
@@ -44,8 +45,8 @@ export default function CampaignsPanel({ sensitive }: { sensitive: Sensitive }) 
   }, []);
   useEffect(load, [load]);
 
-  function cancel(c: Campaign) {
-    if (!window.confirm(`Stop “${c.title}”? It disappears from the feed straight away.`)) return;
+  async function cancel(c: Campaign) {
+    if (!(await confirmDialog({ title: `Stop “${c.title}”?`, message: 'It disappears from everyone’s feed straight away. This can’t be undone.', confirmLabel: 'Stop campaign', danger: true }))) return;
     sensitive(async () => { await api.adminCancelCampaign(c._id); setNotice('Campaign stopped.'); load(); });
   }
 
@@ -56,7 +57,8 @@ export default function CampaignsPanel({ sensitive }: { sensitive: Sensitive }) 
         <h3 style={{ margin: 0 }}>Campaigns</h3>
         {error && <div className="notice bad" role="alert">{error}</div>}
         {notice && <div className="notice good" role="status">{notice}</div>}
-        {rows && rows.length === 0 && <p className="muted">No campaigns yet.</p>}
+        {!rows && !error && [0, 1].map((i) => <div key={i} className="card skeleton-card" aria-hidden="true" />)}
+        {rows && rows.length === 0 && <p className="muted">No campaigns yet. Write one here to reach customers or partners in their Offers &amp; updates feed.</p>}
         {rows?.map((c) => (
           <div key={c._id} className="card stack">
             <div className="row">
@@ -64,14 +66,13 @@ export default function CampaignsPanel({ sensitive }: { sensitive: Sensitive }) 
               <span className={`pill ${c.status === 'LIVE' ? 'mint' : c.status === 'SCHEDULED' ? 'sky' : c.status === 'CANCELLED' ? 'rx' : ''}`}>{c.status.toLowerCase()}</span>
             </div>
             <span className="muted">{c.body}</span>
-            <span className="muted" style={{ fontSize: 13 }}>
-              {AUDIENCES.find((a) => a.key === c.audience)?.label} · {when(c.sendAt)} → {when(c.expiresAt)}
-              {c.offerCode ? <> · code <span className="mono">{c.offerCode}</span></> : null}
-            </span>
-            <span className="muted" style={{ fontSize: 13 }}>
-              {c.opens} opened · push {c.push.status === 'OFF' ? 'off' : c.push.status === 'DONE' ? `sent to ${c.push.sent} of ${c.push.targeted} devices` : c.push.status.toLowerCase()}
-              {c.push.note ? ` · ${c.push.note}` : ''}
-            </span>
+            <dl className="kv compact">
+              <dt>Audience</dt><dd>{AUDIENCES.find((a) => a.key === c.audience)?.label}</dd>
+              <dt>Runs</dt><dd>{when(c.sendAt)} to {when(c.expiresAt)}</dd>
+              {c.offerCode && <><dt>Offer code</dt><dd className="mono">{c.offerCode}</dd></>}
+              <dt>Opened</dt><dd>{c.opens.toLocaleString('en-IN')}</dd>
+              <dt>Push</dt><dd>{c.push.status === 'OFF' ? 'Off' : c.push.status === 'DONE' ? `Sent to ${c.push.sent} of ${c.push.targeted} devices` : c.push.status.charAt(0) + c.push.status.slice(1).toLowerCase()}{c.push.note ? <span className="muted" style={{ display: 'block', fontSize: 13 }}>{c.push.note}</span> : null}</dd>
+            </dl>
             {(c.status === 'LIVE' || c.status === 'SCHEDULED') && (
               <button className="btn secondary" style={{ alignSelf: 'flex-start' }} onClick={() => cancel(c)}>Stop campaign</button>
             )}
@@ -89,7 +90,7 @@ function Composer({ sensitive, onCreated }: { sensitive: Sensitive; onCreated: (
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }));
   const links = f.audience === 'CUSTOMERS' ? LINKS.customer : LINKS.partner;
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     const start = f.schedule ? new Date(f.sendAt) : new Date();
@@ -106,7 +107,7 @@ function Composer({ sensitive, onCreated }: { sensitive: Sensitive; onCreated: (
       ...(f.ctaPath ? { cta: { label: f.ctaLabel.trim() || 'Open', path: f.ctaPath } } : {})
     };
     const who = AUDIENCES.find((a) => a.key === f.audience)?.label.toLowerCase();
-    if (!window.confirm(`${f.schedule ? 'Schedule' : 'Send'} “${input.title}” to ${who}${f.push ? ' with a push notification' : ''}?`)) return;
+    if (!(await confirmDialog({ title: `${f.schedule ? 'Schedule' : 'Send'} this campaign?`, message: `“${input.title}” goes to ${who}${f.push ? ', with a push notification' : ''}.`, confirmLabel: f.schedule ? 'Schedule' : 'Send now' }))) return;
     setBusy(true);
     sensitive(async () => {
       const r = await api.adminCreateCampaign(input);
@@ -123,13 +124,13 @@ function Composer({ sensitive, onCreated }: { sensitive: Sensitive; onCreated: (
         {AUDIENCES.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
       </select>
       <label htmlFor="c-title">Title <span className="muted">({f.title.length}/80)</span></label>
-      <input id="c-title" className="input" required minLength={3} maxLength={80} value={f.title} onChange={(e) => set('title', e.target.value)} placeholder="Flat 15% off medicines this weekend" />
+      <input id="c-title" className="input" required minLength={3} maxLength={80} value={f.title} onChange={(e) => set('title', e.target.value)} name="title" autoComplete="off" placeholder="Flat 15% off medicines this weekend…" />
       <label htmlFor="c-body">Message <span className="muted">({f.body.length}/300)</span></label>
-      <textarea id="c-body" className="input" required minLength={3} maxLength={300} rows={3} value={f.body} onChange={(e) => set('body', e.target.value)} placeholder="Order before Sunday midnight. Delivered in Jaipur within the hour." />
+      <textarea id="c-body" className="input" required minLength={3} maxLength={300} rows={3} value={f.body} onChange={(e) => set('body', e.target.value)} name="body" autoComplete="off" placeholder="Order before Sunday midnight. Delivered in Jaipur within the hour…" />
       <div className="form-2col">
         <div>
           <label htmlFor="c-code">Offer code (optional)</label>
-          <input id="c-code" className="input mono" maxLength={20} value={f.offerCode} onChange={(e) => set('offerCode', e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))} placeholder="WEEKEND15" />
+          <input id="c-code" className="input mono" maxLength={20} value={f.offerCode} onChange={(e) => set('offerCode', e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))} name="offerCode" autoComplete="off" spellCheck={false} placeholder="WEEKEND15…" />
         </div>
         <div>
           <label htmlFor="c-days">Runs for</label>
@@ -146,7 +147,7 @@ function Composer({ sensitive, onCreated }: { sensitive: Sensitive; onCreated: (
         </div>
         <div>
           <label htmlFor="c-cta">Button text</label>
-          <input id="c-cta" className="input" maxLength={24} disabled={!f.ctaPath} value={f.ctaLabel} onChange={(e) => set('ctaLabel', e.target.value)} placeholder="Shop now" />
+          <input id="c-cta" className="input" maxLength={24} disabled={!f.ctaPath} value={f.ctaLabel} onChange={(e) => set('ctaLabel', e.target.value)} name="ctaLabel" autoComplete="off" placeholder="Shop now…" />
         </div>
       </div>
       <label className="check-line"><input type="checkbox" checked={f.schedule} onChange={(e) => set('schedule', e.target.checked)} /> Schedule for later</label>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, BadgeCheck, CheckCircle2, Circle, Fingerprint, Gift, IndianRupee, Landmark, LogOut, Share2, ShieldCheck, Smartphone, Star, Store, Syringe, Wallet, type LucideIcon } from 'lucide-react';
 import type { PartnerAccount, PayoutDetailsInput, PayoutSummary } from '@medrush/shared';
 import { api } from '@/lib/api';
+import { Modal, confirmDialog } from '../../_components/Dialog';
 
 /**
  * Website version of the Partner app's Account screen (nurses, physios and
@@ -66,7 +67,11 @@ export default function PartnerAccountPage() {
       </section>
 
       {error && <div className="notice bad" role="alert" style={{ marginTop: 16 }}>{error}</div>}
-      {!acct && !error && <p className="muted" style={{ marginTop: 16 }}>Loading your account…</p>}
+      {!acct && !error && (
+        <div className="account-grid" aria-busy="true" aria-label="Loading your account">
+          {[0, 1, 2, 3].map((i) => <div key={i} className="card skeleton-card" />)}
+        </div>
+      )}
 
       {e && (
         <>
@@ -206,7 +211,7 @@ function Payouts() {
 
   async function withdraw() {
     if (!data) return;
-    if (!window.confirm(`Withdraw ${inr(data.available)}?\n\nIt goes to ${data.details?.display}. Transfers are usually done within 1 working day.`)) return;
+    if (!(await confirmDialog({ title: `Withdraw ${inr(data.available)}?`, message: `It goes to ${data.details?.display}. Transfers are usually done within 1 working day.`, confirmLabel: `Withdraw ${inr(data.available)}` }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -283,12 +288,6 @@ function DetailsDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const [error, setError] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF((x) => ({ ...x, [k]: e.target.value }));
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   async function save(e: React.FormEvent) {
     e.preventDefault();
     const input: PayoutDetailsInput = method === 'UPI'
@@ -307,8 +306,7 @@ function DetailsDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   }
 
   return (
-    <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="payout-title" onClick={onClose}>
-      <form className="card dialog" onSubmit={save} onClick={(e) => e.stopPropagation()} autoComplete="off">
+    <Modal onClose={onClose} labelledBy="payout-title" as="form" onSubmit={save}>
         <h2 id="payout-title" style={{ marginTop: 0 }}>Where should we pay you?</h2>
         <div className="segmented" role="radiogroup" aria-label="Payout method">
           {(['UPI', 'BANK'] as const).map((m) => (
@@ -320,18 +318,18 @@ function DetailsDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         {method === 'UPI' ? (
           <>
             <label htmlFor="upi">UPI ID</label>
-            <input id="upi" className="input" required placeholder="name@okicici" autoCapitalize="none" spellCheck={false} value={f.upiId} onChange={set('upiId')} />
+            <input id="upi" name="upiId" autoComplete="off" className="input" required placeholder="name@okicici…" autoCapitalize="none" spellCheck={false} value={f.upiId} onChange={set('upiId')} />
           </>
         ) : (
           <>
             <label htmlFor="acname">Account holder’s name</label>
-            <input id="acname" className="input" required value={f.accountName} onChange={set('accountName')} />
+            <input id="acname" name="accountName" autoComplete="name" className="input" required value={f.accountName} onChange={set('accountName')} />
             <label htmlFor="acno">Account number</label>
-            <input id="acno" className="input" required type="password" inputMode="numeric" maxLength={18} value={f.accountNumber} onChange={(e) => setF((x) => ({ ...x, accountNumber: e.target.value.replace(/\D/g, '') }))} />
+            <input id="acno" name="accountNumber" autoComplete="off" className="input" required type="password" inputMode="numeric" maxLength={18} value={f.accountNumber} onChange={(e) => setF((x) => ({ ...x, accountNumber: e.target.value.replace(/\D/g, '') }))} />
             <label htmlFor="ifsc">IFSC</label>
-            <input id="ifsc" className="input" required placeholder="HDFC0001234" maxLength={11} autoCapitalize="characters" spellCheck={false} value={f.ifsc} onChange={set('ifsc')} />
+            <input id="ifsc" name="ifsc" autoComplete="off" className="input" required placeholder="HDFC0001234…" maxLength={11} autoCapitalize="characters" spellCheck={false} value={f.ifsc} onChange={set('ifsc')} />
             <label htmlFor="bank">Bank name (optional)</label>
-            <input id="bank" className="input" value={f.bankName} onChange={set('bankName')} />
+            <input id="bank" name="bankName" autoComplete="off" className="input" value={f.bankName} onChange={set('bankName')} />
           </>
         )}
         <p className="muted" style={{ margin: '4px 0 0' }}>Your account number is stored encrypted. Only the last 4 digits are shown.</p>
@@ -340,7 +338,6 @@ function DetailsDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
           <button type="button" className="btn secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn" disabled={busy}>{busy ? 'Saving…' : 'Save payout details'}</button>
         </div>
-      </form>
-    </div>
+    </Modal>
   );
 }

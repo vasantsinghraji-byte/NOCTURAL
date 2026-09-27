@@ -357,3 +357,36 @@
 
 /* Notices keep their own text colour inside dark heroes. */
 .notice { color: var(--ink); }
+
+
+/* ── Web Interface Guidelines pass ── */
+h1, h2, h3 { text-wrap: balance; }
+p, .muted { text-wrap: pretty; }
+.admin-table tbody tr[tabindex]:focus-visible { background: var(--card-alt); outline: 3px solid var(--brand); outline-offset: -3px; }
+.btn.danger-solid { background: var(--rose-ink); color: #fff; }
+.btn.danger-solid:hover { background: var(--rose); }
+.field-error { color: var(--rose-ink); font-size: 13px; font-weight: 600; }
+.input[aria-invalid="true"] { border-color: var(--rose); }
+.dialog:focus { outline: none; }
+.dialog { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; }
+/* Off-screen log lines skip layout and paint until scrolled to. */
+.log-line { content-visibility: auto; contain-intrinsic-size: auto 30px; }
+.admin-tabs button:hover:not(.on), .check-toggles button:hover:not(.on), .dest-row:hover { filter: brightness(0.98); }
+.feed-code:hover { background: rgba(255, 255, 255, .22); }
+.feed-cta:hover, .link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+
+/* ── Taste pass: states and feedback ── */
+.admin-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; margin: 16px 0 10px; }
+.kv.compact { gap: 3px 14px; margin: 2px 0; font-size: 14px; }
+.kv.compact dt { font-size: 13px; }
+/* Disabled buttons stay readable instead of fading the brand colour. */
+.btn:disabled { opacity: 1; background: var(--card-alt); color: var(--muted); box-shadow: none; border-color: var(--border); }
+.skeleton { display: block; height: 14px; border-radius: 7px; background: var(--card-alt); }
+.skeleton-card { min-height: 132px; background: var(--card-alt); box-shadow: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton, .skeleton-card { background: linear-gradient(90deg, var(--card-alt) 0%, var(--card) 50%, var(--card-alt) 100%); background-size: 200% 100%; animation: nabz-shimmer 1.4s ease-in-out infinite; }
+  .admin-tabs button:active, .check-toggles button:active, .stat-filter:active, .dest-row:active, .feed-code:active, .log-head:active, .segmented button:active { transform: scale(.97); }
+  .admin-tabs button, .check-toggles button, .stat-filter, .dest-row, .feed-code, .segmented button { transition: transform .12s ease, background-color .15s ease, color .15s ease; }
+}
+@keyframes nabz-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }

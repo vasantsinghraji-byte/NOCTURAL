@@ -6,6 +6,7 @@ import { IndianRupee, MapPin, Navigation, Phone, ShieldAlert, Star, UserRound, W
 import type { CareBooking, StaffDashboard, VisitOffer } from '@medrush/shared';
 import { api } from '@/lib/api';
 import UpdatesFeed from '../_components/UpdatesFeed';
+import { Modal, alertDialog, confirmDialog, promptDialog } from '../_components/Dialog';
 
 /**
  * Website version of the Partner app's staff screen (nurse / physio): go online,
@@ -188,9 +189,19 @@ export default function StaffDashboardPage() {
     if (next.step === 'complete') { setCompleting(v); return; }
     let body: { visitCode?: string } | undefined;
     if (next.step === 'start') {
-      const code = window.prompt('Ask the patient for their 4-digit visit code:', '');
+      const code = await promptDialog({
+        title: 'Start the visit',
+        message: 'Ask the patient for the 4-digit visit code in their Nabz app.',
+        label: 'Visit code',
+        placeholder: '4 digits…',
+        inputMode: 'numeric',
+        maxLength: 4,
+        pattern: /^\d{4}$/,
+        patternHint: 'The visit code is 4 digits.',
+        confirmLabel: 'Start visit'
+      });
       if (!code) return;
-      body = { visitCode: code.trim() };
+      body = { visitCode: code };
     }
     try {
       await api.updateVisitStep(v._id, next.step, body);
@@ -201,13 +212,13 @@ export default function StaffDashboardPage() {
   }
 
   async function sos(v: Visit) {
-    if (!window.confirm('Alert the Nabz safety team now? For a medical emergency also call 108; for police call 112.')) return;
+    if (!(await confirmDialog({ title: 'Alert the Nabz safety team?', message: 'We share your live location with the team. For a medical emergency also call 108; for police call 112.', confirmLabel: 'Send SOS', danger: true }))) return;
     const at = await locate();
     try {
       const r = await api.raiseSos(v._id, { lat: at.lat, lng: at.lng });
-      window.alert(`Nabz safety team alerted. Ambulance ${r.emergencyNumbers.ambulance || '108'} · Police ${r.emergencyNumbers.police || '112'}.`);
+      await alertDialog({ title: 'Nabz safety team alerted', message: `Ambulance ${r.emergencyNumbers.ambulance || '108'} · Police ${r.emergencyNumbers.police || '112'}.` });
     } catch {
-      window.alert('Could not reach Nabz. Call 112 for emergencies.');
+      await alertDialog({ title: 'Could not reach Nabz', message: 'Call 112 now for emergencies.' });
     }
   }
 
@@ -267,7 +278,7 @@ export default function StaffDashboardPage() {
       <UpdatesFeed audience="partner" title="Updates from Nabz" />
 
       <h2 className="section-title">Your visits</h2>
-      {visits === null && <p className="muted">Loading…</p>}
+      {visits === null && <div className="stack" aria-busy="true" aria-label="Loading visits">{[0, 1].map((i) => <div key={i} className="card skeleton-card" />)}</div>}
       {visits?.length === 0 && <p className="muted">No visits yet. Go online to receive requests.</p>}
       <div className="grid cards">
         {active.map((v) => <VisitCard key={v._id} v={v} onStep={() => step(v)} onSos={() => sos(v)} />)}
@@ -360,7 +371,7 @@ function CompleteDialog({ visit, onClose, onDone }: { visit: Visit; onClose: () 
     e.preventDefault();
     const amount = Number(cash);
     if (due !== null && (!cash.trim() || !Number.isFinite(amount) || amount < 0)) { setError('Enter the cash you collected.'); return; }
-    if (due !== null && amount + 1 < due && !window.confirm(`The customer owes ${inr(due)}. You entered ${inr(amount)}. Submit anyway?`)) return;
+    if (due !== null && amount + 1 < due && !(await confirmDialog({ title: 'Less cash than due', message: `The customer owes ${inr(due)}. You entered ${inr(amount)}. The difference is recorded as unpaid.`, confirmLabel: 'Submit anyway' }))) return;
     setBusy(true);
     try {
       await api.updateVisitStep(visit._id, 'complete', { ...(notes.trim() ? { observations: notes.trim() } : {}), ...(due !== null ? { cashCollected: amount } : {}) });
@@ -373,15 +384,14 @@ function CompleteDialog({ visit, onClose, onDone }: { visit: Visit; onClose: () 
   }
 
   return (
-    <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="complete-title" onClick={onClose}>
-      <form className="card dialog" onSubmit={submit} onClick={(e) => e.stopPropagation()}>
+    <Modal onClose={onClose} labelledBy="complete-title" as="form" onSubmit={submit}>
         <h2 id="complete-title" style={{ marginTop: 0 }}>Complete visit</h2>
         <label htmlFor="notes">Visit notes for the patient (optional)</label>
-        <textarea id="notes" className="input" rows={4} maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What was done, observations…" />
+        <textarea id="notes" name="observations" autoComplete="off" className="input" rows={4} maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What was done, observations…" />
         {due !== null ? (
           <>
             <label htmlFor="cash">Cash collected (due {inr(due)})</label>
-            <input id="cash" className="input" inputMode="decimal" value={cash} onChange={(e) => setCash(e.target.value.replace(/[^0-9.]/g, ''))} />
+            <input id="cash" name="cashCollected" autoComplete="off" className="input" inputMode="decimal" value={cash} onChange={(e) => setCash(e.target.value.replace(/[^0-9.]/g, ''))} />
           </>
         ) : <p className="muted">Paid online. Nothing to collect.</p>}
         {error && <div className="notice bad" role="alert">{error}</div>}
@@ -389,7 +399,6 @@ function CompleteDialog({ visit, onClose, onDone }: { visit: Visit; onClose: () 
           <button type="button" className="btn secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn" disabled={busy}>{busy ? 'Saving…' : 'Mark completed'}</button>
         </div>
-      </form>
-    </div>
+    </Modal>
   );
 }

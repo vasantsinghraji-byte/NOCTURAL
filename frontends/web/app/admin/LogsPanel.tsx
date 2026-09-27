@@ -9,7 +9,8 @@ const LEVELS = [
   { key: 'warn', label: 'Warnings +' },
   { key: 'info', label: 'Info +' }
 ];
-const MAX_LINES = 1000;
+// Kept small so the view stays fast; older lines are in CloudWatch.
+const MAX_LINES = 300;
 
 /**
  * Live server logs, refreshed every 3 seconds. The server strips secrets and
@@ -53,7 +54,7 @@ export default function LogsPanel() {
         <div className="segmented" role="tablist" aria-label="Level">
           {LEVELS.map((l) => <button key={l.key} role="tab" aria-selected={level === l.key} className={level === l.key ? 'on' : ''} onClick={() => setLevel(l.key)}>{l.label}</button>)}
         </div>
-        <input className="input" type="search" aria-label="Filter logs" placeholder="Filter, e.g. payment, refund, dispatch…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="input" type="search" name="q" autoComplete="off" spellCheck={false} aria-label="Filter logs" placeholder="Filter, e.g. payment, refund, dispatch…" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className={live ? 'btn' : 'btn secondary'} onClick={() => setLive((v) => !v)} aria-pressed={live}>
           <span className={`live-dot ${live ? 'on' : ''}`} aria-hidden="true" /> {live ? 'Live' : 'Paused'}
         </button>
@@ -64,7 +65,7 @@ export default function LogsPanel() {
         Newest first · server instance <span className="mono">{instance || '…'}</span> · secrets removed, emails and phone numbers masked. Older logs are in AWS CloudWatch.
       </p>
       <div className="log-view" role="log" aria-live="off">
-        {lines.length === 0 && <div className="muted" style={{ padding: 12 }}>No {level === 'error' ? 'errors' : 'lines'} yet{live ? ' — watching…' : '.'}</div>}
+        {lines.length === 0 && <div className="muted" style={{ padding: 12 }}>No {level === 'error' ? 'errors' : 'lines'} yet.{live ? ' Watching for new ones…' : ''}</div>}
         {lines.map((l) => (
           <div key={l.seq} className={`log-line ${l.level}`}>
             <button className="log-head" onClick={() => setOpen(open === l.seq ? null : l.seq)} aria-expanded={open === l.seq}>

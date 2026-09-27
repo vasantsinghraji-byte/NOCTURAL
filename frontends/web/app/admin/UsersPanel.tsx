@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AdminUserDetail, AdminUserRow, AdminUserType } from '@medrush/shared';
 import { api } from '@/lib/api';
+import { Modal, promptDialog } from '../_components/Dialog';
 
 type Sensitive = (action: () => Promise<void>) => Promise<void>;
 const ROLES = ['nurse', 'physiotherapist', 'medical_staff', 'pharmacy_vendor', 'phlebotomist', 'lab_partner', 'delivery_partner'];
 const nice = (t?: string) => (t || '').replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
-const date = (d?: string) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+const date = (d?: string) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-');
 
 /**
  * User database: customers and partners with contact details masked. Showing
@@ -40,7 +41,7 @@ export default function UsersPanel({ sensitive }: { sensitive: Sensitive }) {
             <button key={t} role="tab" aria-selected={type === t} className={type === t ? 'on' : ''} onClick={() => { setType(t); setPage(1); }}>{nice(t)}</button>
           ))}
         </div>
-        <input className="input" type="search" aria-label="Search users" placeholder="Name, email, phone or ID…" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        <input className="input" type="search" name="q" autoComplete="off" spellCheck={false} aria-label="Search users" placeholder="Name, email, phone or ID…" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
         {type === 'partners' && (
           <select className="input" aria-label="Role" value={role} onChange={(e) => { setRole(e.target.value); setPage(1); }}>
             <option value="">All roles</option>
@@ -69,18 +70,19 @@ export default function UsersPanel({ sensitive }: { sensitive: Sensitive }) {
             {data?.users.map((u) => (
               <tr key={u._id} onClick={() => setOpen(u)} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') setOpen(u); }} aria-label={`Open ${u.name}`}>
                 <td><b>{u.name}</b></td>
-                <td className="mono">{u.email || '—'}</td>
-                <td className="mono">{u.phone || '—'}</td>
+                <td className="mono">{u.email || '-'}</td>
+                <td className="mono">{u.phone || '-'}</td>
                 {type === 'partners' ? (
-                  <><td>{nice(u.role)}</td><td>{u.verification ? <Checks v={u.verification} /> : '—'}</td></>
+                  <><td>{nice(u.role)}</td><td>{u.verification ? <Checks v={u.verification} /> : '-'}</td></>
                 ) : (
-                  <><td>{u.city || '—'}</td><td className="num">{u.bookings ?? 0}</td></>
+                  <><td>{u.city || '-'}</td><td className="num">{u.bookings ?? 0}</td></>
                 )}
                 <td>{date(u.joinedAt)}</td>
                 <td>{u.active ? <span className="pill mint">Active</span> : <span className="pill rx">Suspended</span>}</td>
               </tr>
             ))}
-            {data && data.users.length === 0 && <tr><td colSpan={7} className="muted">No users match.</td></tr>}
+            {!data && !error && [0, 1, 2, 3, 4].map((i) => <tr key={i} aria-hidden="true"><td colSpan={7}><span className="skeleton" style={{ width: `${70 - i * 8}%` }} /></td></tr>)}
+            {data && data.users.length === 0 && <tr><td colSpan={7} className="muted">No users match. Try a name, a full email, or the last digits of a phone number.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -111,25 +113,38 @@ function UserDialog({ row, sensitive, onClose, onChanged }: { row: AdminUserRow;
     api.adminUser(row.type, row._id).then((r) => setUser(r.user)).catch((e) => setError(e.message));
   }, [row]);
   useEffect(load, [load]);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   function reveal() {
-    const reason = window.prompt('Why do you need this person’s contact details? (saved in the audit log)', '');
-    if (!reason || reason.trim().length < 3) return;
-    sensitive(async () => { const r = await api.adminRevealContact(row.type, row._id, reason.trim()); setContact(r.contact); });
+    promptDialog({
+      title: 'Show contact details',
+      message: 'Your reason is saved in the audit log with your name.',
+      label: 'Why do you need them?',
+      placeholder: 'e.g. customer called about a refund…',
+      minLength: 3,
+      maxLength: 200,
+      confirmLabel: 'Show details'
+    }).then((reason) => {
+      if (reason) sensitive(async () => { const r = await api.adminRevealContact(row.type, row._id, reason); setContact(r.contact); });
+    });
   }
 
   function toggleActive() {
     if (!user) return;
     const next = !user.active;
-    const reason = window.prompt(next ? 'Reason for restoring this account:' : 'Reason for suspending (they will be signed out of everything):', '');
-    if (!reason || reason.trim().length < 3) return;
+    promptDialog({
+      title: next ? `Restore ${row.name}?` : `Suspend ${row.name}?`,
+      message: next ? 'They can sign in again straight away.' : 'They are signed out everywhere and can’t sign in until restored. Upcoming visits go to other staff.',
+      label: 'Reason (saved in the audit log)',
+      placeholder: next ? 'e.g. complaint resolved…' : 'e.g. complaint under review…',
+      minLength: 3,
+      maxLength: 200,
+      confirmLabel: next ? 'Restore account' : 'Suspend account'
+    }).then((reason) => { if (reason) suspend(next, reason); });
+  }
+
+  function suspend(next: boolean, reason: string) {
     sensitive(async () => {
-      const r = await api.adminSetUserActive(row.type, row._id, next, reason.trim());
+      const r = await api.adminSetUserActive(row.type, row._id, next, reason);
       setNotice(next ? 'Account restored.' : `Account suspended.${r.releasedVisits ? ` ${r.releasedVisits} upcoming visit(s) sent to other staff.` : ''}`);
       load();
       onChanged();
@@ -137,8 +152,7 @@ function UserDialog({ row, sensitive, onClose, onChanged }: { row: AdminUserRow;
   }
 
   return (
-    <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="user-title" onClick={onClose}>
-      <div className="card dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+    <Modal onClose={onClose} labelledBy="user-title" wide>
         <div className="row">
           <h2 id="user-title" style={{ margin: 0 }}>{row.name}</h2>
           {user && (user.active ? <span className="pill mint">Active</span> : <span className="pill rx">Suspended</span>)}
@@ -148,12 +162,12 @@ function UserDialog({ row, sensitive, onClose, onChanged }: { row: AdminUserRow;
         {notice && <div className="notice good" role="status">{notice}</div>}
 
         <dl className="kv">
-          <dt>Email</dt><dd className="mono">{contact ? contact.email || '—' : row.email || '—'}</dd>
-          <dt>Phone</dt><dd className="mono">{contact ? contact.phone || '—' : row.phone || '—'}</dd>
+          <dt>Email</dt><dd className="mono">{contact ? contact.email || '-' : row.email || '-'}</dd>
+          <dt>Phone</dt><dd className="mono">{contact ? contact.phone || '-' : row.phone || '-'}</dd>
           {user?.stats?.visits !== undefined && <><dt>Care visits</dt><dd>{user.stats.visits}</dd></>}
           {user?.stats?.orders !== undefined && <><dt>Pharmacy orders</dt><dd>{user.stats.orders}</dd></>}
           {user?.membership !== undefined && <><dt>Nabz Plus</dt><dd>{user.membership ? `${user.membership.plan} until ${date(user.membership.endsAt)}` : 'No'}</dd></>}
-          {user?.profile && <><dt>Qualification</dt><dd>{user.profile.qualification || '—'}{user.profile.registrationNumber ? ` · Reg. ${user.profile.registrationNumber}` : ''}</dd></>}
+          {user?.profile && <><dt>Qualification</dt><dd>{user.profile.qualification || '-'}{user.profile.registrationNumber ? ` · Reg. ${user.profile.registrationNumber}` : ''}</dd></>}
           {user?.profile?.gender && <><dt>Gender</dt><dd>{nice(user.profile.gender.toLowerCase())}</dd></>}
           {user?.verification && <><dt>Checks</dt><dd><Checks v={user.verification} /></dd></>}
           {user?.stats?.completedVisits != null && <><dt>Completed visits</dt><dd>{user.stats.completedVisits}</dd></>}
@@ -168,7 +182,6 @@ function UserDialog({ row, sensitive, onClose, onChanged }: { row: AdminUserRow;
           <button className="btn secondary" onClick={onClose} style={{ marginLeft: 'auto' }}>Close</button>
         </div>
         <p className="muted" style={{ fontSize: 12, margin: 0 }}>Showing contact details and suspending need a fresh authenticator code and are recorded in the audit log.</p>
-      </div>
-    </div>
+    </Modal>
   );
 }

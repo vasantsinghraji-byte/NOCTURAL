@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Withdrawal } from '@medrush/shared';
 import { api } from '@/lib/api';
+import { promptDialog } from '../_components/Dialog';
 
 type Destination = Awaited<ReturnType<typeof api.adminWithdrawalDestination>>['destination'];
 const inr = (n: number) => `₹${(Math.round(n * 100) / 100).toLocaleString('en-IN')}`;
@@ -32,11 +33,19 @@ export default function WithdrawalsPanel({ sensitive }: { sensitive: (action: ()
     await api.adminMarkWithdrawalPaid(w._id, (utr[w._id] || '').trim());
     load();
   });
-  const reject = (w: Withdrawal) => sensitive(async () => {
-    const note = window.prompt('Reason for rejecting (the partner sees this):', '') || 'Rejected';
-    await api.adminRejectWithdrawal(w._id, note);
-    load();
-  });
+  const reject = async (w: Withdrawal) => {
+    const note = await promptDialog({
+      title: `Reject ${inr(w.amount)} for ${w.user?.name || 'this partner'}?`,
+      message: 'The partner sees your reason. The amount goes back to their balance.',
+      label: 'Reason',
+      placeholder: 'e.g. bank details don’t match the account name…',
+      minLength: 3,
+      maxLength: 300,
+      confirmLabel: 'Reject withdrawal'
+    });
+    if (!note) return;
+    await sensitive(async () => { await api.adminRejectWithdrawal(w._id, note); load(); });
+  };
 
   return (
     <section style={{ marginTop: 12 }}>

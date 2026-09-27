@@ -4,6 +4,7 @@ import { Instrument_Serif, Manrope } from 'next/font/google';
 import './globals.css';
 import './nabz.css';
 import Providers from './_components/Providers';
+import { DialogHost } from './_components/Dialog';
 import SiteNav from './_components/SiteNav';
 import SiteFooter from './_components/SiteFooter';
 import AppTabBar from './_components/AppTabBar';
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main id="main" className="container main" tabIndex={-1}>{children}</main>
           <SiteFooter />
           <AppTabBar />
+          <DialogHost />
         </Providers>
       </body>
     </html>

@@ -62,7 +62,11 @@ export default function AdminConsole() {
     api.staffMe()
       .then((res) => {
         setUser(res.user);
-        if (res.user.role === 'platform_admin') setTab('users');
+        // The open tab lives in the URL (?tab=payments) so it survives refresh and can be linked.
+        const wanted = new URLSearchParams(window.location.search).get('tab') as Tab | null;
+        const allowed = TABS.filter((t) => !t.platformOnly || res.user.role === 'platform_admin').map((t) => t.key);
+        if (wanted && allowed.includes(wanted)) setTab(wanted);
+        else if (res.user.role === 'platform_admin') setTab('users');
         if (res.user.role === 'admin' || res.user.role === 'platform_admin') load();
       })
       .catch(() => setUser(null))
@@ -97,10 +101,19 @@ export default function AdminConsole() {
 
   return (
     <>
-      <div className="section-title" style={{ margin: '16px 0 8px' }}>Admin — {user?.name}</div>
+      <div className="admin-head">
+        <h1 className="section-title" style={{ margin: 0 }}>Admin panel</h1>
+        <span className="muted">Signed in as {user?.name}</span>
+      </div>
       <nav className="admin-tabs" role="tablist" aria-label="Admin sections">
         {TABS.filter((t) => !t.platformOnly || user?.role === 'platform_admin').map((t) => (
-          <button key={t.key} role="tab" aria-selected={tab === t.key} className={tab === t.key ? 'on' : ''} onClick={(e) => { setTab(t.key); e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'center' }); }}>{t.label}</button>
+          <button key={t.key} role="tab" aria-selected={tab === t.key} className={tab === t.key ? 'on' : ''} onClick={(e) => {
+            setTab(t.key);
+            e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'center' });
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', t.key);
+            window.history.replaceState(null, '', url);
+          }}>{t.label}</button>
         ))}
       </nav>
       {user?.role === 'platform_admin' && tab === 'payments' && <RevenuePanel />}
@@ -146,7 +159,7 @@ export default function AdminConsole() {
                   <h3>{m.name}</h3>
                   {m.requiresPrescription ? <span className="pill rx">Rx</span> : <span className="pill">OTC</span>}
                 </div>
-                <span className="muted">{m.genericName || m.category} · {m.packSize || m.form} · MRP ₹{m.referenceMrp ?? '—'}</span>
+                <span className="muted">{m.genericName || m.category} · {m.packSize || m.form} · MRP ₹{m.referenceMrp ?? '-'}</span>
               </div>
             ))}
           </div>

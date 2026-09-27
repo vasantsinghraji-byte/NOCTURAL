@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { BadgeCheck, Fingerprint, ShieldCheck, Syringe, type LucideIcon } from 'lucide-react';
 import type { AdminVerificationRow } from '@medrush/shared';
 import { api } from '@/lib/api';
+import { confirmDialog } from '../_components/Dialog';
 
 type Sensitive = (action: () => Promise<void>) => Promise<void>;
 type Flag = 'id' | 'police' | 'council' | 'vaccinated';
@@ -33,9 +34,9 @@ export default function VerificationPanel({ sensitive }: { sensitive: Sensitive 
   }, [status, q]);
   useEffect(() => { const t = window.setTimeout(load, 250); return () => window.clearTimeout(t); }, [load]);
 
-  function toggle(s: AdminVerificationRow, key: Flag) {
+  async function toggle(s: AdminVerificationRow, key: Flag) {
     const next = !s.verification[key];
-    if (!next && key !== 'vaccinated' && !window.confirm(`Remove the ${key} check for ${s.name}? They go offline and their upcoming visits are given to other staff.`)) return;
+    if (!next && key !== 'vaccinated' && !(await confirmDialog({ title: `Remove the ${key} check for ${s.name}?`, message: 'They go offline now and their upcoming visits are given to other staff.', confirmLabel: 'Remove check', danger: true }))) return;
     sensitive(async () => {
       const r = await api.adminSetStaffVerification(s._id, { [key]: next });
       setNotice(`${s.name}: ${key} check ${next ? 'added' : 'removed'}.${r.releasedVisits ? ` ${r.releasedVisits} visit(s) reassigned.` : ''}`);
@@ -51,7 +52,7 @@ export default function VerificationPanel({ sensitive }: { sensitive: Sensitive 
             <button key={s} role="tab" aria-selected={status === s} className={status === s ? 'on' : ''} onClick={() => setStatus(s)}>{s === 'pending' ? 'Needs checks' : nice(s)}</button>
           ))}
         </div>
-        <input className="input" type="search" aria-label="Search staff" placeholder="Name, email or phone…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="input" type="search" name="q" autoComplete="off" spellCheck={false} aria-label="Search staff" placeholder="Name, email or phone…" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       {error && <div className="notice bad" role="alert">{error}</div>}
       {notice && <div className="notice good" role="status">{notice}</div>}
@@ -68,7 +69,7 @@ export default function VerificationPanel({ sensitive }: { sensitive: Sensitive 
               </div>
               <span className="muted">{nice(s.role)}{s.qualification ? ` · ${s.qualification}` : ''}{s.gender ? ` · ${nice(s.gender)}` : ''}</span>
               <span className="muted">Council reg.: <span className="mono">{s.registrationNumber || 'not given'}</span></span>
-              <span className="muted mono">{s.email} · {s.phone || '—'}</span>
+              <span className="muted mono">{s.email} · {s.phone || '-'}</span>
               <div className="check-toggles" role="group" aria-label={`Checks for ${s.name}`}>
                 {FLAGS.map(({ key, label, icon: Icon }) => (
                   <button key={key} className={s.verification[key] ? 'on' : ''} aria-pressed={s.verification[key]} onClick={() => toggle(s, key)}>
