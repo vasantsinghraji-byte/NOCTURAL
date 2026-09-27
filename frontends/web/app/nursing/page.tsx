@@ -22,6 +22,9 @@ export default function NursingPage() {
   const [usingDemo, setUsingDemo] = useState(false);
   const [quote, setQuote] = useState<CareSuppliesQuote | null>(null);
   const [choices, setChoices] = useState<Record<string, CareSupplySource>>({});
+  // Booking for a parent / relative at their address (e.g. from another city).
+  const [forOther, setForOther] = useState(false);
+  const [contact, setContact] = useState({ name: '', phone: '' });
   const [form, setForm] = useState({
     date: tomorrow(), time: '10:00', street: '', city: 'Jaipur', pincode: '',
     name: '', age: '', gender: 'Female' as 'Male' | 'Female' | 'Other', notes: ''
@@ -102,7 +105,8 @@ export default function NursingPage() {
         scheduledTimezoneOffsetMinutes: -new Date(`${form.date}T${form.time}:00`).getTimezoneOffset(),
         serviceLocation: {
           type: 'HOME',
-          address: { street: form.street.trim(), city: form.city.trim(), pincode: form.pincode.trim(), coordinates: coords }
+          address: { street: form.street.trim(), city: form.city.trim(), pincode: form.pincode.trim(), coordinates: coords },
+          ...(forOther ? { contactPerson: contact.name.trim() || form.name.trim(), contactPhone: contact.phone } : {})
         },
         patientDetails: { name: form.name.trim() || patient?.name || 'Patient', age: Number(form.age), gender: form.gender },
         specialRequirements: form.notes.trim() || undefined,
@@ -232,7 +236,20 @@ export default function NursingPage() {
               <div><label className="muted">House / street</label><input className="input" value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} required placeholder="Flat 4B, 12th Main" /></div>
               <div><label className="muted">City</label><input className="input" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} required /></div>
               <div><label className="muted">Pincode</label><input className="input" value={form.pincode} onChange={(e) => setForm({ ...form, pincode: e.target.value })} required pattern="\d{6}" placeholder="560034" /></div>
-              <div><label className="muted">Patient name</label><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={patient?.name || 'Full name'} /></div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="muted">Who is the visit for?</label>
+                <div style={{ display: 'flex', gap: 8 }} role="radiogroup" aria-label="Who is the visit for">
+                  <button type="button" role="radio" aria-checked={!forOther} className={`choice ${!forOther ? 'on' : ''}`} onClick={() => setForOther(false)}>Me</button>
+                  <button type="button" role="radio" aria-checked={forOther} className={`choice ${forOther ? 'on' : ''}`} onClick={() => setForOther(true)}>Someone else (e.g. a parent in another city)</button>
+                </div>
+              </div>
+              {forOther && (
+                <>
+                  <div><label className="muted">Contact at the address</label><input className="input" value={contact.name} onChange={(e) => setContact({ ...contact, name: e.target.value })} placeholder="If not the patient" /></div>
+                  <div><label className="muted">Their mobile number</label><input className="input" inputMode="numeric" maxLength={10} required value={contact.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value.replace(/\D/g, '') })} pattern="[6-9][0-9]{9}" placeholder="10 digits" /></div>
+                </>
+              )}
+              <div><label className="muted">Patient name</label><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required={forOther} placeholder={forOther ? 'Patient’s full name' : patient?.name || 'Full name'} /></div>
               <div><label className="muted">Age</label><input className="input" type="number" min={0} max={120} value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} required /></div>
               <div><label className="muted">Gender</label>
                 <select className="input" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as 'Male' | 'Female' | 'Other' })}>

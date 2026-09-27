@@ -76,6 +76,15 @@ const createBookingValidation = [
     .withMessage('Scheduled timezone offset is required')
     .isInt({ min: -840, max: 840 })
     .withMessage('Scheduled timezone offset must be between -840 and 840 minutes'),
+  // Booking for someone else: who the professional calls at the address.
+  body('serviceLocation.contactPerson')
+    .optional({ values: 'falsy' })
+    .isString().trim().isLength({ max: 80 })
+    .withMessage('Contact name is too long'),
+  body('serviceLocation.contactPhone')
+    .optional({ values: 'falsy' })
+    .matches(/^[6-9]\d{9}$/)
+    .withMessage('Enter a valid 10-digit mobile number for the contact'),
   body('serviceLocation.address.street')
     .trim()
     .notEmpty()

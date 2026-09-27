@@ -388,11 +388,7 @@ class BookingService {
       throw new AuthorizationError('Not authorized to view this booking');
     }
 
-    // Nurses see the customer's phone only around the visit, never the email.
-    if (isProvider && !isAdmin && booking.patient && typeof booking.patient === 'object') {
-      booking.patient.email = undefined;
-      if (!visitPolicy.providerMaySeePhone(booking)) booking.patient.phone = undefined;
-    }
+    if (isProvider && !isAdmin) this.redactForProvider(booking);
 
     return booking;
   }
@@ -597,7 +593,25 @@ class BookingService {
    * @returns {Promise<Object>} Provider's bookings
    */
   async getProviderBookings(providerId, options = {}) {
-    return this.getAllBookings({ serviceProvider: normalizeObjectId(providerId, 'provider id') }, options);
+    const result = await this.getAllBookings({ serviceProvider: normalizeObjectId(providerId, 'provider id') }, options);
+    result.bookings.forEach((b) => this.redactForProvider(b));
+    return result;
+  }
+
+  /**
+   * What a nurse may see of the customer: never the email; the customer's
+   * phone and the on-site contact's phone (booked for someone else) only
+   * around the visit.
+   */
+  redactForProvider(booking) {
+    if (!booking) return booking;
+    const mayCall = visitPolicy.providerMaySeePhone(booking);
+    if (booking.patient && typeof booking.patient === 'object') {
+      booking.patient.email = undefined;
+      if (!mayCall) booking.patient.phone = undefined;
+    }
+    if (!mayCall && booking.serviceLocation) booking.serviceLocation.contactPhone = undefined;
+    return booking;
   }
 
   /**

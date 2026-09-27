@@ -48,6 +48,9 @@ export default function Book() {
   const [time, setTime] = useState('10:00');
   const [form, setForm] = useState({ street: '', city: 'Jaipur', pincode: '', age: '', gender: 'Female' as (typeof GENDERS)[number], notes: '' });
   const [pref, setPref] = useState<'ANY' | 'FEMALE' | 'MALE'>('ANY');
+  // Booking for a parent / relative at their address (e.g. from another city).
+  const [forOther, setForOther] = useState(false);
+  const [other, setOther] = useState({ name: '', contactName: '', contactPhone: '' });
   const [rx, setRx] = useState<{ key: string; url: string } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -81,6 +84,10 @@ export default function Book() {
     if (step === 'details') {
       if (!session || session.kind !== 'patient') { router.push('/welcome'); return; }
       if (!form.street.trim() || !/^\d{6}$/.test(form.pincode) || !form.age) { setError('Add the address, a 6-digit pincode and the patient’s age.'); return; }
+      if (forOther && (other.name.trim().length < 2 || !/^[6-9]\d{9}$/.test(other.contactPhone))) {
+        setError('Add the patient’s name and a 10-digit phone number for someone at the address.');
+        return;
+      }
       if (needsRx && !rx) { setError('Attach the prescription for this visit.'); return; }
       setConfirming(true);
       return;
@@ -107,8 +114,12 @@ export default function Book() {
         scheduledTime: mode === 'ASAP' ? hm(now) : time,
         scheduledTimezone: 'Asia/Kolkata',
         scheduledTimezoneOffsetMinutes: -new Date().getTimezoneOffset() || 330,
-        serviceLocation: { type: 'HOME', address: { street: form.street.trim(), city: form.city.trim(), pincode: form.pincode, coordinates: point } },
-        patientDetails: { name: session.name, age: Number(form.age), gender: form.gender },
+        serviceLocation: {
+          type: 'HOME',
+          address: { street: form.street.trim(), city: form.city.trim(), pincode: form.pincode, coordinates: point },
+          ...(forOther ? { contactPerson: other.contactName.trim() || other.name.trim(), contactPhone: other.contactPhone } : {})
+        },
+        patientDetails: { name: forOther ? other.name.trim() : session.name, age: Number(form.age), gender: form.gender },
         specialRequirements: form.notes.trim() || undefined,
         supplies: items.map((i) => ({ key: i.key, source: (bring[i.key] ? 'STAFF_BRINGS' : 'PATIENT_HAS') as CareSupplySource })),
         suppliesVendorId: bringing.length ? quote?.vendor?._id : undefined,
@@ -247,6 +258,23 @@ export default function Book() {
               <TextInput style={[ui.input, { flex: 1 }]} value={form.city} onChangeText={(city) => setForm({ ...form, city })} placeholder="City" placeholderTextColor={C.faint} />
               <TextInput style={[ui.input, { width: 120 }]} value={form.pincode} onChangeText={(pincode) => setForm({ ...form, pincode })} placeholder="Pincode" keyboardType="number-pad" maxLength={6} placeholderTextColor={C.faint} />
             </View>
+            <Text style={[ui.label, { marginTop: 6 }]}>Who is the visit for?</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[{ v: false, t: 'Me' }, { v: true, t: 'Someone else' }].map((o) => (
+                <Pressable key={o.t} onPress={() => setForOther(o.v)} style={[styles.slot, forOther === o.v && styles.slotOn]}
+                  accessibilityRole="radio" accessibilityState={{ checked: forOther === o.v }}>
+                  <Text style={[styles.slotText, forOther === o.v && { color: C.onNight }]}>{o.t}</Text>
+                </Pressable>
+              ))}
+            </View>
+            {forOther && (
+              <View style={{ gap: 8 }}>
+                <Text style={ui.muted}>For a parent or relative at the address above. The professional calls the contact below, not you, and you can track the visit live.</Text>
+                <TextInput style={ui.input} value={other.name} onChangeText={(name) => setOther({ ...other, name })} placeholder="Patient’s full name" placeholderTextColor={C.faint} />
+                <TextInput style={ui.input} value={other.contactName} onChangeText={(contactName) => setOther({ ...other, contactName })} placeholder="Contact at the address (if not the patient)" placeholderTextColor={C.faint} />
+                <TextInput style={ui.input} value={other.contactPhone} onChangeText={(v) => setOther({ ...other, contactPhone: v.replace(/\D/g, '') })} placeholder="Their mobile number" keyboardType="phone-pad" maxLength={10} placeholderTextColor={C.faint} />
+              </View>
+            )}
             <Text style={[ui.label, { marginTop: 6 }]}>Patient</Text>
             <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <TextInput style={[ui.input, { width: 84 }]} value={form.age} onChangeText={(age) => setForm({ ...form, age })} placeholder="Age" keyboardType="number-pad" maxLength={3} placeholderTextColor={C.faint} />

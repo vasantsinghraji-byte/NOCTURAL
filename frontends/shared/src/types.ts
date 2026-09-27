@@ -455,6 +455,8 @@ export interface CreateCareBookingInput {
   serviceLocation: {
     type?: 'HOME';
     address: { street: string; city: string; pincode: string; state?: string; coordinates?: { lat: number; lng: number } };
+    /** Booking for someone else: who the professional calls at the address. */
+    contactPerson?: string;
     contactPhone?: string;
   };
   patientDetails: { name: string; age: number; gender: 'Male' | 'Female' | 'Other' };
@@ -478,6 +480,7 @@ export interface CareBooking {
   payment?: { status?: string; method?: string; amount?: number };
   cancellation?: { reason?: string; cancellationFee?: number };
   serviceLocation?: CreateCareBookingInput['serviceLocation'];
+  patientDetails?: { name?: string; age?: number; gender?: string };
   supplies?: {
     items: Array<{ key: string; name: string; quantity: number; source: CareSupplySource; lineTotal?: number }>;
     pharmacyVendor?: string;
@@ -592,7 +595,13 @@ export type SocialSignInResult =
   | { success: true; needsProfile: true; signupToken: string; profile: { phone?: string; email?: string; name?: string; needs: string[] } }
   | { success: true; needsProfile?: undefined; patient: PatientProfile; tokens?: { accessToken: string; refreshToken: string } };
 
-export type PartnerKind = 'MEDICAL_STAFF' | 'PHARMACY' | 'PATH_LAB' | 'DELIVERY';
+export type PartnerKind = 'MEDICAL_STAFF' | 'PHARMACY' | 'PATH_LAB' | 'DELIVERY' | 'PHLEBOTOMIST' | 'PRP_TECHNICIAN' | 'HOSPITAL';
+
+/** Partners who work in people's homes: we ask their gender (physio hiring mix, patient preference). */
+export const PEOPLE_PARTNER_KINDS: PartnerKind[] = ['MEDICAL_STAFF', 'PHLEBOTOMIST', 'PRP_TECHNICIAN', 'DELIVERY'];
+
+/** Staff by role and gender (GET /partners/admin/staff-mix). */
+export type StaffMix = Record<string, { FEMALE: number; MALE: number; OTHER: number; UNKNOWN: number }>;
 
 export interface PartnerApplicationInput {
   kind: PartnerKind;
@@ -600,6 +609,7 @@ export interface PartnerApplicationInput {
   phone: string;
   email?: string;
   city?: string;
+  gender?: 'FEMALE' | 'MALE' | 'OTHER';
   qualification?: string;
   registrationNumber?: string;
   experienceYears?: number;

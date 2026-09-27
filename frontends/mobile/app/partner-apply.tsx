@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
-import { Bike, CircleCheck, FlaskConical, Stethoscope, Store, type LucideIcon } from 'lucide-react-native';
-import type { PartnerApplicationInput, PartnerKind } from '@medrush/shared';
+import { Bike, CircleCheck, Droplets, FlaskConical, Hospital, Stethoscope, Store, Syringe, type LucideIcon } from 'lucide-react-native';
+import { PEOPLE_PARTNER_KINDS, type PartnerApplicationInput, type PartnerKind } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { IconTile } from '@/lib/icons';
 import { PressScale, Rise, success } from '@/lib/motion';
@@ -12,7 +12,10 @@ const KINDS: Array<{ kind: PartnerKind; icon: LucideIcon; title: string; tone: s
   { kind: 'MEDICAL_STAFF', icon: Stethoscope, title: 'Nurse / physio', tone: C.violetSoft, fg: C.violet },
   { kind: 'PHARMACY', icon: Store, title: 'Pharmacy', tone: C.mintSoft, fg: C.mint },
   { kind: 'PATH_LAB', icon: FlaskConical, title: 'Path lab', tone: C.amberSoft, fg: C.amber },
-  { kind: 'DELIVERY', icon: Bike, title: 'Delivery', tone: C.skySoft, fg: C.sky }
+  { kind: 'DELIVERY', icon: Bike, title: 'Delivery', tone: C.skySoft, fg: C.sky },
+  { kind: 'PHLEBOTOMIST', icon: Droplets, title: 'Phlebotomist', tone: C.roseSoft, fg: C.rose },
+  { kind: 'PRP_TECHNICIAN', icon: Syringe, title: 'PRP technician', tone: C.violetSoft, fg: C.violet },
+  { kind: 'HOSPITAL', icon: Hospital, title: 'Hospital / nursing home', tone: C.mintSoft, fg: C.mint }
 ];
 
 type Field = { key: keyof PartnerApplicationInput; label: string; keyboard?: 'number-pad' | 'email-address' | 'phone-pad'; max?: number };
@@ -35,7 +38,20 @@ const EXTRA: Record<PartnerKind, Field[]> = {
   ],
   DELIVERY: [
     { key: 'vehicle', label: 'Vehicle (e.g. scooter, bike)' }
-  ]
+  ],
+  PHLEBOTOMIST: [
+    { key: 'qualification', label: 'Qualification (e.g. DMLT, BMLT)' },
+    { key: 'experienceYears', label: 'Years of sample-collection experience', keyboard: 'number-pad', max: 2 }
+  ],
+  PRP_TECHNICIAN: [
+    { key: 'qualification', label: 'Qualification / certification' },
+    { key: 'experienceYears', label: 'Years of PRP experience', keyboard: 'number-pad', max: 2 }
+  ],
+  HOSPITAL: [
+    { key: 'businessName', label: 'Hospital / nursing home name' },
+    { key: 'registrationNumber', label: 'Clinical establishment registration no.' },
+    { key: 'address', label: 'Address' }
+  ],
 };
 
 /** Apply to join as a partner. Ops review every application before creating a login. */
@@ -56,6 +72,10 @@ export default function PartnerApply() {
     try {
       const input: PartnerApplicationInput = { kind, name: form.name.trim(), phone: form.phone, city: form.city || 'Jaipur' };
       if (form.email) input.email = form.email.trim();
+      if (PEOPLE_PARTNER_KINDS.includes(kind)) {
+        if (!form.gender) { setError('Choose your gender (patients can ask for a female or male professional).'); setBusy(false); return; }
+        input.gender = form.gender as PartnerApplicationInput['gender'];
+      }
       for (const f of EXTRA[kind]) {
         const v = (form[f.key] || '').trim();
         if (!v) continue;
@@ -109,6 +129,17 @@ export default function PartnerApply() {
           <TextInput style={ui.input} placeholder="Email (optional)" placeholderTextColor={C.faint} keyboardType="email-address" autoCapitalize="none"
             value={form.email || ''} onChangeText={set('email')} />
           <TextInput style={ui.input} placeholder="City" placeholderTextColor={C.faint} value={form.city || ''} onChangeText={set('city')} />
+          {PEOPLE_PARTNER_KINDS.includes(kind) && (
+            <View style={{ flexDirection: 'row', gap: 8 }} accessibilityRole="radiogroup">
+              {(['FEMALE', 'MALE', 'OTHER'] as const).map((g) => (
+                <Pressable key={g} onPress={() => set('gender')(g)} accessibilityRole="radio" accessibilityState={{ checked: form.gender === g }}
+                  style={[styles.gender, form.gender === g && styles.genderOn]}>
+                  <Text style={[ui.h3, { fontSize: 14 }, form.gender === g && { color: C.onNight }]}>{g === 'FEMALE' ? 'Female' : g === 'MALE' ? 'Male' : 'Other'}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          {kind === 'PRP_TECHNICIAN' && <Text style={ui.muted}>PRP visits run under a registered doctor; we confirm the supervising doctor during verification.</Text>}
           {EXTRA[kind].map((f) => (
             <TextInput key={`${kind}-${f.key}`} style={ui.input} placeholder={f.label} placeholderTextColor={C.faint}
               keyboardType={f.keyboard} maxLength={f.max} value={form[f.key] || ''} onChangeText={set(f.key)} />
@@ -128,5 +159,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   kind: { width: '48%', flexGrow: 1, borderRadius: 18, padding: 14, gap: 8, borderWidth: 2, borderColor: C.border, backgroundColor: C.card },
   kindOn: { borderColor: C.ink, ...shadow },
-  label: { fontFamily: F.bold }
+  label: { fontFamily: F.bold },
+  gender: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card },
+  genderOn: { backgroundColor: C.night, borderColor: C.night }
 });

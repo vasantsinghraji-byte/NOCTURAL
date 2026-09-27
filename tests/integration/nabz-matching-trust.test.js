@@ -237,6 +237,22 @@ describe('Nabz matching, trust layer and sign-in (real MongoDB)', () => {
     expect((await request(app).get('/api/v1/partners/admin/applications').set(auth(tokens.near))).status).toBe(403);
   });
 
+  it('Phase 1.1 partner types apply with gender; the admin sees the staff mix', async () => {
+    if (skip()) return;
+    const phone = `7${String(Date.now()).slice(-9)}`;
+    const noGender = await request(app).post('/api/v1/partners/apply').send({ kind: 'PHLEBOTOMIST', name: 'Sunita Devi', phone, gender: 'X' });
+    expect(noGender.status).toBe(400);
+    const ok = await request(app).post('/api/v1/partners/apply').send({ kind: 'PHLEBOTOMIST', name: 'Sunita Devi', phone, gender: 'FEMALE', qualification: 'DMLT' });
+    expect(ok.status).toBe(201);
+    expect((await PartnerApplication.findById(ok.body.application.id).lean())).toMatchObject({ kind: 'PHLEBOTOMIST', gender: 'FEMALE' });
+    expect((await request(app).post('/api/v1/partners/apply').send({ kind: 'HOSPITAL', name: 'Shanti Nursing Home', phone: `6${String(Date.now()).slice(-9)}` })).status).toBe(201);
+    const mix = await request(app).get('/api/v1/partners/admin/staff-mix').set(auth(tokens.admin));
+    expect(mix.status).toBe(200);
+    expect(mix.body.mix.nurse.FEMALE + mix.body.mix.nurse.MALE + mix.body.mix.nurse.UNKNOWN).toBeGreaterThanOrEqual(2);
+    await PartnerApplication.deleteMany({ phone: { $in: [phone] } });
+    await PartnerApplication.deleteMany({ name: 'Shanti Nursing Home' });
+  });
+
   it('unverified staff cannot go online', async () => {
     if (skip()) return;
     const rookie = await User.create({

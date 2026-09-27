@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator, Animated, AppState, Easing, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View
-} from 'react-native';
+import { ActivityIndicator, Animated, AppState, Easing, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Redirect } from 'expo-router';
 import * as Location from 'expo-location';
 import {
-  BadgeCheck, Circle, Flame, IndianRupee, LogOut, MapPin, Navigation, Package, ShieldAlert, Star, Store, Wallet
+  BadgeCheck, Circle, Flame, IndianRupee, LogOut, MapPin, Navigation, Package, Phone, ShieldAlert, Star, Store, UserRound, Wallet
 } from 'lucide-react-native';
 import type { CareBooking, StaffDashboard, VisitOffer } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
@@ -359,6 +357,16 @@ export default function StaffHome() {
                 </View>
                 <Text style={ui.muted}>{v.dispatch?.mode === 'ASAP' ? 'Now' : `${String(v.scheduledDate).slice(0, 10)} · ${v.scheduledTime}`}</Text>
                 <View style={styles.inline}><MapPin size={14} color={C.muted} /><Text style={ui.muted}>{v.serviceLocation?.address?.street}, {v.serviceLocation?.address?.pincode}</Text></View>
+                {v.patientDetails?.name ? (
+                  <View style={styles.inline}><UserRound size={14} color={C.muted} /><Text style={ui.muted}>For {v.patientDetails.name}{v.patientDetails.age ? `, ${v.patientDetails.age}` : ''}{v.patientDetails.gender ? ` · ${v.patientDetails.gender}` : ''}</Text></View>
+                ) : null}
+                {v.serviceLocation?.contactPhone ? (
+                  // Booked by a relative: call the person at the address (shown only around the visit).
+                  <Pressable style={styles.inline} onPress={() => Linking.openURL(`tel:${v.serviceLocation?.contactPhone}`)} accessibilityRole="button">
+                    <Phone size={14} color={C.brand} />
+                    <Text style={[ui.muted, { color: C.brand, fontFamily: F.bold }]}>Call {v.serviceLocation.contactPerson || 'contact at the address'}</Text>
+                  </Pressable>
+                ) : null}
                 {LIVE_STATUSES.includes(v.status) && online && (
                   <View style={styles.inline}><Navigation size={14} color={C.mint} /><Text style={[ui.muted, { color: C.mint }]}>Patient can see your live location</Text></View>
                 )}

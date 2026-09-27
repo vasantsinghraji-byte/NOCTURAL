@@ -28,6 +28,7 @@ async function apply(input, applicant = { kind: 'ANONYMOUS' }) {
     phone,
     email: clean(input.email, 160),
     city: clean(input.city, 80) || 'Jaipur',
+    gender: ['FEMALE', 'MALE', 'OTHER'].includes(input.gender) ? input.gender : undefined,
     details: {
       qualification: clean(input.qualification, 80),
       registrationNumber: clean(input.registrationNumber, 60),
@@ -87,6 +88,7 @@ async function provision(app, email, adminId) {
       ...(vendor ? { pharmacyVendor: vendor._id } : {}),
       ...(app.kind === 'MEDICAL_STAFF' ? {
         careProfile: {
+          gender: app.gender,
           qualification: app.details?.qualification,
           registrationNumber: app.details?.registrationNumber
           // verification flags default to false: they can't go online until ops verify.
@@ -140,4 +142,18 @@ async function review(id, adminId, { status, note, email }) {
   return out;
 }
 
-module.exports = { apply, list, review };
+/** Verified-or-not staff by role and gender, for the physio hiring mix (target 2 : 8 M : F). */
+async function staffMix() {
+  const rows = await User.aggregate([
+    { $match: { role: { $in: ['nurse', 'physiotherapist'] }, isActive: { $ne: false } } },
+    { $group: { _id: { role: '$role', gender: { $ifNull: ['$careProfile.gender', 'UNKNOWN'] } }, count: { $sum: 1 } } }
+  ]);
+  const mix = {};
+  for (const r of rows) {
+    mix[r._id.role] = mix[r._id.role] || { FEMALE: 0, MALE: 0, OTHER: 0, UNKNOWN: 0 };
+    mix[r._id.role][r._id.gender] = r.count;
+  }
+  return mix;
+}
+
+module.exports = { apply, list, review, staffMix };

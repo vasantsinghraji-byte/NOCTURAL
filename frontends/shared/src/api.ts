@@ -26,6 +26,7 @@ import type {
   CareBooking,
   CareCancelQuote,
   PartnerApplication,
+  StaffMix,
   LoginPortal,
   MembershipStatus,
   VisitTracking,
@@ -620,6 +621,10 @@ export class MedRushApi {
   // ── Pharmacy: admin ──────────────────────────────────────────────────────
   adminListPartnerApplications(status: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING') {
     return this.request<{ success: true; applications: PartnerApplication[] }>('GET', '/partners/admin/applications', { query: { status } });
+  }
+
+  adminStaffMix() {
+    return this.request<{ success: true; mix: StaffMix }>('GET', '/partners/admin/staff-mix');
   }
 
   /** Approving a nurse/physio or pharmacy creates their login and sends a set-password invite. */

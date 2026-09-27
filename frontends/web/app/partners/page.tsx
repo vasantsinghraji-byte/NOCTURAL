@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Bike, CircleCheck, FlaskConical, Stethoscope, Store, type LucideIcon } from 'lucide-react';
-import type { PartnerApplicationInput, PartnerKind } from '@medrush/shared';
+import { Bike, CircleCheck, Droplets, FlaskConical, Hospital, Stethoscope, Store, Syringe, type LucideIcon } from 'lucide-react';
+import { PEOPLE_PARTNER_KINDS, type PartnerApplicationInput, type PartnerKind } from '@medrush/shared';
 import { api } from '@/lib/api';
 import AuthShell from '../_components/AuthShell';
 
@@ -12,7 +12,10 @@ const KINDS: Array<{ kind: PartnerKind; icon: LucideIcon; title: string; login: 
   { kind: 'MEDICAL_STAFF', icon: Stethoscope, title: 'Nurse / physio', login: '/staff/login' },
   { kind: 'PHARMACY', icon: Store, title: 'Pharmacy', login: '/vendor/login' },
   { kind: 'PATH_LAB', icon: FlaskConical, title: 'Path lab', login: null },
-  { kind: 'DELIVERY', icon: Bike, title: 'Delivery', login: null }
+  { kind: 'DELIVERY', icon: Bike, title: 'Delivery', login: null },
+  { kind: 'PHLEBOTOMIST', icon: Droplets, title: 'Phlebotomist', login: null },
+  { kind: 'PRP_TECHNICIAN', icon: Syringe, title: 'PRP technician', login: null },
+  { kind: 'HOSPITAL', icon: Hospital, title: 'Hospital / nursing home', login: null }
 ];
 
 type Field = { key: keyof PartnerApplicationInput; label: string; numeric?: boolean };
@@ -33,7 +36,20 @@ const EXTRA: Record<PartnerKind, Field[]> = {
     { key: 'registrationNumber', label: 'NABL / registration number' },
     { key: 'address', label: 'Lab address' }
   ],
-  DELIVERY: [{ key: 'vehicle', label: 'Vehicle (scooter, bike…)' }]
+  DELIVERY: [{ key: 'vehicle', label: 'Vehicle (scooter, bike…)' }],
+  PHLEBOTOMIST: [
+    { key: 'qualification', label: 'Qualification (DMLT, BMLT…)' },
+    { key: 'experienceYears', label: 'Years of sample-collection experience', numeric: true }
+  ],
+  PRP_TECHNICIAN: [
+    { key: 'qualification', label: 'Qualification / certification' },
+    { key: 'experienceYears', label: 'Years of PRP experience', numeric: true }
+  ],
+  HOSPITAL: [
+    { key: 'businessName', label: 'Hospital / nursing home name' },
+    { key: 'registrationNumber', label: 'Clinical establishment registration no.' },
+    { key: 'address', label: 'Address' }
+  ],
 };
 
 /** Apply to become a Nabz partner (reviewed by the ops team; logins are never self-assigned). */
@@ -54,6 +70,10 @@ export default function PartnersPage() {
     try {
       const input: PartnerApplicationInput = { kind, name: form.name.trim(), phone: form.phone, city: form.city || 'Jaipur' };
       if (form.email) input.email = form.email.trim();
+      if (PEOPLE_PARTNER_KINDS.includes(kind)) {
+        if (!form.gender) { setError('Choose your gender (patients can ask for a female or male professional).'); setBusy(false); return; }
+        input.gender = form.gender as PartnerApplicationInput['gender'];
+      }
       for (const f of EXTRA[kind]) {
         const v = (form[f.key] || '').trim();
         if (!v) continue;
@@ -108,6 +128,20 @@ export default function PartnersPage() {
         <input id="p-email" className="input" type="email" autoComplete="email" value={form.email || ''} onChange={set('email')} />
         <label htmlFor="p-city">City</label>
         <input id="p-city" className="input" value={form.city || ''} onChange={set('city')} />
+        {PEOPLE_PARTNER_KINDS.includes(kind) && (
+          <>
+            <label>Gender</label>
+            <div style={{ display: 'flex', gap: 8 }} role="radiogroup" aria-label="Gender">
+              {(['FEMALE', 'MALE', 'OTHER'] as const).map((g) => (
+                <button key={g} type="button" role="radio" aria-checked={form.gender === g} className={`choice ${form.gender === g ? 'on' : ''}`}
+                  onClick={() => setForm((f) => ({ ...f, gender: g }))} style={{ flex: 1, fontWeight: 700 }}>
+                  {g === 'FEMALE' ? 'Female' : g === 'MALE' ? 'Male' : 'Other'}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {kind === 'PRP_TECHNICIAN' && <p className="muted" style={{ fontSize: 12 }}>PRP visits run under a registered doctor; we confirm the supervising doctor during verification.</p>}
         {EXTRA[kind].map((f) => (
           <div key={`${kind}-${f.key}`}>
             <label htmlFor={`p-${f.key}`}>{f.label}</label>

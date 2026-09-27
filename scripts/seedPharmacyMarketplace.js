@@ -41,7 +41,7 @@ const DEMO_PARTNERS = [
 // Jaipur launch-area demo stores ([lng, lat]). Nabz launches in Jaipur first.
 const VENDORS = [
   {
-    name: 'Apollo Pharmacy - C-Scheme',
+    name: 'Nabz Demo Pharmacy · C-Scheme',
     slug: 'apollo-c-scheme-jaipur',
     contactPhone: '9876500011',
     address: { line1: 'Ashok Marg, C-Scheme', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
@@ -52,7 +52,7 @@ const VENDORS = [
     owner: { name: 'C-Scheme Store Manager', email: 'pharmacy@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500011' }
   },
   {
-    name: 'MedPlus - Malviya Nagar',
+    name: 'Nabz Demo Pharmacy · Malviya Nagar',
     slug: 'medplus-malviya-nagar-jaipur',
     contactPhone: '9876500022',
     address: { line1: 'Gaurav Tower, Malviya Nagar', city: 'Jaipur', state: 'Rajasthan', pincode: '302017' },
@@ -62,7 +62,7 @@ const VENDORS = [
     minOrderValue: 149
   },
   {
-    name: 'Wellness Forever - Vaishali Nagar',
+    name: 'Nabz Demo Pharmacy · Vaishali Nagar',
     slug: 'wellness-vaishali-nagar-jaipur',
     contactPhone: '9876500033',
     address: { line1: 'Amrapali Marg, Vaishali Nagar', city: 'Jaipur', state: 'Rajasthan', pincode: '302021' },

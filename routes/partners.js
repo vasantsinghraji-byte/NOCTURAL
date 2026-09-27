@@ -33,6 +33,7 @@ router.post(
     body('name').isString().trim().isLength({ min: 2, max: 120 }).withMessage('Enter your name'),
     body('phone').isString().matches(/^(\+?91)?[6-9]\d{9}$/).withMessage('Enter a valid mobile number'),
     body('email').optional({ values: 'falsy' }).isEmail().withMessage('Enter a valid email'),
+    body('gender').optional({ values: 'falsy' }).isIn(['FEMALE', 'MALE', 'OTHER']),
     body('city').optional().isString().isLength({ max: 80 }),
     body('qualification').optional().isString().isLength({ max: 80 }),
     body('registrationNumber').optional().isString().isLength({ max: 60 }),
@@ -47,6 +48,12 @@ router.post(
     const application = await partnerApplicationService.apply(req.body);
     res.status(201).json({ success: true, application });
   })
+);
+
+router.get(
+  '/admin/staff-mix',
+  admin,
+  wrap(async (req, res) => res.json({ success: true, mix: await partnerApplicationService.staffMix() }))
 );
 
 router.get(

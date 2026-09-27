@@ -8,7 +8,8 @@
 
 const mongoose = require('mongoose');
 
-const PARTNER_KINDS = ['MEDICAL_STAFF', 'PHARMACY', 'PATH_LAB', 'DELIVERY'];
+// Phase 1.1 adds phlebotomists, PRP technicians and hospitals / nursing homes (waitlist).
+const PARTNER_KINDS = ['MEDICAL_STAFF', 'PHARMACY', 'PATH_LAB', 'DELIVERY', 'PHLEBOTOMIST', 'PRP_TECHNICIAN', 'HOSPITAL'];
 
 const PartnerApplicationSchema = new mongoose.Schema({
   kind: { type: String, enum: PARTNER_KINDS, required: true },
@@ -16,6 +17,8 @@ const PartnerApplicationSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true, maxlength: 120 },
   phone: { type: String, required: true, match: [/^[6-9]\d{9}$/, 'Valid Indian mobile number required'] },
   email: { type: String, trim: true, lowercase: true, maxlength: 160 },
+  // People partners: lets ops track the physio hiring mix (target 2 : 8 male : female).
+  gender: { type: String, enum: ['FEMALE', 'MALE', 'OTHER'] },
   city: { type: String, trim: true, maxlength: 80, default: 'Jaipur' },
   // Role-specific credentials (checked by ops before approval).
   details: {
