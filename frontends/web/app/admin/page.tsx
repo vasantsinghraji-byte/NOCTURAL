@@ -4,10 +4,29 @@ import { useCallback, useEffect, useState } from 'react';
 import RevenuePanel from './RevenuePanel';
 import ApplicationsPanel from './ApplicationsPanel';
 import WithdrawalsPanel from './WithdrawalsPanel';
+import UsersPanel from './UsersPanel';
+import VerificationPanel from './VerificationPanel';
+import PaymentsPanel from './PaymentsPanel';
+import LogsPanel from './LogsPanel';
+import CampaignsPanel from './CampaignsPanel';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { ApiError, type AuthUser, type Medicine, type PharmacyVendor } from '@medrush/shared';
 import { StepUpDialog } from '../_components/AdminMfa';
+
+type Tab = 'users' | 'verification' | 'payments' | 'logs' | 'campaigns' | 'partners' | 'withdrawals' | 'vendors' | 'medicines';
+// Platform-admin tabs first: the day-to-day operations.
+const TABS: Array<{ key: Tab; label: string; platformOnly?: boolean }> = [
+  { key: 'users', label: 'Users', platformOnly: true },
+  { key: 'verification', label: 'Verification', platformOnly: true },
+  { key: 'partners', label: 'Partner applications', platformOnly: true },
+  { key: 'payments', label: 'Payments', platformOnly: true },
+  { key: 'withdrawals', label: 'Withdrawals', platformOnly: true },
+  { key: 'campaigns', label: 'Campaigns', platformOnly: true },
+  { key: 'logs', label: 'Live logs', platformOnly: true },
+  { key: 'vendors', label: 'Vendors' },
+  { key: 'medicines', label: 'Medicines' }
+];
 
 const VENDOR_ACTIONS: Record<string, string[]> = {
   PENDING: ['APPROVED', 'REJECTED'],
@@ -19,7 +38,7 @@ const VENDOR_ACTIONS: Record<string, string[]> = {
 export default function AdminConsole() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checking, setChecking] = useState(true);
-  const [tab, setTab] = useState<'vendors' | 'medicines' | 'partners' | 'withdrawals'>('vendors');
+  const [tab, setTab] = useState<Tab>('vendors');
   const [vendors, setVendors] = useState<PharmacyVendor[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +62,7 @@ export default function AdminConsole() {
     api.staffMe()
       .then((res) => {
         setUser(res.user);
+        if (res.user.role === 'platform_admin') setTab('users');
         if (res.user.role === 'admin' || res.user.role === 'platform_admin') load();
       })
       .catch(() => setUser(null))
@@ -77,20 +97,13 @@ export default function AdminConsole() {
 
   return (
     <>
-      <div className="row" style={{ marginTop: 16 }}>
-        <div className="section-title" style={{ margin: 0 }}>Admin — {user?.name}</div>
-        <div className="row" style={{ gap: 8 }}>
-          <button className={tab === 'vendors' ? 'btn' : 'btn secondary'} onClick={() => setTab('vendors')}>Vendors</button>
-          <button className={tab === 'medicines' ? 'btn' : 'btn secondary'} onClick={() => setTab('medicines')}>Medicines</button>
-          {user?.role === 'platform_admin' && (
-            <button className={tab === 'partners' ? 'btn' : 'btn secondary'} onClick={() => setTab('partners')}>Partner applications</button>
-          )}
-          {user?.role === 'platform_admin' && (
-            <button className={tab === 'withdrawals' ? 'btn' : 'btn secondary'} onClick={() => setTab('withdrawals')}>Withdrawals</button>
-          )}
-        </div>
-      </div>
-      {user?.role === 'platform_admin' && <RevenuePanel />}
+      <div className="section-title" style={{ margin: '16px 0 8px' }}>Admin — {user?.name}</div>
+      <nav className="admin-tabs" role="tablist" aria-label="Admin sections">
+        {TABS.filter((t) => !t.platformOnly || user?.role === 'platform_admin').map((t) => (
+          <button key={t.key} role="tab" aria-selected={tab === t.key} className={tab === t.key ? 'on' : ''} onClick={() => setTab(t.key)}>{t.label}</button>
+        ))}
+      </nav>
+      {user?.role === 'platform_admin' && tab === 'payments' && <RevenuePanel />}
       {error && <div className="notice">{error}</div>}
       <StepUpDialog
         open={!!pending}
@@ -117,6 +130,11 @@ export default function AdminConsole() {
 
       {tab === 'partners' && <ApplicationsPanel sensitive={sensitive} />}
       {tab === 'withdrawals' && <WithdrawalsPanel sensitive={sensitive} />}
+      {tab === 'users' && <UsersPanel sensitive={sensitive} />}
+      {tab === 'verification' && <VerificationPanel sensitive={sensitive} />}
+      {tab === 'payments' && <PaymentsPanel />}
+      {tab === 'logs' && <LogsPanel />}
+      {tab === 'campaigns' && <CampaignsPanel sensitive={sensitive} />}
 
       {tab === 'medicines' && (
         <>

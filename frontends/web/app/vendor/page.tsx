@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import type { AuthUser, PharmacyOrder, PharmacyOrderStatus, PharmacyRejectionReason } from '@medrush/shared';
 import { StockTools } from './StockTools';
+import UpdatesFeed from '../_components/UpdatesFeed';
 
 // Vendor-driven next-status options, matching the backend transition map.
 const NEXT_STATUS: Partial<Record<PharmacyOrderStatus, PharmacyOrderStatus[]>> = {
@@ -184,6 +185,7 @@ export default function VendorDashboard() {
       </div>
       {error && <div className="notice bad" style={{ marginTop: 10 }}>{error}</div>}
       {notice && <div className="notice good" style={{ marginTop: 10 }}>{notice}</div>}
+      <UpdatesFeed audience="partner" title="Updates from Nabz" />
       {loading && orders.length === 0 && <p className="muted">Loading orders…</p>}
       {!loading && orders.length === 0 && <p className="muted">No orders yet.</p>}
 

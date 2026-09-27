@@ -13,6 +13,7 @@ import { STAFF_ROLES, useAuth } from '@/lib/auth';
 import { DEMO_POINT, inr } from '@/lib/care';
 import { PressScale, Rise, success, tap, warn } from '@/lib/motion';
 import { registerForServerPush } from '@/lib/notifications';
+import { UpdatesFeed } from '@/lib/updatesFeed';
 import * as SecureStore from 'expo-secure-store';
 import { LIVE_VISITS_KEY, PARTNER_DEMO_KEY, isBackgroundOnline, startBackgroundOnline, stopBackgroundOnline } from '@/lib/partnerOnline';
 import { startRinging, stopRinging } from '@/lib/ringer';
@@ -343,6 +344,8 @@ export default function StaffHome() {
               <Text style={ui.muted}>Our team verifies documents. Call partner support to schedule.</Text>
             </View>
           )}
+
+          <UpdatesFeed audience="partner" title="Updates from Nabz" />
 
           <Text style={ui.section}>Your visits</Text>
           {visits === null && <ActivityIndicator color={C.brand} />}

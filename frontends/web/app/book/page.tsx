@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { loadDeliveryCoords, saveDeliveryCoords, type Coords } from '@/lib/location';
 import { FlaskConical, ShieldCheck, Siren, Pill, Store, ArrowRight } from 'lucide-react';
 import { IconTile, serviceIcon, TONES } from '../_components/icons';
+import UpdatesFeed from '../_components/UpdatesFeed';
 
 const DEMO: Coords = { lat: 26.9110, lng: 75.8010 }; // launch city: Jaipur
 const short = (s: CareService) => (s.displayName || s.name).replace(/ at Home| \(.*\)|Session/g, '').trim();
@@ -103,6 +104,8 @@ export default function BookPage() {
           </div>
         </div>
       </section>
+
+      <UpdatesFeed audience="customer" />
 
       <div className="section-title">More from Nabz</div>
       <div className="grid cats">

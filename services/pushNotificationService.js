@@ -85,7 +85,31 @@ const sendToOwner = async ({ owner, userType, title, body, data }) => {
   };
 };
 
+/**
+ * Send one message to many device tokens (admin campaigns). Dead tokens are
+ * switched off. Returns `disabled: true` when server push isn't configured.
+ */
+const sendToTokens = async ({ tokens, title, body, data }) => {
+  const messaging = getFirebaseMessaging();
+  if (!messaging) return { sentCount: 0, failedCount: 0, disabled: true };
+  let sentCount = 0;
+  let failedCount = 0;
+  const invalidTokens = [];
+  for (let offset = 0; offset < tokens.length; offset += 500) {
+    const batch = tokens.slice(offset, offset + 500);
+    const response = await messaging.sendEachForMulticast({ tokens: batch, notification: { title, body }, data: toStringData(data) });
+    sentCount += response.successCount;
+    failedCount += response.failureCount;
+    response.responses.forEach((result, index) => {
+      if (!result.success && INVALID_TOKEN_CODES.has(result.error?.code)) invalidTokens.push(batch[index]);
+    });
+  }
+  if (invalidTokens.length > 0) await mobileDeviceService.disableTokens(invalidTokens);
+  return { sentCount, failedCount, disabled: false };
+};
+
 module.exports = {
   sendToOwner,
+  sendToTokens,
   toStringData
 };

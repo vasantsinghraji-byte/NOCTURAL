@@ -743,3 +743,92 @@ export interface RevenueSummary {
   byType: Record<string, number>;
   revenueByLine: { PHARMACY_ORDER: number; CARE_BOOKING: number; MEMBERSHIP: number };
 }
+
+// ── Admin panel operations (/admin/ops) ────────────────────────────────────
+
+export type AdminUserType = 'customers' | 'partners';
+export interface StaffVerificationFlags { id: boolean; police: boolean; council: boolean; vaccinated: boolean; verifiedAt?: string | null }
+/** A row in the admin user database. Email and phone are masked. */
+export interface AdminUserRow {
+  _id: string;
+  type: AdminUserType;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  active: boolean;
+  joinedAt: string;
+  city?: string | null;
+  phoneVerified?: boolean;
+  bookings?: number;
+  role?: string;
+  online?: boolean;
+  verification?: StaffVerificationFlags;
+  rating?: number | null;
+}
+export interface AdminUserDetail extends AdminUserRow {
+  stats?: { visits?: number; orders?: number; completedVisits?: number | null };
+  membership?: { plan: string; endsAt: string } | null;
+  profile?: { qualification: string | null; gender: string | null; registrationNumber: string | null } | null;
+  payout?: { method: 'UPI' | 'BANK'; display: string } | null;
+  referralCode?: string | null;
+  openWithdrawal?: { amount: number; since: string } | null;
+}
+export interface AdminVerificationRow extends AdminUserRow {
+  qualification: string | null;
+  registrationNumber: string | null;
+  gender: string | null;
+  verification: StaffVerificationFlags;
+}
+export interface AdminLogEntry { seq: number; at: string; level: string; message: string; meta?: Record<string, unknown>; stack?: string }
+export interface AdminLogs { instance: string; latestSeq: number; capacity: number; entries: AdminLogEntry[] }
+export type PaymentLogKind = 'PAYMENT' | 'REFUND' | 'CASH' | 'FAILED' | 'WITHDRAWAL';
+export interface PaymentLogEntry {
+  kind: PaymentLogKind;
+  source: 'PHARMACY' | 'CARE' | 'MEMBERSHIP' | 'PAYOUT';
+  ref: string;
+  who: string | null;
+  partner?: string | null;
+  service?: string;
+  method: string | null;
+  amount: number;
+  status: string;
+  at: string;
+  gatewayRef?: string | null;
+  note?: string | null;
+}
+export interface PaymentLog { from: string; to: string; totals: Record<PaymentLogKind, { count: number; amount: number }>; entries: PaymentLogEntry[] }
+export type CampaignAudience = 'CUSTOMERS' | 'PARTNERS' | 'MEDICAL_STAFF' | 'PHARMACIES';
+export interface Campaign {
+  _id: string;
+  title: string;
+  body: string;
+  cta?: { label?: string; path?: string };
+  offerCode?: string;
+  audience: CampaignAudience;
+  sendAt: string;
+  expiresAt: string;
+  status: 'SCHEDULED' | 'LIVE' | 'ENDED' | 'CANCELLED';
+  push: { status: 'OFF' | 'PENDING' | 'SENDING' | 'DONE' | 'SKIPPED' | 'FAILED'; targeted: number; sent: number; failed: number; note?: string };
+  opens: number;
+  createdAt: string;
+}
+export interface CampaignInput {
+  title: string;
+  body: string;
+  audience: CampaignAudience;
+  sendAt?: string;
+  expiresAt?: string;
+  push?: boolean;
+  offerCode?: string;
+  cta?: { label?: string; path?: string };
+}
+/** A live offer / update shown to customers and partners. */
+export interface FeedUpdate {
+  _id: string;
+  title: string;
+  body: string;
+  cta: { label: string; path: string } | null;
+  offerCode: string | null;
+  sendAt: string;
+  expiresAt: string;
+}

@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { C, F } from '@/lib/theme';
 import { notifyLocal, registerForServerPush, requestNotificationPermission } from '@/lib/notifications';
 import { appAlert, appPrompt } from '@/lib/dialog';
+import { UpdatesFeed } from '@/lib/updatesFeed';
 
 const POLL_MS = 10_000;
 
@@ -239,6 +240,7 @@ export default function VendorOrders() {
           keyExtractor={(o) => o._id}
           contentContainerStyle={{ padding: 12, gap: 10 }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
+          ListHeaderComponent={<UpdatesFeed audience="partner" title="Updates from Nabz" />}
           ListEmptyComponent={<Text style={styles.muted}>No orders yet. Place one from a customer account to test.</Text>}
           renderItem={({ item: o }) => {
             const busy = busyId === o._id;

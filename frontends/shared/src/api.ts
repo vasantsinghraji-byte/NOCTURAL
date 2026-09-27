@@ -55,7 +55,17 @@ import type {
   InventoryBatch,
   InventoryImport,
   DemandItem,
-  Address
+  Address,
+  AdminUserType,
+  AdminUserRow,
+  AdminUserDetail,
+  AdminVerificationRow,
+  AdminLogs,
+  PaymentLog,
+  PaymentLogKind,
+  Campaign,
+  CampaignInput,
+  FeedUpdate
 } from './types';
 
 export interface ApiClientOptions {
@@ -693,6 +703,72 @@ export class MedRushApi {
   /** Customer: use a Nabz partner's referral code (before the first order). */
   applyPartnerReferral(code: string) {
     return this.request<{ success: true; message: string; referredBy: string }>('POST', '/patients/me/referral', { body: { code } });
+  }
+
+  // ── Admin panel operations ──
+
+  /** Recent redacted server logs (this API instance). Poll with `after`. */
+  adminLogs(opts: { after?: number; level?: string; q?: string } = {}) {
+    return this.request<{ success: true } & AdminLogs>('GET', '/admin/ops/logs', { query: opts });
+  }
+
+  adminPaymentLog(opts: { from?: string; to?: string; kind?: PaymentLogKind } = {}) {
+    return this.request<{ success: true } & PaymentLog>('GET', '/admin/ops/payments', { query: opts });
+  }
+
+  adminUsers(opts: { type: AdminUserType; q?: string; role?: string; active?: 'true' | 'false'; page?: number }) {
+    return this.request<{ success: true; users: AdminUserRow[]; total: number; page: number; pages: number }>('GET', '/admin/ops/users', { query: opts });
+  }
+
+  adminUser(type: AdminUserType, id: string) {
+    return this.request<{ success: true; user: AdminUserDetail }>('GET', `/admin/ops/users/${type}/${id}`);
+  }
+
+  /** Full email and phone (fresh 2FA; recorded in the audit log with the reason). */
+  adminRevealContact(type: AdminUserType, id: string, reason: string) {
+    return this.request<{ success: true; contact: { email: string | null; phone: string | null } }>('POST', `/admin/ops/users/${type}/${id}/reveal`, { body: { reason } });
+  }
+
+  adminSetUserActive(type: AdminUserType, id: string, active: boolean, reason: string) {
+    return this.request<{ success: true; active: boolean; releasedVisits: number }>('PATCH', `/admin/ops/users/${type}/${id}/status`, { body: { active, reason } });
+  }
+
+  adminVerificationQueue(status: 'pending' | 'verified' | 'all' = 'pending', q?: string) {
+    return this.request<{ success: true; staff: AdminVerificationRow[] }>('GET', '/admin/ops/verification', { query: { status, q } });
+  }
+
+  adminSetStaffVerification(id: string, flags: Partial<Record<'id' | 'police' | 'council' | 'vaccinated', boolean>>) {
+    return this.request<{ success: true; updated: boolean; releasedVisits: number }>('PATCH', `/partners/admin/staff/${id}/verification`, { body: flags });
+  }
+
+  adminCampaigns() {
+    return this.request<{ success: true; campaigns: Campaign[] }>('GET', '/admin/ops/campaigns');
+  }
+
+  adminCreateCampaign(input: CampaignInput) {
+    return this.request<{ success: true; campaign: Campaign }>('POST', '/admin/ops/campaigns', { body: input });
+  }
+
+  adminCancelCampaign(id: string) {
+    return this.request<{ success: true; campaign: Campaign }>('POST', `/admin/ops/campaigns/${id}/cancel`);
+  }
+
+  /** Customer: live offers and updates from Nabz. */
+  getMyOffers() {
+    return this.request<{ success: true; offers: FeedUpdate[] }>('GET', '/patients/me/offers');
+  }
+
+  markOfferOpened(id: string) {
+    return this.request<{ success: true }>('POST', `/patients/me/offers/${id}/open`);
+  }
+
+  /** Partner: live updates and offers from Nabz. */
+  getPartnerUpdates() {
+    return this.request<{ success: true; updates: FeedUpdate[] }>('GET', '/partners/me/updates');
+  }
+
+  markPartnerUpdateOpened(id: string) {
+    return this.request<{ success: true }>('POST', `/partners/me/updates/${id}/open`);
   }
 
   adminStaffMix() {

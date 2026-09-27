@@ -19,6 +19,7 @@ import { IconTile, serviceIcon, TONES } from '@/lib/icons';
 import { PressScale, Rise, Skeleton } from '@/lib/motion';
 import { C, F, IS_DARK, shadow, ui } from '@/lib/theme';
 import { appAlert } from '@/lib/dialog';
+import { UpdatesFeed } from '@/lib/updatesFeed';
 
 type Mode = 'ASAP' | 'SCHEDULED';
 const DEMO_AREA_KEY = 'nabz.demoArea';
@@ -247,6 +248,8 @@ export default function BookHome() {
               {service ? (effectiveMode === 'ASAP' ? `${t('home.bookNow')} · ${shortName(service)}` : `${t('home.schedule')} · ${shortName(service)}`) : 'Book'}
             </Text>
           </PressScale>
+
+          {session?.kind === 'patient' && <UpdatesFeed audience="customer" />}
 
           {/* Care at home: photo cards that open the matching service */}
           <Text style={ui.section}>Care at home</Text>

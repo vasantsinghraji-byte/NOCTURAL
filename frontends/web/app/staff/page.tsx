@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { IndianRupee, MapPin, Navigation, Phone, ShieldAlert, Star, UserRound, Wallet } from 'lucide-react';
 import type { CareBooking, StaffDashboard, VisitOffer } from '@medrush/shared';
 import { api } from '@/lib/api';
+import UpdatesFeed from '../_components/UpdatesFeed';
 
 /**
  * Website version of the Partner app's staff screen (nurse / physio): go online,
@@ -262,6 +263,8 @@ export default function StaffDashboardPage() {
           <Stat icon={Navigation} label="Upcoming visits" value={String(dash.upcomingVisits)} />
         </div>
       )}
+
+      <UpdatesFeed audience="partner" title="Updates from Nabz" />
 
       <h2 className="section-title">Your visits</h2>
       {visits === null && <p className="muted">Loading…</p>}

@@ -161,6 +161,22 @@ router.route('/me')
 
 router.get('/me/stats', getBookingStats);
 router.post('/me/verify-password', verifyPasswordValidation, validate, verifyPassword);
+// Offers & updates from the admin panel (campaigns for customers).
+router.get('/me/offers', async (req, res, next) => {
+  try {
+    res.json({ success: true, offers: await require('../services/campaignService').feed('patient') });
+  } catch (error) {
+    require('../utils/responseHelper').handleServiceError(error, res, next);
+  }
+});
+router.post('/me/offers/:id/open', [param('id').isMongoId()], validate, async (req, res, next) => {
+  try {
+    await require('../services/campaignService').recordOpen(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    require('../utils/responseHelper').handleServiceError(error, res, next);
+  }
+});
 // Saved booking preferences ("Use my saved preferences" when booking).
 router.get('/me/care-preferences', async (req, res, next) => {
   try {

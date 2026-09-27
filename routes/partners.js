@@ -71,6 +71,12 @@ router.get(
 );
 
 const partner = [protect, authorize(...PARTNER_ROLES)];
+// Offers & updates from the admin panel (campaigns for partners).
+router.get('/me/updates', partner, wrap(async (req, res) => res.json({ success: true, updates: await require('../services/campaignService').feed('user', req.user.role) })));
+router.post('/me/updates/:id/open', partner, [param('id').isMongoId()], validate, wrap(async (req, res) => {
+  await require('../services/campaignService').recordOpen(req.params.id);
+  res.json({ success: true });
+}));
 router.get('/me/payouts', partner, wrap(async (req, res) => res.json({ success: true, payouts: await payoutService.getPayoutSummary(req.user._id) })));
 router.put(
   '/me/payout-details',
@@ -144,7 +150,14 @@ router.patch(
   adminSensitive,
   [param('id').isMongoId(), body(['id', 'police', 'council', 'vaccinated']).optional().isBoolean()],
   validate,
-  wrap(async (req, res) => res.json({ success: true, ...(await staffDashboardService.setVerification(req.params.id, req.user._id, req.body)) }))
+  wrap(async (req, res) => {
+    const result = await staffDashboardService.setVerification(req.params.id, req.user._id, req.body);
+    await require('../services/securityAuditService').record({
+      event: 'admin_staff_verification_changed', actorId: req.user._id, actorType: 'user', targetType: 'user', targetId: req.params.id, req,
+      metadata: { id: req.body.id, police: req.body.police, council: req.body.council, vaccinated: req.body.vaccinated, releasedVisits: result.releasedVisits }
+    });
+    res.json({ success: true, ...result });
+  })
 );
 
 module.exports = router;
