@@ -207,3 +207,31 @@
   .grid.cats .choice .label-full { display: none; }
   .grid.cats .choice .label-short { display: inline; white-space: pre-line; }
 }
+
+/* ── Motion ───────────────────────────────────────────────────────────────
+   Every animation has a job: sections rise in as you reach them (reading
+   order), cards stagger so a list reads left to right, the hero lands in
+   sequence, and buttons press down (feedback). All of it is off under
+   "reduce motion" (globals.css) and the scroll reveal only runs with JS. */
+.js-reveal .reveal {
+  opacity: 0; transform: translateY(18px);
+  transition: opacity .7s cubic-bezier(.16, 1, .3, 1), transform .7s cubic-bezier(.16, 1, .3, 1);
+  transition-delay: calc(var(--i, 0) * 55ms);
+}
+.js-reveal .reveal.in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes nabz-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  .hero > *, .book-panel > * { animation: nabz-rise .7s cubic-bezier(.16, 1, .3, 1) both; }
+  .hero > *:nth-child(2), .book-panel > *:nth-child(2) { animation-delay: .08s; }
+  .hero > *:nth-child(3), .book-panel > *:nth-child(3) { animation-delay: .16s; }
+  .hero > *:nth-child(4), .book-panel > *:nth-child(4) { animation-delay: .24s; }
+  .hero > *:nth-child(n+5), .book-panel > *:nth-child(n+5) { animation-delay: .32s; }
+
+  /* Tactile press on buttons and choice tiles. */
+  .btn, .choice, .service-card { transition: transform .15s ease, box-shadow .18s ease, background-color .18s ease, border-color .15s ease; }
+  .btn:active, .choice:active, .service-card:active { transform: translateY(1px) scale(.98); }
+
+  /* Picked-service summary slides in when a service is chosen. */
+  .picked-summary { animation: nabz-rise .45s cubic-bezier(.16, 1, .3, 1) both; }
+}

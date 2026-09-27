@@ -1,3 +1,4 @@
+import RevealOnScroll from './_components/RevealOnScroll';
 import type { Metadata, Viewport } from 'next';
 import { Instrument_Serif, Manrope } from 'next/font/google';
 import './globals.css';
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${manrope.variable} ${instrument.variable}`}>
       <body>
         <a href="#main" className="skip-link">Skip to content</a>
+        <RevealOnScroll />
         <Providers>
           <header className="header">
             <SiteNav />
