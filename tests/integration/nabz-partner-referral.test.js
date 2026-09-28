@@ -65,7 +65,11 @@ describe('Partner referral programme (real MongoDB)', () => {
     await expect(referral().attachPatient(patient._id, code)).rejects.toThrow(/already used/);
 
     expect(await referral().onPatientCompletion(patient._id, 99)).toBe(false); // below the minimum
-    expect(await referral().onPatientCompletion(patient._id, 450)).toBe(true);
+    // The referring nurse serving the visit herself earns nothing from it…
+    expect(await referral().onPatientCompletion(patient._id, 450, { userId: nurse._id })).toBe(false);
+    expect((await User.findById(nurse._id).lean()).referral.credits || 0).toBe(0);
+    // …a visit served by someone else still counts.
+    expect(await referral().onPatientCompletion(patient._id, 450, { userId: newNurse._id })).toBe(true);
     expect(await referral().onPatientCompletion(patient._id, 450)).toBe(false); // only once
     expect((await User.findById(nurse._id).lean()).referral).toMatchObject({ credits: 2, successful: 1 });
   });

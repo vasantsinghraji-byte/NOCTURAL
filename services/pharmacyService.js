@@ -669,7 +669,7 @@ async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note,
     }
     await settlementService.recordPharmacyOrder(updated);
     try {
-      await referral.onPatientCompletion(updated.patient, updated.amounts && updated.amounts.total);
+      await referral.onPatientCompletion(updated.patient, updated.amounts && updated.amounts.total, { userId: ownerId, vendorId: updated.vendor });
       await referral.onPartnerCompletion(ownerId);
     } catch (err) {
       logger.error('Referral reward failed', { orderId: String(updated._id), error: err.message });

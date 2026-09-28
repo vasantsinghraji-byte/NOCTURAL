@@ -87,9 +87,24 @@ async function grant(referrerId, reason) {
   } catch { /* notification is best effort */ }
 }
 
-/** A referred customer completed an order or visit: reward the referrer once. */
-async function onPatientCompletion(patientId, amount) {
+/**
+ * A referred customer completed an order or visit: reward the referrer once.
+ * `servedBy` is who fulfilled it ({ userId, vendorId }). A referrer serving
+ * their own referral earns nothing from it (a nurse signing up a relative
+ * with her code and doing the visit herself); a later order served by
+ * someone else still counts.
+ */
+async function onPatientCompletion(patientId, amount, servedBy = {}) {
   if (!patientId || !(Number(amount) >= policy().minOrder)) return false;
+  const pending = await Patient.findOne({ _id: patientId, referredByPartner: { $exists: true }, partnerReferralRewardedAt: { $exists: false } }).select('referredByPartner').lean();
+  if (!pending) return false;
+  const referrer = await User.findById(pending.referredByPartner).select('pharmacyVendor').lean();
+  const selfServed = (servedBy.userId && String(servedBy.userId) === String(pending.referredByPartner))
+    || (servedBy.vendorId && referrer && referrer.pharmacyVendor && String(servedBy.vendorId) === String(referrer.pharmacyVendor));
+  if (selfServed) {
+    logger.logSecurity('referral_self_served', { patientId: String(patientId), referrerId: String(pending.referredByPartner) });
+    return false;
+  }
   const patient = await Patient.findOneAndUpdate(
     { _id: patientId, referredByPartner: { $exists: true }, partnerReferralRewardedAt: { $exists: false } },
     { $set: { partnerReferralRewardedAt: new Date() } },

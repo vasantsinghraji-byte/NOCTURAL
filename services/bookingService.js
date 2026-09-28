@@ -1036,7 +1036,7 @@ class BookingService {
 
     // First completed visit of a referred customer / partner rewards whoever referred them.
     try {
-      await partnerReferralService.onPatientCompletion(completedBooking.patient, completedBooking.pricing && completedBooking.pricing.payableAmount);
+      await partnerReferralService.onPatientCompletion(completedBooking.patient, completedBooking.pricing && completedBooking.pricing.payableAmount, { userId: completedBooking.serviceProvider });
       await partnerReferralService.onPartnerCompletion(completedBooking.serviceProvider);
     } catch (err) {
       logger.error('Referral reward failed', { bookingId: String(completedBooking._id), error: err.message });
