@@ -832,3 +832,51 @@ export interface FeedUpdate {
   sendAt: string;
   expiresAt: string;
 }
+
+// ── Partner verification documents ─────────────────────────────────────────
+
+export type PartnerDocumentKind =
+  | 'AADHAAR' | 'NURSING_REGISTRATION' | 'NURSING_QUALIFICATION' | 'PHYSIO_DEGREE' | 'PHYSIO_REGISTRATION' | 'QUALIFICATION'
+  | 'PHLEBOTOMY_CERTIFICATE' | 'POLICE_CHECK' | 'VACCINATION' | 'DRUG_LICENCE' | 'PHARMACIST_REGISTRATION' | 'GST_CERTIFICATE'
+  | 'NABL_CERTIFICATE' | 'CLINICAL_ESTABLISHMENT' | 'DRIVING_LICENCE' | 'VEHICLE_RC';
+export type PartnerDocumentStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
+export interface PartnerDocument {
+  _id: string;
+  kind: PartnerDocumentKind;
+  status: PartnerDocumentStatus;
+  source: 'UPLOAD' | 'DIGILOCKER';
+  number: string | null;
+  expiresAt: string | null;
+  uploadedAt: string;
+  note: string | null;
+  fileName: string | null;
+  awaitingSecondApproval?: boolean;
+  digilocker: { name: string; dob: string; nameMatches: boolean } | null;
+}
+export interface VerificationItem {
+  kind: PartnerDocumentKind;
+  label: string;
+  hint: string | null;
+  numberLabel: string | null;
+  hasExpiry: boolean;
+  optional: boolean;
+  digilocker: boolean;
+  /** VERIFIED / EXPIRING (valid, <30 days left) / PENDING / REJECTED / EXPIRED / MISSING */
+  state: 'VERIFIED' | 'EXPIRING' | PartnerDocumentStatus | 'MISSING';
+  valid: PartnerDocument | null;
+  latest: PartnerDocument | null;
+}
+export interface VerificationStatus {
+  role: string;
+  complete: boolean;
+  missing: number;
+  inReview: number;
+  items: VerificationItem[];
+  digilocker: { available: boolean };
+}
+export interface AdminDocumentRow extends PartnerDocument {
+  label: string;
+  hasExpiry: boolean;
+  mimeType: string | null;
+  user: { _id: string; name: string; role: string } | null;
+}

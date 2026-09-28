@@ -15,12 +15,16 @@ const instrument = Instrument_Serif({ subsets: ['latin'], weight: '400', style: 
 
 export const metadata: Metadata = {
   title: 'Nabz · Care that comes home',
+  // Versioned icon URLs: browsers cache favicons by URL for weeks, so a new
+  // name is the only way to replace the old MedRush icon everywhere.
   icons: {
     icon: [
-      { url: '/brand/nabz-icon.svg', type: 'image/svg+xml' },
-      { url: '/brand/favicon-32.png', sizes: '32x32', type: 'image/png' }
+      { url: '/brand/nabz-favicon-v2.ico', sizes: 'any' },
+      { url: '/brand/nabz-icon.svg?v=2', type: 'image/svg+xml' },
+      { url: '/brand/favicon-32.png?v=2', sizes: '32x32', type: 'image/png' }
     ],
-    apple: '/apple-touch-icon.png'
+    shortcut: '/brand/nabz-favicon-v2.ico',
+    apple: '/apple-touch-icon.png?v=2'
   },
   description:
     'Book verified nurses and physiotherapists to your home in minutes, with supplies from the nearest pharmacy. Medicines delivered from licensed stores near you. Now in Jaipur.'

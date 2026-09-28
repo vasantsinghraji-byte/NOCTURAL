@@ -126,7 +126,8 @@ export default function PartnerAccountPage() {
               <Check ok={v.police} icon={ShieldCheck} label="Police verification" />
               <Check ok={v.council} icon={BadgeCheck} label="Council registration" />
               <Check ok={v.vaccinated} icon={Syringe} label="Vaccinated" />
-              {!(v.id && v.police && v.council) && <p className="muted" style={{ margin: 0 }}>You can go online once ID, police and council checks are done. Our team will call you.</p>}
+              {!(v.id && v.police && v.council) && <p className="muted" style={{ margin: 0 }}>You can go online once ID, police and council checks are done.</p>}
+              <Link href="/partner/verification" className="btn secondary" style={{ alignSelf: 'flex-start' }}>Manage documents</Link>
             </div>
           )}
 
@@ -135,6 +136,7 @@ export default function PartnerAccountPage() {
               <h3 className="inline-title"><Store size={18} aria-hidden="true" /> {acct.store.name}</h3>
               {acct.store.address && <p className="muted" style={{ margin: 0 }}>{acct.store.address}</p>}
               <p className="muted" style={{ margin: 0 }}>Status: {acct.store.status}{acct.store.licence ? ` · Licence ${acct.store.licence}` : ''}</p>
+              <Link href="/partner/verification" className="btn secondary" style={{ alignSelf: 'flex-start' }}>Licences and documents</Link>
             </div>
           )}
 

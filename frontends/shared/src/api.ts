@@ -65,7 +65,11 @@ import type {
   PaymentLogKind,
   Campaign,
   CampaignInput,
-  FeedUpdate
+  FeedUpdate,
+  AdminDocumentRow,
+  PartnerDocument,
+  PartnerDocumentKind,
+  VerificationStatus
 } from './types';
 
 export interface ApiClientOptions {
@@ -703,6 +707,56 @@ export class MedRushApi {
   /** Customer: use a Nabz partner's referral code (before the first order). */
   applyPartnerReferral(code: string) {
     return this.request<{ success: true; message: string; referredBy: string }>('POST', '/patients/me/referral', { body: { code } });
+  }
+
+  // ── Partner verification documents ──
+
+  getMyVerification() {
+    return this.request<{ success: true; verification: VerificationStatus }>('GET', '/partners/me/verification');
+  }
+
+  /** Upload one document (multipart field "partnerDocument"). */
+  async uploadPartnerDocument(input: { kind: PartnerDocumentKind; number?: string; expiresAt?: string; file: unknown; filename?: string }): Promise<{ success: true; document: PartnerDocument }> {
+    const form = new FormData();
+    form.append('kind', input.kind);
+    if (input.number) form.append('number', input.number);
+    if (input.expiresAt) form.append('expiresAt', input.expiresAt);
+    // Works for both web File/Blob and RN { uri, name, type } shapes.
+    form.append('partnerDocument', input.file as any, input.filename || 'document');
+    const res = await this.send('/partners/me/documents', {
+      method: 'POST',
+      headers: { Accept: 'application/json' }, // the runtime sets the multipart boundary
+      body: form
+    });
+    const text = await res.text();
+    let payload: any = null;
+    try { payload = text ? JSON.parse(text) : null; } catch { payload = { message: text }; }
+    if (!res.ok || (payload && payload.success === false)) {
+      throw new ApiError(res.status, (payload && payload.message) || `Upload failed (${res.status})`, payload?.details);
+    }
+    return payload;
+  }
+
+  /** Link to share Aadhaar from DigiLocker (only when DigiLocker is set up). */
+  startDigilocker(returnTo: 'web' | 'app' = 'web') {
+    return this.request<{ success: true; url: string }>('POST', '/partners/me/digilocker/start', { body: { returnTo } });
+  }
+
+  adminDocuments(status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'ALL' = 'PENDING') {
+    return this.request<{ success: true; documents: AdminDocumentRow[] }>('GET', '/admin/ops/documents', { query: { status } });
+  }
+
+  adminPartnerVerification(userId: string) {
+    return this.request<{ success: true; verification: VerificationStatus }>('GET', `/admin/ops/documents/partner/${userId}`);
+  }
+
+  /** Short-lived link to the file (fresh 2FA; audited). */
+  adminViewDocument(id: string) {
+    return this.request<{ success: true; url: string; mimeType: string; expiresInSeconds: number }>('POST', `/admin/ops/documents/${id}/view`);
+  }
+
+  adminReviewDocument(id: string, input: { decision: 'APPROVED' | 'REJECTED'; note?: string; expiresAt?: string }) {
+    return this.request<{ success: true; document: PartnerDocument; awaitingSecondApproval?: boolean }>('PATCH', `/admin/ops/documents/${id}`, { body: input });
   }
 
   // ── Admin panel operations ──

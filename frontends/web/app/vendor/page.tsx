@@ -199,6 +199,7 @@ export default function VendorDashboard() {
         <div className="row" style={{ gap: 8 }}>
           <button className="btn secondary" onClick={confirmStock}>Confirm stock counts</button>
           <button className="btn secondary" onClick={loadOrders}>Refresh</button>
+          <Link href="/partner/verification" className="btn secondary">Documents</Link>
           <Link href="/partner/account" className="btn secondary">My account</Link>
         </div>
       </div>

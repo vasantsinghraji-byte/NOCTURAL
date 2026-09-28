@@ -257,7 +257,8 @@ export default function StaffDashboardPage() {
         </div>
         {dash && !canGoOnline && (
           <div className="notice" style={{ marginTop: 12 }}>
-            Verification pending: you can go online once your ID, police check and council registration are verified. Our team will call you.
+            You can go online once your ID, police check and council registration are verified.{' '}
+            <Link href="/partner/verification" className="link">Add your documents</Link>
           </div>
         )}
       </section>
