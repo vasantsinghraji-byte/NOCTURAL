@@ -14,7 +14,9 @@ const FIELD_UPLOAD_FOLDERS = {
   files: 'investigation-reports',
   // Health data: partitioned per patient so an order can only attach the
   // uploader's own prescription (see pharmacyService.createOrder).
-  prescription: (req) => `prescriptions/${req.user._id}`
+  prescription: (req) => `prescriptions/${req.user._id}`,
+  // Partner verification documents: private, per partner.
+  partnerDocument: (req) => `partner-documents/${req.user._id}`
 };
 
 const getUploadFolder = (req, file) => {

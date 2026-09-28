@@ -23,6 +23,11 @@ const staffDashboardService = require('../services/staffDashboardService');
 const PartnerApplication = require('../models/partnerApplication');
 const partnerAccountService = require('../services/partnerAccountService');
 const payoutService = require('../services/payoutService');
+const partnerVerificationService = require('../services/partnerVerificationService');
+const digilockerService = require('../services/digilockerService');
+const { uploadPartnerDocument } = require('../middleware/upload');
+const storageConfig = require('../config/storage');
+const { DOCUMENT_KINDS } = require('../config/partnerDocuments');
 
 const router = express.Router();
 const admin = [protect, authorize('platform_admin')];
@@ -71,6 +76,32 @@ router.get(
 );
 
 const partner = [protect, authorize(...PARTNER_ROLES)];
+// Verification documents: checklist, upload, and Aadhaar via DigiLocker.
+router.get('/me/verification', partner, wrap(async (req, res) => res.json({ success: true, verification: await partnerVerificationService.getStatus(req.user._id) })));
+router.post(
+  '/me/documents',
+  partner,
+  uploadPartnerDocument,
+  [body('kind').isIn(DOCUMENT_KINDS), body('number').optional().isString().trim().isLength({ max: 40 }), body('expiresAt').optional({ values: 'falsy' }).isISO8601()],
+  validate,
+  wrap(async (req, res) => {
+    if (!req.file) return res.status(400).json({ success: false, message: 'Attach a photo or PDF of the document' });
+    const document = await partnerVerificationService.submitDocument(req.user._id, req.body, storageConfig.toStoredFile(req.file));
+    res.status(201).json({ success: true, document });
+  })
+);
+router.post('/me/digilocker/start', partner, [body('returnTo').optional().isIn(['web', 'app'])], validate,
+  wrap(async (req, res) => res.json({ success: true, url: await digilockerService.startUrl(req.user._id, req.body.returnTo) })));
+// DigiLocker sends the partner back here (no session cookie needed: the one-time state identifies them).
+router.get('/digilocker/callback', wrap(async (req, res) => {
+  const r = await digilockerService.handleCallback({ code: req.query.code, state: req.query.state, error: req.query.error });
+  const web = (process.env.WEB_APP_URL || process.env.APP_URL || '').replace(/\/+$/, '');
+  const status = r.ok ? 'ok' : r.reason;
+  res.set('Cache-Control', 'no-store');
+  if (r.returnTo === 'app') return res.redirect(302, `nabzpartner://verification?digilocker=${status}`);
+  return res.redirect(302, `${web}/partner/verification?digilocker=${encodeURIComponent(status)}`);
+}));
+
 // Offers & updates from the admin panel (campaigns for partners).
 router.get('/me/updates', partner, wrap(async (req, res) => res.json({ success: true, updates: await require('../services/campaignService').feed('user', req.user.role) })));
 router.post('/me/updates/:id/open', partner, [param('id').isMongoId()], validate, wrap(async (req, res) => {

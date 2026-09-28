@@ -383,6 +383,8 @@ module.exports = {
   uploadCertificate: [upload.single('certificate'), validateFileType],
   // MedRush: patient prescription image/PDF for pharmacy orders
   uploadPrescription: [upload.single('prescription'), validateFileType],
+  // Partner verification document (Aadhaar masked copy, licences, certificates)
+  uploadPartnerDocument: [upload.single('partnerDocument'), validateFileType],
 
   // Multiple document uploads
   uploadDocuments: [

@@ -12,7 +12,12 @@
  *   POST  /admin/ops/campaigns                     create (fresh 2FA, audited)
  *   POST  /admin/ops/campaigns/:id/cancel          stop a campaign (fresh 2FA, audited)
  *
- * Verification changes use PATCH /partners/admin/staff/:id/verification.
+ *   GET   /admin/ops/documents                     verification documents to review
+ *   GET   /admin/ops/documents/partner/:userId     one partner's checklist
+ *   POST  /admin/ops/documents/:id/view            short-lived link to the file (fresh 2FA, audited)
+ *   PATCH /admin/ops/documents/:id                 approve / reject (fresh 2FA, audited)
+ *
+ * Manual badge changes still use PATCH /partners/admin/staff/:id/verification.
  */
 
 const express = require('express');
@@ -23,6 +28,8 @@ const adminOpsService = require('../services/adminOpsService');
 const campaignService = require('../services/campaignService');
 const securityAuditService = require('../services/securityAuditService');
 const logBuffer = require('../utils/logBuffer');
+const partnerVerificationService = require('../services/partnerVerificationService');
+const storageConfig = require('../config/storage');
 
 const router = express.Router();
 const admin = [protect, authorize('platform_admin')];
@@ -94,6 +101,41 @@ router.get(
   [query('status').optional().isIn(['pending', 'verified', 'all']), query('q').optional().isString().isLength({ max: 80 })],
   validate,
   wrap(async (req, res) => res.json({ success: true, staff: await adminOpsService.listVerification(req.query) }))
+);
+
+router.get('/documents', admin, [query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED', 'ALL'])], validate,
+  wrap(async (req, res) => res.json({ success: true, documents: await partnerVerificationService.reviewQueue({ status: req.query.status || 'PENDING' }) })));
+
+router.get('/documents/partner/:userId', admin, [param('userId').isMongoId()], validate,
+  wrap(async (req, res) => res.json({ success: true, verification: await partnerVerificationService.getStatus(req.params.userId) })));
+
+router.post('/documents/:id/view', adminSensitive, [param('id').isMongoId()], validate, wrap(async (req, res) => {
+  const doc = await partnerVerificationService.fileFor(req.params.id);
+  await securityAuditService.record({ event: 'admin_partner_document_viewed', actorId: req.user._id, actorType: 'user', targetType: 'user', targetId: doc.user, req, metadata: { documentId: req.params.id, kind: doc.kind } });
+  if (storageConfig.USE_CLOUD) {
+    const url = await storageConfig.getSignedUrl(doc.file.key, 120);
+    if (!url) return res.status(404).json({ success: false, message: 'File not found' });
+    return res.json({ success: true, url, mimeType: doc.file.mimeType, expiresInSeconds: 120 });
+  }
+  // Local development only: stream the file back as a data URL.
+  const data = await require('fs').promises.readFile(storageConfig.resolveLocalFile(doc.file.key));
+  return res.json({ success: true, url: `data:${doc.file.mimeType};base64,${data.toString('base64')}`, mimeType: doc.file.mimeType, expiresInSeconds: 0 });
+}));
+
+router.patch(
+  '/documents/:id',
+  adminSensitive,
+  [param('id').isMongoId(), body('decision').isIn(['APPROVED', 'REJECTED']), body('note').optional().isString().trim().isLength({ max: 300 }), body('expiresAt').optional({ values: 'falsy' }).isISO8601()],
+  validate,
+  wrap(async (req, res) => {
+    const result = await partnerVerificationService.review(req.params.id, req.user._id, req.body);
+    await securityAuditService.record({
+      event: req.body.decision === 'APPROVED' ? 'admin_partner_document_approved' : 'admin_partner_document_rejected',
+      actorId: req.user._id, actorType: 'user', targetType: 'partner_document', targetId: req.params.id, req,
+      metadata: { kind: result.document.kind, note: req.body.note }
+    });
+    res.json({ success: true, ...result });
+  })
 );
 
 router.get('/campaigns', admin, wrap(async (req, res) => res.json({ success: true, campaigns: await campaignService.list() })));
