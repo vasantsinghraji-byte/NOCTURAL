@@ -123,7 +123,8 @@ describe('Physio choice, packages, preferences and tiers (real MongoDB)', () => 
     const tooFar = await request(app).post('/api/v1/bookings/package').set(auth()).send(packageBody({ startDate: daysAhead(40), weekdays: [1, 3, 5] }));
     expect(tooFar.status).toBe(400);
 
-    const ok = await request(app).post('/api/v1/bookings/package').set(auth()).send(packageBody({ weekdays: [1, 3, 5] }));
+    // A different time from the first package: the same person can't have two sessions at once.
+    const ok = await request(app).post('/api/v1/bookings/package').set(auth()).send(packageBody({ weekdays: [1, 3, 5], time: '07:00' }));
     expect(ok.status).toBe(201);
     const first = await NurseBooking.findOne({ 'series.id': ok.body.seriesId, 'series.index': 1 }).lean();
     expect(first.dispatch.requestedProvider).toBeUndefined();

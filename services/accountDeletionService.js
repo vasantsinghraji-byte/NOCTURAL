@@ -15,7 +15,7 @@
  */
 
 const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
+const { hashPassword } = require('../utils/passwordHash');
 const Patient = require('../models/patient');
 const NurseBooking = require('../models/nurseBooking');
 const PharmacyOrder = require('../models/pharmacyOrder');
@@ -52,7 +52,7 @@ async function deletePatientAccount(patientId) {
         email: `deleted+${tag}@deleted.nabz.invalid`,
         phone: `deleted:${tag}`,
         // A hash of a random secret nobody knows: password sign-in can never succeed.
-        password: await bcrypt.hash(crypto.randomBytes(32).toString('base64url'), 12),
+        password: await hashPassword(crypto.randomBytes(32).toString('base64url')),
         isActive: false,
         phoneVerified: false,
         emailVerified: false,

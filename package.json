@@ -140,6 +140,7 @@
     "@capacitor/push-notifications": "^8.1.1",
     "@google-cloud/storage": "^7.18.0",
     "@google/generative-ai": "^0.24.1",
+    "@node-rs/bcrypt": "^1.10.9",
     "@simplewebauthn/server": "^13.3.2",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",

@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const { hashPassword, comparePassword } = require('../utils/passwordHash');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { STAFF_ROLES, SPECIALIZATIONS, EMPLOYMENT_STATUSES, SHIFT_PREFERENCES } = require('../constants/enums');
 const logger = require('../utils/logger');
@@ -404,8 +404,7 @@ UserSchema.methods.getMissingFields = function() {
 UserSchema.pre('save', async function() {
   // 1. Hash password if modified
   if (this.isModified('password')) {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    this.password = await hashPassword(this.password);
     if (!this.isNew) {
       this.passwordChangedAt = new Date();
     }
@@ -463,7 +462,7 @@ UserSchema.methods.getDecryptedBankDetails = function() {
 // Compare password method
 UserSchema.methods.comparePassword = async function(candidatePassword) {
   try {
-    return await bcrypt.compare(candidatePassword, this.password);
+    return comparePassword(candidatePassword, this.password);
   } catch (error) {
     throw new Error('Password comparison failed', { cause: error });
   }

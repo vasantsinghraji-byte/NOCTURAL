@@ -35,7 +35,7 @@ const createOrderValidation = [
   body('vendorId').notEmpty().isMongoId().withMessage('Valid vendorId is required'),
   body('items').isArray({ min: 1 }).withMessage('At least one item is required'),
   body('items.*.medicineId').isMongoId().withMessage('Each item needs a valid medicineId'),
-  body('items.*.quantity').isInt({ min: 1 }).withMessage('Each item needs quantity >= 1'),
+  body('items.*.quantity').isInt({ min: 1, max: 100 }).withMessage('Each item needs quantity 1-100'),
   body('deliveryAddress.line1').trim().notEmpty().withMessage('Delivery address line1 is required'),
   body('deliveryAddress.pincode').trim().matches(/^\d{6}$/).withMessage('Valid 6-digit pincode required'),
   body('deliveryAddress.contactName').optional({ values: 'falsy' }).isString().trim().isLength({ max: 80 }),

@@ -420,7 +420,7 @@ describe('Phase 2 — Booking Integrity', () => {
       expect(NurseBooking.create.mock.calls[0][0].pricing.basePrice).toBe(1000);
     });
 
-    it('should reject surge-priced bookings without an explicit timezone offset', async () => {
+    it('uses India time for surge pricing when the client sends no timezone', async () => {
       Patient.findById.mockResolvedValue({
         _id: 'patient1',
         totalBookings: 1,
@@ -441,16 +441,20 @@ describe('Phase 2 — Booking Integrity', () => {
         availability: { isActive: true }
       });
 
-      await expect(
-        bookingService.createBooking({
-          serviceType: 'INJECTION',
-          scheduledDate: '2026-03-08',
-          scheduledTime: '01:30',
-          serviceLocation: { type: 'HOME' }
-        }, 'patient1')
-      ).rejects.toThrow(/timezone offset is required/i);
+      NurseBooking.create.mockResolvedValue({ _id: 'booking1', pricing: {} });
 
-      expect(NurseBooking.create).not.toHaveBeenCalled();
+      // Visits are in India: with no offset from the client the time is IST, and
+      // 01:30 local falls inside the 01:00-03:00 surge window.
+      await bookingService.createBooking({
+        serviceType: 'INJECTION',
+        scheduledDate: '2026-03-08',
+        scheduledTime: '01:30',
+        serviceLocation: { type: 'HOME' }
+      }, 'patient1');
+
+      const created = NurseBooking.create.mock.calls[0][0];
+      expect(created.scheduledTimezoneOffsetMinutes).toBe(330);
+      expect(created.pricing.basePrice).toBe(1000);
     });
   });
 

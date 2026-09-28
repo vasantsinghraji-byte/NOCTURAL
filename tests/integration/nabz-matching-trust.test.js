@@ -271,13 +271,17 @@ describe('Nabz matching, trust layer and sign-in (real MongoDB)', () => {
     }
   });
 
+  // Each "book now" is for a different family member: the same person can't
+  // hold two live visits at the same time (dedupeKey).
+  let bookNowSeq = 0;
   const bookNow = async () => {
+    bookNowSeq += 1;
     const today = new Date().toISOString().slice(0, 10);
     const res = await request(app).post('/api/v1/bookings').set(auth(tokens.patient)).send({
       serviceType: 'INJECTION', mode: 'ASAP', scheduledDate: today, scheduledTime: '10:00',
       scheduledTimezone: 'Asia/Kolkata', scheduledTimezoneOffsetMinutes: 330,
       serviceLocation: { type: 'HOME', address: { street: 'Ashok Marg', city: 'Jaipur', pincode: '302001', coordinates: HOME } },
-      patientDetails: { name: 'Meera Sharma', age: 34, gender: 'Female' }
+      patientDetails: { name: `Family Member ${bookNowSeq}`, age: 34, gender: 'Female' }
     });
     expect(res.status).toBe(201);
     return res.body.booking;

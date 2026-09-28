@@ -249,6 +249,8 @@ describe('MedRush mobile flow (real MongoDB)', () => {
       expect(notification.message).toContain('Cash on delivery');
 
       // Push was attempted for the vendor's account; FCM itself is off in tests.
+      // The push goes out just after the in-app notification is saved, so wait for it.
+      await waitFor(() => pushSpy.mock.calls.find(([arg]) => arg && arg.data && arg.data.orderId === orderId));
       expect(pushSpy).toHaveBeenCalledWith(expect.objectContaining({
         owner: String(vendorUser._id),
         userType: 'provider',

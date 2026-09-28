@@ -86,7 +86,7 @@ const fileFilter = (req, file, cb) => {
         userId: req.user ? req.user._id : 'anonymous',
         reason: 'Invalid MIME type or extension for profile photo'
       });
-      cb(new Error('Profile photos must be JPG, JPEG, or PNG with valid MIME type'), false);
+      cb(Object.assign(new Error('Profile photos must be JPG, JPEG, or PNG with valid MIME type'), { statusCode: 400 }), false);
     }
   }
   // Documents - images or PDFs
@@ -101,7 +101,7 @@ const fileFilter = (req, file, cb) => {
         userId: req.user ? req.user._id : 'anonymous',
         reason: 'Invalid MIME type or extension for document'
       });
-      cb(new Error('Documents must be JPG, JPEG, PNG, or PDF with valid MIME type'), false);
+      cb(Object.assign(new Error('Documents must be JPG, JPEG, PNG, or PDF with valid MIME type'), { statusCode: 400 }), false);
     }
   }
 };
@@ -359,7 +359,7 @@ const createReportUpload = () => {
         extension: extname,
         userId: req.user ? req.user._id : 'anonymous'
       });
-      cb(new Error('Investigation reports must be JPG, PNG, or PDF files'), false);
+      cb(Object.assign(new Error('Investigation reports must be JPG, PNG, or PDF files'), { statusCode: 400 }), false);
     }
   };
 

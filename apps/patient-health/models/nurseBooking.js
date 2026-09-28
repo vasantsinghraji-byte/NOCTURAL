@@ -85,6 +85,10 @@ const NurseBookingSchema = new mongoose.Schema({
   recurringDates: [Date], // For custom patterns
 
   // Location
+  // `${patient}|${serviceType}|${date}|${time}` while the booking is live; unique,
+  // so the same visit can't be booked twice. Cleared when cancelled.
+  dedupeKey: { type: String, select: false },
+
   // Who the visit is for. Differs from the account holder when booking for
   // someone else (a parent in another city); shown to the professional.
   patientDetails: {
@@ -418,6 +422,7 @@ NurseBookingSchema.index({ 'supplies.pharmacyOrder': 1 }, { sparse: true });
 NurseBookingSchema.index({ 'dispatch.status': 1, 'dispatch.offerExpiresAt': 1 });
 NurseBookingSchema.index({ 'dispatch.offeredTo': 1, 'dispatch.status': 1 });
 NurseBookingSchema.index({ shareToken: 1 }, { unique: true, sparse: true });
+NurseBookingSchema.index({ dedupeKey: 1 }, { unique: true, sparse: true });
 
 // Pre-save hook to set timestamps
 NurseBookingSchema.pre('save', function() {

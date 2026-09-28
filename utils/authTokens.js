@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
 const IDENTITY_TYPES = Object.freeze({
@@ -74,7 +75,11 @@ const signToken = (payload, secret, expiresIn, identityType, sessionVersion = 0)
   {
     ...JWT_ACCESS_SIGN_OPTIONS,
     audience: getAudienceForIdentity(identityType),
-    expiresIn
+    expiresIn,
+    // Unique per token: without it, two sign-ins of the same account in the
+    // same second produced identical refresh tokens and the second one failed
+    // on the refresh-session unique index (double tap, or app + web at once).
+    jwtid: crypto.randomUUID()
   }
 );
 

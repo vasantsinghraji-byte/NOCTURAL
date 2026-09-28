@@ -128,6 +128,12 @@ const formatUtcOffset = (offsetMinutes) => {
   return `${sign}${hours}:${minutes}`;
 };
 
+/** Key for "one live booking per customer, service, time and person cared for". */
+const bookingDedupeKey = (patientId, serviceType, date, time, patientDetails) => {
+  const who = String((patientDetails && patientDetails.name) || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return `${patientId}|${serviceType}|${new Date(date).toISOString().slice(0, 10)}|${time}|${who}`;
+};
+
 const resolveScheduledLocalHour = ({ scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes }) => {
   if (!Number.isInteger(scheduledTimezoneOffsetMinutes)) {
     throw new ValidationError('Scheduled timezone offset is required');
@@ -171,8 +177,6 @@ class BookingService {
       serviceType,
       scheduledDate,
       scheduledTime,
-      scheduledTimezone,
-      scheduledTimezoneOffsetMinutes,
       serviceLocation,
       specialRequirements,
       patientDetails,
@@ -183,6 +187,11 @@ class BookingService {
       requestedProvider,
       allowSubstitute
     } = bookingData;
+    // Visits happen in India, so the time is always local India time (IST,
+    // no daylight saving) whatever time zone the booker's phone is in, e.g.
+    // a son abroad booking "10:00" for his mother in Jaipur.
+    const scheduledTimezone = 'Asia/Kolkata';
+    const scheduledTimezoneOffsetMinutes = 330;
     // Package sessions after the first can fall beyond the normal booking horizon.
     const laterSession = internal.series && internal.series.index > 1;
 
@@ -288,41 +297,54 @@ class BookingService {
     const payableAmount = roundToTwoDecimals(quote.payableAmount + previousDues);
 
     // Create booking with final pricing in a single operation
-    const booking = await NurseBooking.create({
-      patient: safePatientId,
-      serviceType,
-      scheduledDate: visitDate,
-      scheduledTime: visitTime,
-      scheduledTimezone,
-      scheduledTimezoneOffsetMinutes,
-      serviceLocation,
-      specialRequirements,
-      patientDetails,
-      isPackage,
-      packageDetails: isPackage ? packageDetails : undefined,
-      pricing: {
-        basePrice,
-        platformFee,
-        gst,
-        discount,
-        totalAmount,
-        previousDues,
-        payableAmount
-      },
-      prescriptionUrl: bookingData.prescriptionUrl,
-      status: 'REQUESTED',
-      dispatch: {
-        mode: mode === 'ASAP' ? 'ASAP' : 'SCHEDULED',
-        preferredGender: ['FEMALE', 'MALE'].includes(preferredGender) ? preferredGender : 'ANY',
-        ...(chosenProvider ? { requestedProvider: chosenProvider } : {}),
-        allowSubstitute: chosenProvider ? allowSubstitute !== false : true
-      },
-      ...(internal.series ? { series: internal.series, isPackage: true } : {}),
-      // Visit code the patient shares at the door (never sent to the provider).
-      visitOtp: { code: String(crypto.randomInt(0, 10000)).padStart(4, '0') },
-      // Family tracking link token.
-      shareToken: crypto.randomBytes(16).toString('hex')
-    });
+    // One live booking per customer, service, time and person cared for: a double
+    // tap on "Book" (or a retried request) hits the unique dedupeKey instead of
+    // creating a twin, while booking for mother and father at once still works.
+    const dedupeKey = bookingDedupeKey(safePatientId, serviceType, visitDate, visitTime, patientDetails);
+    let booking;
+    try {
+      booking = await NurseBooking.create({
+        dedupeKey,
+        patient: safePatientId,
+        serviceType,
+        scheduledDate: visitDate,
+        scheduledTime: visitTime,
+        scheduledTimezone,
+        scheduledTimezoneOffsetMinutes,
+        serviceLocation,
+        specialRequirements,
+        patientDetails,
+        isPackage,
+        packageDetails: isPackage ? packageDetails : undefined,
+        pricing: {
+          basePrice,
+          platformFee,
+          gst,
+          discount,
+          totalAmount,
+          previousDues,
+          payableAmount
+        },
+        prescriptionUrl: bookingData.prescriptionUrl,
+        status: 'REQUESTED',
+        dispatch: {
+          mode: mode === 'ASAP' ? 'ASAP' : 'SCHEDULED',
+          preferredGender: ['FEMALE', 'MALE'].includes(preferredGender) ? preferredGender : 'ANY',
+          ...(chosenProvider ? { requestedProvider: chosenProvider } : {}),
+          allowSubstitute: chosenProvider ? allowSubstitute !== false : true
+        },
+        ...(internal.series ? { series: internal.series, isPackage: true } : {}),
+        // Visit code the patient shares at the door (never sent to the provider).
+        visitOtp: { code: String(crypto.randomInt(0, 10000)).padStart(4, '0') },
+        // Family tracking link token.
+        shareToken: crypto.randomBytes(16).toString('hex')
+      });
+    } catch (err) {
+      if (err && err.code === 11000 && err.keyPattern && err.keyPattern.dedupeKey) {
+        throw new ConflictError('You already have this visit booked for that time. Check My bookings.');
+      }
+      throw err;
+    }
 
     // Supplies: "I have it" vs "staff brings it" (a linked STAFF_PICKUP pharmacy
     // order). If the staff can't source them, don't leave a half-made booking.
@@ -518,11 +540,21 @@ class BookingService {
   /** SOS from the patient or the provider during a visit: alert ops immediately. */
   async raiseSos(bookingId, userId, userRole, { lat, lng, note } = {}) {
     const booking = await this.getBookingById(bookingId, userId, userRole);
+    // SOS is for a visit that is happening: from confirmation until 30 minutes
+    // after it ends (the professional may still be leaving). Old or cancelled
+    // visits can't page the ops team.
+    const endedAt = booking.actualService && booking.actualService.endTime;
+    const live = ['CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'].includes(booking.status)
+      || (booking.status === 'COMPLETED' && endedAt && Date.now() - new Date(endedAt).getTime() < 30 * 60 * 1000);
+    if (!live) throw new ValidationError('SOS works during a visit. In an emergency call 112 (police) or 108 (ambulance) now.');
     const by = String(booking.patient._id || booking.patient) === String(userId) ? 'PATIENT' : 'PROVIDER';
     const entry = { at: new Date(), by, note: note ? String(note).slice(0, 300) : undefined };
     if (Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) entry.location = { lat: Number(lat), lng: Number(lng) };
+    // A repeat tap within a minute is recorded but doesn't page ops again.
+    const recent = (booking.sos || []).some((x) => x.by === by && Date.now() - new Date(x.at).getTime() < 60 * 1000);
     await NurseBooking.updateOne({ _id: booking._id }, { $push: { sos: entry }, $set: { flagged: true, flagReason: `SOS by ${by}` } });
-    logger.logSecurity('care_visit_sos', { bookingId: String(booking._id), by });
+    logger.logSecurity('care_visit_sos', { bookingId: String(booking._id), by, repeat: recent });
+    if (recent) return { received: true, emergencyNumbers: { ambulance: '108', police: '112', women: '1091' } };
     try {
       const Notification = require('@nocturnal/shared').Notification;
       const ops = await User.find({ role: 'platform_admin', isActive: { $ne: false } }).select('_id').lean();
@@ -862,7 +894,8 @@ class BookingService {
     }
 
     // Authorization check
-    if (booking.serviceProvider.toString() !== safeProviderId.toString()) {
+    // No provider yet (or someone else's visit): refuse, don't crash.
+    if (!booking.serviceProvider || String(booking.serviceProvider) !== String(safeProviderId)) {
       throw new AuthorizationError('Only assigned provider can complete the service');
     }
 
@@ -907,7 +940,9 @@ class BookingService {
         'actualService.serviceReport': serviceReport,
         'actualService.endTime': endTime,
         'actualService.duration': duration
-      }
+      },
+      // A finished visit no longer holds its slot (see dedupeKey).
+      $unset: { dedupeKey: 1 }
     };
     const vitals = buildCompletionVitals(serviceReport);
     const shouldCaptureHealthRecord = Boolean(serviceReport.observations || serviceReport.recommendations);
@@ -1382,7 +1417,8 @@ class BookingService {
             cancellationFee: quote.fee || 0
           }
         },
-        $unset: { 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1 }
+        // Freeing dedupeKey lets the customer book the same slot again.
+        $unset: { 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1, dedupeKey: 1 }
       },
       VALIDATED_QUERY_UPDATE_OPTIONS
     );
@@ -1661,7 +1697,7 @@ class BookingService {
   }
 
   /** Customer moves a visit nobody has taken yet (e.g. after "no nurse available"). */
-  async rescheduleBooking(bookingId, patientId, { scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes }) {
+  async rescheduleBooking(bookingId, patientId, { scheduledDate, scheduledTime }) {
     const safeBookingId = normalizeObjectId(bookingId, 'booking id');
     const safePatientId = normalizeObjectId(patientId, 'patient id');
     const booking = await NurseBooking.findById(safeBookingId).lean();
@@ -1670,20 +1706,32 @@ class BookingService {
     if (booking.status !== 'REQUESTED' || booking.serviceProvider) {
       throw new ValidationError('Only visits that no nurse has taken yet can be moved');
     }
-    const offset = Number.isInteger(scheduledTimezoneOffsetMinutes) ? scheduledTimezoneOffsetMinutes : (booking.scheduledTimezoneOffsetMinutes ?? 330);
+    // Always India time (see createBooking); the client's offset is ignored.
+    const offset = 330;
     const window = visitPolicy.checkBookingWindow({ mode: 'SCHEDULED', scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes: offset });
     if (window.error) throw new ValidationError(window.error);
-    const moved = await NurseBooking.findOneAndUpdate(
-      { _id: safeBookingId, status: 'REQUESTED', serviceProvider: null },
-      {
-        $set: {
-          scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes: offset,
-          'dispatch.mode': 'SCHEDULED', 'dispatch.status': 'IDLE', 'dispatch.attempts': 0, 'dispatch.declined': []
+    // Move the one-live-booking key with the visit, so the old slot is free and
+    // the visit can't land on top of another booking at the new time.
+    const dedupeKey = bookingDedupeKey(safePatientId, booking.serviceType, scheduledDate, scheduledTime, booking.patientDetails);
+    let moved;
+    try {
+      moved = await NurseBooking.findOneAndUpdate(
+        { _id: safeBookingId, status: 'REQUESTED', serviceProvider: null },
+        {
+          $set: {
+            scheduledDate, scheduledTime, scheduledTimezone: 'Asia/Kolkata', scheduledTimezoneOffsetMinutes: offset, dedupeKey,
+            'dispatch.mode': 'SCHEDULED', 'dispatch.status': 'IDLE', 'dispatch.attempts': 0, 'dispatch.declined': []
+          },
+          $unset: { 'dispatch.startedAt': 1, 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1 }
         },
-        $unset: { 'dispatch.startedAt': 1, 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1 }
-      },
-      VALIDATED_QUERY_UPDATE_OPTIONS
-    );
+        VALIDATED_QUERY_UPDATE_OPTIONS
+      );
+    } catch (err) {
+      if (err && err.code === 11000 && err.keyPattern && err.keyPattern.dedupeKey) {
+        throw new ConflictError('You already have this visit booked for that time.');
+      }
+      throw err;
+    }
     if (!moved) throw new ConflictError('This visit just changed. Refresh and try again.');
     await invalidateCache('*:/api/bookings*');
     return moved;

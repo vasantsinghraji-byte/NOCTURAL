@@ -365,14 +365,14 @@ const resolveLocalFile = (key) => {
 const fileFilter = (req, file, cb) => {
   // Validate MIME type
   if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-    return cb(new Error(`File type not allowed: ${file.mimetype}`), false);
+    return cb(Object.assign(new Error(`File type not allowed: ${file.mimetype}`), { statusCode: 400 }), false);
   }
 
   // Cross-validate file extension against claimed MIME type
   const ext = path.extname(file.originalname).toLowerCase();
   const allowedExtensions = MIME_EXTENSION_MAP[file.mimetype];
   if (!allowedExtensions.includes(ext)) {
-    return cb(new Error(`File extension "${ext}" does not match MIME type "${file.mimetype}"`), false);
+    return cb(Object.assign(new Error(`File extension "${ext}" does not match MIME type "${file.mimetype}"`), { statusCode: 400 }), false);
   }
 
   cb(null, true);

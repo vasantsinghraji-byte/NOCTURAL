@@ -5,7 +5,7 @@
  */
 
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const { hashPassword, comparePassword } = require('@nocturnal/shared').passwordHash;
 
 const PatientSchema = new mongoose.Schema({
   // Basic Information
@@ -317,8 +317,7 @@ const PatientSchema = new mongoose.Schema({
 // Hash password before saving and track password change time
 PatientSchema.pre('save', async function() {
   if (this.isModified('password')) {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    this.password = await hashPassword(this.password);
     if (!this.isNew) {
       this.passwordChangedAt = new Date();
     }
@@ -328,7 +327,7 @@ PatientSchema.pre('save', async function() {
 // Compare password method
 PatientSchema.methods.comparePassword = async function(candidatePassword) {
   try {
-    return await bcrypt.compare(candidatePassword, this.password);
+    return comparePassword(candidatePassword, this.password);
   } catch (error) {
     throw new Error('Password comparison failed', { cause: error });
   }

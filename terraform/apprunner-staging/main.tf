@@ -313,8 +313,15 @@ resource "aws_iam_role_policy" "api_instance" {
 resource "aws_apprunner_auto_scaling_configuration_version" "small" {
   auto_scaling_configuration_name = "${local.name}-small"
   min_size                        = 1
-  max_size                        = 2
-  max_concurrency                 = 100
+  # Sign-in is CPU-heavy (password hashing): scale out early under load.
+  max_size        = var.app_max_instances
+  max_concurrency = var.app_max_concurrency
+
+  # A new revision must exist before the services move to it; the old one is
+  # still in use until then and can't be deleted first.
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # ── App Runner services ─────────────────────────────────────────────────────

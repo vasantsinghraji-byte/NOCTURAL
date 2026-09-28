@@ -53,3 +53,33 @@ variable "alert_email" {
   type        = string
   default     = ""
 }
+
+variable "waf_signin_limit_per_5min" {
+  description = "Firewall: sign-in / OTP / password-reset requests allowed per IP in 5 minutes (shared mobile IPs need headroom)."
+  type        = number
+  default     = 300
+}
+
+variable "waf_requests_limit_per_5min" {
+  description = "Firewall: all requests allowed per IP in 5 minutes."
+  type        = number
+  default     = 6000
+}
+
+variable "waf_block_alarm_per_5min" {
+  description = "Alarm when the firewall blocks more than this many requests in 5 minutes."
+  type        = number
+  default     = 500
+}
+
+variable "app_max_instances" {
+  description = "Most App Runner instances per service (sign-in rushes scale out)."
+  type        = number
+  default     = 4
+}
+
+variable "app_max_concurrency" {
+  description = "Requests per instance before App Runner adds another."
+  type        = number
+  default     = 60
+}
