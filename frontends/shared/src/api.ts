@@ -709,6 +709,31 @@ export class MedRushApi {
     return this.request<{ success: true; message: string; referredBy: string }>('POST', '/patients/me/referral', { body: { code } });
   }
 
+  // ── Profile pictures (customers and partners) ──
+
+  /** Upload my profile picture (JPG/PNG). Returns its path; view it with profilePhotoUrl(). */
+  async uploadProfilePhoto(file: unknown, filename = 'photo.jpg'): Promise<{ success: true; profilePhoto: { url: string; uploadedAt: string } }> {
+    const form = new FormData();
+    form.append('profilePhoto', file as any, filename);
+    const res = await this.send('/profile-photo', { method: 'POST', headers: { Accept: 'application/json' }, body: form });
+    const text = await res.text();
+    let payload: any = null;
+    try { payload = text ? JSON.parse(text) : null; } catch { payload = { message: text }; }
+    if (!res.ok || (payload && payload.success === false)) {
+      throw new ApiError(res.status, (payload && payload.message) || `Upload failed (${res.status})`, payload?.details);
+    }
+    return payload;
+  }
+
+  removeProfilePhoto() {
+    return this.request<{ success: true }>('DELETE', '/profile-photo');
+  }
+
+  /** Absolute URL for a stored photo path like /api/v1/profile-photo/user/<id>?v=... */
+  absoluteUrl(path: string) {
+    return /^https?:/.test(path) ? path : `${this.baseUrl}${path}`;
+  }
+
   // ── Partner verification documents ──
 
   getMyVerification() {

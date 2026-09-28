@@ -11,6 +11,7 @@ import { appAlert } from '@/lib/dialog';
 import { stopBackgroundOnline } from '@/lib/partnerOnline';
 import { PayoutsCard } from '@/lib/payoutsCard';
 import { C, F, clay, ui } from '@/lib/theme';
+import { PhotoAvatar } from '@/lib/profilePhoto';
 
 const STAFF_ROLES = ['nurse', 'physiotherapist', 'medical_staff'];
 
@@ -60,6 +61,7 @@ export default function PartnerAccountScreen() {
           <ArrowLeft size={20} color={C.onNight} />
         </Pressable>
         <Text style={styles.eyebrow}>MY ACCOUNT</Text>
+        {acct && <View style={{ marginVertical: 8 }}><PhotoAvatar name={acct.name} url={acct.photoUrl} size={72} editable onChange={(url) => setAcct({ ...acct, photoUrl: url })} /></View>}
         <Text style={styles.name}>{acct?.name || session?.name || ''}</Text>
         <Text style={styles.sub}>{acct?.kind === 'PHARMACY' ? acct.store?.name || 'Pharmacy partner' : [acct?.role, acct?.profile?.qualification].filter(Boolean).join(' · ')}</Text>
         {acct && (
@@ -145,7 +147,8 @@ export default function PartnerAccountScreen() {
             <Check ok={v.police} icon={ShieldCheck} label="Police verification" />
             <Check ok={v.council} icon={BadgeCheck} label="Council registration" />
             <Check ok={v.vaccinated} icon={Syringe} label="Vaccinated" />
-            {!(v.id && v.police && v.council) && <Text style={ui.muted}>You can go online once ID, police and council checks are done. Our team will call you.</Text>}
+            {!(v.id && v.police && v.council) && <Text style={ui.muted}>You can go online once ID, police and council checks are done.</Text>}
+            <Pressable style={ui.btnOutline} onPress={() => router.push('/verification')} accessibilityRole="button"><Text style={ui.btnOutlineText}>Manage documents</Text></Pressable>
           </View>
         )}
 
@@ -154,6 +157,7 @@ export default function PartnerAccountScreen() {
             <View style={styles.inline}><Store size={18} color={C.brand} /><Text style={ui.h3}>{acct.store.name}</Text></View>
             {acct.store.address ? <Text style={ui.muted}>{acct.store.address}</Text> : null}
             <Text style={ui.muted}>Status: {acct.store.status}{acct.store.licence ? ` · Licence ${acct.store.licence}` : ''}</Text>
+            <Pressable style={ui.btnOutline} onPress={() => router.push('/verification')} accessibilityRole="button"><Text style={ui.btnOutlineText}>Licences and documents</Text></Pressable>
           </View>
         )}
 

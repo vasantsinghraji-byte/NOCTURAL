@@ -405,3 +405,22 @@ p, .muted { text-wrap: pretty; }
 .review-card { display: flex; flex-direction: column; gap: 8px; }
 .review-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 .review-actions .input { width: auto; flex: 1 1 160px; margin: 0; }
+
+/* ── Profile photos ── */
+.avatar-img { border-radius: 50%; object-fit: cover; display: inline-block; background: var(--card-alt); flex: none; }
+.avatar { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; flex: none; }
+a.navuser { display: inline-flex; align-items: center; gap: 8px; color: inherit; }
+.photo-editor { display: flex; align-items: center; gap: 14px; }
+.photo-button { position: relative; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 50%; }
+.photo-button .avatar { width: 72px; height: 72px; background: rgba(255, 255, 255, .18); color: var(--on-night); font-weight: 800; }
+.photo-editor.light .photo-button .avatar { background: var(--brand-soft); color: var(--brand); }
+.photo-badge { position: absolute; right: -2px; bottom: -2px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--gold); color: #5a2a14; box-shadow: 0 0 0 3px var(--night); }
+.photo-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.photo-editor.dark .linkish { color: var(--on-night); }
+.photo-editor.dark .muted-action { color: var(--on-night-muted); font-weight: 600; }
+.account-links { display: flex; flex-direction: column; padding: 6px; }
+.account-links a, .account-links button { display: flex; align-items: center; gap: 12px; padding: 14px 12px; border-radius: 14px; color: var(--ink); font: inherit; font-weight: 700; background: none; border: 0; cursor: pointer; text-align: left; }
+.account-links a span, .account-links button span { flex: 1; }
+.account-links a:hover, .account-links button:hover { background: var(--card-alt); }
+.account-links svg { color: var(--brand); flex: none; }
+.account-links .danger-link, .account-links .danger-link svg { color: var(--rose-ink); }

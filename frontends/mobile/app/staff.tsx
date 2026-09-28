@@ -341,7 +341,8 @@ export default function StaffHome() {
                   <Text style={[ui.muted, ok ? { color: C.ink } : null]}>{String(label)}{ok ? ' · verified' : ' · pending'}</Text>
                 </View>
               ))}
-              <Text style={ui.muted}>Our team verifies documents. Call partner support to schedule.</Text>
+              <Text style={ui.muted}>Add your Aadhaar, registration and police certificate. Our team checks them within a working day.</Text>
+              <Pressable style={ui.btnDark} onPress={() => router.push('/verification')} accessibilityRole="button"><Text style={[ui.btnText, { color: C.onNight }]}>Add documents</Text></Pressable>
             </View>
           )}
 

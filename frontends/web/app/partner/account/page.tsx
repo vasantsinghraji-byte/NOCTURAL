@@ -7,6 +7,7 @@ import { ArrowLeft, BadgeCheck, CheckCircle2, Circle, Fingerprint, Gift, IndianR
 import type { PartnerAccount, PayoutDetailsInput, PayoutSummary } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { Modal, confirmDialog } from '../../_components/Dialog';
+import ProfilePhotoEditor from '../../_components/ProfilePhoto';
 
 /**
  * Website version of the Partner app's Account screen (nurses, physios and
@@ -54,6 +55,7 @@ export default function PartnerAccountPage() {
       <section className="hero staff-hero">
         <Link href={back} className="link-on" aria-label="Back to dashboard"><ArrowLeft size={16} aria-hidden="true" /> Dashboard</Link>
         <div style={{ marginTop: 12 }}><span className="eyebrow">My account</span></div>
+        {acct && <div style={{ marginTop: 12 }}><ProfilePhotoEditor name={acct.name} url={acct.photoUrl} tone="dark" onChange={(url) => setAcct({ ...acct, photoUrl: url })} /></div>}
         <h1 style={{ fontSize: 34, margin: '6px 0 4px' }}>{acct?.name || ' '}</h1>
         <p style={{ margin: 0 }}>
           {acct?.kind === 'PHARMACY' ? acct.store?.name || 'Pharmacy partner' : [acct?.role && acct.role.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()), acct?.profile?.qualification].filter(Boolean).join(' · ')}

@@ -52,7 +52,7 @@ async function ledger(partyKind, partyId, payoutType) {
 
 async function getAccount(userId) {
   const user = await User.findById(userId)
-    .select('name email phone role rating totalReviews careProfile pharmacyVendor referral createdAt isVerified').lean();
+    .select('name email phone role rating totalReviews careProfile pharmacyVendor referral createdAt isVerified profilePhoto').lean();
   if (!user) throw new NotFoundError('Account');
 
   const code = await referral.ensureCode(user._id);
@@ -62,6 +62,7 @@ async function getAccount(userId) {
     email: user.email,
     phone: user.phone,
     role: user.role,
+    photoUrl: user.profilePhoto?.url || null,
     memberSince: user.createdAt,
     referral: {
       code,

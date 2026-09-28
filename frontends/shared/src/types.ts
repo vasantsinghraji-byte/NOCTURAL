@@ -366,6 +366,7 @@ export interface PatientProfile {
   savedAddresses?: SavedAddress[];
   address?: SavedAddress;
   preferredLanguage?: string;
+  profilePhoto?: { url?: string; uploadedAt?: string } | null;
 }
 
 /** Authenticated staff/partner user (GET /auth/me). */
@@ -706,6 +707,8 @@ export type PayoutDetailsInput =
 export interface PartnerAccount {
   kind: 'STAFF' | 'PHARMACY';
   name: string;
+  /** Path to the profile picture (GET, signed-in only), or null. */
+  photoUrl?: string | null;
   email: string;
   phone?: string;
   role: string;

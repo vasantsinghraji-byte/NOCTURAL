@@ -9,6 +9,7 @@ import { BadgeCheck, Briefcase, ChevronRight, Crown, Gift, Languages, LogOut, Sh
 import { useT } from '@/lib/i18n';
 import { C, F, shadow, ui } from '@/lib/theme';
 import { appAlert, appPrompt } from '@/lib/dialog';
+import { PhotoAvatar } from '@/lib/profilePhoto';
 
 function Row({ icon: Icon, title, desc, href, onPress, right }: { icon: LucideIcon; title: string; desc: string; href?: Href; onPress?: () => void; right?: ReactNode }) {
   return (
@@ -68,6 +69,12 @@ export default function Account() {
     api.getMembership().then(setPlus).catch(() => setPlus(null));
   }, [session?.kind]);
   useFocusEffect(loadPlus);
+  // Profile photo (customers): fetched with the profile, changed here.
+  const [photo, setPhoto] = useState<string | null>(null);
+  useFocusEffect(useCallback(() => {
+    if (session?.kind !== 'patient') return;
+    api.me().then((r) => setPhoto(r.patient?.profilePhoto?.url || null)).catch(() => undefined);
+  }, [session?.kind]))
 
   async function startTrial() {
     setBusy(true);
@@ -87,9 +94,9 @@ export default function Account() {
   return (
     <ScrollView style={ui.screen} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, gap: 12 }}>
       <View style={styles.profile}>
-        <View style={styles.avatar}>
-          {session ? <Text style={styles.initial}>{session.name.charAt(0).toUpperCase()}</Text> : <UserRound size={28} color={C.onNight} />}
-        </View>
+        {session
+          ? <PhotoAvatar name={session.name} url={photo} size={60} editable={session.kind === 'patient'} onChange={setPhoto} />
+          : <View style={styles.avatar}><UserRound size={28} color={C.onNight} /></View>}
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{session ? session.name : 'Welcome to Nabz'}</Text>
           <Text style={styles.email}>{session ? session.email : 'Sign in to book staff and order medicines'}</Text>

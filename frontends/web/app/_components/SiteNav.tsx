@@ -6,6 +6,7 @@ import { ShoppingCart } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { Wordmark } from './Brand';
+import { Avatar } from './ProfilePhoto';
 
 const APP_LINKS = [
   { href: '/book', label: 'Book a visit' },
@@ -42,7 +43,7 @@ export default function SiteNav() {
         )}
         {loading ? null : patient ? (
           <>
-            <span className="navuser"><span className="avatar">{patient.name.charAt(0).toUpperCase()}</span><span className="hide-sm">{patient.name.split(' ')[0]}</span></span>
+            <Link href="/account" className="navuser" aria-label="My account"><Avatar name={patient.name} url={patient.profilePhoto?.url} size={30} /><span className="hide-sm">{patient.name.split(' ')[0]}</span></Link>
             <button className="linkbtn" onClick={() => logout()}>Sign out</button>
           </>
         ) : (
