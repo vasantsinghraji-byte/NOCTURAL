@@ -85,6 +85,15 @@ const NurseBookingSchema = new mongoose.Schema({
   recurringDates: [Date], // For custom patterns
 
   // Location
+  // Who the visit is for. Differs from the account holder when booking for
+  // someone else (a parent in another city); shown to the professional.
+  patientDetails: {
+    name: { type: String, trim: true, maxlength: 120 },
+    age: { type: Number, min: 0, max: 150 },
+    gender: { type: String, enum: ['Male', 'Female', 'Other'] },
+    relation: { type: String, trim: true, maxlength: 40 }
+  },
+
   serviceLocation: {
     type: {
       type: String,

@@ -154,6 +154,8 @@ describe('Nabz matching, trust layer and sign-in (real MongoDB)', () => {
     const accept = await request(app).post(`/api/v1/bookings/${bookingId}/offer/accept`).set(auth(tokens.far));
     expect(accept.status).toBe(200);
     expect(accept.body.booking.status).toBe('CONFIRMED');
+    // Booking for someone else: the professional sees who the visit is for.
+    expect(accept.body.booking.patientDetails).toMatchObject({ name: 'Meera Sharma', age: 34, gender: 'Female' });
   });
 
   it('patient sees the nurse profile + visit code; the nurse never sees the code', async () => {
