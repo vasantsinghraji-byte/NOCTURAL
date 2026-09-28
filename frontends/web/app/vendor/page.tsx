@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import type { AuthUser, PharmacyOrder, PharmacyOrderStatus, PharmacyRejectionReason } from '@medrush/shared';
 import { StockTools } from './StockTools';
 import UpdatesFeed from '../_components/UpdatesFeed';
+import { confirmDialog, promptDialog } from '../_components/Dialog';
 
 // Vendor-driven next-status options, matching the backend transition map.
 const NEXT_STATUS: Partial<Record<PharmacyOrderStatus, PharmacyOrderStatus[]>> = {
@@ -58,8 +59,8 @@ function RxCheck({ order, busy, onVerify }: {
       {order.prescription?.key
         ? <a href={api.prescriptionLink(order._id, 'vendor')} target="_blank" rel="noreferrer" className="linkish">Open prescription</a>
         : <span className="muted">No prescription uploaded. Reject with &quot;Prescription not valid&quot;.</span>}
-      <input className="input" placeholder="Doctor's name" value={name} onChange={(e) => setName(e.target.value)} />
-      <input className="input" placeholder="Doctor's registration no." value={reg} onChange={(e) => setReg(e.target.value)} />
+      <input className="input" placeholder="Doctor’s name…" value={name} onChange={(e) => setName(e.target.value)} />
+      <input className="input" placeholder="Doctor’s registration no.…" value={reg} onChange={(e) => setReg(e.target.value)} />
       <label className="muted">Date on prescription <input className="input" type="date" value={date} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDate(e.target.value)} /></label>
       <button className="btn" disabled={!valid || busy} onClick={() => onVerify({ prescriberName: name.trim(), prescriberRegistrationNumber: reg.trim(), prescribedOn: date })}>
         Prescription is valid
@@ -122,17 +123,35 @@ export default function VendorDashboard() {
   }
 
   // Handover needs the customer's 4-digit code from their app (nurse pickups don't have one).
-  function markDelivered(o: PharmacyOrder) {
+  async function markDelivered(o: PharmacyOrder) {
     if (o.fulfilment === 'STAFF_PICKUP') { run(o._id, () => api.vendorUpdateOrderStatus(o._id, 'DELIVERED')); return; }
-    const code = window.prompt('Ask the customer for the 4-digit delivery code shown in their Nabz app. Leave empty if they can’t show it.', '');
+    const code = await promptDialog({
+      title: `Hand over #${o.orderNumber}`,
+      message: 'Ask the customer for the 4-digit delivery code in their Nabz app. Leave it empty if they can’t show it.',
+      label: 'Delivery code',
+      placeholder: '4 digits…',
+      inputMode: 'numeric',
+      maxLength: 4,
+      pattern: /^(\d{4})?$/,
+      patternHint: 'The delivery code is 4 digits, or leave it empty.',
+      confirmLabel: 'Mark delivered'
+    });
     if (code === null) return;
-    if (code.trim()) {
-      run(o._id, () => api.vendorUpdateOrderStatus(o._id, 'DELIVERED', undefined, { deliveryCode: code.trim() }), 'Order delivered.');
+    if (code) {
+      run(o._id, () => api.vendorUpdateOrderStatus(o._id, 'DELIVERED', undefined, { deliveryCode: code }), 'Order delivered.');
       return;
     }
-    const why = window.prompt('Delivering without the code is reviewed by Nabz. Why is there no code?', '');
-    if (!why || !why.trim()) return;
-    run(o._id, () => api.vendorUpdateOrderStatus(o._id, 'DELIVERED', undefined, { deliveredWithoutCodeReason: why.trim() }), 'Order delivered (flagged for review).');
+    const why = await promptDialog({
+      title: 'Deliver without the code?',
+      message: 'Nabz reviews deliveries without a code.',
+      label: 'Why is there no code?',
+      placeholder: 'e.g. customer’s phone was off…',
+      minLength: 3,
+      maxLength: 200,
+      confirmLabel: 'Mark delivered'
+    });
+    if (!why) return;
+    run(o._id, () => api.vendorUpdateOrderStatus(o._id, 'DELIVERED', undefined, { deliveredWithoutCodeReason: why }), 'Order delivered (flagged for review).');
   }
 
   function decline(o: PharmacyOrder, code: PharmacyRejectionReason) {
@@ -146,13 +165,13 @@ export default function VendorDashboard() {
       code === 'PRESCRIPTION_INVALID' ? 'Order cancelled and refunded.' : 'Order passed to another pharmacy.');
   }
 
-  function markMissing(o: PharmacyOrder, medicineId: string, name: string) {
-    if (!window.confirm(`Remove ${name}? The customer is refunded for it and your stock for it is set to 0.`)) return;
+  async function markMissing(o: PharmacyOrder, medicineId: string, name: string) {
+    if (!(await confirmDialog({ title: `Remove ${name}?`, message: 'The customer is refunded for it and your stock for it is set to 0.', confirmLabel: 'Remove item', danger: true }))) return;
     run(o._id, () => api.vendorMarkItemsUnavailable(o._id, [medicineId]), `${name} removed.`);
   }
 
   async function confirmStock() {
-    if (!window.confirm('Confirm your shelf matches the stock counts in Nabz? Stores with fresh counts rank higher.')) return;
+    if (!(await confirmDialog({ title: 'Confirm your stock counts?', message: 'Confirm your shelf matches the counts in Nabz. Stores with fresh counts rank higher.', confirmLabel: 'Confirm counts' }))) return;
     try {
       const res = await api.vendorConfirmInventory();
       setNotice(`Confirmed ${res.confirmed} item(s).`);

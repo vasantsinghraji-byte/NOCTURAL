@@ -56,14 +56,14 @@ export default function SignupPage() {
     >
       <form onSubmit={submit} noValidate>
         <label htmlFor="name">Full name</label>
-        <input id="name" className="input" autoComplete="name" value={form.name} onChange={(e) => set('name')(e.target.value)} placeholder="Meera Sharma" />
+        <input id="name" className="input" autoComplete="name" value={form.name} onChange={(e) => set('name')(e.target.value)} placeholder="Meera Sharma…" />
         <label htmlFor="email">Email</label>
-        <input id="email" className="input" type="email" autoComplete="email" value={form.email} onChange={(e) => set('email')(e.target.value)} placeholder="you@example.com" />
+        <input id="email" className="input" type="email" autoComplete="email" value={form.email} onChange={(e) => set('email')(e.target.value)} placeholder="you@example.com…" />
         <label htmlFor="phone">Mobile number</label>
         <div style={{ display: 'flex', gap: 8 }}>
           <span className="input" style={{ width: 70, textAlign: 'center', fontWeight: 800 }}>+91</span>
           <input id="phone" className="input" inputMode="numeric" autoComplete="tel-national" maxLength={10} value={form.phone}
-            onChange={(e) => set('phone')(e.target.value.replace(/\D/g, ''))} placeholder="98765 43210" />
+            onChange={(e) => set('phone')(e.target.value.replace(/\D/g, ''))} placeholder="98765 43210…" />
         </div>
         <label htmlFor="password">Password</label>
         <PasswordField id="password" value={form.password} onChange={set('password')} autoComplete="new-password" meter />

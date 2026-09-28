@@ -55,7 +55,7 @@ export default function PlusPage() {
           <Link href="/login?next=/plus" className="btn light">Sign in to join</Link>
         ) : status?.active ? (
           <span className="pill" style={{ background: 'var(--sky-soft)', color: 'var(--brand)', fontSize: 13 }}>
-            <BadgeCheck size={14} /> Active till {status.validUntil ? new Date(status.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+            <BadgeCheck size={14} /> Active till {status.validUntil ? new Date(status.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
           </span>
         ) : (
           <div className="hero-actions">

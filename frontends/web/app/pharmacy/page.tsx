@@ -161,7 +161,7 @@ export default function PharmacyPage() {
       <div className="row" style={{ marginTop: 16 }}>
         <div className="section-title" style={{ margin: 0 }}>Pharmacy near you</div>
         {cart.count > 0
-          ? <Link href="/checkout" className="btn">{cart.count} item(s) · ₹{cart.subtotal} — Checkout</Link>
+          ? <Link href="/checkout" className="btn">Checkout: {cart.count} item(s), ₹{cart.subtotal}</Link>
           : <span className="pill">Cart empty</span>}
       </div>
 
@@ -169,7 +169,7 @@ export default function PharmacyPage() {
       {loading && <p className="muted">Finding pharmacies near you…</p>}
 
       {serviceability && serviceability.stressLevel !== 'NORMAL' && vendors.length > 0 && (
-        <div className="notice" style={{ marginTop: 10 }}>High demand in your area — showing the stores that can still reach you quickly.</div>
+        <div className="notice" style={{ marginTop: 10 }}>High demand in your area. Showing the stores that can still reach you quickly.</div>
       )}
 
       {!loading && vendors.length === 0 && (
@@ -202,7 +202,7 @@ export default function PharmacyPage() {
 
           {activeVendor && (
             <>
-              <div className="section-title">{activeVendor.name} — catalog</div>
+              <div className="section-title">{activeVendor.name}: catalogue</div>
               <div className="grid cards">
                 {items.map((it) => {
                   const qty = qtyOf(it.medicine._id);

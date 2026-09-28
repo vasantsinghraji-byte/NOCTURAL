@@ -61,7 +61,7 @@ export default function SharedTrackingPage() {
               {' · '}{tracking.serviceType.replace(/_/g, ' ').toLowerCase()}
             </p>
             <div className="track-stats">
-              <div><Clock size={16} /> <strong>{eta !== null ? `${eta} min` : '—'}</strong> <span>ETA</span></div>
+              <div><Clock size={16} /> <strong>{eta !== null ? `${eta} min` : '-'}</strong> <span>ETA</span></div>
               <div><MapPin size={16} /> <strong>{loc ? 'Live' : 'Not sharing yet'}</strong> <span>location</span></div>
             </div>
             {mapSrc ? (

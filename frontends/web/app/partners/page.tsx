@@ -124,14 +124,14 @@ export default function PartnersPage() {
         <label htmlFor="p-name">Full name</label>
         <input id="p-name" className="input" autoComplete="name" value={form.name || ''} onChange={set('name')} />
         <label htmlFor="p-phone">Mobile number</label>
-        <input id="p-phone" className="input" inputMode="numeric" maxLength={10} value={form.phone || ''}
+        <input id="p-phone" name="tel" type="tel" autoComplete="tel-national" className="input" inputMode="numeric" maxLength={10} value={form.phone || ''}
           onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, '') }))} />
         <label htmlFor="p-email">Email (optional)</label>
         <input id="p-email" className="input" type="email" autoComplete="email" value={form.email || ''} onChange={set('email')} />
         <label htmlFor="p-city">City</label>
-        <input id="p-city" className="input" value={form.city || ''} onChange={set('city')} />
+        <input id="p-city" name="city" autoComplete="address-level2" className="input" value={form.city || ''} onChange={set('city')} />
         <label htmlFor="p-ref">Referral code from a Nabz partner (optional)</label>
-        <input id="p-ref" className="input" maxLength={12} style={{ textTransform: 'uppercase' }} value={form.referralCode || ''} onChange={set('referralCode')} />
+        <input id="p-ref" name="referral" autoComplete="off" spellCheck={false} className="input" maxLength={12} style={{ textTransform: 'uppercase' }} value={form.referralCode || ''} onChange={set('referralCode')} />
         {PEOPLE_PARTNER_KINDS.includes(kind) && (
           <>
             <label>Gender</label>

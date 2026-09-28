@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { loadDeliveryCoords, saveDeliveryCoords, type Coords } from '@/lib/location';
 import { CircleCheck, MapPin, Store } from 'lucide-react';
 import { IconTile, serviceIcon, TONES } from '../_components/icons';
+import { Modal, confirmDialog } from '../_components/Dialog';
 
 const DEMO_COORDS: Coords = { lat: 26.9110, lng: 75.8010 }; // launch city demo area (C-Scheme, Jaipur)
 
@@ -143,22 +144,17 @@ export default function NursingPage() {
       // Free until the professional is on the way; a fee after that; not once started.
       const { quote } = await api.getCareCancelQuote(id);
       if (!quote.allowed) { setError(quote.reason || 'This visit has already started and can’t be cancelled.'); return; }
-      const msg = quote.fee > 0
-        ? `Your professional is already on the way, so a cancellation fee of ${inr(quote.fee)} applies. It will be added to your next booking. Cancel anyway?`
-        : 'Cancel this visit? It’s free right now. Any supplies ordered for it will be cancelled too.';
-      if (!window.confirm(msg)) return;
+      const ok = await confirmDialog(quote.fee > 0
+        ? { title: `Cancel for a ${inr(quote.fee)} fee?`, message: 'Your professional is already on the way, so a cancellation fee applies. It is added to your next booking.', confirmLabel: 'Cancel visit', danger: true }
+        : { title: 'Cancel this visit?', message: 'It’s free right now. Any supplies ordered for it are cancelled too.', confirmLabel: 'Cancel visit', danger: true });
+      if (!ok) return;
       await api.cancelCareBooking(id, 'Cancelled by patient');
       loadVisits();
     } catch (e) { setError((e as Error).message); }
   }
 
-  async function reschedule(id: string) {
-    const when = window.prompt('Everyone nearby was busy. Pick another time (YYYY-MM-DD HH:MM):', '');
-    if (!when) return;
-    const m = when.trim().match(/^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}:\d{2})$/);
-    if (!m) { setError('Use the format YYYY-MM-DD HH:MM, for example 2026-09-25 18:00'); return; }
-    try { await api.rescheduleCareBooking(id, m[1], m[2].padStart(5, '0')); loadVisits(); } catch (e) { setError((e as Error).message); }
-  }
+  const [rescheduling, setRescheduling] = useState<string | null>(null);
+  function reschedule(id: string) { setRescheduling(id); }
 
   if (done) {
     return (
@@ -258,11 +254,11 @@ export default function NursingPage() {
           <div className="section-title">3 · When &amp; where</div>
           <div className="card">
             <div className="grid two">
-              <div><label className="muted">Date</label><input className="input" type="date" min={tomorrow()} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required /></div>
-              <div><label className="muted">Time</label><input className="input" type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} required /></div>
-              <div><label className="muted">House / street</label><input className="input" value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} required placeholder="Flat 4B, 12th Main" /></div>
-              <div><label className="muted">City</label><input className="input" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} required /></div>
-              <div><label className="muted">Pincode</label><input className="input" value={form.pincode} onChange={(e) => setForm({ ...form, pincode: e.target.value })} required pattern="\d{6}" placeholder="560034" /></div>
+              <div><label className="muted" htmlFor="n-date">Date</label><input id="n-date" name="date" className="input" type="date" min={tomorrow()} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required /></div>
+              <div><label className="muted" htmlFor="n-time">Time</label><input id="n-time" name="time" className="input" type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} required /></div>
+              <div><label className="muted" htmlFor="n-street">House / street</label><input id="n-street" name="street-address" autoComplete="street-address" className="input" value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} required placeholder="Flat 4B, 12th Main…" /></div>
+              <div><label className="muted" htmlFor="n-city">City</label><input id="n-city" name="city" autoComplete="address-level2" className="input" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} required /></div>
+              <div><label className="muted" htmlFor="n-pin">Pincode</label><input id="n-pin" name="postal-code" autoComplete="postal-code" inputMode="numeric" maxLength={6} className="input" value={form.pincode} onChange={(e) => setForm({ ...form, pincode: e.target.value })} required pattern="\d{6}" placeholder="302001…" /></div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label className="muted" htmlFor="n-pro">Professional</label>
                 <select id="n-pro" className="input" value={chosen} onChange={(e) => setChosen(e.target.value)}>
@@ -289,14 +285,14 @@ export default function NursingPage() {
               </div>
               {forOther && (
                 <>
-                  <div><label className="muted">Contact at the address</label><input className="input" value={contact.name} onChange={(e) => setContact({ ...contact, name: e.target.value })} placeholder="If not the patient" /></div>
-                  <div><label className="muted">Their mobile number</label><input className="input" inputMode="numeric" maxLength={10} required value={contact.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value.replace(/\D/g, '') })} pattern="[6-9][0-9]{9}" placeholder="10 digits" /></div>
+                  <div><label className="muted" htmlFor="n-cname">Contact at the address</label><input id="n-cname" name="contact-name" autoComplete="off" className="input" value={contact.name} onChange={(e) => setContact({ ...contact, name: e.target.value })} placeholder="If not the patient…" /></div>
+                  <div><label className="muted" htmlFor="n-cphone">Their mobile number</label><input id="n-cphone" name="contact-tel" type="tel" autoComplete="off" className="input" inputMode="numeric" maxLength={10} required value={contact.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value.replace(/\D/g, '') })} pattern="[6-9][0-9]{9}" placeholder="10 digits…" /></div>
                 </>
               )}
-              <div><label className="muted">Patient name</label><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required={forOther} placeholder={forOther ? 'Patient’s full name' : patient?.name || 'Full name'} /></div>
-              <div><label className="muted">Age</label><input className="input" type="number" min={0} max={120} value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} required /></div>
-              <div><label className="muted">Gender</label>
-                <select className="input" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as 'Male' | 'Female' | 'Other' })}>
+              <div><label className="muted" htmlFor="n-name">Patient name</label><input id="n-name" name="patient-name" autoComplete={forOther ? 'off' : 'name'} className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required={forOther} placeholder={forOther ? 'Patient’s full name' : patient?.name || 'Full name'} /></div>
+              <div><label className="muted" htmlFor="n-age">Age</label><input id="n-age" name="age" autoComplete="off" className="input" type="number" inputMode="numeric" min={0} max={120} value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} required /></div>
+              <div><label className="muted" htmlFor="n-gender">Gender</label>
+                <select id="n-gender" name="gender" className="input" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as 'Male' | 'Female' | 'Other' })}>
                   <option>Female</option><option>Male</option><option>Other</option>
                 </select>
               </div>
@@ -353,6 +349,36 @@ export default function NursingPage() {
           </div>
         </>
       )}
+      {rescheduling && (
+        <RescheduleDialog
+          onClose={() => setRescheduling(null)}
+          onPick={async (date, time) => {
+            const id = rescheduling;
+            setRescheduling(null);
+            try { await api.rescheduleCareBooking(id, date, time); loadVisits(); } catch (e) { setError((e as Error).message); }
+          }}
+        />
+      )}
     </>
+  );
+}
+
+/** Everyone nearby was busy: pick another slot with real date and time pickers. */
+function RescheduleDialog({ onClose, onPick }: { onClose: () => void; onPick: (date: string, time: string) => void }) {
+  const [date, setDate] = useState(tomorrow());
+  const [time, setTime] = useState('10:00');
+  return (
+    <Modal onClose={onClose} labelledBy="resched-title" as="form" onSubmit={(e) => { e.preventDefault(); onPick(date, time); }}>
+      <h2 id="resched-title" style={{ margin: 0 }}>Pick another time</h2>
+      <p className="muted" style={{ margin: 0 }}>Everyone nearby was busy at your first time. Choose a new slot and we will find a verified professional.</p>
+      <div className="grid two" style={{ gap: 10 }}>
+        <div><label htmlFor="rs-date">Date</label><input id="rs-date" name="date" className="input" type="date" min={tomorrow()} value={date} onChange={(e) => setDate(e.target.value)} required /></div>
+        <div><label htmlFor="rs-time">Time</label><input id="rs-time" name="time" className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} required /></div>
+      </div>
+      <div className="row" style={{ gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+        <button type="button" className="btn secondary" onClick={onClose}>Keep it</button>
+        <button type="submit" className="btn">Reschedule</button>
+      </div>
+    </Modal>
   );
 }

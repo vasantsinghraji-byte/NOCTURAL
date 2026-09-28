@@ -85,7 +85,7 @@ export default function CheckoutPage() {
     e.preventDefault();
     setError(null);
     if (cart.hasRx && !file) {
-      setError('This cart contains prescription medicines — please upload a prescription.');
+      setError('This cart contains prescription medicines. Please upload a prescription to continue.');
       return;
     }
     setBusy(true);
@@ -136,7 +136,7 @@ export default function CheckoutPage() {
 
   return (
     <>
-      <div className="section-title" style={{ marginTop: 16 }}>Checkout — {cart.vendorName}</div>
+      <div className="section-title" style={{ marginTop: 16 }}>Checkout: {cart.vendorName}</div>
 
       <div className="card" style={{ marginBottom: 12 }}>
         {lines.map((l) => (
@@ -151,23 +151,23 @@ export default function CheckoutPage() {
 
       <form className="card" onSubmit={placeOrder}>
         <h3 style={{ marginTop: 0 }}>Delivery address</h3>
-        <label>Address line 1</label>
-        <input className="input" value={addr.line1} onChange={set('line1')} required />
-        <label>Address line 2 (optional)</label>
-        <input className="input" value={addr.line2} onChange={set('line2')} />
+        <label htmlFor="co-line1">Address line 1</label>
+        <input id="co-line1" name="address-line1" autoComplete="address-line1" className="input" value={addr.line1} onChange={set('line1')} required />
+        <label htmlFor="co-line2">Address line 2 (optional)</label>
+        <input id="co-line2" name="address-line2" autoComplete="address-line2" className="input" value={addr.line2} onChange={set('line2')} />
         <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div><label>City</label><input className="input" value={addr.city} onChange={set('city')} required /></div>
-          <div><label>State</label><input className="input" value={addr.state} onChange={set('state')} required /></div>
+          <div><label htmlFor="co-city">City</label><input id="co-city" name="city" autoComplete="address-level2" className="input" value={addr.city} onChange={set('city')} required /></div>
+          <div><label htmlFor="co-state">State</label><input id="co-state" name="state" autoComplete="address-level1" className="input" value={addr.state} onChange={set('state')} required /></div>
         </div>
         <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div><label>Pincode</label><input className="input" inputMode="numeric" pattern="[0-9]{6}" value={addr.pincode} onChange={set('pincode')} required /></div>
-          <div><label>Contact phone</label><input className="input" value={addr.contactPhone} onChange={set('contactPhone')} required /></div>
+          <div><label htmlFor="co-pin">Pincode</label><input id="co-pin" name="postal-code" autoComplete="postal-code" className="input" inputMode="numeric" maxLength={6} pattern="[0-9]{6}" value={addr.pincode} onChange={set('pincode')} required /></div>
+          <div><label htmlFor="co-phone">Contact phone</label><input id="co-phone" name="tel" type="tel" autoComplete="tel-national" inputMode="numeric" maxLength={10} className="input" value={addr.contactPhone} onChange={set('contactPhone')} required /></div>
         </div>
 
         {cart.hasRx && (
           <>
-            <label>Prescription (required for Rx items) — image or PDF</label>
-            <input className="input" type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            <label htmlFor="co-rx">Prescription (required for Rx items): photo or PDF</label>
+            <input id="co-rx" name="prescription" className="input" type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
           </>
         )}
 

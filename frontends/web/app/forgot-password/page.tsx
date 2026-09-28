@@ -45,7 +45,7 @@ export default function ForgotPasswordPage() {
     <AuthShell title="Forgot password?" subtitle="Enter the email on your account. We’ll send a link to choose a new password." sideTitle="Back in a minute.">
       <form onSubmit={submit} noValidate>
         <label htmlFor="email">Email</label>
-        <input id="email" className="input" type="email" autoComplete="email" autoFocus placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input id="email" className="input" type="email" autoComplete="email" autoFocus placeholder="you@example.com…" value={email} onChange={(e) => setEmail(e.target.value)} />
         {error && <div className="notice bad" style={{ marginTop: 14 }}>{error}</div>}
         <button className="btn block lg" type="submit" disabled={busy} style={{ marginTop: 20 }}>
           {busy ? 'Sending…' : 'Send reset link'}

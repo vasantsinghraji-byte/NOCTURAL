@@ -48,7 +48,7 @@ export default function LoginPage() {
       <form onSubmit={submit} noValidate>
         {notice && <div className="notice good">{notice}</div>}
         <label htmlFor="email">Email</label>
-        <input id="email" className="input" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input id="email" className="input" type="email" autoComplete="email" placeholder="you@example.com…" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <div className="row-between" style={{ marginTop: 16 }}>
           <label htmlFor="password" style={{ margin: 0 }}>Password</label>
           <Link href="/forgot-password" className="link" style={{ fontSize: 13 }}>Forgot password?</Link>
