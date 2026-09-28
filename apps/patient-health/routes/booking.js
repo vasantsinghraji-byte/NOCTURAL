@@ -47,9 +47,9 @@ const {
 
 // Validation rules
 const createBookingValidation = [
+  // Optional: visits are always in India time (bookingService ignores these).
   body('scheduledTimezone')
-    .notEmpty()
-    .withMessage('Scheduled timezone is required')
+    .optional()
     .custom((value) => {
       try {
         new Intl.DateTimeFormat('en-US', { timeZone: value }).format(new Date());
@@ -74,8 +74,7 @@ const createBookingValidation = [
     .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
     .withMessage('Invalid time format (use HH:MM)'),
   body('scheduledTimezoneOffsetMinutes')
-    .notEmpty()
-    .withMessage('Scheduled timezone offset is required')
+    .optional()
     .isInt({ min: -840, max: 840 })
     .withMessage('Scheduled timezone offset must be between -840 and 840 minutes'),
   // Booking for someone else: who the professional calls at the address.

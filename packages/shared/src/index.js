@@ -73,6 +73,7 @@ lazyExport('settlementService', () => require('../../../services/settlementServi
 lazyExport('partnerReferralService', () => require('../../../services/partnerReferralService'));
 lazyExport('commissionService', () => require('../../../services/commissionService'));
 lazyExport('passwordHash', () => require('../../../utils/passwordHash'));
+lazyExport('attemptGuard', () => require('../../../utils/attemptGuard'));
 lazyExport('staffAvailabilityService', () => require('../../../services/staffAvailabilityService'));
 lazyExport('dispatchService', () => require('../../../services/dispatchService'));
 lazyExport('careVisitPolicy', () => require('../../../services/careVisitPolicy'));

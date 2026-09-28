@@ -614,14 +614,17 @@ async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note,
   if (status === 'DELIVERED' && order.deliveryOtp && order.deliveryOtp.code && !order.deliveryOtp.verifiedAt) {
     const given = String(deliveryCode || '').replace(/[^0-9]/g, '');
     if (given) {
-      if ((order.deliveryOtp.failedAttempts || 0) >= 5) {
+      // Reserve the attempt first (atomic), so parallel guesses can't exceed 5.
+      const { reserveAttempt } = require('../utils/attemptGuard');
+      if (!(await reserveAttempt(PharmacyOrder, { _id: order._id, 'deliveryOtp.verifiedAt': null }, 'deliveryOtp.failedAttempts', 5))) {
         throw new ConflictError('Too many wrong codes. Mark delivered without the code and give a reason');
       }
       const ok = given.length === 4 && require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(order.deliveryOtp.code));
       if (!ok) {
-        await PharmacyOrder.updateOne({ _id: order._id }, { $inc: { 'deliveryOtp.failedAttempts': 1 } });
+        logger.logSecurity('delivery_code_wrong', { orderId: String(order._id) });
         throw new ValidationError('That delivery code is not right. Ask the customer for the 4-digit code in their app');
       }
+      await PharmacyOrder.updateOne({ _id: order._id }, { $inc: { 'deliveryOtp.failedAttempts': -1 } });
     } else {
       const why = String(deliveredWithoutCodeReason || '').trim();
       if (why.length < 5) throw new ValidationError('Enter the customer\'s 4-digit delivery code');

@@ -523,17 +523,20 @@ class BookingService {
     const booking = await NurseBooking.findById(bookingId).select('+visitOtp.code');
     const otp = booking && booking.visitOtp;
     if (!otp || !otp.code || otp.verifiedAt) return true; // older bookings without a code
-    if ((otp.failedAttempts || 0) >= 5) {
+    // Reserve the attempt first (atomic), so parallel guesses can't exceed 5.
+    const { reserveAttempt } = require('@nocturnal/shared').attemptGuard;
+    if (!(await reserveAttempt(NurseBooking, { _id: booking._id, 'visitOtp.verifiedAt': null }, 'visitOtp.failedAttempts', 5))) {
+      logger.logSecurity('visit_code_locked', { bookingId: String(bookingId) });
       throw new ValidationError('Too many wrong codes. Ask support to start this visit.');
     }
     const given = String(code || '').replace(/\D/g, '');
     const ok = given.length === 4 && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(otp.code));
     if (!ok) {
-      await NurseBooking.updateOne({ _id: bookingId }, { $inc: { 'visitOtp.failedAttempts': 1 } });
       logger.logSecurity('visit_code_wrong', { bookingId: String(bookingId) });
       throw new ValidationError('That visit code is not right. Ask the patient for the 4-digit code.');
     }
-    await NurseBooking.updateOne({ _id: bookingId }, { $set: { 'visitOtp.verifiedAt': new Date() } });
+    // The right code: mark verified and don't count this try as a failure.
+    await NurseBooking.updateOne({ _id: bookingId }, { $set: { 'visitOtp.verifiedAt': new Date() }, $inc: { 'visitOtp.failedAttempts': -1 } });
     return true;
   }
 

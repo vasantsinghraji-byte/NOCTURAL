@@ -93,13 +93,24 @@ function assertNotLocked(user) {
   }
 }
 
+const GUARD = { lockPath: 'adminMfa.lockUntil', lockMs: LOCK_MINUTES * 60000 };
+
+/**
+ * Reserve a code attempt atomically before checking it (parallel guesses
+ * can't exceed MAX_FAILED; the old read-then-set count never reached the lock).
+ */
+async function reserveCodeAttempt(user) {
+  const { reserveAttempt } = require('../utils/attemptGuard');
+  if (!(await reserveAttempt(User, { _id: user._id }, 'adminMfa.failedAttempts', MAX_FAILED, GUARD))) {
+    logger.logSecurity('admin_mfa_locked', { userId: String(user._id) });
+    throw new AuthenticationError(`Too many wrong codes. Try again in ${LOCK_MINUTES} minutes.`);
+  }
+}
+
 async function recordFailure(user, reason) {
-  const attempts = ((user.adminMfa && user.adminMfa.failedAttempts) || 0) + 1;
-  const update = attempts >= MAX_FAILED
-    ? { $set: { 'adminMfa.failedAttempts': 0, 'adminMfa.lockUntil': new Date(Date.now() + LOCK_MINUTES * 60000) } }
-    : { $set: { 'adminMfa.failedAttempts': attempts } };
-  await User.updateOne({ _id: user._id }, update);
-  logger.logSecurity(attempts >= MAX_FAILED ? 'admin_mfa_locked' : 'admin_mfa_failed', { userId: String(user._id), reason });
+  const { lockIfExhausted } = require('../utils/attemptGuard');
+  await lockIfExhausted(User, { _id: user._id }, 'adminMfa.failedAttempts', MAX_FAILED, GUARD);
+  logger.logSecurity('admin_mfa_failed', { userId: String(user._id), reason });
 }
 
 /** Issue an admin session that proves the second factor. */
@@ -190,6 +201,7 @@ async function verifyChallenge(mfaToken, factor) {
   const user = await readChallenge(mfaToken);
   assertNotLocked(user);
   if (!user.adminMfa || !user.adminMfa.enabledAt) throw new ValidationError('Set up two-step verification first.');
+  await reserveCodeAttempt(user);
   if (!(await checkFactor(user, factor))) {
     await recordFailure(user, factor.recoveryCode ? 'wrong_recovery_code' : 'wrong_code');
     throw new AuthenticationError('That code is not right.');

@@ -12,6 +12,8 @@ const passwordSecurityService = require('./passwordSecurityService');
 const compromisedPasswordService = require('./compromisedPasswordService');
 const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
 const { AuthenticationError, AuthorizationError } = require('../utils/errors');
+const LOGIN_GUARD = { lockPath: 'loginGuard.lockUntil', lockMs: 15 * 60 * 1000 };
+const LOGIN_MAX_FAILURES = Number(process.env.LOGIN_MAX_FAILURES) || 10;
 
 const COMMON_PROFILE_FIELDS = [
   'name',
@@ -153,10 +155,17 @@ class AuthService {
       };
     }
 
-    // Check password
+    // Check password. Each try first reserves an attempt atomically: at most
+    // LOGIN_MAX_FAILURES guesses per 15 minutes, even when sent in parallel.
+    const attemptGuard = require('../utils/attemptGuard');
+    if (!(await attemptGuard.reserveAttempt(User, { _id: user._id }, 'loginGuard.failed', LOGIN_MAX_FAILURES, LOGIN_GUARD))) {
+      logger.logSecurity('login_locked', { id: String(user._id) });
+      throw { statusCode: 429, message: 'Too many sign-in attempts. Try again in 15 minutes, or reset your password.' };
+    }
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
+      await attemptGuard.lockIfExhausted(User, { _id: user._id }, 'loginGuard.failed', LOGIN_MAX_FAILURES, LOGIN_GUARD);
       logger.logAuth('login', email, false, 'Invalid password');
       logger.logSecurity('failed_login_attempt', { email, reason: 'Invalid password' });
       throw {
@@ -164,6 +173,8 @@ class AuthService {
         message: ERROR_MESSAGE.INVALID_CREDENTIALS
       };
     }
+
+    await attemptGuard.resetAttempts(User, { _id: user._id }, 'loginGuard.failed', LOGIN_GUARD);
 
     // Generate short-lived access token and refresh token for cookie-backed sessions.
     const token = generateAccessToken(user._id, undefined, user.sessionVersion);

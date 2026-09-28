@@ -191,6 +191,13 @@ const PatientSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+
+  // Password sign-in lockout (utils/attemptGuard.js): tries in the current
+  // window and when the lock ends. Never returned by default.
+  loginGuard: {
+    failed: { type: Number, default: 0, select: false },
+    lockUntil: { type: Date, select: false }
+  },
   isVerified: {
     type: Boolean,
     default: false

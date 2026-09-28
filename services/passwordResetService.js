@@ -172,6 +172,8 @@ async function reset(token, password, { ip } = {}) {
   if (!identity || identity.isActive === false) throw new ValidationError('This reset link is invalid or has expired. Request a new one.');
 
   identity.password = password;
+  // A new password ends any sign-in lockout.
+  identity.set('loginGuard', { failed: 0, lockUntil: undefined });
   identity.sessionVersion = (Number(identity.sessionVersion) || 0) + 1; // signs out every device
   await identity.save();
 

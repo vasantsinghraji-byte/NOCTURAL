@@ -26,6 +26,8 @@ const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_RESEND_COOLDOWN_MS = 30 * 1000;
 const OTP_MAX_PER_WINDOW = 3;
+// Per network (IP) per hour; mobile users can share an IP, so it's generous.
+const OTP_MAX_PER_IP_HOUR = Number(process.env.OTP_MAX_PER_IP_HOUR) || 20;
 const OTP_WINDOW_MS = 10 * 60 * 1000;
 const SIGNUP_TOKEN_TTL = '15m';
 const SIGNUP_AUDIENCE = 'nabz-signup';
@@ -195,6 +197,16 @@ async function startPhoneSignIn(rawPhone, requestIp) {
   if (recent[0] && now - new Date(recent[0].createdAt).getTime() < OTP_RESEND_COOLDOWN_MS) {
     throw new RateLimitError('Please wait 30 seconds before requesting another code.');
   }
+  // SMS cost abuse ("SMS pumping"): one client asking for codes to many numbers.
+  // Counted atomically (increment first), so a burst of parallel requests
+  // can't all slip under the limit.
+  if (requestIp) {
+    const fromIp = await require('../models/requestCounter').hit(`otp-ip:${String(requestIp).slice(0, 64)}`, 60 * 60 * 1000);
+    if (fromIp > OTP_MAX_PER_IP_HOUR) {
+      logger.logSecurity('otp_ip_limit', { ip: String(requestIp).slice(0, 45) });
+      throw new RateLimitError('Too many codes requested from this network. Try again later.');
+    }
+  }
   const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
   const challenge = await OtpChallenge.create({ phone, codeHash: hashCode(phone, code), expiresAt: new Date(now + OTP_TTL_MS), requestIp });
   try {
@@ -214,12 +226,15 @@ async function verifyPhoneSignIn(rawPhone, rawCode) {
 
   const challenge = await OtpChallenge.findOne({ phone, consumedAt: null, expiresAt: { $gt: new Date() } }).sort({ createdAt: -1 });
   if (!challenge) throw new AuthenticationError('Code expired. Request a new one.');
-  if (challenge.attempts >= OTP_MAX_ATTEMPTS) throw new AuthenticationError('Too many wrong attempts. Request a new code.');
+  // Reserve the attempt first (atomic), so parallel guesses can't exceed the limit.
+  const { reserveAttempt } = require('../utils/attemptGuard');
+  if (!(await reserveAttempt(OtpChallenge, { _id: challenge._id, consumedAt: null }, 'attempts', OTP_MAX_ATTEMPTS))) {
+    throw new AuthenticationError('Too many wrong attempts. Request a new code.');
+  }
 
   const expected = Buffer.from(challenge.codeHash, 'hex');
   const actual = Buffer.from(hashCode(phone, code), 'hex');
   if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
-    await OtpChallenge.updateOne({ _id: challenge._id }, { $inc: { attempts: 1 } });
     logger.logSecurity('otp_wrong_code', { phone: `******${phone.slice(-4)}` });
     throw new AuthenticationError('That code isn’t right. Please check and try again.');
   }
