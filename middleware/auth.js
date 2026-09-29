@@ -3,6 +3,7 @@ const { isValidRole } = require('../constants/roles');
 const logger = require('../utils/logger');
 const authTokens = require('../utils/authTokens');
 const { normalizeObjectId } = require('../utils/safeMongo');
+const adminMfa = require('../services/adminMfaService');
 const { IDENTITY_TYPES } = authTokens;
 
 const normalizeAuthenticatedUser = (user) => {
@@ -133,8 +134,22 @@ exports.protect = async (req, res, next) => {
       });
     }
 
+    // Admin roles: the session must have passed the second step and be under the max age.
+    const mfaProblem = adminMfa.sessionProblem(user.role, decoded);
+    if (mfaProblem) {
+      logger.logSecurity('admin_session_rejected', { userId: String(user._id), reason: mfaProblem, path: req.originalUrl });
+      return res.status(401).json({
+        success: false,
+        message: mfaProblem === 'session_expired'
+          ? 'Admin session expired - please sign in again'
+          : 'Two-step verification required - please sign in again',
+        details: { mfaRequired: true }
+      });
+    }
+
     // Attach user to request
     req.user = normalizeAuthenticatedUser(user);
+    req.authContext = { mfa: decoded.mfa === true, authTime: decoded.authTime || null };
     next();
   } catch (error) {
     if (error.name === 'MissingAccessTokenError') {
@@ -161,6 +176,23 @@ exports.protect = async (req, res, next) => {
       message: 'Not authorized'
     });
   }
+};
+
+/**
+ * Sensitive admin actions (approving partners, verifying staff, changing vendor
+ * status): require a code entered within the last ADMIN_STEP_UP_MINUTES.
+ * The client catches `details.stepUpRequired`, calls POST /auth/admin-mfa/step-up
+ * with a fresh code and retries.
+ */
+exports.requireRecentAuth = (req, res, next) => {
+  if (!adminMfa.isRequired() || !req.user || !adminMfa.isAdminRole(req.user.role)) return next();
+  const authTime = req.authContext && req.authContext.authTime;
+  if (authTime && Math.floor(Date.now() / 1000) - authTime <= adminMfa.stepUpSeconds()) return next();
+  return res.status(403).json({
+    success: false,
+    message: 'Confirm with a code from your authenticator app to continue',
+    details: { stepUpRequired: true }
+  });
 };
 
 // Authorize specific roles - RBAC enforcement

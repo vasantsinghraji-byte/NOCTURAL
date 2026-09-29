@@ -11,7 +11,14 @@ const ROLES = {
   PHYSIOTHERAPIST: 'physiotherapist',
   ADMIN: 'admin', // hospital-scoped admin (tenant = their `hospital`)
   PLATFORM_ADMIN: 'platform_admin', // cross-tenant operator for platform-level actions
-  PATIENT: 'patient'
+  PATIENT: 'patient',
+
+  // ── MedRush quick-commerce roles ──────────────────────────────────────
+  PHARMACY_VENDOR: 'pharmacy_vendor', // store staff, scoped to a PharmacyVendor org
+  DELIVERY_PARTNER: 'delivery_partner', // rider fulfilling pharmacy orders
+  MEDICAL_STAFF: 'medical_staff', // paramedic / general home-visit staff
+  PHLEBOTOMIST: 'phlebotomist', // lab sample collection
+  LAB_PARTNER: 'lab_partner' // path-lab staff, scoped to a partner lab
 };
 
 // Array of all valid roles for validation
@@ -55,6 +62,64 @@ const ROLE_PERMISSIONS = {
   [ROLES.PLATFORM_ADMIN]: [
     // Cross-tenant, platform-level capabilities (not bound to a single hospital)
     'verify_documents',
+    'view_notifications',
+    // MedRush platform operations
+    'manage_vendors',
+    'verify_vendors',
+    'manage_medicine_catalog',
+    'verify_staff'
+  ],
+
+  // ── MedRush quick-commerce role permissions ────────────────────────────
+  [ROLES.PHARMACY_VENDOR]: [
+    'manage_own_inventory',
+    'view_own_orders',
+    'update_order_status',
+    'manage_own_storefront',
+    'view_own_earnings',
+    'view_own_profile',
+    'update_own_profile',
+    'view_notifications'
+  ],
+  [ROLES.DELIVERY_PARTNER]: [
+    'view_delivery_tasks',
+    'update_delivery_status',
+    'update_own_location',
+    'view_own_earnings',
+    'view_own_profile',
+    'update_own_profile',
+    'view_notifications'
+  ],
+  [ROLES.MEDICAL_STAFF]: [
+    'view_bookings',
+    'accept_bookings',
+    'update_own_location',
+    'update_availability',
+    'view_own_earnings',
+    'view_own_profile',
+    'update_own_profile',
+    'upload_documents',
+    'view_notifications'
+  ],
+  [ROLES.LAB_PARTNER]: [
+    'view_lab_orders',
+    'update_sample_status',
+    'upload_reports',
+    'view_own_earnings',
+    'view_own_profile',
+    'update_own_profile',
+    'view_notifications'
+  ],
+  [ROLES.PHLEBOTOMIST]: [
+    'view_sample_collections',
+    'accept_bookings',
+    'update_sample_status',
+    'update_own_location',
+    'update_availability',
+    'view_own_earnings',
+    'view_own_profile',
+    'update_own_profile',
+    'upload_documents',
     'view_notifications'
   ]
 };

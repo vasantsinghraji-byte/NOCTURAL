@@ -59,6 +59,49 @@ services:
       timeout: 10s
       retries: 5
 
+  # S3-compatible object storage for local dev — same code path as AWS S3.
+  # Console: http://localhost:9001 (minioadmin / MINIO_ROOT_PASSWORD).
+  minio:
+    image: minio/minio:latest
+    container_name: medrush-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - nocturnal-network
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: create the private uploads bucket (idempotent).
+  minio-init:
+    image: minio/mc:latest
+    container_name: medrush-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin} &&
+      mc mb --ignore-existing local/$${S3_UPLOADS_BUCKET:-medrush-local-uploads} &&
+      mc anonymous set none local/$${S3_UPLOADS_BUCKET:-medrush-local-uploads}
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_UPLOADS_BUCKET: ${S3_UPLOADS_BUCKET:-medrush-local-uploads}
+    networks:
+      - nocturnal-network
+
 networks:
   nocturnal-network:
     driver: bridge
@@ -69,3 +112,4 @@ volumes:
   redis_data:
   rabbitmq_data:
   rabbitmq_log:
+  minio_data:

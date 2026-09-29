@@ -1,0 +1,13 @@
+# cp environments/staging.tfvars.example environments/staging.tfvars
+environment       = "staging"
+domain_name       = "medrush.in"
+github_repository = "your-org/your-repo"
+web_branch        = "develop"
+
+create_hosted_zone          = false
+create_github_oidc_provider = false # created by the production stack (account-wide)
+
+desired_count = 1
+min_capacity  = 1
+max_capacity  = 2
+enable_waf    = false

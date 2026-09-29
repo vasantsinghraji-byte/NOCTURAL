@@ -96,7 +96,7 @@ exports.downloadReportFile = async (req, res, next) => {
     }
 
     const key = file.publicId || file.fileName;
-    if (storageConfig.USE_GCS) {
+    if (storageConfig.USE_CLOUD) {
       const signedUrl = await storageConfig.getSignedUrl(key);
       if (!signedUrl) {
         return responseHelper.sendError(res, 'Report file not found', 404);

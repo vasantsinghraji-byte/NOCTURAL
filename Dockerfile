@@ -1,13 +1,17 @@
 # Multi-stage build for optimized production image
+# NODE_IMAGE lets CI pull the official image from a mirror (e.g. public.ecr.aws/docker/library/node:22-alpine)
+# to avoid Docker Hub rate limits on shared build hosts.
+ARG NODE_IMAGE=node:22-alpine
 
 # Stage 1: Build stage
-FROM node:22-alpine AS builder
+FROM ${NODE_IMAGE} AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files (+ workspace manifests the lockfile links to)
 COPY package*.json ./
+COPY packages ./packages
 
 # Install dependencies (including dev dependencies for build)
 # Use --legacy-peer-deps to handle Express 5 compatibility
@@ -26,7 +30,7 @@ RUN npm run build:frontend
 RUN npm prune --production
 
 # Stage 2: Production stage
-FROM node:22-alpine
+FROM ${NODE_IMAGE}
 
 # Install dumb-init and upgrade all Alpine packages to pick up security patches
 RUN apk add --no-cache dumb-init && apk upgrade --no-cache
@@ -59,10 +63,16 @@ COPY --from=builder --chown=nodejs:nodejs /app/controllers ./controllers
 COPY --from=builder --chown=nodejs:nodejs /app/services ./services
 COPY --from=builder --chown=nodejs:nodejs /app/constants ./constants
 COPY --from=builder --chown=nodejs:nodejs /app/validators ./validators
+# Ops scripts (index migration, seeds) run as one-off ECS tasks with the same image
+COPY --from=builder --chown=nodejs:nodejs /app/scripts ./scripts
 
 # Create directories for uploads and logs
 RUN mkdir -p uploads logs && \
     chown -R nodejs:nodejs uploads logs
+
+# Git SHA of this build, reported by /api/v1/health as deploymentCommit
+ARG DEPLOYMENT_COMMIT=unknown
+ENV DEPLOYMENT_COMMIT=${DEPLOYMENT_COMMIT}
 
 # Switch to non-root user
 USER nodejs

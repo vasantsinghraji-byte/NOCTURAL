@@ -9,6 +9,7 @@ const Patient = require('../models/patient');
 const { getAccessTokenFromRequest, verifyAccessToken } = require('@nocturnal/shared').auth;
 const { IDENTITY_TYPES } = require('@nocturnal/shared').authTokens;
 const { normalizeObjectId } = require('@nocturnal/shared').safeMongo;
+const adminMfa = require('@nocturnal/shared').adminMfaService;
 
 const requirePatientAccessToken = (req) => {
   const token = getAccessTokenFromRequest(req);
@@ -41,7 +42,7 @@ exports.protectPatient = async (req, res, next) => {
     const decoded = verifyAccessToken(token, IDENTITY_TYPES.PATIENT);
 
     // Get patient from database
-    const patient = await Patient.findById(normalizeObjectId(decoded.id, 'token subject')).select('-password');
+    const patient = await Patient.findById(normalizeObjectId(decoded.id, 'token subject')).select('-password +sessionVersion');
 
     if (!patient) {
       return res.status(401).json({
@@ -55,6 +56,14 @@ exports.protectPatient = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: 'Account has been deactivated'
+      });
+    }
+
+    // Sign-out-everywhere / password change / reset bump sessionVersion: old tokens stop here.
+    if ((Number(patient.sessionVersion) || 0) !== (Number(decoded.sessionVersion) || 0)) {
+      return res.status(401).json({
+        success: false,
+        message: 'Session has been invalidated - please login again'
       });
     }
 
@@ -115,13 +124,13 @@ exports.protectBoth = async (req, res, next) => {
     const decodedUserId = normalizeObjectId(decoded.id, 'token subject');
 
     // Try to find user in Patient model first
-    let user = await Patient.findById(decodedUserId).select('-password');
+    let user = await Patient.findById(decodedUserId).select('-password +sessionVersion');
     let userType = 'patient';
 
     // If not found in Patient, try User model
     if (!user) {
       const User = require('@nocturnal/shared').User;
-      user = await User.findById(decodedUserId).select('-password');
+      user = await User.findById(decodedUserId).select('-password +sessionVersion');
       userType = 'provider';
     }
 
@@ -138,6 +147,18 @@ exports.protectBoth = async (req, res, next) => {
         success: false,
         message: 'Account has been deactivated'
       });
+    }
+
+    // Revoked sessions (logout-all, password change) must not keep working here either.
+    if ((Number(user.sessionVersion) || 0) !== (Number(decoded.sessionVersion) || 0)) {
+      return res.status(401).json({ success: false, message: 'Session has been invalidated - please login again' });
+    }
+    if (user.passwordChangedAt && decoded.iat && decoded.iat < Math.floor(user.passwordChangedAt.getTime() / 1000)) {
+      return res.status(401).json({ success: false, message: 'Password recently changed - please login again' });
+    }
+    // Admin roles: the session must have passed the second step (see services/adminMfaService.js).
+    if (userType === 'provider' && adminMfa.sessionProblem(user.role, decoded)) {
+      return res.status(401).json({ success: false, message: 'Two-step verification required - please sign in again', details: { mfaRequired: true } });
     }
 
     // Attach user to request

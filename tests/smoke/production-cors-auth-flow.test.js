@@ -3,7 +3,7 @@ const net = require('net');
 const path = require('path');
 
 const rootDir = path.resolve(__dirname, '..', '..');
-const productionOrigin = 'https://nocturnal-api.onrender.com';
+const productionOrigin = 'https://api.nabz.example';
 
 function reservePort() {
   return new Promise((resolve, reject) => {
@@ -83,7 +83,9 @@ describe('Production Smoke: auth CORS contract', () => {
     Object.assign(process.env, global.testUtils.productionFixtureEnv({
       NODE_ENV: 'production',
       PORT: String(port),
-      ALLOWED_ORIGINS: 'http://localhost:5000'
+      ALLOWED_ORIGINS: 'http://localhost:5000',
+      // The service's own public origin is trusted even when ALLOWED_ORIGINS is incomplete.
+      APP_URL: productionOrigin
     }));
 
     jest.resetModules();

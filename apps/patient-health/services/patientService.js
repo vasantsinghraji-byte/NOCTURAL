@@ -13,6 +13,8 @@ const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('@nocturnal/shared').queryUpd
 const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
 const { AuthenticationError } = require('@nocturnal/shared').errors;
 const compromisedPasswordService = require('@nocturnal/shared').compromisedPasswordService;
+const LOGIN_GUARD = { lockPath: 'loginGuard.lockUntil', lockMs: 15 * 60 * 1000 };
+const LOGIN_MAX_FAILURES = Number(process.env.LOGIN_MAX_FAILURES) || 10;
 
 const generateAccessToken = authTokens.generateAccessToken || authTokens.generateToken;
 const generateRefreshToken = authTokens.generateRefreshToken || authTokens.generateToken;
@@ -131,10 +133,17 @@ class PatientService {
       };
     }
 
-    // Check password
+    // Check password. Each try first reserves an attempt atomically: at most
+    // LOGIN_MAX_FAILURES guesses per 15 minutes, even when sent in parallel.
+    const attemptGuard = require('@nocturnal/shared').attemptGuard;
+    if (!(await attemptGuard.reserveAttempt(Patient, { _id: patient._id }, 'loginGuard.failed', LOGIN_MAX_FAILURES, LOGIN_GUARD))) {
+      logger.logSecurity('login_locked', { id: String(patient._id) });
+      throw { statusCode: 429, message: 'Too many sign-in attempts. Try again in 15 minutes, or reset your password.' };
+    }
     const isPasswordValid = await patient.comparePassword(password);
 
     if (!isPasswordValid) {
+      await attemptGuard.lockIfExhausted(Patient, { _id: patient._id }, 'loginGuard.failed', LOGIN_MAX_FAILURES, LOGIN_GUARD);
       logger.logAuth('patient_login', email, false, 'Invalid password');
       logger.logSecurity('failed_patient_login', { email, reason: 'Invalid password' });
       throw {
@@ -142,6 +151,8 @@ class PatientService {
         message: ERROR_MESSAGE.INVALID_CREDENTIALS
       };
     }
+
+    await attemptGuard.resetAttempts(Patient, { _id: patient._id }, 'loginGuard.failed', LOGIN_GUARD);
 
     // Generate short-lived access token and refresh token for cookie-backed sessions.
     const token = generateAccessToken(patient._id, authTokens.IDENTITY_TYPES.PATIENT, patient.sessionVersion);

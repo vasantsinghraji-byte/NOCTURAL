@@ -13,14 +13,17 @@ const User = require('@nocturnal/shared').User;
 const { invalidateCache } = require('@nocturnal/shared').queryCache;
 const logger = require('@nocturnal/shared').logger;
 const { roundToTwoDecimals } = require('@nocturnal/shared').number;
-const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('@nocturnal/shared').queryUpdateOptions;
+const { VALIDATED_QUERY_UPDATE_OPTIONS, TRANSACTION_OPTIONS } = require('@nocturnal/shared').queryUpdateOptions;
 const { hasReviewAggregateStateChanged } = require('../utils/bookingReviewAggregate');
 const { PAGINATION } = require('../constants');
+const { SERVICE_TYPE_TO_CATALOG_NAME } = require('@nocturnal/shared').careServices;
 const {
   ValidationError,
   AuthorizationError,
-  NotFoundError
+  NotFoundError,
+  ConflictError
 } = require('@nocturnal/shared').errors;
+const visitPolicy = require('@nocturnal/shared').careVisitPolicy;
 
 // Health Dashboard integrations
 const healthIntakeService = require('./healthIntakeService');
@@ -28,6 +31,15 @@ const healthMetricService = require('./healthMetricService');
 const healthRecordService = require('./healthRecordService');
 const doctorAccessService = require('./doctorAccessService');
 const BookingCompletionOutbox = require('../models/bookingCompletionOutbox');
+const careSuppliesService = require('@nocturnal/shared').careSuppliesService;
+const pricingService = require('@nocturnal/shared').pricingService;
+const membershipService = require('@nocturnal/shared').membershipService;
+const settlementService = require('@nocturnal/shared').settlementService;
+const partnerReferralService = require('@nocturnal/shared').partnerReferralService;
+const commissionService = require('@nocturnal/shared').commissionService;
+const staffAvailabilityService = require('@nocturnal/shared').staffAvailabilityService;
+const dispatchService = require('@nocturnal/shared').dispatchService;
+const crypto = require('crypto');
 const { normalizeObjectId, nullProtoObject, setSafeField } = require('@nocturnal/shared').safeMongo;
 
 const ALLOWED_BOOKING_FILTERS = new Set(['patient', 'serviceProvider', 'status', 'serviceType', 'payment.status']);
@@ -71,33 +83,40 @@ const buildCompletionVitals = (serviceReport = {}) => {
 };
 
 const resolveCancellationActor = ({ userRole, isPatient = false, isProvider = false }) => {
-  if (userRole === 'admin') return 'ADMIN';
+  if (visitPolicy.isAdminRole(userRole)) return 'ADMIN';
   if (userRole === 'system') return 'SYSTEM';
   if (isPatient || userRole === 'patient') return 'PATIENT';
-  if (isProvider || ['doctor', 'nurse', 'physiotherapist'].includes(userRole)) return 'PROVIDER';
+  if (isProvider || ['doctor', 'nurse', 'physiotherapist', 'medical_staff'].includes(userRole)) return 'PROVIDER';
   return 'SYSTEM';
 };
 
 const TIME_FORMAT_REGEX = /^\d{1,2}:\d{2}$/;
 
+// Live tracking: staff share location only while a visit is active, and a fix
+// older than this is treated as stale (phone offline / app closed).
+const TRACKABLE_STATUSES = ['CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'];
+const LOCATION_STALE_MS = 5 * 60 * 1000;
+const STAFF_SPEED_KMPH = 18; // city two-wheeler average incl. stops
+
+const haversineKm = (a, b) => {
+  const rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(h));
+};
+
+const toCoordinate = (value, min, max, name) => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < min || n > max) throw new ValidationError(`Invalid ${name}`);
+  return n;
+};
+
 const resolveCatalogServiceName = (serviceType) => {
-  switch (serviceType) {
-    case 'INJECTION': return 'INJECTION_IM';
-    case 'IV_DRIP': return 'IV_DRIP';
-    case 'WOUND_DRESSING': return 'WOUND_DRESSING';
-    case 'CATHETER_CARE': return 'CATHETER_CARE';
-    case 'POST_SURGERY_CARE': return 'POST_SURGERY_CARE';
-    case 'ELDERLY_CARE': return 'ELDERLY_CARE_DAILY';
-    case 'PHYSIOTHERAPY_SESSION': return 'PHYSIO_SESSION';
-    case 'BACK_PAIN_THERAPY': return 'BACK_PAIN_PHYSIO';
-    case 'KNEE_PAIN_THERAPY': return 'KNEE_PAIN_PHYSIO';
-    case 'POST_SURGERY_REHAB': return 'POST_SURGERY_REHAB';
-    case 'STROKE_REHAB': return 'STROKE_REHAB';
-    case 'PHYSIO_PACKAGE_10': return 'PHYSIO_PACKAGE_10';
-    case 'ELDERLY_CARE_PACKAGE': return 'ELDERLY_CARE_MONTHLY';
-    case 'POST_SURGERY_PACKAGE': return 'POST_SURGERY_14DAY';
-    default: throw new ValidationError('Unsupported service type');
+  if (!Object.prototype.hasOwnProperty.call(SERVICE_TYPE_TO_CATALOG_NAME, serviceType)) {
+    throw new ValidationError('Unsupported service type');
   }
+  return SERVICE_TYPE_TO_CATALOG_NAME[serviceType];
 };
 
 const formatUtcOffset = (offsetMinutes) => {
@@ -107,6 +126,12 @@ const formatUtcOffset = (offsetMinutes) => {
   const minutes = String(absoluteMinutes % 60).padStart(2, '0');
 
   return `${sign}${hours}:${minutes}`;
+};
+
+/** Key for "one live booking per customer, service, time and person cared for". */
+const bookingDedupeKey = (patientId, serviceType, date, time, patientDetails) => {
+  const who = String((patientDetails && patientDetails.name) || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return `${patientId}|${serviceType}|${new Date(date).toISOString().slice(0, 10)}|${time}|${who}`;
 };
 
 const resolveScheduledLocalHour = ({ scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes }) => {
@@ -146,25 +171,48 @@ class BookingService {
    * @param {String} patientId - Patient ID
    * @returns {Promise<Object>} Created booking
    */
-  async createBooking(bookingData, patientId) {
+  async createBooking(bookingData, patientId, internal = {}) {
     const safePatientId = normalizeObjectId(patientId, 'patient id');
     const {
       serviceType,
       scheduledDate,
       scheduledTime,
-      scheduledTimezone,
-      scheduledTimezoneOffsetMinutes,
       serviceLocation,
       specialRequirements,
       patientDetails,
       isPackage,
-      packageDetails
+      packageDetails,
+      mode,
+      preferredGender,
+      requestedProvider,
+      allowSubstitute
     } = bookingData;
+    // Visits happen in India, so the time is always local India time (IST,
+    // no daylight saving) whatever time zone the booker's phone is in, e.g.
+    // a son abroad booking "10:00" for his mother in Jaipur.
+    const scheduledTimezone = 'Asia/Kolkata';
+    const scheduledTimezoneOffsetMinutes = 330;
+    // Package sessions after the first can fall beyond the normal booking horizon.
+    const laterSession = internal.series && internal.series.index > 1;
 
     // Verify patient exists
     const patient = await Patient.findById(safePatientId);
     if (!patient) {
       throw new NotFoundError('Patient', patientId);
+    }
+
+    // When can this be booked for? "Book now" uses server time so a phone
+    // with a wrong clock can't book the past; scheduled visits need a lead time.
+    const window = visitPolicy.checkBookingWindow({ mode, scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes }, undefined,
+      laterSession ? { ...visitPolicy.getVisitPolicy(), maxAdvanceDays: 120 } : undefined);
+    if (window.error) throw new ValidationError(window.error);
+    let visitDate = scheduledDate;
+    let visitTime = scheduledTime;
+    if (window.asap) {
+      const offset = Number.isInteger(scheduledTimezoneOffsetMinutes) ? scheduledTimezoneOffsetMinutes : 330;
+      const local = new Date(Date.now() + offset * 60000);
+      visitDate = local.toISOString().slice(0, 10);
+      visitTime = local.toISOString().slice(11, 16);
     }
 
     // Get service from catalog (match by name which corresponds to serviceType enum)
@@ -180,7 +228,8 @@ class BookingService {
     }
 
     const availableCities = service.availability?.availableCities || [];
-    const requestedCity = serviceLocation?.city;
+    // The API validates serviceLocation.address.city (the old top-level `city` never existed).
+    const requestedCity = serviceLocation?.address?.city || serviceLocation?.city;
     if (
       availableCities.length > 0 &&
       (!requestedCity || !availableCities.some((city) =>
@@ -197,7 +246,11 @@ class BookingService {
 
     // Calculate pricing
     let basePrice;
-    if (isPackage && service.pricing.packageDetails) {
+    if (internal.series && service.pricing.packageDetails) {
+      // One session of a package: the package price split evenly per session.
+      const pd = service.pricing.packageDetails;
+      basePrice = roundToTwoDecimals((pd.totalPrice || service.pricing.basePrice) / (pd.sessions || internal.series.total || 1));
+    } else if (isPackage && service.pricing.packageDetails) {
       basePrice = service.pricing.packageDetails.totalPrice;
     } else {
       basePrice = service.pricing.basePrice;
@@ -206,8 +259,8 @@ class BookingService {
     // Check for surge pricing
     if (service.pricing.surgePricing?.enabled) {
       const bookingHour = resolveScheduledLocalHour({
-        scheduledDate,
-        scheduledTime,
+        scheduledDate: visitDate,
+        scheduledTime: visitTime,
         scheduledTimezoneOffsetMinutes
       });
       const isSurgeHour = service.pricing.surgePricing.surgeHours.some(sh => {
@@ -227,37 +280,100 @@ class BookingService {
       }
     }
 
-    // Calculate pricing upfront so the booking is created with correct amounts
-    const platformFee = basePrice * 0.15;
-    const gst = (basePrice + platformFee) * 0.18;
-    const totalAmount = basePrice + platformFee + gst;
-    const discount = 0;
-    const payableAmount = totalAmount - discount;
+    // A professional the customer picked: must be a verified, active one of the right kind.
+    let chosenProvider = null;
+    if (requestedProvider) {
+      const safeChosen = normalizeObjectId(requestedProvider, 'professional id');
+      const pro = await User.findOne({ _id: safeChosen, isActive: { $ne: false }, role: { $in: ['nurse', 'physiotherapist', 'medical_staff'] }, ...visitPolicy.VERIFIED_FILTER }).select('_id').lean();
+      if (!pro) throw new ValidationError('That professional isn’t available for booking');
+      chosenProvider = pro._id;
+    }
+
+    // Price upfront (config/revenue.js): platform fee waived for Nabz Plus members.
+    const quote = pricingService.quoteCareVisit({ basePrice, isMember: await membershipService.isMember(safePatientId) });
+    const { platformFee, gst, totalAmount, discount } = quote;
+    // A late-cancellation fee from an earlier visit is added to this bill.
+    const previousDues = laterSession ? 0 : roundToTwoDecimals(Number(patient.pendingDues) || 0);
+    const payableAmount = roundToTwoDecimals(quote.payableAmount + previousDues);
 
     // Create booking with final pricing in a single operation
-    const booking = await NurseBooking.create({
-      patient: safePatientId,
-      serviceType,
-      scheduledDate,
-      scheduledTime,
-      scheduledTimezone,
-      scheduledTimezoneOffsetMinutes,
-      serviceLocation,
-      specialRequirements,
-      patientDetails,
-      isPackage,
-      packageDetails: isPackage ? packageDetails : undefined,
-      pricing: {
-        basePrice,
-        platformFee,
-        gst,
-        discount,
-        totalAmount,
-        payableAmount
-      },
-      prescriptionUrl: bookingData.prescriptionUrl,
-      status: 'REQUESTED'
-    });
+    // One live booking per customer, service, time and person cared for: a double
+    // tap on "Book" (or a retried request) hits the unique dedupeKey instead of
+    // creating a twin, while booking for mother and father at once still works.
+    const dedupeKey = bookingDedupeKey(safePatientId, serviceType, visitDate, visitTime, patientDetails);
+    let booking;
+    try {
+      booking = await NurseBooking.create({
+        dedupeKey,
+        patient: safePatientId,
+        serviceType,
+        scheduledDate: visitDate,
+        scheduledTime: visitTime,
+        scheduledTimezone,
+        scheduledTimezoneOffsetMinutes,
+        serviceLocation,
+        specialRequirements,
+        patientDetails,
+        isPackage,
+        packageDetails: isPackage ? packageDetails : undefined,
+        pricing: {
+          basePrice,
+          platformFee,
+          gst,
+          discount,
+          totalAmount,
+          previousDues,
+          payableAmount
+        },
+        prescriptionUrl: bookingData.prescriptionUrl,
+        status: 'REQUESTED',
+        dispatch: {
+          mode: mode === 'ASAP' ? 'ASAP' : 'SCHEDULED',
+          preferredGender: ['FEMALE', 'MALE'].includes(preferredGender) ? preferredGender : 'ANY',
+          ...(chosenProvider ? { requestedProvider: chosenProvider } : {}),
+          allowSubstitute: chosenProvider ? allowSubstitute !== false : true
+        },
+        ...(internal.series ? { series: internal.series, isPackage: true } : {}),
+        // Visit code the patient shares at the door (never sent to the provider).
+        visitOtp: { code: String(crypto.randomInt(0, 10000)).padStart(4, '0') },
+        // Family tracking link token.
+        shareToken: crypto.randomBytes(16).toString('hex')
+      });
+    } catch (err) {
+      if (err && err.code === 11000 && err.keyPattern && err.keyPattern.dedupeKey) {
+        throw new ConflictError('You already have this visit booked for that time. Check My bookings.');
+      }
+      throw err;
+    }
+
+    // Supplies: "I have it" vs "staff brings it" (a linked STAFF_PICKUP pharmacy
+    // order). If the staff can't source them, don't leave a half-made booking.
+    if (Array.isArray(bookingData.supplies) && bookingData.supplies.length > 0) {
+      try {
+        const supplies = await careSuppliesService.orderSuppliesForBooking(booking, bookingData.supplies, {
+          patientId: safePatientId,
+          prescriptionKey: bookingData.prescriptionKey,
+          vendorId: bookingData.suppliesVendorId
+        });
+        if (supplies) {
+          booking.supplies = supplies;
+          await booking.save();
+        }
+      } catch (error) {
+        await NurseBooking.deleteOne({ _id: booking._id });
+        throw error;
+      }
+    }
+
+    // Dues now travel on this booking (restored if it's cancelled for free).
+    if (previousDues > 0) {
+      await Patient.updateOne({ _id: safePatientId, pendingDues: patient.pendingDues }, { $set: { pendingDues: 0 } });
+    }
+
+    // "Book now": match the nearest online nurse right away (Uber-style).
+    if (booking.dispatch && booking.dispatch.mode === 'ASAP') {
+      await dispatchService.startDispatch(booking);
+    }
 
     logger.info('Booking Created', {
       bookingId: booking._id,
@@ -302,7 +418,7 @@ class BookingService {
     const safeUserId = normalizeObjectId(userId, 'user id');
     const booking = await NurseBooking.findById(safeBookingId)
       .populate('patient', 'name email phone')
-      .populate('serviceProvider', 'name email phone specialty professional');
+      .populate('serviceProvider', 'name email phone specialty professional rating totalReviews profilePhoto careProfile.qualification careProfile.languages careProfile.verification.idVerified careProfile.verification.policeVerified careProfile.verification.councilVerified careProfile.verification.vaccinated');
 
     if (!booking) {
       throw new NotFoundError('Booking', bookingId);
@@ -311,13 +427,174 @@ class BookingService {
     // Authorization check - only patient, assigned provider, or admin can view
     const isPatient = booking.patient._id.toString() === safeUserId.toString();
     const isProvider = booking.serviceProvider && booking.serviceProvider._id.toString() === safeUserId.toString();
-    const isAdmin = userRole === 'admin';
+    const isAdmin = visitPolicy.isAdminRole(userRole);
 
     if (!isPatient && !isProvider && !isAdmin) {
       throw new AuthorizationError('Not authorized to view this booking');
     }
 
+    if (isProvider && !isAdmin) this.redactForProvider(booking);
+
     return booking;
+  }
+
+  /**
+   * Staff app: publish the provider's live location for an active visit.
+   * Also refreshes the ETA to the patient's address.
+   */
+  async updateProviderLocation(bookingId, providerId, { lat, lng }) {
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeProviderId = normalizeObjectId(providerId, 'provider id');
+    const point = { lat: toCoordinate(lat, -90, 90, 'latitude'), lng: toCoordinate(lng, -180, 180, 'longitude') };
+    const now = new Date();
+
+    const booking = await NurseBooking.findOneAndUpdate(
+      { _id: safeBookingId, serviceProvider: safeProviderId, status: { $in: TRACKABLE_STATUSES } },
+      { $set: { 'tracking.nurseLocation': { ...point, lastUpdated: now } } },
+      { new: true }
+    );
+    if (!booking) {
+      throw new ValidationError('Location can only be shared for your active visits');
+    }
+
+    const dest = booking.serviceLocation && booking.serviceLocation.address && booking.serviceLocation.address.coordinates;
+    let distanceKm = null;
+    let estimatedArrival = null;
+    if (dest && Number.isFinite(dest.lat) && Number.isFinite(dest.lng)) {
+      distanceKm = Math.round(haversineKm(point, dest) * 100) / 100;
+      estimatedArrival = new Date(now.getTime() + (Math.ceil((distanceKm / STAFF_SPEED_KMPH) * 60) + 2) * 60 * 1000);
+      await NurseBooking.updateOne({ _id: booking._id }, { $set: { 'tracking.estimatedArrival': estimatedArrival } });
+    }
+    return { lastUpdated: now, distanceKm, estimatedArrival };
+  }
+
+  /**
+   * Customer app: where is my nurse? Visible to the patient, the assigned
+   * provider and admins, and only while the visit is active.
+   */
+  async getTracking(bookingId, userId, userRole) {
+    const booking = await this.getBookingById(bookingId, userId, userRole);
+    const loc = booking.tracking && booking.tracking.nurseLocation;
+    const active = TRACKABLE_STATUSES.includes(booking.status);
+    const fresh = !!(loc && loc.lastUpdated && Date.now() - new Date(loc.lastUpdated).getTime() < LOCATION_STALE_MS);
+    const dest = booking.serviceLocation && booking.serviceLocation.address && booking.serviceLocation.address.coordinates;
+    const staffLocation = active && fresh && Number.isFinite(loc.lat) ? { lat: loc.lat, lng: loc.lng, lastUpdated: loc.lastUpdated } : null;
+    const isPatient = String(booking.patient._id || booking.patient) === String(userId);
+    let secrets = {};
+    if (isPatient && !['COMPLETED', 'CANCELLED'].includes(booking.status)) {
+      const withSecrets = await NurseBooking.findById(booking._id).select('+visitOtp.code +shareToken').lean();
+      secrets = {
+        visitCode: withSecrets && withSecrets.visitOtp && !withSecrets.visitOtp.verifiedAt ? withSecrets.visitOtp.code : undefined,
+        shareToken: withSecrets ? withSecrets.shareToken : undefined
+      };
+    }
+    const sp = booking.serviceProvider;
+    return {
+      bookingId: booking._id,
+      status: booking.status,
+      serviceType: booking.serviceType,
+      dispatch: booking.dispatch ? { mode: booking.dispatch.mode, status: booking.dispatch.status, attempts: booking.dispatch.attempts } : undefined,
+      ...secrets,
+      staff: sp ? {
+        name: sp.name,
+        phone: active ? sp.phone : undefined,
+        qualification: sp.careProfile && sp.careProfile.qualification,
+        experienceYears: sp.professional && sp.professional.yearsOfExperience,
+        languages: (sp.careProfile && sp.careProfile.languages) || [],
+        rating: sp.rating || null,
+        totalReviews: sp.totalReviews || 0,
+        photo: sp.profilePhoto && sp.profilePhoto.url,
+        verification: sp.careProfile && sp.careProfile.verification ? {
+          id: !!sp.careProfile.verification.idVerified,
+          police: !!sp.careProfile.verification.policeVerified,
+          council: !!sp.careProfile.verification.councilVerified,
+          vaccinated: !!sp.careProfile.verification.vaccinated
+        } : {}
+      } : null,
+      staffLocation,
+      destination: dest && Number.isFinite(dest.lat) ? { lat: dest.lat, lng: dest.lng } : null,
+      distanceKm: staffLocation && dest && Number.isFinite(dest.lat) ? Math.round(haversineKm(staffLocation, dest) * 100) / 100 : null,
+      estimatedArrival: active ? (booking.tracking && booking.tracking.estimatedArrival) || null : null
+    };
+  }
+
+  /** Check the patient's visit code before a visit starts; locks after 5 misses. */
+  async verifyVisitCode(bookingId, code) {
+    const booking = await NurseBooking.findById(bookingId).select('+visitOtp.code');
+    const otp = booking && booking.visitOtp;
+    if (!otp || !otp.code || otp.verifiedAt) return true; // older bookings without a code
+    // Reserve the attempt first (atomic), so parallel guesses can't exceed 5.
+    const { reserveAttempt } = require('@nocturnal/shared').attemptGuard;
+    if (!(await reserveAttempt(NurseBooking, { _id: booking._id, 'visitOtp.verifiedAt': null }, 'visitOtp.failedAttempts', 5))) {
+      logger.logSecurity('visit_code_locked', { bookingId: String(bookingId) });
+      throw new ValidationError('Too many wrong codes. Ask support to start this visit.');
+    }
+    const given = String(code || '').replace(/\D/g, '');
+    const ok = given.length === 4 && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(otp.code));
+    if (!ok) {
+      logger.logSecurity('visit_code_wrong', { bookingId: String(bookingId) });
+      throw new ValidationError('That visit code is not right. Ask the patient for the 4-digit code.');
+    }
+    // The right code: mark verified and don't count this try as a failure.
+    await NurseBooking.updateOne({ _id: bookingId }, { $set: { 'visitOtp.verifiedAt': new Date() }, $inc: { 'visitOtp.failedAttempts': -1 } });
+    return true;
+  }
+
+  /** SOS from the patient or the provider during a visit: alert ops immediately. */
+  async raiseSos(bookingId, userId, userRole, { lat, lng, note } = {}) {
+    const booking = await this.getBookingById(bookingId, userId, userRole);
+    // SOS is for a visit that is happening: from confirmation until 30 minutes
+    // after it ends (the professional may still be leaving). Old or cancelled
+    // visits can't page the ops team.
+    const endedAt = booking.actualService && booking.actualService.endTime;
+    const live = ['CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'].includes(booking.status)
+      || (booking.status === 'COMPLETED' && endedAt && Date.now() - new Date(endedAt).getTime() < 30 * 60 * 1000);
+    if (!live) throw new ValidationError('SOS works during a visit. In an emergency call 112 (police) or 108 (ambulance) now.');
+    const by = String(booking.patient._id || booking.patient) === String(userId) ? 'PATIENT' : 'PROVIDER';
+    const entry = { at: new Date(), by, note: note ? String(note).slice(0, 300) : undefined };
+    if (Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) entry.location = { lat: Number(lat), lng: Number(lng) };
+    // A repeat tap within a minute is recorded but doesn't page ops again.
+    const recent = (booking.sos || []).some((x) => x.by === by && Date.now() - new Date(x.at).getTime() < 60 * 1000);
+    await NurseBooking.updateOne({ _id: booking._id }, { $push: { sos: entry }, $set: { flagged: true, flagReason: `SOS by ${by}` } });
+    logger.logSecurity('care_visit_sos', { bookingId: String(booking._id), by, repeat: recent });
+    if (recent) return { received: true, emergencyNumbers: { ambulance: '108', police: '112', women: '1091' } };
+    try {
+      const Notification = require('@nocturnal/shared').Notification;
+      const ops = await User.find({ role: 'platform_admin', isActive: { $ne: false } }).select('_id').lean();
+      await Promise.all(ops.map((o) => Notification.create({
+        user: o._id, recipientModel: 'User', type: 'CARE_SOS', priority: 'URGENT',
+        title: `SOS on a home visit (${by.toLowerCase()})`,
+        message: `Booking ${booking._id} · ${booking.serviceType}${entry.note ? ` · ${entry.note}` : ''}`,
+        metadata: { bookingId: String(booking._id) }, channels: { inApp: true, push: true }
+      })));
+    } catch (err) {
+      logger.error('SOS alert to ops failed', { bookingId: String(booking._id), error: err.message });
+    }
+    return { received: true, emergencyNumbers: { ambulance: '108', police: '112', women: '1091' } };
+  }
+
+  /** Public family-tracking view (link from the patient). Minimal, no contact details. */
+  async getSharedTracking(token) {
+    const safe = String(token || '');
+    if (!/^[a-f0-9]{32}$/.test(safe)) throw new NotFoundError('Tracking link');
+    const booking = await NurseBooking.findOne({ shareToken: safe })
+      .populate('serviceProvider', 'name careProfile.qualification')
+      .lean();
+    if (!booking) throw new NotFoundError('Tracking link');
+    const active = TRACKABLE_STATUSES.includes(booking.status);
+    const loc = booking.tracking && booking.tracking.nurseLocation;
+    const fresh = !!(loc && loc.lastUpdated && Date.now() - new Date(loc.lastUpdated).getTime() < LOCATION_STALE_MS);
+    return {
+      status: booking.status,
+      serviceType: booking.serviceType,
+      staff: booking.serviceProvider ? {
+        firstName: String(booking.serviceProvider.name || '').split(' ')[0],
+        qualification: booking.serviceProvider.careProfile && booking.serviceProvider.careProfile.qualification
+      } : null,
+      staffLocation: active && fresh ? { lat: loc.lat, lng: loc.lng, lastUpdated: loc.lastUpdated } : null,
+      estimatedArrival: active ? (booking.tracking && booking.tracking.estimatedArrival) || null : null,
+      expired: !active && booking.status !== 'REQUESTED'
+    };
   }
 
   /**
@@ -337,6 +614,8 @@ class BookingService {
     const bookings = await NurseBooking.find(query)
       .populate('patient', 'name email phone')
       .populate('serviceProvider', 'name email phone')
+      // Staff see which store to collect "staff brings" supplies from.
+      .populate('supplies.pharmacyVendor', 'name address phone location')
       .sort(sort)
       .limit(limit)
       .skip((page - 1) * limit)
@@ -372,7 +651,25 @@ class BookingService {
    * @returns {Promise<Object>} Provider's bookings
    */
   async getProviderBookings(providerId, options = {}) {
-    return this.getAllBookings({ serviceProvider: normalizeObjectId(providerId, 'provider id') }, options);
+    const result = await this.getAllBookings({ serviceProvider: normalizeObjectId(providerId, 'provider id') }, options);
+    result.bookings.forEach((b) => this.redactForProvider(b));
+    return result;
+  }
+
+  /**
+   * What a nurse may see of the customer: never the email; the customer's
+   * phone and the on-site contact's phone (booked for someone else) only
+   * around the visit.
+   */
+  redactForProvider(booking) {
+    if (!booking) return booking;
+    const mayCall = visitPolicy.providerMaySeePhone(booking);
+    if (booking.patient && typeof booking.patient === 'object') {
+      booking.patient.email = undefined;
+      if (!mayCall) booking.patient.phone = undefined;
+    }
+    if (!mayCall && booking.serviceLocation) booking.serviceLocation.contactPhone = undefined;
+    return booking;
   }
 
   /**
@@ -380,10 +677,8 @@ class BookingService {
    * @returns {Promise<Array>} Active assignable providers
    */
   async getAssignableProviders() {
-    return User.find({
-      role: { $in: ['nurse', 'physiotherapist'] },
-      isActive: true
-    })
+    // Only staff who switched "Go online" and are heartbeating are discoverable.
+    return User.find({ ...staffAvailabilityService.discoverableFilter(), isActive: true })
       .select('name email phone role specialty professional.primarySpecialization professional.yearsOfExperience')
       .sort({ role: 1, name: 1 })
       .lean();
@@ -410,10 +705,15 @@ class BookingService {
       throw new NotFoundError('Service provider', providerId);
     }
 
-    const validRoles = ['nurse', 'physiotherapist'];
+    const validRoles = ['nurse', 'physiotherapist', 'medical_staff'];
     if (!validRoles.includes(provider.role)) {
       throw new ValidationError('User is not a valid service provider');
     }
+    if (!visitPolicy.isVerifiedStaff(provider)) {
+      throw new ValidationError('This provider is not verified yet (ID, police and council checks)');
+    }
+    const target = await NurseBooking.findById(safeBookingId).select('scheduledDate scheduledTime scheduledTimezoneOffsetMinutes').lean();
+    if (target) await this.assertNoOverlap(safeProviderId, visitPolicy.visitStart(target) || new Date(), safeBookingId);
 
     // Atomic: assign provider only if booking is in assignable status
     const booking = await NurseBooking.findOneAndUpdate(
@@ -424,8 +724,12 @@ class BookingService {
       {
         $set: {
           serviceProvider: safeProviderId,
-          status: 'ASSIGNED'
-        }
+          status: 'ASSIGNED',
+          // Stop any open offer so dispatch and the booking agree.
+          'dispatch.status': 'MATCHED',
+          'dispatch.matchedAt': new Date()
+        },
+        $unset: { 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1 }
       },
       VALIDATED_QUERY_UPDATE_OPTIONS
     );
@@ -439,17 +743,17 @@ class BookingService {
       throw new ValidationError('Booking cannot be assigned - already assigned or in wrong status');
     }
 
-    // Grant health data access to provider for this booking
+    // A package keeps this professional for its later sessions.
+    await dispatchService.lockSeriesProvider(booking, safeProviderId);
+
+    // Visit-scoped health data access (expires a day after the visit).
     try {
-      await doctorAccessService.grantAccess({
+      await doctorAccessService.grantForVisit({
         patientId: booking.patient,
-        doctorId: safeProviderId,
+        providerId: safeProviderId,
         bookingId: booking._id,
-        accessLevel: 'READ_WRITE',
-        allowedResources: ['HEALTH_RECORD', 'HEALTH_METRIC', 'DOCTOR_NOTE'],
-        grantReason: `Assigned to booking ${booking._id}`,
-        adminId: safeAdminId,
-        adminName: 'System'
+        expiresAt: this.accessExpiry(booking),
+        grantedBy: safeAdminId
       });
 
       logger.info('Health data access granted to provider', {
@@ -493,10 +797,10 @@ class BookingService {
    * @param {String} note - Optional note
    * @returns {Promise<Object>} Updated booking
    */
-  async updateStatus(bookingId, newStatus, userId, note = '', userRole) {
+  async updateStatus(bookingId, newStatus, userId, note = '', userRole, extra = {}) {
     const safeBookingId = normalizeObjectId(bookingId, 'booking id');
     const safeUserId = normalizeObjectId(userId, 'user id');
-    const booking = await NurseBooking.findById(safeBookingId);
+    let booking = await NurseBooking.findById(safeBookingId);
 
     if (!booking) {
       throw new NotFoundError('Booking', bookingId);
@@ -521,37 +825,47 @@ class BookingService {
 
     // Authorization check — role passed from controller, no extra DB query needed
     const isProvider = booking.serviceProvider && booking.serviceProvider.toString() === safeUserId.toString();
-    const isAdmin = userRole === 'admin';
+    const isAdmin = visitPolicy.isAdminRole(userRole);
 
     if (!isProvider && !isAdmin) {
       throw new AuthorizationError('Not authorized to update booking status');
     }
 
-    // Update status
-    const oldStatus = booking.status;
-    booking.status = newStatus;
-
-    // Set timestamps for specific statuses
-    if (newStatus === 'IN_PROGRESS') {
-      booking.actualService.startTime = new Date();
-    } else if (newStatus === 'COMPLETED') {
-      if (!booking.actualService.startTime) {
-        throw new ValidationError('Cannot complete booking without a start time. Ensure booking was marked IN_PROGRESS first.');
-      }
-      booking.actualService.endTime = new Date();
-      booking.actualService.duration = Math.round(
-        (booking.actualService.endTime - booking.actualService.startTime) / (1000 * 60)
-      );
-    } else if (newStatus === 'CANCELLED') {
-      booking.cancellation = {
-        cancelledAt: new Date(),
-        cancelledBy: resolveCancellationActor({ userRole, isProvider }),
-        cancelledByUser: safeUserId,
-        reason: note
-      };
+    // A nurse who can't make it hands the visit back to dispatch instead of
+    // cancelling it on the customer.
+    if (newStatus === 'CANCELLED' && isProvider && !isAdmin) {
+      return this.releaseVisit(booking._id, safeUserId, note || 'Provider could not make it');
+    }
+    if (newStatus === 'CANCELLED') {
+      return this.cancelBooking(booking._id, safeUserId, note || 'Cancelled by admin', userRole);
     }
 
-    await booking.save();
+    // Starting the visit needs the patient's code (Rapido-style ride OTP).
+    if (newStatus === 'IN_PROGRESS' && !isAdmin) {
+      await this.verifyVisitCode(booking._id, extra.visitCode);
+    }
+
+    // Update status with one compare-and-set on the status we just read, so a
+    // customer cancelling at the same moment can't be overwritten (or vice versa).
+    const oldStatus = booking.status;
+    const now = new Date();
+    const set = { status: newStatus };
+    if (newStatus === 'IN_PROGRESS') {
+      set['actualService.startTime'] = now;
+    } else if (newStatus === 'COMPLETED') {
+      if (!booking.actualService || !booking.actualService.startTime) {
+        throw new ValidationError('Cannot complete booking without a start time. Ensure booking was marked IN_PROGRESS first.');
+      }
+      set['actualService.endTime'] = now;
+      set['actualService.duration'] = Math.round((now - booking.actualService.startTime) / (1000 * 60));
+    }
+    const updated = await NurseBooking.findOneAndUpdate(
+      { _id: booking._id, status: oldStatus, ...(isAdmin ? {} : { serviceProvider: safeUserId }) },
+      { $set: set },
+      VALIDATED_QUERY_UPDATE_OPTIONS
+    );
+    if (!updated) throw new ConflictError('This visit just changed (maybe cancelled). Refresh and try again.');
+    booking = updated;
 
     // Invalidate cache
     await invalidateCache('*:/api/bookings*');
@@ -583,7 +897,8 @@ class BookingService {
     }
 
     // Authorization check
-    if (booking.serviceProvider.toString() !== safeProviderId.toString()) {
+    // No provider yet (or someone else's visit): refuse, don't crash.
+    if (!booking.serviceProvider || String(booking.serviceProvider) !== String(safeProviderId)) {
       throw new AuthorizationError('Only assigned provider can complete the service');
     }
 
@@ -595,15 +910,42 @@ class BookingService {
     const duration = booking.actualService?.startTime
       ? Math.round((endTime - booking.actualService.startTime) / (1000 * 60))
       : null;
+    // Pay-after-visit: the nurse confirms the cash they collected (visit +
+    // any supplies they brought). Older apps don't send it; then the payment
+    // simply stays unrecorded as before.
+    const cashCollected = serviceReport.cashCollected;
+    delete serviceReport.cashCollected;
+    const cashFields = {};
+    if (cashCollected !== undefined && cashCollected !== null && booking.payment?.status !== 'PAID') {
+      const amount = Number(cashCollected);
+      if (!Number.isFinite(amount) || amount < 0 || amount > 100000) throw new ValidationError('Enter the cash you collected');
+      const suppliesDue = booking.supplies && booking.supplies.status === 'ORDERED' ? Number(booking.supplies.amount) || 0 : 0;
+      const due = roundToTwoDecimals((booking.pricing?.payableAmount || 0) + suppliesDue);
+      Object.assign(cashFields, {
+        'payment.method': 'CASH',
+        'payment.status': 'PAID',
+        'payment.amount': roundToTwoDecimals(amount),
+        'payment.paidAt': endTime,
+        'payment.collectedBy': safeProviderId
+      });
+      if (amount + 1 < due) {
+        cashFields.flagged = true;
+        cashFields.flagReason = `Cash short: collected ₹${amount} of ₹${due}`;
+      }
+    }
+
     const completionUpdate = {
       $set: {
+        ...cashFields,
         status: 'COMPLETED',
         'completionAccounting.appliedAt': endTime,
         'statusTimestamps.completedAt': endTime,
         'actualService.serviceReport': serviceReport,
         'actualService.endTime': endTime,
         'actualService.duration': duration
-      }
+      },
+      // A finished visit no longer holds its slot (see dedupeKey).
+      $unset: { dedupeKey: 1 }
     };
     const vitals = buildCompletionVitals(serviceReport);
     const shouldCaptureHealthRecord = Boolean(serviceReport.observations || serviceReport.recommendations);
@@ -669,7 +1011,7 @@ class BookingService {
     if (mongoose.connection.readyState === 1) {
       const session = await mongoose.startSession();
       try {
-        await session.withTransaction(() => claimCompletion(session));
+        await session.withTransaction(() => claimCompletion(session), TRANSACTION_OPTIONS);
       } finally {
         await session.endSession();
       }
@@ -679,6 +1021,25 @@ class BookingService {
 
     if (!completedBooking) {
       throw new ValidationError('Service has already been completed or is no longer in progress');
+    }
+
+    // Commission for this visit: this month's tier, or a referral credit's 5% if lower.
+    try {
+      const rate = await commissionService.decideCareCommission(completedBooking.serviceProvider, completedBooking._id);
+      completedBooking.commissionOverride = { rate };
+    } catch (err) {
+      logger.error('Commission decision failed; standard rate applies', { bookingId: String(completedBooking._id), error: err.message });
+    }
+
+    // Book the provider's payout, our commission and the platform fee.
+    await settlementService.recordCareBooking(completedBooking);
+
+    // First completed visit of a referred customer / partner rewards whoever referred them.
+    try {
+      await partnerReferralService.onPatientCompletion(completedBooking.patient, completedBooking.pricing && completedBooking.pricing.payableAmount, { userId: completedBooking.serviceProvider });
+      await partnerReferralService.onPartnerCompletion(completedBooking.serviceProvider);
+    } catch (err) {
+      logger.error('Referral reward failed', { bookingId: String(completedBooking._id), error: err.message });
     }
 
     if (vitals.length > 0) {
@@ -901,6 +1262,8 @@ class BookingService {
     booking.rating = {
       stars: reviewData.stars,
       comment: reviewData.comment,
+      review: reviewData.comment,
+      tags: Array.isArray(reviewData.tags) ? reviewData.tags.slice(0, 6).map((t) => String(t).slice(0, 40)) : [],
       ratedAt: new Date()
     };
 
@@ -1022,36 +1385,62 @@ class BookingService {
   async cancelBooking(bookingId, userId, reason, userRole) {
     const safeBookingId = normalizeObjectId(bookingId, 'booking id');
     const safeUserId = normalizeObjectId(userId, 'user id');
-    const booking = await NurseBooking.findById(safeBookingId);
+    let booking = await NurseBooking.findById(safeBookingId);
 
     if (!booking) {
       throw new NotFoundError('Booking', bookingId);
     }
 
-    // Check if booking can be cancelled
-    if (['COMPLETED', 'CANCELLED'].includes(booking.status)) {
-      throw new ValidationError('Cannot cancel booking in current status');
-    }
-
     // Authorization check — role passed from controller, no extra DB query needed
     const isPatient = booking.patient.toString() === safeUserId.toString();
     const isProvider = booking.serviceProvider && booking.serviceProvider.toString() === safeUserId.toString();
-    const isAdmin = userRole === 'admin';
+    const isAdmin = visitPolicy.isAdminRole(userRole);
 
     if (!isPatient && !isProvider && !isAdmin) {
       throw new AuthorizationError('Not authorized to cancel this booking');
     }
 
-    // Update booking
-    booking.status = 'CANCELLED';
-    booking.cancellation = {
-      cancelledAt: new Date(),
-      cancelledBy: resolveCancellationActor({ userRole, isPatient, isProvider }),
-      cancelledByUser: safeUserId,
-      reason
-    };
+    const quote = visitPolicy.cancellationQuote(booking, { role: userRole, isPatient, isProvider });
+    if (!quote.allowed) throw new ValidationError(quote.reason || 'Cannot cancel booking in current status');
+    // A nurse cancelling hands the visit back to dispatch.
+    if (quote.releases && !isAdmin) return this.releaseVisit(booking._id, safeUserId, reason || 'Provider could not make it');
 
-    await booking.save();
+    const now = new Date();
+    const cancelled = await NurseBooking.findOneAndUpdate(
+      { _id: booking._id, status: booking.status },
+      {
+        $set: {
+          status: 'CANCELLED',
+          ...(booking.dispatch && booking.dispatch.status !== 'MATCHED' ? { 'dispatch.status': 'CANCELLED' } : {}),
+          cancellation: {
+            cancelledAt: now,
+            cancelledBy: resolveCancellationActor({ userRole, isPatient, isProvider }),
+            cancelledByUser: safeUserId,
+            reason,
+            cancellationFee: quote.fee || 0
+          }
+        },
+        // Freeing dedupeKey lets the customer book the same slot again.
+        $unset: { 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1, dedupeKey: 1 }
+      },
+      VALIDATED_QUERY_UPDATE_OPTIONS
+    );
+    if (!cancelled) throw new ConflictError('This visit just changed. Refresh and try again.');
+
+    // Late cancellation: the nurse is paid for the trip; the customer's next
+    // bill carries the fee. Free cancellations hand back carried-over dues.
+    const carried = Number(cancelled.pricing && cancelled.pricing.previousDues) || 0;
+    const duesChange = carried + (quote.fee || 0); // unpaid either way: back on the customer's balance
+    if (duesChange > 0) await Patient.updateOne({ _id: cancelled.patient }, { $inc: { pendingDues: roundToTwoDecimals(duesChange) } });
+    if (quote.fee > 0 && cancelled.serviceProvider) await settlementService.recordCareCancellationFee(cancelled, quote.fee);
+    await doctorAccessService.revokeForBooking(cancelled._id, 'Visit cancelled');
+    if (cancelled.serviceProvider) {
+      await this.notifyUser(cancelled.serviceProvider, 'User', 'Visit cancelled', `The customer cancelled the ${String(cancelled.serviceType).replace(/_/g, ' ').toLowerCase()} visit.${quote.fee > 0 ? ` You'll be paid ₹${quote.fee} for the trip.` : ''}`, cancelled._id);
+    }
+    booking = cancelled;
+
+    // Release the linked supplies order (restocks the pharmacy) if it isn't packed yet.
+    await careSuppliesService.cancelSuppliesForBooking(booking, `Home-care visit cancelled: ${reason || 'no reason given'}`);
 
     // Invalidate cache
     await invalidateCache('*:/api/bookings*');
@@ -1063,6 +1452,292 @@ class BookingService {
     });
 
     return booking;
+  }
+
+  /** What cancelling now would cost this user (shown before they confirm). */
+  async getCancellationQuote(bookingId, userId, userRole) {
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeUserId = normalizeObjectId(userId, 'user id');
+    const booking = await NurseBooking.findById(safeBookingId).lean();
+    if (!booking) throw new NotFoundError('Booking', bookingId);
+    const isPatient = String(booking.patient) === String(safeUserId);
+    const isProvider = booking.serviceProvider && String(booking.serviceProvider) === String(safeUserId);
+    if (!isPatient && !isProvider && !visitPolicy.isAdminRole(userRole)) throw new AuthorizationError('Not authorized');
+    const quote = visitPolicy.cancellationQuote(booking, { role: userRole, isPatient, isProvider });
+    return { allowed: quote.allowed, fee: quote.fee, reason: quote.reason || null };
+  }
+
+  /** Health data access lasts until a day after the visit (at least an hour from now). */
+  accessExpiry(booking) {
+    const start = visitPolicy.visitStart(booking) || new Date();
+    return new Date(Math.max(start.getTime() + 24 * 3600000, Date.now() + 3600000));
+  }
+
+  /** A provider can't hold two visits at the same time. */
+  async assertNoOverlap(providerId, start, exceptBookingId) {
+    const nearby = await NurseBooking.find({
+      serviceProvider: providerId,
+      status: { $in: ['ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'] },
+      _id: { $ne: exceptBookingId },
+      scheduledDate: { $gte: new Date(start.getTime() - 2 * 86400000), $lte: new Date(start.getTime() + 2 * 86400000) }
+    }).select('status scheduledDate scheduledTime scheduledTimezoneOffsetMinutes').lean();
+    if (nearby.some((b) => visitPolicy.overlaps(b, start))) {
+      throw new ConflictError('This provider already has a visit around that time');
+    }
+  }
+
+  /** In-app + push notice. Never throws. */
+  async notifyUser(userId, recipientModel, title, message, bookingId) {
+    try {
+      const Notification = require('@nocturnal/shared').Notification;
+      const pushNotificationService = require('@nocturnal/shared').pushNotificationService;
+      await Notification.create({
+        user: userId, recipientModel, type: 'CARE_VISIT_UPDATE', priority: 'HIGH', title, message,
+        channels: { inApp: true, push: true }, metadata: { bookingId: String(bookingId) },
+        expiresAt: new Date(Date.now() + 7 * 86400000)
+      });
+      await pushNotificationService.sendToOwner({
+        owner: userId, userType: recipientModel === 'Patient' ? 'patient' : 'provider', title, body: message,
+        data: { type: 'CARE_VISIT_UPDATE', bookingId: String(bookingId) }
+      }).catch(() => undefined);
+    } catch (err) {
+      logger.warn('Visit notice failed', { bookingId: String(bookingId), error: err.message });
+    }
+  }
+
+  /**
+   * The nurse can't make it (or was taken off the platform): the visit goes
+   * back to dispatch for someone else, the customer is told, and the nurse's
+   * health data access ends. Repeated drops take the nurse offline.
+   */
+  async releaseVisit(bookingId, providerId, reason = 'Provider could not make it', { byAdmin = false } = {}) {
+    const now = new Date();
+    const booking = await NurseBooking.findById(bookingId);
+    if (!booking) throw new NotFoundError('Booking', bookingId);
+    const start = visitPolicy.visitStart(booking) || now;
+    const soon = start.getTime() - now.getTime() <= dispatchService.SCHEDULE_LEAD_MS;
+    const released = await NurseBooking.findOneAndUpdate(
+      {
+        _id: booking._id,
+        serviceProvider: providerId,
+        status: { $in: ['ASSIGNED', 'CONFIRMED', 'EN_ROUTE'] }
+      },
+      {
+        $set: {
+          status: 'REQUESTED',
+          'dispatch.status': soon ? 'SEARCHING' : 'IDLE',
+          'dispatch.startedAt': now,
+          'dispatch.attempts': 0
+        },
+        $unset: { serviceProvider: 1, 'dispatch.matchedAt': 1, 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1 },
+        $addToSet: { 'dispatch.declined': providerId },
+        $push: { 'dispatch.dropped': { provider: providerId, at: now, reason: String(reason).slice(0, 200) } }
+      },
+      VALIDATED_QUERY_UPDATE_OPTIONS
+    );
+    if (!released) throw new ConflictError('This visit just changed. Refresh and try again.');
+    await doctorAccessService.revokeForBooking(released._id, 'Provider released the visit');
+    logger.info('Visit released by provider', { bookingId: String(released._id), providerId: String(providerId), reason });
+
+    // Three drops in a week: take them offline so they stop getting offers.
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const drops = await NurseBooking.countDocuments({ 'dispatch.dropped': { $elemMatch: { provider: providerId, at: { $gte: weekAgo } } } });
+    if (drops >= 3 && !byAdmin) {
+      await User.updateOne({ _id: providerId }, { $set: { isOnline: false, isAvailable: false }, $unset: { currentLocation: 1 } });
+      logger.warn('Provider taken offline after repeated drops', { providerId: String(providerId), drops });
+    }
+
+    await this.notifyUser(released.patient, 'Patient', 'Finding you another nurse',
+      'Your nurse couldn’t make it. We’re matching you with someone else now.', released._id);
+    if (soon) await dispatchService.offerNext(released._id).catch(() => undefined);
+    await invalidateCache('*:/api/bookings*');
+    return released;
+  }
+
+  /**
+   * Book a package as a series of sessions (e.g. 10 physio sessions on
+   * Mon/Wed/Fri at 18:00). Each session is its own visit, linked by series.id;
+   * whoever takes the first session is kept for the rest (dispatchService.lockSeriesProvider).
+   * @param {Object} data createBooking fields + { startDate, weekdays: [0-6], time }
+   */
+  async createPackageSeries(data, patientId) {
+    const serviceName = resolveCatalogServiceName(data.serviceType);
+    const service = await ServiceCatalog.findOne({ name: serviceName, 'availability.isActive': true }).lean();
+    if (!service) throw new NotFoundError('Service');
+    const pd = service.pricing && service.pricing.packageDetails;
+    const total = pd && Number(pd.sessions);
+    if (!total || total < 2 || total > 40) throw new ValidationError('This service isn’t a multi-session package');
+    const weekdays = [...new Set((data.weekdays || []).map(Number))].filter((d) => d >= 0 && d <= 6);
+    if (!weekdays.length) throw new ValidationError('Pick at least one day of the week');
+    if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(String(data.time || ''))) throw new ValidationError('Pick a session time');
+    const first = new Date(`${data.startDate}T00:00:00Z`);
+    if (Number.isNaN(first.getTime())) throw new ValidationError('Pick a start date');
+
+    // Session dates: the chosen weekdays from the start date on, up to 16 weeks.
+    const dates = [];
+    for (let i = 0; dates.length < total && i < 112; i += 1) {
+      const d = new Date(first.getTime() + i * 86400000);
+      if (weekdays.includes(d.getUTCDay())) dates.push(d.toISOString().slice(0, 10));
+    }
+    if (dates.length < total) throw new ValidationError('Pick more days a week so the package fits in 16 weeks');
+
+    const seriesId = crypto.randomBytes(8).toString('hex');
+    const created = [];
+    try {
+      for (const [i, date] of dates.entries()) {
+        const booking = await this.createBooking(
+          {
+            ...data,
+            mode: 'SCHEDULED',
+            scheduledDate: date,
+            scheduledTime: data.time,
+            scheduledTimezone: data.scheduledTimezone || 'Asia/Kolkata',
+            scheduledTimezoneOffsetMinutes: Number.isInteger(data.scheduledTimezoneOffsetMinutes) ? data.scheduledTimezoneOffsetMinutes : 330,
+            isPackage: undefined,
+            packageDetails: undefined
+          },
+          patientId,
+          { series: { id: seriesId, index: i + 1, total } }
+        );
+        created.push(booking);
+      }
+    } catch (err) {
+      // All or nothing: undo the sessions already created.
+      if (created.length) await NurseBooking.deleteMany({ _id: { $in: created.map((b) => b._id) } });
+      throw err;
+    }
+    logger.info('Package series booked', { seriesId, sessions: total, patientId: String(patientId) });
+    return { seriesId, sessions: created };
+  }
+
+  /**
+   * Customer changes the professional for the remaining sessions of a package.
+   * @param {String|null} newProviderId  a chosen professional, or null for "best available"
+   */
+  async changeSeriesProvider(seriesId, patientId, newProviderId) {
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const sessions = await NurseBooking.find({ 'series.id': String(seriesId), patient: safePatientId }).lean();
+    if (!sessions.length) throw new NotFoundError('Package');
+    let chosen = null;
+    if (newProviderId) {
+      const pro = await User.findOne({ _id: normalizeObjectId(newProviderId, 'professional id'), isActive: { $ne: false }, ...visitPolicy.VERIFIED_FILTER }).select('_id').lean();
+      if (!pro) throw new ValidationError('That professional isn’t available for booking');
+      chosen = pro._id;
+    }
+    const now = Date.now();
+    const upcoming = sessions.filter((s) => ['REQUESTED', 'ASSIGNED', 'CONFIRMED'].includes(s.status)
+      && (visitPolicy.visitStart(s) || new Date(0)).getTime() > now);
+    let moved = 0;
+    const previous = new Set();
+    for (const s of upcoming) {
+      if (s.serviceProvider) previous.add(String(s.serviceProvider));
+      const res = await NurseBooking.updateOne(
+        { _id: s._id, status: s.status },
+        {
+          $set: {
+            status: 'REQUESTED',
+            'dispatch.status': 'IDLE',
+            'dispatch.attempts': 0,
+            'dispatch.allowSubstitute': !chosen,
+            ...(chosen ? { 'dispatch.requestedProvider': chosen } : {})
+          },
+          $unset: {
+            serviceProvider: 1, 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1, 'dispatch.matchedAt': 1,
+            ...(chosen ? {} : { 'dispatch.requestedProvider': 1 })
+          },
+          // Don't offer the old professional the sessions again.
+          ...(s.serviceProvider || (s.dispatch && s.dispatch.requestedProvider)
+            ? { $addToSet: { 'dispatch.declined': s.serviceProvider || s.dispatch.requestedProvider } } : {})
+        }
+      );
+      if (res.modifiedCount) {
+        moved += 1;
+        if (s.serviceProvider) await doctorAccessService.revokeForBooking(s._id, 'Customer changed professional').catch(() => undefined);
+      }
+    }
+    for (const providerId of previous) {
+      await this.notifyUser(providerId, 'User', 'Package sessions reassigned', 'The customer asked for a different professional for their remaining sessions.');
+    }
+    await invalidateCache('*:/api/bookings*');
+    return { moved };
+  }
+
+  /** Saved booking preferences (gender, favourite professional, substitutes, address). */
+  async getCarePreferences(patientId) {
+    const p = await Patient.findById(normalizeObjectId(patientId, 'patient id')).select('carePreferences')
+      .populate('carePreferences.preferredProvider', 'name careProfile.gender rating').lean();
+    return (p && p.carePreferences) || null;
+  }
+
+  async saveCarePreferences(patientId, prefs = {}) {
+    const clean = {
+      preferredGender: ['ANY', 'FEMALE', 'MALE'].includes(prefs.preferredGender) ? prefs.preferredGender : 'ANY',
+      allowSubstitute: prefs.allowSubstitute !== false,
+      language: prefs.language ? String(prefs.language).slice(0, 30) : undefined,
+      street: prefs.street ? String(prefs.street).slice(0, 200) : undefined,
+      city: prefs.city ? String(prefs.city).slice(0, 80) : undefined,
+      pincode: /^\d{6}$/.test(String(prefs.pincode || '')) ? String(prefs.pincode) : undefined,
+      preferredProvider: prefs.preferredProvider ? normalizeObjectId(prefs.preferredProvider, 'professional id') : undefined,
+      updatedAt: new Date()
+    };
+    await Patient.updateOne({ _id: normalizeObjectId(patientId, 'patient id') }, { $set: { carePreferences: clean } });
+    return this.getCarePreferences(patientId);
+  }
+
+  /** Staff lost verification / deactivated: hand back their upcoming visits. */
+  async releaseProviderVisits(providerId, reason) {
+    const upcoming = await NurseBooking.find({ serviceProvider: providerId, status: { $in: ['ASSIGNED', 'CONFIRMED'] } }).select('_id').lean();
+    let released = 0;
+    for (const b of upcoming) {
+      try {
+        await this.releaseVisit(b._id, providerId, reason, { byAdmin: true });
+        released += 1;
+      } catch (err) {
+        logger.error('Could not release visit', { bookingId: String(b._id), error: err.message });
+      }
+    }
+    return released;
+  }
+
+  /** Customer moves a visit nobody has taken yet (e.g. after "no nurse available"). */
+  async rescheduleBooking(bookingId, patientId, { scheduledDate, scheduledTime }) {
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const booking = await NurseBooking.findById(safeBookingId).lean();
+    if (!booking) throw new NotFoundError('Booking', bookingId);
+    if (String(booking.patient) !== String(safePatientId)) throw new AuthorizationError('Not your booking');
+    if (booking.status !== 'REQUESTED' || booking.serviceProvider) {
+      throw new ValidationError('Only visits that no nurse has taken yet can be moved');
+    }
+    // Always India time (see createBooking); the client's offset is ignored.
+    const offset = 330;
+    const window = visitPolicy.checkBookingWindow({ mode: 'SCHEDULED', scheduledDate, scheduledTime, scheduledTimezoneOffsetMinutes: offset });
+    if (window.error) throw new ValidationError(window.error);
+    // Move the one-live-booking key with the visit, so the old slot is free and
+    // the visit can't land on top of another booking at the new time.
+    const dedupeKey = bookingDedupeKey(safePatientId, booking.serviceType, scheduledDate, scheduledTime, booking.patientDetails);
+    let moved;
+    try {
+      moved = await NurseBooking.findOneAndUpdate(
+        { _id: safeBookingId, status: 'REQUESTED', serviceProvider: null },
+        {
+          $set: {
+            scheduledDate, scheduledTime, scheduledTimezone: 'Asia/Kolkata', scheduledTimezoneOffsetMinutes: offset, dedupeKey,
+            'dispatch.mode': 'SCHEDULED', 'dispatch.status': 'IDLE', 'dispatch.attempts': 0, 'dispatch.declined': []
+          },
+          $unset: { 'dispatch.startedAt': 1, 'dispatch.offeredTo': 1, 'dispatch.offerExpiresAt': 1 }
+        },
+        VALIDATED_QUERY_UPDATE_OPTIONS
+      );
+    } catch (err) {
+      if (err && err.code === 11000 && err.keyPattern && err.keyPattern.dedupeKey) {
+        throw new ConflictError('You already have this visit booked for that time.');
+      }
+      throw err;
+    }
+    if (!moved) throw new ConflictError('This visit just changed. Refresh and try again.');
+    await invalidateCache('*:/api/bookings*');
+    return moved;
   }
 
   /**

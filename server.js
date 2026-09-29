@@ -8,6 +8,7 @@ const logger = require('./utils/logger');
 const monitoring = require('./utils/monitoring');
 const metricsRouter = require('./routes/admin/metrics');
 const paymentService = require('./services/paymentService');
+const pharmacyPaymentService = require('./services/pharmacyPaymentService');
 const { connectDB, disconnectDB } = require('./config/database');
 const { cleanup: cleanupRateLimits } = require('./config/rateLimit');
 const { validateEnvironment } = require('./config/validateEnv');
@@ -36,6 +37,9 @@ function validateStartupEnvironment() {
 
 async function stopServer() {
   paymentService.stopRefundOutboxWorker();
+  pharmacyPaymentService.stopExpiryWorker();
+    require('./services/dispatchService').stopWorker();
+  require('./services/pharmacyAssignmentService').stopWorker();
   cleanupRateLimits();
   monitoring.cleanup();
   metricsRouter.cleanup();
@@ -169,6 +173,9 @@ async function startServer(options = {}) {
 
   if (config.connectDatabase) {
     paymentService.startRefundOutboxWorker();
+    pharmacyPaymentService.startExpiryWorker();
+    require('./services/pharmacyAssignmentService').startWorker();
+    require('./services/dispatchService').startWorker();
     securityNotificationOutboxService.start();
     auditExportCleanupScheduler.start();
     auditLifecycleReportCleanupScheduler.start();

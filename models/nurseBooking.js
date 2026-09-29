@@ -5,7 +5,7 @@
  */
 
 const mongoose = require('mongoose');
-const { BOOKING_SERVICE_TYPES } = require('../constants/enums');
+const { BOOKING_SERVICE_TYPES, CARE_SUPPLY_SOURCES } = require('../constants/enums');
 
 const NurseBookingSchema = new mongoose.Schema({
   // Patient Details
@@ -85,6 +85,19 @@ const NurseBookingSchema = new mongoose.Schema({
   recurringDates: [Date], // For custom patterns
 
   // Location
+  // `${patient}|${serviceType}|${date}|${time}` while the booking is live; unique,
+  // so the same visit can't be booked twice. Cleared when cancelled.
+  dedupeKey: { type: String, select: false },
+
+  // Who the visit is for. Differs from the account holder when booking for
+  // someone else (a parent in another city); shown to the professional.
+  patientDetails: {
+    name: { type: String, trim: true, maxlength: 120 },
+    age: { type: Number, min: 0, max: 150 },
+    gender: { type: String, enum: ['Male', 'Female', 'Other'] },
+    relation: { type: String, trim: true, maxlength: 40 }
+  },
+
   serviceLocation: {
     type: {
       type: String,
@@ -127,12 +140,27 @@ const NurseBookingSchema = new mongoose.Schema({
   },
 
   // Pricing
+  // Package sessions: one booking per session, linked by series.id; the same
+  // professional is kept for every session unless the customer changes them.
+  series: {
+    id: { type: String, index: true },
+    index: Number, // 1-based session number
+    total: Number
+  },
+  // Referral reward: this job carries a reduced Nabz commission (partnerReferralService).
+  commissionOverride: {
+    rate: { type: Number, min: 0, max: 1 },
+    reason: { type: String, enum: ['REFERRAL', 'TIER'] },
+    jobOfMonth: Number,
+    at: Date
+  },
   pricing: {
     basePrice: Number, // Service charge
     platformFee: Number, // Our commission
     gst: Number,
     discount: Number,
     totalAmount: Number,
+    previousDues: Number, // unpaid late-cancellation fees carried onto this bill
     payableAmount: Number
   },
 
@@ -153,6 +181,8 @@ const NurseBookingSchema = new mongoose.Schema({
     amount: Number,
     currency: { type: String, default: 'INR' },
     paidAt: Date,
+    // Pay-after-visit: the provider who took the cash (settlement nets it).
+    collectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     failureReason: String,
     refundId: String,        // Razorpay refund ID
     refundedAt: Date,
@@ -263,6 +293,9 @@ const NurseBookingSchema = new mongoose.Schema({
     skillLevel: Number,
     communication: Number,
 
+    // Quick tags chosen by the patient ("On time", "Gentle", …)
+    tags: [{ type: String, maxlength: 40 }],
+
     // Response from nurse
     nurseResponse: String,
     nurseRespondedAt: Date
@@ -306,7 +339,70 @@ const NurseBookingSchema = new mongoose.Schema({
     item: String,
     providedBy: String, // Patient, Nurse, Platform
     notes: String
-  }]
+  }],
+
+  // Uber-style matching for "Book now" visits: offer the visit to the nearest
+  // online staff one at a time until someone accepts.
+  dispatch: {
+    mode: { type: String, enum: ['ASAP', 'SCHEDULED'], default: 'SCHEDULED' },
+    preferredGender: { type: String, enum: ['FEMALE', 'MALE', 'ANY'], default: 'ANY' },
+    status: { type: String, enum: ['IDLE', 'SEARCHING', 'OFFERED', 'MATCHED', 'NO_STAFF', 'CANCELLED'], default: 'IDLE' },
+    offeredTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    offerExpiresAt: Date,
+    declined: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    attempts: { type: Number, default: 0 },
+    startedAt: Date,
+    matchedAt: Date,
+    // The customer chose this professional (or a package locked them in).
+    requestedProvider: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    // If the chosen professional can't take it: offer it to others (true) or stop and ask the customer (false).
+    allowSubstitute: { type: Boolean, default: true },
+    // Providers who took the visit and handed it back (reliability + auto-offline).
+    dropped: [{
+      _id: false,
+      provider: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      at: Date,
+      reason: String
+    }]
+  },
+
+  // Visit code (Rapido-style ride OTP): the patient shares it when the staff
+  // arrives; the service can't start without it. Never sent to the provider.
+  visitOtp: {
+    code: { type: String, select: false },
+    verifiedAt: Date,
+    failedAttempts: { type: Number, default: 0 }
+  },
+
+  // Family tracking link (/track/<token>), valid while the visit is active.
+  shareToken: { type: String, select: false },
+
+  // Safety
+  sos: [{
+    at: Date,
+    by: { type: String, enum: ['PATIENT', 'PROVIDER'] },
+    location: { lat: Number, lng: Number },
+    note: String
+  }],
+
+  // Supplies for the visit: what the patient already has vs. what the staff
+  // brings (a linked PharmacyOrder with fulfilment STAFF_PICKUP, paid at the visit).
+  supplies: {
+    items: [{
+      _id: false,
+      key: String,
+      name: String,
+      medicine: { type: mongoose.Schema.Types.ObjectId, ref: 'Medicine' },
+      quantity: Number,
+      source: { type: String, enum: CARE_SUPPLY_SOURCES },
+      unitPrice: Number,
+      lineTotal: Number
+    }],
+    pharmacyVendor: { type: mongoose.Schema.Types.ObjectId, ref: 'PharmacyVendor' },
+    pharmacyOrder: { type: mongoose.Schema.Types.ObjectId, ref: 'PharmacyOrder' },
+    amount: Number, // collected at the visit (COD), on top of the service charge
+    status: { type: String, enum: ['NONE', 'ORDERED', 'CANCELLED'], default: 'NONE' }
+  }
 
 }, {
   timestamps: true
@@ -322,6 +418,11 @@ NurseBookingSchema.index({ scheduledDate: 1, scheduledTime: 1 });
 NurseBookingSchema.index({ 'payment.status': 1 });
 NurseBookingSchema.index({ createdAt: -1 });
 NurseBookingSchema.index({ status: 1, 'completionAccounting.appliedAt': 1 });
+NurseBookingSchema.index({ 'supplies.pharmacyOrder': 1 }, { sparse: true });
+NurseBookingSchema.index({ 'dispatch.status': 1, 'dispatch.offerExpiresAt': 1 });
+NurseBookingSchema.index({ 'dispatch.offeredTo': 1, 'dispatch.status': 1 });
+NurseBookingSchema.index({ shareToken: 1 }, { unique: true, sparse: true });
+NurseBookingSchema.index({ dedupeKey: 1 }, { unique: true, sparse: true });
 
 // Pre-save hook to set timestamps
 NurseBookingSchema.pre('save', function() {

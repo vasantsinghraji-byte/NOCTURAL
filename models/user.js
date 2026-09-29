@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const { hashPassword, comparePassword } = require('../utils/passwordHash');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { STAFF_ROLES, SPECIALIZATIONS, EMPLOYMENT_STATUSES, SHIFT_PREFERENCES } = require('../constants/enums');
 const logger = require('../utils/logger');
@@ -198,6 +198,13 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+
+  // Password sign-in lockout (utils/attemptGuard.js): tries in the current
+  // window and when the lock ends. Never returned by default.
+  loginGuard: {
+    failed: { type: Number, default: 0, select: false },
+    lockUntil: { type: Date, select: false }
+  },
   isVerified: {
     type: Boolean,
     default: false
@@ -231,6 +238,22 @@ const UserSchema = new mongoose.Schema({
     min: 0,
     select: false
   },
+  // Admin two-step login (authenticator app). Secrets are AES-GCM encrypted and
+  // never selected by default; recovery codes are stored only as HMAC hashes.
+  adminMfa: {
+    totpSecret: { type: String, select: false },
+    pendingSecret: { type: String, select: false },
+    pendingCreatedAt: { type: Date, select: false },
+    enabledAt: Date,
+    lastUsedStep: { type: Number, select: false },
+    recoveryCodes: {
+      type: [{ hash: { type: String, required: true }, usedAt: Date, _id: false }],
+      select: false,
+      default: undefined
+    },
+    failedAttempts: { type: Number, default: 0, select: false },
+    lockUntil: { type: Date, select: false }
+  },
   webAuthnCredentials: {
     type: [{
       credentialId: { type: String, required: true },
@@ -251,6 +274,72 @@ const UserSchema = new mongoose.Schema({
   smokeTestExpiresAt: {
     type: Date,
     select: false
+  },
+
+  // ── MedRush quick-commerce fields ──────────────────────────────────────
+  // Pharmacy store this account belongs to (role: pharmacy_vendor).
+  pharmacyVendor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PharmacyVendor'
+  },
+  // Live GeoJSON location for on-field staff/riders (distinct from the
+  // address-style `location` field above). Used for nearest-match queries.
+  // NOTE: no `default` on `type` — a default would create a partial
+  // { type:'Point' } (no coordinates) on every user, which a 2dsphere index
+  // rejects. Writers must set both `type` and `coordinates` together.
+  currentLocation: {
+    type: { type: String, enum: ['Point'] },
+    // No default: an empty array would make the 2dsphere index reject the user.
+    coordinates: { type: [Number], default: undefined }, // [lng, lat]
+    updatedAt: Date // heartbeat: staff are discoverable only while this is fresh
+  },
+  // Real-time availability for dispatch (staff / riders).
+  isOnline: { type: Boolean, default: false },
+  isAvailable: { type: Boolean, default: false },
+  averageResponseTimeMs: { type: Number, default: 0 },
+  // Home-service catalog entries this provider offers.
+  servicesOffered: [{ type: String }],
+  // Home-care staff profile shown to patients (trust layer). Verification flags
+  // are set only by platform admins after checking documents.
+  // Where partner payouts go (services/payoutService.js). The account number
+  // is encrypted and never returned by default.
+  payout: {
+    method: { type: String, enum: ['UPI', 'BANK'] },
+    upiId: { type: String, lowercase: true, trim: true },
+    accountName: String,
+    accountNumberEnc: { type: String, select: false },
+    accountLast4: String,
+    ifsc: { type: String, uppercase: true },
+    bankName: String,
+    updatedAt: Date
+  },
+  // Partner referral programme (services/partnerReferralService.js).
+  referral: {
+    code: { type: String, uppercase: true, trim: true },
+    credits: { type: Number, default: 0, min: 0 }, // jobs left at the reduced commission
+    successful: { type: Number, default: 0 },
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    rewardedAt: Date // when this partner's first job rewarded their referrer
+  },
+  careProfile: {
+    qualification: String, // e.g. B.Sc Nursing, GNM, BPT
+    registrationNumber: String, // nursing council / physio council registration
+    gender: { type: String, enum: ['FEMALE', 'MALE', 'OTHER'] },
+    languages: [{ type: String }],
+    bio: { type: String, maxlength: 400 },
+    verification: {
+      idVerified: { type: Boolean, default: false },
+      policeVerified: { type: Boolean, default: false },
+      councilVerified: { type: Boolean, default: false },
+      vaccinated: { type: Boolean, default: false },
+      verifiedAt: Date,
+      verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }
+  },
+  // Delivery partner vehicle details.
+  vehicle: {
+    type: { type: String, enum: ['BIKE', 'SCOOTER', 'BICYCLE', 'CAR', 'OTHER'] },
+    registrationNumber: String
   }
 
 }, {
@@ -322,8 +411,7 @@ UserSchema.methods.getMissingFields = function() {
 UserSchema.pre('save', async function() {
   // 1. Hash password if modified
   if (this.isModified('password')) {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    this.password = await hashPassword(this.password);
     if (!this.isNew) {
       this.passwordChangedAt = new Date();
     }
@@ -381,7 +469,7 @@ UserSchema.methods.getDecryptedBankDetails = function() {
 // Compare password method
 UserSchema.methods.comparePassword = async function(candidatePassword) {
   try {
-    return await bcrypt.compare(candidatePassword, this.password);
+    return comparePassword(candidatePassword, this.password);
   } catch (error) {
     throw new Error('Password comparison failed', { cause: error });
   }
@@ -390,6 +478,7 @@ UserSchema.methods.comparePassword = async function(candidatePassword) {
 // Database Indexes for Performance
 // Note: email index created automatically by unique: true in schema
 UserSchema.index({ role: 1 });
+UserSchema.index({ 'referral.code': 1 }, { unique: true, sparse: true });
 UserSchema.index({ 'professional.primarySpecialization': 1 });
 UserSchema.index({ 'professional.mciNumber': 1 });
 UserSchema.index({ createdAt: -1 });
@@ -401,5 +490,9 @@ UserSchema.index({ role: 1, rating: -1, completedDuties: -1 }); // Top-rated doc
 UserSchema.index({ role: 1, isAvailableForShifts: 1, isActive: 1 }); // Available doctors
 UserSchema.index({ lastActive: -1 }); // Recent activity tracking
 UserSchema.index({ smokeTestExpiresAt: 1 }, { expireAfterSeconds: 0 });
+// MedRush: nearest-available staff/rider dispatch and vendor scoping
+UserSchema.index({ currentLocation: '2dsphere' });
+UserSchema.index({ role: 1, isOnline: 1, isAvailable: 1 });
+UserSchema.index({ pharmacyVendor: 1 });
 
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema);

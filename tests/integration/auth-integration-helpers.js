@@ -1,6 +1,15 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
+// The sign-in attempt guard needs a real database; these tests fake the User
+// model, so let every attempt through (tests/bots cover the guard itself).
+jest.mock('../../utils/attemptGuard', () => ({
+  // Plain functions: resetAllMocks() in these suites must not clear them.
+  reserveAttempt: async () => true,
+  lockIfExhausted: async () => undefined,
+  resetAttempts: async () => undefined,
+  lockedMinutes: async () => 0
+}));
 jest.mock('../../models/user', () => ({
   findById: jest.fn(),
   findOne: jest.fn()

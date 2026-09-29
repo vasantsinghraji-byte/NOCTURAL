@@ -71,6 +71,10 @@ const connectRedis = async () => {
     }
 
     redisClient = createRedisClient();
+    // Listen for errors from the very start: without a listener, every failed
+    // retry while Redis is down is an unhandled 'error' event.
+    const bootErrorListener = (err) => logger.warn('Redis not reachable yet', { error: err.message, code: err.code });
+    redisClient.on('error', bootErrorListener);
 
     // Wait for initial connection before returning
     await new Promise((resolve, reject) => {
@@ -89,6 +93,7 @@ const connectRedis = async () => {
       });
     });
 
+    redisClient.off('error', bootErrorListener);
     isConnected = true;
     logger.info('Redis client connected and ready', {
       host: REDIS_CONFIG.host,
@@ -122,6 +127,10 @@ const connectRedis = async () => {
     return redisClient;
   } catch (error) {
     logger.error('Failed to initialize Redis client', { error: error.message });
+    // Redis is optional: stop the client retrying forever in the background.
+    if (redisClient) {
+      try { redisClient.disconnect(); } catch { /* already closed */ }
+    }
     redisClient = null;
     isConnected = false;
     return null;
