@@ -57,7 +57,7 @@ function call(method, path, { token, body, raw, headers = {} } = {}) {
       stats.latencies.push(Date.now() - t0);
       const key = `${method} ${path.replace(/[a-f0-9]{24}/g, ':id').split('?')[0]}`;
       if (status >= 400 && status < 500 && !stats.firstRefusal[key]) stats.firstRefusal[key] = `${status} ${JSON.stringify(json).slice(0, 160)}`;
-      if (status >= 500) stats.fiveHundreds.push(`${method} ${path.slice(0, 60)} -> ${status} ${JSON.stringify(json).slice(0, 120)}`);
+      if (status >= 500 && stats.fiveHundreds.length < 50) stats.fiveHundreds.push(`${method} ${path.slice(0, 60)} -> ${status} ${JSON.stringify(json).slice(0, 120)}`);
       resolve({ status, body: json || {} });
     };
     const req = http.request({ hostname: url.hostname, port: url.port, path: url.pathname + url.search, method, headers: h, agent }, (res) => {
@@ -114,11 +114,13 @@ const bookBody = (who, time, date = ist(2)) => ({
     pricing: { basePrice: 299, currency: 'INR' }, availability: { isActive: true, availableCities: ['Jaipur'] }, requirements: { prescriptionRequired: false }
   } }, { upsert: true });
   const phone = (i) => `9${String(7e8 + i).padStart(9, '0')}`;
-  const customers = await Patient.insertMany(await Promise.all(Array.from({ length: nCust }, async (_, i) => ({
-    name: `Customer ${i}`, email: `c${i}.${RUN}@nabz.test`, phone: phone(i), password: await require('../utils/passwordHash').hashPassword(PASSWORD)
-  }))));
-  const verified = { idVerified: true, policeVerified: true, councilVerified: true };
+  // One hash shared by every bot: hashing 60k passwords up front would test the
+  // setup, not the API (sign-in still runs the full bcrypt compare per request).
   const hashed = await require('../utils/passwordHash').hashPassword(PASSWORD);
+  const customers = await Patient.insertMany(Array.from({ length: nCust }, (_, i) => ({
+    name: `Customer ${i}`, email: `c${i}.${RUN}@nabz.test`, phone: phone(i), password: hashed
+  })));
+  const verified = { idVerified: true, policeVerified: true, councilVerified: true };
   const nurses = await User.insertMany(Array.from({ length: nNurse + nPartner }, (_, i) => ({
     name: `Nurse ${i}`, email: `n${i}.${RUN}@nabz.test`, phone: phone(5000 + i), password: hashed, role: 'nurse', isVerified: true,
     careProfile: { gender: i % 2 ? 'MALE' : 'FEMALE', verification: verified },
@@ -137,6 +139,9 @@ const bookBody = (who, time, date = ist(2)) => ({
   // ── Phase 1: everyone signs in at once (some customers tap twice) ──
   console.log('Phase 1: sign-in rush…');
   const t1 = Date.now();
+  // Progress line for long runs (100k bots take over an hour on one laptop).
+  const progress = setInterval(() => console.log(`… ${stats.requests} requests done, ${Math.round(process.memoryUsage().rss / 1048576)} MB`), 60000);
+  progress.unref();
   const custTokens = await Promise.all(customers.map(async (c, i) => {
     const tries = await Promise.all(Array.from({ length: i % 5 === 0 ? 2 : 1 }, () => call('POST', '/patients/login', { body: { email: c.email, password: PASSWORD } })));
     tries.forEach((r) => { if (r.status !== 200) violate('every valid sign-in succeeds', `${c.email}: ${r.status}`); });
@@ -155,6 +160,7 @@ const bookBody = (who, time, date = ist(2)) => ({
   console.log('Phase 2: swarm…');
   const t2 = Date.now();
   const bookingIdsByCustomer = new Map();
+  const allBookingIds = [];
   const customerBots = customers.map(async (c, i) => {
     const tok = custTokens[i];
     if (!tok) return;
@@ -162,7 +168,9 @@ const bookBody = (who, time, date = ist(2)) => ({
     const same = bookBody('Kamla Devi', `${String(8 + (i % 10)).padStart(2, '0')}:00`);
     const rs = await Promise.all([call('POST', '/bookings', { token: tok, body: same }), call('POST', '/bookings', { token: tok, body: same }),
       call('POST', '/bookings', { token: tok, body: { ...same, patientDetails: { name: 'Ramesh Lal', age: 65, gender: 'Male' } } })]);
-    bookingIdsByCustomer.set(String(c._id), rs.map((r) => r.body.booking?._id || r.body.data?.booking?._id).filter(Boolean));
+    const ids = rs.map((r) => r.body.booking?._id || r.body.data?.booking?._id).filter(Boolean);
+    bookingIdsByCustomer.set(String(c._id), ids);
+    allBookingIds.push(...ids);
     // Race for the scarce medicine.
     await call('POST', '/pharmacy/orders', { token: tok, body: {
       vendorId: String(store._id), items: [{ medicineId: String(med._id), quantity: 1 + (i % 2) }],
@@ -210,8 +218,7 @@ const bookBody = (who, time, date = ist(2)) => ({
     if (!tok) return;
     await call('PUT', '/care/staff/availability', { token: tok, body: { online: true, lat: HOME.lat + (i % 10) * 0.001, lng: HOME.lng } });
     // Try to take / finish visits that aren't theirs.
-    const any = [...bookingIdsByCustomer.values()].flat();
-    const target = any[rand(Math.max(1, any.length))];
+    const target = allBookingIds[rand(Math.max(1, allBookingIds.length))];
     if (target) {
       const done = await call('PUT', `/bookings/${target}/complete`, { token: tok, body: { cashCollected: 1 } });
       if (done.status < 400) violate('a nurse cannot complete a visit that isn’t theirs', `${n.email} ${target}`);
@@ -231,6 +238,7 @@ const bookBody = (who, time, date = ist(2)) => ({
 
   await Promise.all([...customerBots, ...attackerBots, ...nurseBots, ...partnerBots]);
   const swarmSeconds = (Date.now() - t2) / 1000;
+  clearInterval(progress);
 
   // ── Invariants ──
   console.log('Checking invariants…');
