@@ -33,7 +33,7 @@ const CareStoreSchema = new mongoose.Schema({
   members: [{
     _id: false,
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    role: { type: String, enum: ['PRACTITIONER', 'MANAGER', 'PHLEBOTOMIST'], default: 'PRACTITIONER' },
+    role: { type: String, enum: ['PRACTITIONER', 'CAREGIVER', 'MANAGER', 'PHLEBOTOMIST'], default: 'PRACTITIONER' },
     active: { type: Boolean, default: true }
   }],
 
@@ -80,7 +80,9 @@ const CareStoreSchema = new mongoose.Schema({
     bufferMinutes: { type: Number, default: 30, min: 0, max: 180 },
     // Home visits at the same time (a clinic with several visiting physios).
     capacity: { type: Number, default: 1, min: 1, max: 20 },
-    hours: [HoursSchema]
+    hours: [HoursSchema],
+    // Labs: home collection is free when the tests cost at least this much (0 = never free).
+    freeCollectionAbove: { type: Number, default: 0, min: 0, max: 100000 }
   },
 
   // Days off ("YYYY-MM-DD", inclusive). New bookings skip them.

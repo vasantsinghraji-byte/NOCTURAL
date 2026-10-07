@@ -54,6 +54,17 @@ function loadRevenuePolicy() {
         roadFactor: num('REVENUE_TRAVEL_ROAD_FACTOR', 1.3, { min: 1, max: 3 }),
         maxRadiusKm: num('REVENUE_TRAVEL_MAX_RADIUS_KM', 25, { min: 1, max: 100 })
       }),
+      // Path labs: Nabz commission on the tests (collection fee goes to the lab),
+      // an optional customer fee, and the credit for a report later than promised.
+      lab: Object.freeze({
+        commissionRate: num('REVENUE_LAB_COMMISSION_RATE', 0.2, { max: 1 }),
+        customerFeeRate: num('REVENUE_LAB_CUSTOMER_FEE_RATE', 0, { max: 1 }),
+        lateReportCreditRate: num('REVENUE_LAB_LATE_CREDIT_RATE', 0.1, { max: 1 }),
+        lateReportCreditMin: num('REVENUE_LAB_LATE_CREDIT_MIN', 50),
+        lateReportCreditMax: num('REVENUE_LAB_LATE_CREDIT_MAX', 200)
+      }),
+      // A professional who doesn't turn up: credit to the customer.
+      noShowCredit: num('REVENUE_NO_SHOW_CREDIT', 100),
       plan: Object.freeze({
         maxSessions: num('REVENUE_PLAN_MAX_SESSIONS', 30, { min: 1, max: 100 }),
         // A plan must be used within sessions × this many weeks (at least minWeeks).
@@ -104,10 +115,33 @@ function loadRevenuePolicy() {
 }
 
 let cached = null;
+// Values the admin panel changed (services/settingsService.js), by path:
+// { 'care.customerFeeRate': 0.12 }. Only existing numeric/boolean fields of the
+// same type are replaced; anything else is ignored.
+let overrides = {};
+
+function deepFreeze(obj) {
+  Object.values(obj).forEach((v) => { if (v && typeof v === 'object' && !Object.isFrozen(v)) deepFreeze(v); });
+  return Object.freeze(obj);
+}
+
+function applyOverrides(base) {
+  const keys = Object.keys(overrides);
+  if (!keys.length) return base;
+  const copy = structuredClone(base);
+  for (const path of keys) {
+    const parts = path.split('.');
+    const leaf = parts.pop();
+    const parent = parts.reduce((o, k) => (o && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined), copy);
+    const value = overrides[path];
+    if (parent && Object.prototype.hasOwnProperty.call(parent, leaf) && typeof parent[leaf] === typeof value) parent[leaf] = value;
+  }
+  return deepFreeze(copy);
+}
 
 /** Current policy (read once; call resetRevenuePolicy() in tests after changing env). */
 function getRevenuePolicy() {
-  if (!cached) cached = loadRevenuePolicy();
+  if (!cached) cached = applyOverrides(loadRevenuePolicy());
   return cached;
 }
 
@@ -115,4 +149,10 @@ function resetRevenuePolicy() {
   cached = null;
 }
 
-module.exports = { getRevenuePolicy, resetRevenuePolicy };
+/** Admin-panel overrides (settingsService); takes effect for new bookings at once. */
+function setRevenueOverrides(next) {
+  overrides = next && typeof next === 'object' ? { ...next } : {};
+  cached = null;
+}
+
+module.exports = { getRevenuePolicy, resetRevenuePolicy, setRevenueOverrides };

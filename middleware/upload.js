@@ -385,6 +385,8 @@ module.exports = {
   uploadPrescription: [upload.single('prescription'), validateFileType],
   // Partner verification document (Aadhaar masked copy, licences, certificates)
   uploadPartnerDocument: [upload.single('partnerDocument'), validateFileType],
+  // Path lab report (PDF / image) for a lab order
+  uploadLabReport: [upload.single('report'), validateFileType],
 
   // Multiple document uploads
   uploadDocuments: [

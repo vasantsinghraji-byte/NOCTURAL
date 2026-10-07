@@ -39,8 +39,12 @@ const CarePlanSchema = new mongoose.Schema({
     roadKm: Number,
     platformFeePerSession: { type: Number, default: 0 },
     gstPerSession: { type: Number, default: 0 },
+    offer: { type: Number, default: 0 },
+    travelWaived: { type: Boolean, default: false },
     total: Number
   },
+  creditUsed: { type: Number, default: 0 }, // Nabz credit spent on this plan
+  proposal: { type: mongoose.Schema.Types.ObjectId, ref: 'PlanProposal' },
 
   address: {
     label: String,

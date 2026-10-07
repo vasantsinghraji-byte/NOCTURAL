@@ -151,7 +151,24 @@ describe('calendar helpers', () => {
     const clinicStore = { ...store, format: 'CLINIC', clinic: { ...store.clinic, capacity: 3 }, home: { ...store.home, capacity: 2 } };
     expect(slots.resourceFor(clinicStore, 'CLINIC')).toEqual({ resource: 'CLINIC', capacity: 3 });
     expect(slots.resourceFor(clinicStore, 'HOME')).toEqual({ resource: 'HOME', capacity: 2 });
-    expect(slots.resourceFor(store, 'HOME')).toEqual({ resource: 'PRACTITIONER', capacity: 1 });
+    expect(slots.resourceFor({ ...store, owner: 'u1' }, 'HOME')).toEqual({ resource: 'person:u1', capacity: 1 });
+  });
+
+  it('a night shift runs past midnight into the next day’s hours; long shifts hold no travel buffer', () => {
+    const care = {
+      _id: 'hc1', format: 'CLINIC', members: [{ user: 'cg1', role: 'CAREGIVER' }, { user: 'cg2', role: 'CAREGIVER' }],
+      home: { enabled: true, capacity: 2, bufferMinutes: 30, hours: ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day) => ({ day, open: '00:00', close: '23:59' })) },
+      clinic: { enabled: false, hours: [] }
+    };
+    expect(slots.fitsHours(care, 'HOME', '2026-10-12', '20:00', 720)).toBe(true);
+    const keys = slots.slotKeysFor(care, 'HOME', '2026-10-12', '20:00', 720, 'cg1');
+    expect(keys).toHaveLength(48); // 12 h, no buffer
+    expect(keys[0].key).toBe('person:cg1|2026-10-12|20:00');
+    expect(keys[keys.length - 1].key).toBe('person:cg1|2026-10-13|07:45');
+    expect(slots.assignsPractitioner(care, 'HOME')).toBe(true);
+    // A day-only attendant can't run past their evening close.
+    const day = { ...care, home: { ...care.home, hours: [{ day: 'MON', open: '08:00', close: '20:00' }] } };
+    expect(slots.fitsHours(day, 'HOME', '2026-10-12', '20:00', 720)).toBe(false);
   });
 
   it('plan dates follow the chosen weekdays and skip leave days', () => {

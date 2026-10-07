@@ -32,6 +32,8 @@ const pricingService = require('./pricingService');
 const careSlotService = require('./careSlotService');
 const careStoreService = require('./careStoreService');
 const membershipService = require('./membershipService');
+const walletService = require('./walletService');
+const PlanProposal = require('../models/planProposal');
 const visitPolicy = require('./careVisitPolicy');
 const { haversineKm, toLatLng } = require('../utils/geoDistance');
 const { BOOKING_SERVICE_TYPES } = require('../constants/enums');
@@ -103,7 +105,7 @@ function planLastDay(sessions, startDate) {
 const bookingServiceType = (service, kind) => {
   const wanted = service.marketplace && service.marketplace.bookingServiceType;
   if (wanted && BOOKING_SERVICE_TYPES.includes(wanted)) return wanted;
-  return kind === 'NURSING' ? 'GENERAL_NURSING' : kind === 'PHYSIO' ? 'PHYSIOTHERAPY_SESSION' : 'OTHER';
+  return { NURSING: 'GENERAL_NURSING', PHYSIO: 'PHYSIOTHERAPY_SESSION', HOMECARE: 'ELDERLY_CARE' }[kind] || 'OTHER';
 };
 
 /** The shop, its rate card line and the catalog service, if they can be booked now. */
@@ -144,11 +146,43 @@ function travelTo(store, coordinates) {
 
 /** Slots already full for any of these sessions (doesn't reserve). */
 async function takenDates(store, mode, dates, time, durationMinutes) {
+  // Named professionals (agency caregivers, clinic physios at home): someone
+  // must be free on EVERY date, since the same person comes each time.
+  if (careSlotService.assignsPractitioner(store, mode)) {
+    return (await careSlotService.freePractitioner(store, mode, dates, time, durationMinutes)) ? [] : dates;
+  }
   const { capacity } = careSlotService.resourceFor(store, mode);
   const keysByDate = new Map(dates.map((d) => [d, careSlotService.slotKeysFor(store, mode, d, time, durationMinutes).map((s) => s.key)]));
   const full = await SlotReservation.find({ key: { $in: [...keysByDate.values()].flat() }, count: { $gte: capacity } }).select('key').lean();
   const fullSet = new Set(full.map((r) => r.key));
   return dates.filter((d) => keysByDate.get(d).some((k) => fullSet.has(k)));
+}
+
+/**
+ * Hold every session's slots, all or nothing. Shops that assign a named
+ * professional try each one in turn until someone can take ALL sessions.
+ * @returns {{ practitioner, reserved: [{ id, keys }] }}
+ */
+async function reservePlanSlots(store, mode, dates, time, durationMinutes, sessionIds) {
+  const named = careSlotService.assignsPractitioner(store, mode);
+  const people = named ? careSlotService.practitionersOf(store) : [null];
+  let lastErr;
+  for (const person of people) {
+    const reserved = [];
+    try {
+      for (const [i, date] of dates.entries()) {
+        const keys = await careSlotService.reserve(store, mode, date, time, durationMinutes, sessionIds[i], { practitioner: person || undefined });
+        reserved.push({ id: sessionIds[i], keys });
+      }
+      return { practitioner: person ? new mongoose.Types.ObjectId(person) : store.owner, reserved };
+    } catch (err) {
+      for (const r of reserved) await careSlotService.release(r.keys, r.id).catch(() => undefined);
+      lastErr = err;
+      if (!err || err.code !== 'SLOT_TAKEN') throw err;
+    }
+  }
+  if (named) throw conflict('No caregiver is free at this time on all the days you picked. Try another time or fewer days a week.', 'SLOT_TAKEN', { dates });
+  throw lastErr;
 }
 
 /** Everything a quote holds, computed fresh from live data. */
@@ -161,7 +195,7 @@ async function buildQuote(patientId, input = {}) {
   const { store, item, service, listPrice } = await loadBookable(input.storeId, input.serviceId, mode);
 
   let address;
-  let travel = { perSession: 0 };
+  let travel = { perSession: 0, waived: false };
   if (mode === 'HOME') {
     address = await resolveAddress(patientId, input);
     const t = travelTo(store, address.coordinates);
@@ -186,10 +220,64 @@ async function buildQuote(patientId, input = {}) {
   const taken = await takenDates(store, mode, dates, time, item.durationMinutes);
   if (taken.length) throw conflict(`${time} is already booked on ${taken.slice(0, 3).join(', ')}${taken.length > 3 ? ` and ${taken.length - 3} more` : ''}. Pick another time.`, 'SLOT_TAKEN', { dates: taken });
 
+  // Two family members at one address on the same days: one trip, no second travel fee.
+  if (mode === 'HOME' && travel.perSession > 0) {
+    const sameDay = await NurseBooking.find({
+      patient: patientId,
+      'marketplace.store': store._id,
+      'serviceLocation.type': 'HOME',
+      status: { $in: ['ASSIGNED', 'CONFIRMED', 'EN_ROUTE'] },
+      scheduledDate: { $in: dates.map((d) => new Date(`${d}T00:00:00Z`)) }
+    }).select('scheduledDate serviceLocation.address.coordinates').lean();
+    const covered = dates.every((d) => sameDay.some((s) => s.scheduledDate.toISOString().slice(0, 10) === d
+      && s.serviceLocation.address && s.serviceLocation.address.coordinates
+      && haversineKm(s.serviceLocation.address.coordinates, address.coordinates) <= 0.1));
+    if (covered) travel = { ...travel, perSession: 0, waived: true };
+  }
+
+  // A plan the professional proposed after a visit: must match what they proposed.
+  let proposal = null;
+  if (input.proposalId) {
+    proposal = await PlanProposal.findOne({ _id: input.proposalId, patient: patientId, status: 'PENDING', expiresAt: { $gt: new Date() } }).lean();
+    if (!proposal) throw conflict('This plan suggestion has expired or was already answered', 'PROPOSAL_CLOSED');
+    if (String(proposal.store) !== String(store._id) || String(proposal.service) !== String(service._id) || proposal.mode !== mode || proposal.sessions !== sessions) {
+      throw badRequest('Book the plan as suggested, or book a new one without the suggestion', 'PROPOSAL_MISMATCH');
+    }
+  }
+
   const isMember = await membershipService.isMember(patientId);
+  const travelFeeOnce = item.liveIn && mode === 'HOME' && sessions > 1 ? travel.perSession : 0;
   const q = pricingService.quoteCarePlan({
-    listPrice, sessions, mode, travelPerSession: travel.perSession, discountTiers: item.sessionDiscounts, paymentMode, isMember
+    listPrice, sessions, mode, travelPerSession: travelFeeOnce ? 0 : travel.perSession, discountTiers: item.sessionDiscounts, paymentMode, isMember
   });
+
+  // The shop's new-customer offer: % off the first session (shop-funded, admin approved).
+  // Live-in care: the caregiver travels once, so travel is on the first day only.
+  let offer = 0;
+  let firstSession;
+  const travelOnce = Boolean(item.liveIn) && mode === 'HOME' && travel.perSession > 0 && sessions > 1;
+  if (item.offer && item.offer.status === 'APPROVED' && item.offer.percent > 0
+    && !(await CarePlan.exists({ patient: patientId, store: store._id, status: { $ne: 'CANCELLED' } }))) {
+    offer = round2(Math.min(item.offer.maxDiscount || Infinity, (q.servicePerSession * item.offer.percent) / 100));
+  }
+  if (offer > 0 || travelOnce) {
+    const first = pricingService.quoteCarePlan({
+      listPrice: round2(q.servicePerSession - offer), sessions: 1, mode, travelPerSession: travelFeeOnce || travel.perSession, paymentMode, isMember, discountPercent: 0
+    });
+    firstSession = { servicePrice: first.servicePerSession, platformFee: first.platformFeePerSession, gst: first.gstPerSession, payable: first.perSessionPayable };
+    const delta = (key) => round2(first[key] - q[key]);
+    q.platformFee = round2(q.platformFee + delta('platformFeePerSession'));
+    q.gst = round2(q.gst + delta('gstPerSession'));
+    q.total = round2(q.total + delta('perSessionPayable'));
+    q.lines = [
+      ...q.lines.filter((l) => ['SERVICE', 'DISCOUNT'].includes(l.code)),
+      ...(offer > 0 ? [{ code: 'OFFER', label: `${item.offer.percent}% off your first session`, amount: -offer }] : []),
+      ...(travelOnce ? [{ code: 'TRAVEL', label: `Travel once (live-in care)`, amount: travelFeeOnce }] : q.lines.filter((l) => l.code === 'TRAVEL')),
+      { code: 'PLATFORM_FEE', label: q.lines.find((l) => l.code === 'PLATFORM_FEE').label, amount: q.platformFee },
+      { code: 'GST', label: 'GST', amount: q.gst }
+    ];
+  }
+  if (travel.waived) q.lines.push({ code: 'TRAVEL_WAIVED', label: 'No travel fee: same address and day as your other booking', amount: 0 });
 
   return {
     patient: patientId,
@@ -206,13 +294,17 @@ async function buildQuote(patientId, input = {}) {
     schedule: { startDate, weekdays: [...new Set((weekdays || []).map(Number))], time, dates },
     address,
     patientDetails: cleanPatientDetails(input.patientDetails),
-    travel,
+    travel: travelFeeOnce ? { ...travel, liveInOnce: true } : travel,
+    proposal: proposal ? proposal._id : undefined,
+    firstSession,
     amounts: {
       listPricePerSession: q.listPricePerSession,
       discountPercent: q.discountPercent,
       servicePerSession: q.servicePerSession,
       serviceSubtotal: q.serviceSubtotal,
       discount: q.discount,
+      offer,
+      creditAvailable: await walletService.balance(patientId),
       travelTotal: q.travelTotal,
       platformFee: q.platformFee,
       gst: q.gst,
@@ -285,7 +377,8 @@ async function bookPlan(patientId, quoteId) {
       paymentMode: quote.paymentMode,
       address: quote.address,
       schedule: { startDate: quote.schedule.startDate, weekdays: quote.schedule.weekdays, time: quote.schedule.time },
-      patientDetails: quote.patientDetails
+      patientDetails: quote.patientDetails,
+      proposalId: quote.proposal
     });
     const { _store: store, _perSession: perSession, _service: service, _kind: kind } = fresh;
     if (fresh.amounts.total !== quote.amounts.total || fresh.amounts.perSessionPayable !== quote.amounts.perSessionPayable) {
@@ -294,16 +387,15 @@ async function bookPlan(patientId, quoteId) {
       throw conflict(`The price changed from ₹${quote.amounts.total} to ₹${fresh.amounts.total}. Please confirm the new price.`, 'PRICE_CHANGED', { quote: publicQuote(newQuote, store) });
     }
 
-    // Hold every session's slots first: all or nothing.
+    // Hold every session's slots first: all or nothing, one named person throughout.
     const sessionIds = fresh.schedule.dates.map(() => new mongoose.Types.ObjectId());
-    for (const [i, date] of fresh.schedule.dates.entries()) {
-      const keys = await careSlotService.reserve(store, fresh.mode, date, fresh.schedule.time, fresh.durationMinutes, sessionIds[i]);
-      reserved.push({ id: sessionIds[i], keys });
-    }
+    const held = await reservePlanSlots(store, fresh.mode, fresh.schedule.dates, fresh.schedule.time, fresh.durationMinutes, sessionIds);
+    reserved.push(...held.reserved);
 
     const policy = getRevenuePolicy().care.plan;
     const prepaid = fresh.paymentMode === 'PREPAID';
-    const practitioner = store.owner; // solo: the professional; clinic: the clinic's account
+    // Solo: the professional; agency / clinic at home: the named caregiver or physio; else the shop's account.
+    const { practitioner } = held;
     const seriesId = crypto.randomBytes(8).toString('hex');
     const lastDay = planLastDay(fresh.sessions, fresh.schedule.startDate);
     const a = fresh.amounts;
@@ -323,13 +415,16 @@ async function bookPlan(patientId, quoteId) {
         listPricePerSession: a.listPricePerSession,
         discountPercent: a.discountPercent,
         servicePerSession: a.servicePerSession,
-        travelPerSession: fresh.travel.perSession || 0,
+        travelPerSession: fresh.travel.liveInOnce ? 0 : fresh.travel.perSession || 0,
         ratePerKm: fresh.travel.ratePerKm,
         roadKm: fresh.travel.roadKm,
         platformFeePerSession: perSession.platformFee,
         gstPerSession: perSession.gst,
+        offer: a.offer || 0,
+        travelWaived: Boolean(fresh.travel.waived),
         total: a.total
       },
+      proposal: fresh.proposal,
       address: fresh.address,
       patientDetails: fresh.patientDetails,
       paymentMode: fresh.paymentMode,
@@ -375,9 +470,19 @@ async function bookPlan(patientId, quoteId) {
         slotKeys: reserved[i].keys,
         travel: fresh.mode === 'HOME' ? { roadKm: fresh.travel.roadKm, ratePerKm: fresh.travel.ratePerKm } : undefined
       },
-      pricing: {
+      // The first session carries the shop's new-customer offer, if any.
+      pricing: i === 0 && fresh.firstSession ? {
+        basePrice: fresh.firstSession.servicePrice,
+        travelFee: fresh.travel.liveInOnce ? fresh.travel.perSession : fresh.travel.perSession || 0,
+        platformFee: fresh.firstSession.platformFee,
+        gst: fresh.firstSession.gst,
+        discount: a.offer,
+        totalAmount: fresh.firstSession.payable,
+        previousDues: dues,
+        payableAmount: round2(fresh.firstSession.payable + dues)
+      } : {
         basePrice: a.servicePerSession,
-        travelFee: fresh.travel.perSession || 0,
+        travelFee: fresh.travel.liveInOnce ? 0 : fresh.travel.perSession || 0,
         platformFee: perSession.platformFee,
         gst: perSession.gst,
         discount: 0,
@@ -385,7 +490,7 @@ async function bookPlan(patientId, quoteId) {
         previousDues: i === 0 ? dues : 0,
         payableAmount: round2(a.perSessionPayable + (i === 0 ? dues : 0))
       },
-      payment: prepaid ? { method: 'ONLINE', status: 'PENDING', amount: a.perSessionPayable } : { status: 'PENDING' },
+      payment: prepaid ? { method: 'ONLINE', status: 'PENDING', amount: i === 0 && fresh.firstSession ? fresh.firstSession.payable : a.perSessionPayable } : { status: 'PENDING' },
       status: 'CONFIRMED',
       statusTimestamps: { requestedAt: now, confirmedAt: now },
       dispatch: { mode: 'SCHEDULED', status: 'MATCHED', requestedProvider: practitioner, allowSubstitute: false, matchedAt: now },
@@ -406,6 +511,28 @@ async function bookPlan(patientId, quoteId) {
     }
     if (dues > 0) await Patient.updateOne({ _id: patientId, pendingDues: patient.pendingDues }, { $set: { pendingDues: 0 } });
     await CareQuote.updateOne({ _id: quote._id }, { $set: { plan: plan._id } });
+
+    // Nabz credit pays first: off the upfront payment, or off the first visits' bills.
+    const credit = await walletService.spend(patientId, prepaid ? a.total : round2(docs.reduce((s, d) => s + d.pricing.payableAmount, 0)), `plan:${plan._id}`);
+    if (credit > 0) {
+      await CarePlan.updateOne({ _id: plan._id }, { $set: { creditUsed: credit } });
+      if (prepaid) {
+        const remaining = round2(a.total - credit);
+        await CarePlan.updateOne({ _id: plan._id }, { $set: { 'payment.amount': remaining } });
+        if (remaining <= 0) await markPlanPaid(plan._id, { orderId: 'WALLET', paymentId: `wallet:${plan._id}` });
+      } else {
+        let left = credit;
+        for (const d of docs) {
+          if (left <= 0) break;
+          const use = round2(Math.min(left, d.pricing.payableAmount));
+          await NurseBooking.updateOne({ _id: d._id }, { $inc: { 'pricing.discount': use, 'pricing.payableAmount': -use } });
+          left = round2(left - use);
+        }
+      }
+    }
+    if (fresh.proposal) {
+      await PlanProposal.updateOne({ _id: fresh.proposal, status: 'PENDING' }, { $set: { status: 'ACCEPTED', plan: plan._id, respondedAt: new Date() } });
+    }
 
     const when = `${fresh.schedule.dates[0]} at ${fresh.schedule.time}`;
     lazyBooking().notifyUser(practitioner, 'User', 'New booking',
@@ -567,7 +694,8 @@ async function rescheduleSession(patientId, bookingId, { date, time } = {}) {
   if (date > lastDay) throw badRequest(`Sessions of this plan must be done by ${lastDay}`, 'AFTER_PLAN_END');
 
   const oldKeys = booking.marketplace.slotKeys || [];
-  const newKeys = await careSlotService.reserve(store, plan.mode, date, time, duration, booking._id, { alreadyHeld: oldKeys });
+  const named = careSlotService.assignsPractitioner(store, plan.mode) && careSlotService.practitionersOf(store).includes(String(plan.practitioner));
+  const newKeys = await careSlotService.reserve(store, plan.mode, date, time, duration, booking._id, { alreadyHeld: oldKeys, practitioner: named ? String(plan.practitioner) : undefined });
   const updated = await NurseBooking.findOneAndUpdate(
     { _id: booking._id, status: booking.status, scheduledTime: booking.scheduledTime, scheduledDate: booking.scheduledDate },
     {
@@ -708,6 +836,7 @@ async function settlePlan(planId) {
     const closing = plan.status === 'EXPIRED' ? 'EXPIRED' : completed > 0 ? 'COMPLETED' : 'CANCELLED';
     set.status = closing;
     if (closing === 'CANCELLED') set.cancelledAt = new Date();
+    if (completed === 0 && plan.creditUsed > 0) await walletService.reverse(plan.patient, `plan:${plan._id}`);
     const amount = refundDue(plan, sessions);
     if (amount > 0 && plan.refund.status === 'NONE') {
       set.refund = { amount, credit: plan.refund.credit || 0, status: 'PENDING', reason: `Plan ${closing.toLowerCase()} with ${plan.sessionsTotal - completed} of ${plan.sessionsTotal} sessions unused`, requestedAt: new Date() };
@@ -774,13 +903,14 @@ async function onProviderReleased(booking, providerId, reason) {
 }
 
 /** Leave days / suspension: release the shop's booked sessions in a date range. */
-async function releaseStoreSessions(store, { from, to, reason } = {}) {
+async function releaseStoreSessions(store, { from, to, reason, practitioner } = {}) {
   const dateFilter = {};
   if (from) dateFilter.$gte = new Date(`${from}T00:00:00Z`);
   if (to) dateFilter.$lte = new Date(`${to}T00:00:00Z`);
   const sessions = await NurseBooking.find({
     'marketplace.store': store._id,
     status: { $in: ['ASSIGNED', 'CONFIRMED'] },
+    ...(practitioner ? { serviceProvider: practitioner } : {}),
     ...(from || to ? { scheduledDate: dateFilter } : { scheduledDate: { $gte: new Date(`${careSlotService.todayIst()}T00:00:00Z`) } })
   });
   let released = 0;
@@ -815,6 +945,98 @@ async function reportProblem(patientId, bookingId, { kind, note } = {}) {
   });
   logger.warn('Marketplace session reported', { bookingId: String(booking._id), kind });
   return { reported: true };
+}
+
+// ── Plan proposals (the professional suggests a plan after a visit) ──────
+
+async function createProposal(user, bookingId, input = {}) {
+  const userId = user._id || user.id;
+  const booking = await NurseBooking.findOne({ _id: bookingId, serviceProvider: userId, status: { $in: ['IN_PROGRESS', 'COMPLETED'] } }).lean();
+  if (!booking) throw new NotFoundError('Visit (you can suggest a plan during or after your own visit)');
+  const store = await CareStore.findOne({ $or: [{ owner: userId }, { 'members.user': userId }], status: 'APPROVED' });
+  if (!store) throw new NotFoundError('Your shop');
+  const mode = input.mode === 'CLINIC' ? 'CLINIC' : 'HOME';
+  const sessions = Number(input.sessions);
+  const max = getRevenuePolicy().care.plan.maxSessions;
+  if (!Number.isInteger(sessions) || sessions < 1 || sessions > max) throw new ValidationError(`Suggest 1–${max} sessions`);
+  const item = await RateCardItem.findOne({ store: store._id, service: input.serviceId, isActive: true }).populate('service', 'name displayName');
+  if (!item || item.priceFor(mode) === null) throw new ValidationError(`Add this service ${mode === 'HOME' ? 'at home' : 'at the clinic'} to your rate card first`);
+  const perWeek = Number(input.sessionsPerWeek);
+  try {
+    const proposal = await PlanProposal.create({
+      store: store._id,
+      patient: booking.patient,
+      fromBooking: booking._id,
+      proposedBy: userId,
+      service: item.service._id,
+      serviceName: item.service.displayName || item.service.name,
+      mode,
+      sessions,
+      sessionsPerWeek: Number.isInteger(perWeek) && perWeek >= 1 && perWeek <= 7 ? perWeek : undefined,
+      note: input.note ? String(input.note).slice(0, 500) : undefined,
+      expiresAt: new Date(Date.now() + 14 * 86400000)
+    });
+    lazyBooking().notifyUser(booking.patient, 'Patient', 'Your physio suggested a plan',
+      `${sessions} ${mode === 'HOME' ? 'home' : 'clinic'} sessions of ${proposal.serviceName}. Open the app to see the price and choose your days.`, booking._id).catch(() => undefined);
+    return proposal.toObject();
+  } catch (err) {
+    if (err && err.code === 11000) throw conflict('You already suggested a plan for this visit', 'PROPOSAL_EXISTS');
+    throw err;
+  }
+}
+
+async function listMyProposals(patientId) {
+  const rows = await PlanProposal.find({ patient: patientId, status: 'PENDING', expiresAt: { $gt: new Date() } }).sort({ createdAt: -1 }).lean();
+  const stores = await CareStore.find({ _id: { $in: rows.map((r) => r.store) } }).lean();
+  const byId = new Map(stores.map((s) => [String(s._id), careStoreService.publicStore(s)]));
+  return rows.map((r) => ({ ...r, store: byId.get(String(r.store)) || null }));
+}
+
+async function declineProposal(patientId, proposalId) {
+  const res = await PlanProposal.findOneAndUpdate({ _id: proposalId, patient: patientId, status: 'PENDING' }, { $set: { status: 'DECLINED', respondedAt: new Date() } }, { returnDocument: 'after' });
+  if (!res) throw new NotFoundError('Plan suggestion');
+  return res.toObject();
+}
+
+async function listStoreProposals(user) {
+  const userId = user._id || user.id;
+  const store = await CareStore.findOne({ $or: [{ owner: userId }, { 'members.user': userId }] }).lean();
+  if (!store) return [];
+  return PlanProposal.find({ store: store._id }).sort({ createdAt: -1 }).limit(50).lean();
+}
+
+// ── Ops: reported problems ───────────────────────────────────────────────
+
+/**
+ * Admin decision on a flagged visit:
+ *   NO_SHOW       the professional didn't come → session cancelled (provider's
+ *                 fault), Nabz credit to the customer, a strike for the shop
+ *   EXTRA_CASH    asked for money outside the bill → strike, credit
+ *   DISMISS       nothing wrong
+ */
+async function resolveReport(adminId, bookingId, { outcome, note } = {}) {
+  const booking = await NurseBooking.findOne({ _id: bookingId, flagged: true });
+  if (!booking) throw new NotFoundError('Reported visit');
+  const policy = getRevenuePolicy().care;
+  const result = { outcome, credit: 0, strike: false };
+  if (outcome === 'NO_SHOW' || outcome === 'EXTRA_CASH') {
+    if (outcome === 'NO_SHOW' && ['REQUESTED', 'ASSIGNED', 'CONFIRMED', 'EN_ROUTE'].includes(booking.status)) {
+      await lazyBooking().cancelBooking(booking._id, adminId, `Professional did not come${note ? `: ${note}` : ''}`, 'platform_admin');
+    }
+    if (booking.marketplace && booking.marketplace.store) {
+      await careStoreService.addStrike(booking.marketplace.store, outcome === 'NO_SHOW' ? 'Did not come to a visit' : 'Asked for extra cash', booking._id);
+      result.strike = true;
+    }
+    if (policy.noShowCredit > 0) {
+      await walletService.credit(booking.patient, policy.noShowCredit, { reason: outcome === 'NO_SHOW' ? 'Your professional didn’t come' : 'Sorry about the extra charge request', ref: `report:${booking._id}`, by: adminId });
+      result.credit = policy.noShowCredit;
+    }
+  } else if (outcome !== 'DISMISS') {
+    throw new ValidationError('Choose NO_SHOW, EXTRA_CASH or DISMISS');
+  }
+  await NurseBooking.updateOne({ _id: booking._id }, { $set: { flagged: false, adminNotes: `Report resolved: ${outcome}${note ? ` (${String(note).slice(0, 200)})` : ''}` } });
+  logger.info('Visit report resolved', { bookingId: String(booking._id), outcome, by: String(adminId) });
+  return result;
 }
 
 // ── Sweepers (internal tick) ─────────────────────────────────────────────
@@ -867,7 +1089,9 @@ async function expireOldPlans(now = new Date()) {
 async function sweep(now = new Date()) {
   const unpaid = await expireUnpaidPlans(now);
   const old = await expireOldPlans(now);
-  return { unpaid, old };
+  const proposals = (await PlanProposal.updateMany({ status: 'PENDING', expiresAt: { $lte: now } }, { $set: { status: 'EXPIRED' } })).modifiedCount;
+  const labs = await require('./labOrderService').sweep(now);
+  return { unpaid, old, proposals, labs };
 }
 
 module.exports = {
@@ -890,6 +1114,11 @@ module.exports = {
   releaseStoreSessions,
   syncStoreRating,
   reportProblem,
+  createProposal,
+  listMyProposals,
+  declineProposal,
+  listStoreProposals,
+  resolveReport,
   expireUnpaidPlans,
   expireOldPlans,
   sweep,

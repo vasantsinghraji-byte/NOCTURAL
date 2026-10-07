@@ -26,7 +26,15 @@ const lazyPlans = () => require('./carePlanService');
 const ACTIVE_SESSION_STATUSES = ['REQUESTED', 'ASSIGNED', 'CONFIRMED', 'EN_ROUTE'];
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-const kindForRole = (role) => Object.keys(STORE_OWNER_ROLES).find((k) => STORE_OWNER_ROLES[k].includes(role));
+const kindsForRole = (role) => Object.keys(STORE_OWNER_ROLES).filter((k) => STORE_OWNER_ROLES[k].includes(role));
+const kindForRole = (role) => kindsForRole(role)[0];
+/** The shop kind a partner means: the one asked for (if their role allows it), else their first. */
+function resolveKind(user, kind) {
+  const allowed = kindsForRole(user.role);
+  if (!allowed.length) throw new AuthorizationError('Only physiotherapists, nurses, caregivers and lab partners can run a shop');
+  if (kind && !allowed.includes(String(kind).toUpperCase())) throw new AuthorizationError('Your account can’t run that kind of shop');
+  return kind ? String(kind).toUpperCase() : allowed[0];
+}
 const str = (v, max) => (v === undefined || v === null ? undefined : String(v).trim().slice(0, max));
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -59,16 +67,18 @@ async function upcomingSessions(storeId, { rateCardItem, mode } = {}) {
   });
 }
 
-async function ownedStore(user) {
-  const kind = kindForRole(user.role);
-  if (!kind) throw new AuthorizationError('Only physiotherapists, nurses and lab partners can run a shop');
-  return CareStore.findOne({ owner: user._id || user.id, kind });
+/** The partner's shop of `kind`, or (no kind) their first shop. */
+async function ownedStore(user, kind) {
+  const allowed = kindsForRole(user.role);
+  if (!allowed.length) throw new AuthorizationError('Only physiotherapists, nurses, caregivers and lab partners can run a shop');
+  if (kind) return CareStore.findOne({ owner: user._id || user.id, kind: resolveKind(user, kind) });
+  return CareStore.findOne({ owner: user._id || user.id, kind: { $in: allowed } }).sort({ createdAt: 1 });
 }
 
 // ── Partner: shop profile ────────────────────────────────────────────────
 
-async function getMyStore(user) {
-  const store = await ownedStore(user);
+async function getMyStore(user, kind) {
+  const store = await ownedStore(user, kind);
   if (!store) return null;
   const rateCard = await RateCardItem.find({ store: store._id })
     .populate('service', 'name displayName category marketplace serviceDetails.duration lab')
@@ -78,8 +88,7 @@ async function getMyStore(user) {
 }
 
 async function saveMyStore(user, input = {}) {
-  const kind = kindForRole(user.role);
-  if (!kind) throw new AuthorizationError('Only physiotherapists, nurses and lab partners can run a shop');
+  const kind = resolveKind(user, input.kind);
   const ownerId = user._id || user.id;
   const travel = getRevenuePolicy().care.travel;
   const existing = await CareStore.findOne({ owner: ownerId, kind });
@@ -140,6 +149,11 @@ async function saveMyStore(user, input = {}) {
   if (homeIn.capacity !== undefined) home.capacity = Number(homeIn.capacity);
   if (homeIn.hours !== undefined) home.hours = cleanHours(homeIn.hours, 'home-visit');
   if (homeIn.base !== undefined) home.base = homeIn.base ? cleanPoint(homeIn.base, 'base') : undefined;
+  if (homeIn.freeCollectionAbove !== undefined) {
+    const v = Number(homeIn.freeCollectionAbove);
+    if (!Number.isFinite(v) || v < 0 || v > 100000) throw new ValidationError('Free collection threshold must be ₹0–₹1,00,000');
+    home.freeCollectionAbove = v;
+  }
   if (solo) {
     clinic.capacity = 1;
     home.capacity = 1;
@@ -184,7 +198,9 @@ async function saveMyStore(user, input = {}) {
       registration: { number: set['registration.number'], body: set['registration.body'] },
       kind,
       owner: ownerId,
-      members: [{ user: ownerId, role: kind === 'LAB' ? 'MANAGER' : 'PRACTITIONER' }],
+      // A home-care agency's owner manages; caregivers are added to the team.
+      // A clinic physio owner also treats patients.
+      members: [{ user: ownerId, role: kind === 'LAB' || (kind === 'HOMECARE' && format !== 'SOLO') ? 'MANAGER' : 'PRACTITIONER' }],
       // Verified professionals go live at once; labs wait for an ops check (NABL, licence).
       status: verified ? 'APPROVED' : 'PENDING'
     });
@@ -212,10 +228,12 @@ function checkPrice(service, item, price, label) {
 }
 
 async function upsertRateCardItem(user, serviceId, input = {}) {
-  const store = await ownedStore(user);
-  if (!store) throw new NotFoundError('Shop (set up your shop first)');
   const service = await ServiceCatalog.findOne({ _id: serviceId, 'availability.isActive': true }).lean();
   if (!service) throw new NotFoundError('Service');
+  const serviceKind = (service.marketplace && service.marketplace.kind)
+    || Object.keys(KIND_CATEGORIES).find((k) => KIND_CATEGORIES[k].includes(service.category));
+  const store = await ownedStore(user, input.kind || (kindsForRole(user.role).includes(serviceKind) ? serviceKind : undefined));
+  if (!store) throw new NotFoundError('Shop (set up your shop first)');
   const categoryOk = (service.marketplace && service.marketplace.kind === store.kind) || KIND_CATEGORIES[store.kind].includes(service.category);
   if (!categoryOk) throw new ValidationError('This service isn’t offered by this kind of shop');
   const m = service.marketplace || {};
@@ -233,7 +251,9 @@ async function upsertRateCardItem(user, serviceId, input = {}) {
   if (homeOn) checkPrice(service, existing, homePrice, 'home');
 
   const durationMinutes = input.durationMinutes !== undefined ? Number(input.durationMinutes) : (existing ? existing.durationMinutes : (m.defaultDurationMinutes || 45));
-  if (!Number.isInteger(durationMinutes) || durationMinutes < 10 || durationMinutes > 480) throw new ValidationError('Session length must be 10–480 minutes');
+  // Home care and nursing book shifts (up to 24 h); visits are up to 8 h.
+  const maxMinutes = ['HOMECARE', 'NURSING'].includes(store.kind) ? 1440 : 480;
+  if (!Number.isInteger(durationMinutes) || durationMinutes < 10 || durationMinutes > maxMinutes) throw new ValidationError(`Session length must be 10–${maxMinutes} minutes`);
 
   const tiers = Array.isArray(input.sessionDiscounts) ? input.sessionDiscounts : (existing ? existing.sessionDiscounts.map((t) => t.toObject()) : []);
   if (tiers.length > 3) throw new ValidationError('Up to 3 multi-session discounts');
@@ -251,6 +271,8 @@ async function upsertRateCardItem(user, serviceId, input = {}) {
     home: { enabled: homeOn, price: homePrice },
     durationMinutes,
     sessionDiscounts,
+    // Live-in (24 h shifts, the caregiver stays): travel once per booking.
+    liveIn: store.kind === 'HOMECARE' && durationMinutes === 1440 && input.liveIn !== false && Boolean(input.liveIn || (existing && existing.liveIn)),
     isActive: input.isActive !== false
   };
   if (store.kind === 'LAB') {
@@ -288,8 +310,8 @@ async function upsertRateCardItem(user, serviceId, input = {}) {
   return { item: item.toObject(), warnings };
 }
 
-async function removeRateCardItem(user, serviceId) {
-  const store = await ownedStore(user);
+async function removeRateCardItem(user, serviceId, kind) {
+  const store = await ownedStore(user, kind);
   if (!store) throw new NotFoundError('Shop');
   const item = await RateCardItem.findOneAndUpdate({ store: store._id, service: serviceId }, { $set: { isActive: false }, $inc: { version: 1 } }, { returnDocument: 'after' });
   if (!item) throw new NotFoundError('Rate card item');
@@ -297,8 +319,49 @@ async function removeRateCardItem(user, serviceId) {
   return { item: item.toObject(), warnings: n ? [`You have ${n} upcoming sessions for this. They stay booked.`] : [] };
 }
 
-async function setPaused(user, paused) {
-  const store = await ownedStore(user);
+/** The shop proposes a new-customer offer on one service; live after admin approval. */
+async function setOffer(user, serviceId, { percent, maxDiscount, kind } = {}) {
+  const store = await ownedStore(user, kind);
+  if (!store) throw new NotFoundError('Shop');
+  const pct = Number(percent);
+  const cap = Number(maxDiscount);
+  if (!Number.isFinite(pct) || pct < 5 || pct > 50) throw new ValidationError('Offer must be 5–50% off');
+  if (!Number.isFinite(cap) || cap < 1 || cap > 5000) throw new ValidationError('Maximum discount must be ₹1–₹5,000');
+  const item = await RateCardItem.findOneAndUpdate(
+    { store: store._id, service: serviceId, isActive: true },
+    { $set: { offer: { percent: pct, maxDiscount: cap, status: 'PENDING' } }, $inc: { version: 1 } },
+    { returnDocument: 'after' }
+  );
+  if (!item) throw new NotFoundError('Rate card item');
+  return item.toObject();
+}
+
+async function removeOffer(user, serviceId, kind) {
+  const store = await ownedStore(user, kind);
+  if (!store) throw new NotFoundError('Shop');
+  const item = await RateCardItem.findOneAndUpdate({ store: store._id, service: serviceId }, { $unset: { offer: 1 }, $inc: { version: 1 } }, { returnDocument: 'after' });
+  if (!item) throw new NotFoundError('Rate card item');
+  return item.toObject();
+}
+
+async function adminListOffers(status = 'PENDING') {
+  const items = await RateCardItem.find({ 'offer.status': status }).populate('service', 'name displayName').populate('store', 'name kind status').sort({ updatedAt: -1 }).limit(100).lean();
+  return items;
+}
+
+async function adminReviewOffer(adminId, itemId, { decision, reason } = {}) {
+  if (!['APPROVED', 'REJECTED'].includes(decision)) throw new ValidationError('Approve or reject');
+  const item = await RateCardItem.findOneAndUpdate(
+    { _id: itemId, 'offer.status': { $exists: true } },
+    { $set: { 'offer.status': decision, 'offer.reason': str(reason, 200), 'offer.reviewedBy': adminId, 'offer.reviewedAt': new Date() }, $inc: { version: 1 } },
+    { returnDocument: 'after' }
+  );
+  if (!item) throw new NotFoundError('Offer');
+  return item.toObject();
+}
+
+async function setPaused(user, paused, kind) {
+  const store = await ownedStore(user, kind);
   if (!store) throw new NotFoundError('Shop');
   store.isPaused = Boolean(paused);
   await store.save();
@@ -306,8 +369,8 @@ async function setPaused(user, paused) {
 }
 
 /** Days off. Sessions already booked on those days are released to their customers to move or cancel for free. */
-async function addLeave(user, { from, to, reason } = {}) {
-  const store = await ownedStore(user);
+async function addLeave(user, { from, to, reason, kind } = {}) {
+  const store = await ownedStore(user, kind);
   if (!store) throw new NotFoundError('Shop');
   const today = careSlotService.todayIst();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(from)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(to || from))) throw new ValidationError('Pick the leave dates');
@@ -320,12 +383,79 @@ async function addLeave(user, { from, to, reason } = {}) {
   return { leave: store.leave, released };
 }
 
-async function removeLeave(user, leaveId) {
-  const store = await ownedStore(user);
+async function removeLeave(user, leaveId, kind) {
+  const store = await ownedStore(user, kind);
   if (!store) throw new NotFoundError('Shop');
   store.leave = store.leave.filter((l) => String(l._id) !== String(leaveId));
   await store.save();
   return { leave: store.leave };
+}
+
+// ── Partner: team (clinic physios, agency caregivers, lab phlebotomists) ──
+
+const MEMBER_ROLES = Object.freeze({
+  PHYSIO: { roles: ['physiotherapist'], memberRole: 'PRACTITIONER' },
+  NURSING: { roles: ['nurse', 'medical_staff'], memberRole: 'PRACTITIONER' },
+  HOMECARE: { roles: ['medical_staff', 'nurse'], memberRole: 'CAREGIVER' },
+  LAB: { roles: ['phlebotomist', 'lab_partner'], memberRole: 'PHLEBOTOMIST' }
+});
+
+/**
+ * Add a professional to the team by their registered phone or email. They
+ * must already have a verified Nabz partner account of the right kind; from
+ * then on home bookings can be assigned to them by name.
+ */
+async function addMember(user, { phone, email, kind } = {}) {
+  const store = await ownedStore(user, kind);
+  if (!store) throw new NotFoundError('Shop');
+  if (store.format === 'SOLO') throw new ValidationError('Switch your shop to a clinic or agency to add a team');
+  const rule = MEMBER_ROLES[store.kind];
+  const who = phone ? { phone: String(phone).replace(/\D/g, '').slice(-10) } : email ? { email: String(email).trim().toLowerCase() } : null;
+  if (!who) throw new ValidationError('Enter their registered phone or email');
+  const member = await User.findOne({ ...who, isActive: { $ne: false }, role: { $in: rule.roles } }).select('_id name role careProfile.verification').lean();
+  if (!member) throw new NotFoundError('Partner account (they need to sign up on Nabz Partner first)');
+  const v = member.careProfile && member.careProfile.verification;
+  if (store.kind !== 'LAB' && !(v && v.idVerified && v.policeVerified && v.councilVerified)) {
+    throw new ValidationError(`${member.name} isn’t fully verified yet (ID, police and council checks)`);
+  }
+  const already = (store.members || []).find((m) => String(m.user) === String(member._id));
+  if (already) {
+    already.active = true;
+  } else {
+    if ((store.members || []).length >= 200) throw new ValidationError('Up to 200 team members');
+    store.members.push({ user: member._id, role: rule.memberRole, active: true });
+  }
+  await store.save();
+  return { members: await teamOf(store) };
+}
+
+async function removeMember(user, memberId, kind) {
+  const store = await ownedStore(user, kind);
+  if (!store) throw new NotFoundError('Shop');
+  if (String(memberId) === String(store.owner)) throw new ValidationError('The owner stays on the team');
+  const m = (store.members || []).find((x) => String(x.user) === String(memberId));
+  if (!m) throw new NotFoundError('Team member');
+  m.active = false;
+  await store.save();
+  // Their upcoming sessions go back to the customers to move or cancel for free.
+  const released = await lazyPlans().releaseStoreSessions(store, { practitioner: memberId, reason: 'Your caregiver is no longer with this provider' });
+  return { members: await teamOf(store), released };
+}
+
+async function teamOf(store) {
+  const ids = (store.members || []).map((m) => m.user);
+  const users = await User.find({ _id: { $in: ids } }).select('name role careProfile.gender careProfile.qualification').lean();
+  const byId = new Map(users.map((u) => [String(u._id), u]));
+  return (store.members || []).map((m) => {
+    const u = byId.get(String(m.user)) || {};
+    return { user: m.user, role: m.role, active: m.active !== false, name: u.name, gender: u.careProfile && u.careProfile.gender, qualification: u.careProfile && u.careProfile.qualification };
+  });
+}
+
+async function getTeam(user, kind) {
+  const store = await ownedStore(user, kind);
+  if (!store) throw new NotFoundError('Shop');
+  return teamOf(store);
 }
 
 // ── Public: browse and compare ───────────────────────────────────────────
@@ -373,6 +503,7 @@ function publicStore(store) {
       enabled: true,
       radiusKm: store.home.radiusKm,
       ratePerKm: store.home.ratePerKm,
+      freeCollectionAbove: store.kind === 'LAB' ? store.home.freeCollectionAbove || 0 : undefined,
       hours: store.home.hours
     } : { enabled: false }
   };
@@ -401,7 +532,9 @@ function publicItem(item) {
     home: item.home && item.home.enabled ? { enabled: true, price: item.home.price } : { enabled: false },
     durationMinutes: item.durationMinutes,
     sessionDiscounts: item.sessionDiscounts || [],
-    lab: item.lab
+    lab: item.lab,
+    // Only an admin-approved offer is shown (and applied at checkout).
+    offer: item.offer && item.offer.status === 'APPROVED' ? { percent: item.offer.percent, maxDiscount: item.offer.maxDiscount, label: `${item.offer.percent}% off your first session` } : null
   };
 }
 
@@ -584,6 +717,14 @@ module.exports = {
   setPaused,
   addLeave,
   removeLeave,
+  addMember,
+  removeMember,
+  getTeam,
+  kindsForRole,
+  setOffer,
+  removeOffer,
+  adminListOffers,
+  adminReviewOffer,
   listMarketplaceServices,
   searchStores,
   getStorePublic,

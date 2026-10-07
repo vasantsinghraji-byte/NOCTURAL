@@ -45,7 +45,10 @@ const CareQuoteSchema = new mongoose.Schema({
     relation: String
   },
 
+  proposal: { type: mongoose.Schema.Types.ObjectId, ref: 'PlanProposal' },
   travel: {
+    waived: { type: Boolean, default: false }, // same address and day as another booked session
+    liveInOnce: { type: Boolean, default: false }, // live-in care: travel on the first day only
     straightKm: Number,
     roadKm: Number,
     chargedKm: Number,
@@ -59,11 +62,20 @@ const CareQuoteSchema = new mongoose.Schema({
     servicePerSession: Number, // after the plan discount
     serviceSubtotal: Number, // list price × sessions
     discount: { type: Number, default: 0 },
+    offer: { type: Number, default: 0 }, // shop's new-customer offer, on the first session
+    creditAvailable: { type: Number, default: 0 },
     travelTotal: { type: Number, default: 0 },
     platformFee: { type: Number, default: 0 },
     gst: { type: Number, default: 0 },
     total: Number, // whole plan
     perSessionPayable: Number // PER_SESSION: what each visit costs
+  },
+  // The first session when an offer makes it cheaper than the rest.
+  firstSession: {
+    servicePrice: Number,
+    platformFee: Number,
+    gst: Number,
+    payable: Number
   },
   memberFeeWaived: { type: Boolean, default: false },
   lines: [{ _id: false, code: String, label: String, amount: Number }],

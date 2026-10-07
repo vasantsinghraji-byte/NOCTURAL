@@ -21,7 +21,7 @@ const ServiceCatalogSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['NURSING', 'PHYSIOTHERAPY', 'PACKAGE', 'LAB_TEST', 'LAB_PACKAGE'],
+    enum: ['NURSING', 'PHYSIOTHERAPY', 'PACKAGE', 'LAB_TEST', 'LAB_PACKAGE', 'HOME_CARE'],
     required: true
   },
   subCategory: String, // Injection Services, Wound Care, Pain Management, etc.
@@ -94,7 +94,7 @@ const ServiceCatalogSchema = new mongoose.Schema({
   // Care marketplace (docs/product/PROVIDER_MARKETPLACE_PLAN.md): each shop
   // sets its own price inside this band on its rate card.
   marketplace: {
-    kind: { type: String, enum: ['PHYSIO', 'LAB', 'NURSING'] },
+    kind: { type: String, enum: ['PHYSIO', 'LAB', 'NURSING', 'HOMECARE'] },
     priceFloor: Number,
     priceCeiling: Number,
     homeAllowed: { type: Boolean, default: true },

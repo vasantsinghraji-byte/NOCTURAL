@@ -39,36 +39,71 @@ const todayIst = (now = Date.now()) => new Date(now + IST_OFFSET_MIN * 60000).to
 /** UTC instant of an IST date + time. */
 const istInstant = (date, time) => new Date(`${date}T${time}:00+05:30`);
 
-function resourceFor(store, mode) {
-  if (store.format === 'SOLO') return { resource: 'PRACTITIONER', capacity: 1 };
+/**
+ * Professionals a shop assigns by name: a clinic or home-care agency's active
+ * practitioners / caregivers. Home bookings with such a shop get ONE named
+ * person for every session (the same caregiver comes every day).
+ */
+function practitionersOf(store) {
+  return (store.members || [])
+    .filter((m) => m.active !== false && ['PRACTITIONER', 'CAREGIVER'].includes(m.role))
+    .map((m) => String(m.user));
+}
+
+/** Does this booking get a named professional (with their own calendar)? */
+const assignsPractitioner = (store, mode) => store.format !== 'SOLO' && mode === 'HOME' && practitionersOf(store).length > 0;
+
+// A person's calendar is theirs, not the shop's: a physio with a solo practice
+// who also works at a clinic, or a caregiver with two agencies, can never be
+// booked twice for the same time.
+function resourceFor(store, mode, practitioner) {
+  if (store.format === 'SOLO') return { resource: `person:${store.owner}`, capacity: 1 };
+  if (practitioner) return { resource: `person:${practitioner}`, capacity: 1 };
   if (mode === 'HOME') return { resource: 'HOME', capacity: Math.max(1, (store.home && store.home.capacity) || 1) };
   return { resource: 'CLINIC', capacity: Math.max(1, (store.clinic && store.clinic.capacity) || 1) };
 }
 
-/** Opening ranges of a mode on a date, in minutes from midnight. */
+/** Opening ranges of a mode on a date, in minutes from midnight ("23:59" counts as midnight). */
 function rangesFor(store, mode, date) {
   const day = WEEKDAYS[weekdayOf(date)];
   const hours = (mode === 'HOME' ? store.home && store.home.hours : store.clinic && store.clinic.hours) || [];
-  return hours.filter((h) => h.day === day).map((h) => [toMinutes(h.open), toMinutes(h.close)]).filter(([a, b]) => b > a);
+  return hours.filter((h) => h.day === day)
+    .map((h) => [toMinutes(h.open), h.close === '23:59' ? 1440 : toMinutes(h.close)])
+    .filter(([a, b]) => b > a);
 }
 
 const onLeave = (store, date) => (store.leave || []).some((l) => date >= l.from && date <= l.to);
 
-/** Does a session of `durationMinutes` at date/time fit the shop's hours for this mode? */
+/**
+ * Does a session fit the shop's hours? A shift past midnight (a night
+ * attendant 20:00–08:00, a 24-hour live-in) must run to midnight and continue
+ * in the next day's hours from 00:00.
+ */
 function fitsHours(store, mode, date, time, durationMinutes) {
   const start = toMinutes(time);
   const end = start + durationMinutes;
-  return rangesFor(store, mode, date).some(([open, close]) => start >= open && end <= close);
+  if (end <= 1440) return rangesFor(store, mode, date).some(([open, close]) => start >= open && end <= close);
+  if (durationMinutes > 1440) return false;
+  const tonight = rangesFor(store, mode, date).some(([open, close]) => start >= open && close === 1440);
+  const tomorrow = rangesFor(store, mode, addDays(date, 1)).some(([open, close]) => open === 0 && end - 1440 <= close);
+  return tonight && tomorrow;
 }
 
-/** Slot keys a session holds (home visits also hold the travel buffer after them). */
-function slotKeysFor(store, mode, date, time, durationMinutes) {
-  const { resource } = resourceFor(store, mode);
+/** Travel buffer after a home visit (not after long shifts: no rushing to the next house). */
+const bufferFor = (store, mode, durationMinutes) => (mode === 'HOME' && durationMinutes < 360 ? Number((store.home && store.home.bufferMinutes) || 0) : 0);
+
+/** Slot keys a session holds; past midnight they continue on the next date. */
+function slotKeysFor(store, mode, date, time, durationMinutes, practitioner) {
+  const { resource } = resourceFor(store, mode, practitioner);
   const start = Math.floor(toMinutes(time) / GRID) * GRID;
-  const buffer = mode === 'HOME' ? Number((store.home && store.home.bufferMinutes) || 0) : 0;
-  const end = Math.min(24 * 60, toMinutes(time) + durationMinutes + buffer);
+  const end = Math.min(2 * 1440, toMinutes(time) + durationMinutes + bufferFor(store, mode, durationMinutes));
   const keys = [];
-  for (let m = start; m < end; m += GRID) keys.push({ key: `${store._id}|${resource}|${date}|${toHHMM(m)}`, date, time: toHHMM(m), resource });
+  for (let m = start; m < end; m += GRID) {
+    const d = m >= 1440 ? addDays(date, 1) : date;
+    const hhmm = toHHMM(m % 1440);
+    const prefix = resource.startsWith('person:') ? resource : `${store._id}|${resource}`;
+    keys.push({ key: `${prefix}|${d}|${hhmm}`, date: d, time: hhmm, resource });
+  }
   return keys;
 }
 
@@ -84,13 +119,15 @@ function bookabilityProblem(store, mode, date, time, durationMinutes, now = Date
 
 /**
  * Reserve every slot of a session for `holder` (a booking id). All or nothing.
+ * `practitioner`: hold that person's own calendar (named caregiver / physio).
  * @returns {string[]} the keys held
  */
-async function reserve(store, mode, date, time, durationMinutes, holder, { alreadyHeld = [] } = {}) {
-  const { capacity } = resourceFor(store, mode);
+async function reserve(store, mode, date, time, durationMinutes, holder, { alreadyHeld = [], practitioner } = {}) {
+  const { capacity } = resourceFor(store, mode, practitioner);
   // Moving a session by a little: keys it already holds aren't taken twice.
   const skip = new Set(alreadyHeld);
-  const slots = slotKeysFor(store, mode, date, time, durationMinutes).filter((s) => !skip.has(s.key));
+  const all = slotKeysFor(store, mode, date, time, durationMinutes, practitioner);
+  const slots = all.filter((s) => !skip.has(s.key));
   const held = [];
   try {
     for (const s of slots) {
@@ -107,7 +144,7 @@ async function reserve(store, mode, date, time, durationMinutes, holder, { alrea
       }
       held.push(s.key);
     }
-    return [...held, ...slotKeysFor(store, mode, date, time, durationMinutes).map((s) => s.key).filter((k) => skip.has(k))];
+    return [...held, ...all.map((s) => s.key).filter((k) => skip.has(k))];
   } catch (err) {
     await release(held, holder);
     throw err;
@@ -121,25 +158,54 @@ async function release(keys, holder) {
   }
 }
 
+/** Keys that are full on these dates (and the day after, for night shifts). */
+async function fullKeys(store, dates) {
+  const span = [...new Set(dates.flatMap((d) => [d, addDays(d, 1)]))];
+  const people = [store.format === 'SOLO' ? String(store.owner) : null, ...practitionersOf(store)].filter(Boolean).map((p) => `person:${p}`);
+  const rows = await SlotReservation.find({
+    date: { $in: span },
+    $or: [{ store: store._id }, ...(people.length ? [{ resource: { $in: people } }] : [])],
+    $expr: { $gte: ['$count', '$capacity'] }
+  }).select('key').lean();
+  return new Set(rows.map((r) => r.key));
+}
+
 /**
- * Free start times per day for a session of `durationMinutes`.
+ * The first named professional free at `time` on ALL of `dates` (so the same
+ * person comes every time), 'POOL' for shops without named assignment when
+ * there's room, or null when nobody is free.
+ */
+async function freePractitioner(store, mode, dates, time, durationMinutes) {
+  const full = await fullKeys(store, dates);
+  const people = assignsPractitioner(store, mode) ? practitionersOf(store) : [null];
+  for (const p of people) {
+    const ok = dates.every((d) => !slotKeysFor(store, mode, d, time, durationMinutes, p).some((s) => full.has(s.key)));
+    if (ok) return p || 'POOL';
+  }
+  return null;
+}
+
+/**
+ * Free start times per day for a session of `durationMinutes`. For shops that
+ * assign a named professional, a time is free when at least one of them is.
  * @returns {Array<{date, times: string[]}>}
  */
 async function availability(store, mode, durationMinutes, { from, days = 7, step = 30, now = Date.now() } = {}) {
   const span = Math.min(Math.max(1, Number(days) || 7), 31);
   const start = from && /^\d{4}-\d{2}-\d{2}$/.test(from) && from > todayIst(now) ? from : todayIst(now);
   const dates = Array.from({ length: span }, (_, i) => addDays(start, i));
-  const { capacity } = resourceFor(store, mode);
-  const rows = await SlotReservation.find({ store: store._id, date: { $in: dates }, count: { $gte: capacity } }).select('key').lean();
-  const full = new Set(rows.map((r) => r.key));
+  const full = await fullKeys(store, dates);
+  const people = assignsPractitioner(store, mode) ? practitionersOf(store) : [null];
   return dates.map((date) => {
     const times = [];
     if (!onLeave(store, date)) {
       for (const [open, close] of rangesFor(store, mode, date)) {
-        for (let m = Math.ceil(open / step) * step; m + durationMinutes <= close; m += step) {
+        // Night shifts may start late and run past midnight (fitsHours checks the rest).
+        const last = close === 1440 ? 1440 - step : close - durationMinutes;
+        for (let m = Math.ceil(open / step) * step; m <= last; m += step) {
           const time = toHHMM(m);
           if (bookabilityProblem(store, mode, date, time, durationMinutes, now)) continue;
-          if (slotKeysFor(store, mode, date, time, durationMinutes).some((s) => full.has(s.key))) continue;
+          if (!people.some((p) => !slotKeysFor(store, mode, date, time, durationMinutes, p).some((s) => full.has(s.key)))) continue;
           times.push(time);
         }
       }
@@ -165,6 +231,9 @@ function planDates({ startDate, weekdays, sessions, untilDate, store }) {
 
 module.exports = {
   GRID,
+  practitionersOf,
+  assignsPractitioner,
+  freePractitioner,
   resourceFor,
   rangesFor,
   fitsHours,

@@ -11,7 +11,7 @@
 
 const mongoose = require('mongoose');
 
-const SOURCE_KINDS = ['PHARMACY_ORDER', 'CARE_BOOKING', 'MEMBERSHIP'];
+const SOURCE_KINDS = ['PHARMACY_ORDER', 'CARE_BOOKING', 'MEMBERSHIP', 'LAB_ORDER'];
 const PARTY_KINDS = ['PLATFORM', 'VENDOR', 'PROVIDER'];
 // CASH_COLLECTED: a partner took the customer's cash (pay after visit / COD).
 // It is netted against what we owe them; if it's more, they owe us.

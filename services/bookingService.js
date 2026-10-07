@@ -855,6 +855,18 @@ class BookingService {
     const set = { status: newStatus };
     if (newStatus === 'IN_PROGRESS') {
       set['actualService.startTime'] = now;
+      // Arrival check: a home visit started far from the booked address is
+      // flagged for ops (wrong pin to pay less travel, or the wrong house).
+      const booked = booking.serviceLocation && booking.serviceLocation.type === 'HOME' && booking.serviceLocation.address && booking.serviceLocation.address.coordinates;
+      const lat = Number(extra.lat);
+      const lng = Number(extra.lng);
+      if (booked && Number.isFinite(booked.lat) && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+        const km = haversineKm({ lat, lng }, booked);
+        if (km > 2) {
+          set.flagged = true;
+          set.flagReason = `Visit started ${km.toFixed(1)} km from the booked address`;
+        }
+      }
     } else if (newStatus === 'COMPLETED') {
       if (!booking.actualService || !booking.actualService.startTime) {
         throw new ValidationError('Cannot complete booking without a start time. Ensure booking was marked IN_PROGRESS first.');

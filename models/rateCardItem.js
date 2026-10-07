@@ -21,7 +21,10 @@ const RateCardItemSchema = new mongoose.Schema({
     enabled: { type: Boolean, default: false },
     price: { type: Number, min: 0, max: 1000000 }
   },
-  durationMinutes: { type: Number, default: 45, min: 10, max: 480 },
+  // Session or shift length (home care shifts up to 24 h).
+  durationMinutes: { type: Number, default: 45, min: 10, max: 1440 },
+  // Live-in home care: the caregiver stays, so travel is charged once per booking.
+  liveIn: { type: Boolean, default: false },
 
   // "10% off from 10 sessions" — only for plans paid upfront.
   sessionDiscounts: [{
@@ -34,6 +37,17 @@ const RateCardItemSchema = new mongoose.Schema({
   lab: {
     reportHours: { type: Number, min: 1, max: 720 },
     homeCollection: { type: Boolean, default: false }
+  },
+
+  // Offer badge, funded by the shop: % off a new customer's first session,
+  // capped. Live only after an admin approves it (docs/product/ADMIN_AND_ADS_GUIDE.md).
+  offer: {
+    percent: { type: Number, min: 5, max: 50 },
+    maxDiscount: { type: Number, min: 1, max: 5000 },
+    status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'] },
+    reason: { type: String, maxlength: 200 },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reviewedAt: Date
   },
 
   // An admin may allow a price outside the catalog's floor/ceiling (e.g. a senior sports physio).

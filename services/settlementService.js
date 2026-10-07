@@ -69,6 +69,33 @@ async function recordCareBooking(booking) {
   }
 }
 
+/**
+ * A lab order with its report delivered: the lab earns the tests minus Nabz's
+ * commission, plus the full home-collection fee.
+ */
+async function recordLabOrder(order, labUserId) {
+  try {
+    const policy = require('../config/revenue').getRevenuePolicy().care.lab;
+    const tests = pricing.round2(order.amounts && order.amounts.testsSubtotal);
+    const collection = order.amounts && order.amounts.collectionWaived ? 0 : pricing.round2(order.amounts && order.amounts.collectionFee);
+    const commission = pricing.round2(tests * policy.commissionRate);
+    const occurredAt = new Date();
+    const source = { kind: 'LAB_ORDER', id: order._id, ref: 'LAB' };
+    const cash = order.payment && order.payment.status === 'PAID' && ['CASH', 'UPI'].includes(order.payment.method) && order.payment.collectedBy
+      ? [{ source, party: { kind: 'PROVIDER', id: labUserId }, type: 'CASH_COLLECTED', amount: pricing.round2(order.payment.amount || 0), occurredAt }]
+      : [];
+    return await insertIdempotent([
+      ...cash,
+      { source, party: { kind: 'PROVIDER', id: labUserId }, type: 'PROVIDER_PAYOUT', amount: pricing.round2(tests - commission + collection), basis: tests, rate: policy.commissionRate, occurredAt },
+      { source, party: { kind: 'PLATFORM' }, type: 'COMMISSION', amount: commission, basis: tests, rate: policy.commissionRate, occurredAt, status: 'PAID' },
+      { source, party: { kind: 'PLATFORM' }, type: 'PLATFORM_FEE', amount: pricing.round2(order.amounts && order.amounts.platformFee), occurredAt, status: 'PAID' }
+    ], { labOrderId: String(order._id) });
+  } catch (err) {
+    logger.error('Lab settlement recording failed', { labOrderId: String(order && order._id), error: err.message });
+    return 0;
+  }
+}
+
 /** Late cancellation: the nurse is paid for the trip (the customer's next bill carries it). */
 async function recordCareCancellationFee(booking, fee) {
   try {
@@ -180,6 +207,7 @@ module.exports = {
   recordPharmacyOrder,
   recordCareBooking,
   recordCareCancellationFee,
+  recordLabOrder,
   recordMembership,
   getSummary,
   getPendingPayouts

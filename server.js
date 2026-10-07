@@ -143,6 +143,8 @@ async function startServer(options = {}) {
 
   if (config.connectDatabase) {
     await connectDB({ failFast: true });
+    // Fees and ad settings changed in the admin panel (falls back to config defaults).
+    await require('./services/settingsService').loadRevenueOverrides().catch((err) => logger.warn('Admin settings not loaded; using defaults', { error: err.message }));
   }
 
   server = await new Promise((resolve, reject) => {

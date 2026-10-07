@@ -296,7 +296,7 @@ describe('Care marketplace (real MongoDB)', () => {
       expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
       expect(results.find((r) => r.status === 409).body.code).toBe('SLOT_TAKEN');
       const date = ist(4);
-      const row = await SlotReservation.findOne({ key: `${storeA._id}|PRACTITIONER|${date}|15:00` }).lean();
+      const row = await SlotReservation.findOne({ key: `person:${physioA._id}|${date}|15:00` }).lean();
       expect(row.count).toBe(1);
     });
 
@@ -351,9 +351,9 @@ describe('Care marketplace (real MongoDB)', () => {
       const res = await api('put', `/sessions/${sessions[0]._id}/schedule`, 'p1', { date: ist(8), time: '17:00' });
       expect(res.status).toBe(200);
       expect(res.body.session).toMatchObject({ scheduledTime: '17:00', status: 'CONFIRMED' });
-      const old = await SlotReservation.findOne({ key: `${storeA._id}|PRACTITIONER|${ist(8)}|12:00` }).lean();
+      const old = await SlotReservation.findOne({ key: `person:${physioA._id}|${ist(8)}|12:00` }).lean();
       expect(old.count).toBe(0);
-      const newer = await SlotReservation.findOne({ key: `${storeA._id}|PRACTITIONER|${ist(8)}|17:00` }).lean();
+      const newer = await SlotReservation.findOne({ key: `person:${physioA._id}|${ist(8)}|17:00` }).lean();
       expect(newer.count).toBe(1);
     });
 

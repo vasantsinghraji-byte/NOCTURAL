@@ -283,7 +283,7 @@ exports.startService = async (req, res, next) => {
       req.user.id,
       'Service started',
       req.user.role,
-      { visitCode: req.body && req.body.visitCode }
+      { visitCode: req.body && req.body.visitCode, lat: req.body && req.body.lat, lng: req.body && req.body.lng }
     );
 
     responseHelper.sendSuccess(res, { booking }, 'Service started successfully');
