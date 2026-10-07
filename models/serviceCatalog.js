@@ -21,7 +21,7 @@ const ServiceCatalogSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['NURSING', 'PHYSIOTHERAPY', 'PACKAGE'],
+    enum: ['NURSING', 'PHYSIOTHERAPY', 'PACKAGE', 'LAB_TEST', 'LAB_PACKAGE'],
     required: true
   },
   subCategory: String, // Injection Services, Wound Care, Pain Management, etc.
@@ -89,6 +89,28 @@ const ServiceCatalogSchema = new mongoose.Schema({
       end: String    // "22:00"
     },
     availableDays: [String] // Mon, Tue, Wed, etc.
+  },
+
+  // Care marketplace (docs/product/PROVIDER_MARKETPLACE_PLAN.md): each shop
+  // sets its own price inside this band on its rate card.
+  marketplace: {
+    kind: { type: String, enum: ['PHYSIO', 'LAB', 'NURSING'] },
+    priceFloor: Number,
+    priceCeiling: Number,
+    homeAllowed: { type: Boolean, default: true },
+    clinicAllowed: { type: Boolean, default: true },
+    defaultDurationMinutes: Number,
+    // The visit's serviceType for sessions of this service.
+    bookingServiceType: String
+  },
+
+  // Lab tests and checkup packages.
+  lab: {
+    sampleType: String,
+    fastingHours: Number, // > 0: morning collection only
+    homeCollectable: { type: Boolean, default: true },
+    defaultReportHours: Number,
+    tests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ServiceCatalog' }] // packages
   },
 
   // Requirements
@@ -191,6 +213,7 @@ const ServiceCatalogSchema = new mongoose.Schema({
 ServiceCatalogSchema.index({ category: 1, 'availability.isActive': 1 });
 ServiceCatalogSchema.index({ 'availability.availableCities': 1 });
 ServiceCatalogSchema.index({ isFeatured: 1, isPopular: 1 });
+ServiceCatalogSchema.index({ 'marketplace.kind': 1, 'availability.isActive': 1 });
 ServiceCatalogSchema.index({ 'stats.totalBookings': -1 });
 
 module.exports = mongoose.models.ServiceCatalog || mongoose.model('ServiceCatalog', ServiceCatalogSchema);

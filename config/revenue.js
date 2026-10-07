@@ -43,8 +43,32 @@ function loadRevenuePolicy() {
       providerCommissionRate: num('REVENUE_CARE_PROVIDER_COMMISSION_RATE', 0.20, { max: 1 }),
       // Monthly volume tiers (reset each calendar month, IST). See docs/NABZ_REVENUE_MODEL.md.
       commissionTiers: parseTiers(process.env.REVENUE_CARE_COMMISSION_TIERS || '10:0.20,30:0.15,0:0.12'),
-      memberFeeWaived: process.env.REVENUE_CARE_MEMBER_FEE_WAIVED !== 'false'
+      memberFeeWaived: process.env.REVENUE_CARE_MEMBER_FEE_WAIVED !== 'false',
+      // Marketplace home visits (docs/product/PROVIDER_MARKETPLACE_PLAN.md): each
+      // provider picks a ₹/km inside the band; Nabz measures the distance.
+      travel: Object.freeze({
+        minRatePerKm: num('REVENUE_TRAVEL_MIN_RATE_PER_KM', 10),
+        maxRatePerKm: num('REVENUE_TRAVEL_MAX_RATE_PER_KM', 15),
+        minFee: num('REVENUE_TRAVEL_MIN_FEE', 30),
+        // Straight line × this ≈ road distance until a maps service is connected.
+        roadFactor: num('REVENUE_TRAVEL_ROAD_FACTOR', 1.3, { min: 1, max: 3 }),
+        maxRadiusKm: num('REVENUE_TRAVEL_MAX_RADIUS_KM', 25, { min: 1, max: 100 })
+      }),
+      plan: Object.freeze({
+        maxSessions: num('REVENUE_PLAN_MAX_SESSIONS', 30, { min: 1, max: 100 }),
+        // A plan must be used within sessions × this many weeks (at least minWeeks).
+        weeksPerSession: num('REVENUE_PLAN_WEEKS_PER_SESSION', 2, { min: 1, max: 8 }),
+        minWeeks: num('REVENUE_PLAN_MIN_WEEKS', 4, { min: 1, max: 52 }),
+        quoteMinutes: num('REVENUE_QUOTE_MINUTES', 15, { min: 1, max: 120 }),
+        // Prepaid plans not paid within this long free their slots.
+        paymentHoldMinutes: num('REVENUE_PLAN_PAYMENT_HOLD_MINUTES', 20, { min: 5, max: 240 })
+      })
     }),
+
+    // Health care by physios and labs is usually GST-exempt (notification
+    // 12/2017, entry 74): then only the Nabz fee is taxed. Off until the CA
+    // confirms; while off, GST applies to the whole bill as before.
+    gstHealthcareExempt: process.env.REVENUE_GST_HEALTHCARE_EXEMPT === 'true',
 
     // Pharmacy orders. The store keeps items minus commission; the delivery fee
     // (with surge / night surcharge) is platform revenue that funds riders.

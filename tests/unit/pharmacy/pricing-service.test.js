@@ -82,7 +82,7 @@ describe('pricingService', () => {
 
     it('care: provider keeps base minus 20%, platform keeps commission + fee', () => {
       expect(pricing.splitCareBooking({ pricing: { basePrice: 299, platformFee: 44.85 } })).toEqual({
-        commissionRate: 0.2, basePrice: 299, commission: 59.8, providerPayout: 239.2, platformFee: 44.85
+        commissionRate: 0.2, basePrice: 299, commission: 59.8, travelFee: 0, providerPayout: 239.2, platformFee: 44.85
       });
     });
 

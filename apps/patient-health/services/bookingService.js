@@ -40,6 +40,9 @@ const commissionService = require('@nocturnal/shared').commissionService;
 const staffAvailabilityService = require('@nocturnal/shared').staffAvailabilityService;
 const dispatchService = require('@nocturnal/shared').dispatchService;
 const crypto = require('crypto');
+// Marketplace sessions (a shop the customer chose) settle through their plan.
+const lazyPlans = () => require('./carePlanService');
+const isMarketplace = (booking) => Boolean(booking && booking.marketplace && booking.marketplace.plan);
 const { normalizeObjectId, nullProtoObject, setSafeField } = require('@nocturnal/shared').safeMongo;
 
 const ALLOWED_BOOKING_FILTERS = new Set(['patient', 'serviceProvider', 'status', 'serviceType', 'payment.status']);
@@ -1033,6 +1036,7 @@ class BookingService {
 
     // Book the provider's payout, our commission and the platform fee.
     await settlementService.recordCareBooking(completedBooking);
+    if (isMarketplace(completedBooking)) await lazyPlans().onSessionClosed(completedBooking);
 
     // First completed visit of a referred customer / partner rewards whoever referred them.
     try {
@@ -1270,6 +1274,7 @@ class BookingService {
     await booking.save();
 
     await this.syncProviderReviewStatsIfNeeded(booking.serviceProvider, previousRating, booking.rating);
+    if (isMarketplace(booking)) await lazyPlans().syncStoreRating(booking.marketplace.store).catch(() => undefined);
 
     // Invalidate cache
     await invalidateCache('*:/api/bookings*');
@@ -1321,6 +1326,7 @@ class BookingService {
 
     await booking.save();
     await this.syncProviderReviewStatsIfNeeded(booking.serviceProvider, previousRating, booking.rating);
+    if (isMarketplace(booking)) await lazyPlans().syncStoreRating(booking.marketplace.store).catch(() => undefined);
     await invalidateCache('*:/api/bookings*');
 
     logger.info('Booking Review Updated', {
@@ -1365,6 +1371,7 @@ class BookingService {
 
     await booking.save();
     await this.syncProviderReviewStatsIfNeeded(booking.serviceProvider, previousRating, booking.rating);
+    if (isMarketplace(booking)) await lazyPlans().syncStoreRating(booking.marketplace.store).catch(() => undefined);
     await invalidateCache('*:/api/bookings*');
 
     logger.info('Booking Review Deleted', {
@@ -1438,6 +1445,7 @@ class BookingService {
       await this.notifyUser(cancelled.serviceProvider, 'User', 'Visit cancelled', `The customer cancelled the ${String(cancelled.serviceType).replace(/_/g, ' ').toLowerCase()} visit.${quote.fee > 0 ? ` You'll be paid ₹${quote.fee} for the trip.` : ''}`, cancelled._id);
     }
     booking = cancelled;
+    if (isMarketplace(cancelled)) await lazyPlans().onSessionClosed(cancelled);
 
     // Release the linked supplies order (restocks the pharmacy) if it isn't packed yet.
     await careSuppliesService.cancelSuppliesForBooking(booking, `Home-care visit cancelled: ${reason || 'no reason given'}`);
@@ -1514,6 +1522,8 @@ class BookingService {
     const now = new Date();
     const booking = await NurseBooking.findById(bookingId);
     if (!booking) throw new NotFoundError('Booking', bookingId);
+    // The customer chose this provider: the session waits for the customer, not dispatch.
+    if (isMarketplace(booking)) return lazyPlans().onProviderReleased(booking, providerId, reason);
     const start = visitPolicy.visitStart(booking) || now;
     const soon = start.getTime() - now.getTime() <= dispatchService.SCHEDULE_LEAD_MS;
     const released = await NurseBooking.findOneAndUpdate(
@@ -1618,6 +1628,8 @@ class BookingService {
     const safePatientId = normalizeObjectId(patientId, 'patient id');
     const sessions = await NurseBooking.find({ 'series.id': String(seriesId), patient: safePatientId }).lean();
     if (!sessions.length) throw new NotFoundError('Package');
+    // A marketplace plan's price belongs to its shop: another provider means another plan.
+    if (isMarketplace(sessions[0])) throw new ValidationError('To change provider, cancel the remaining sessions (unused ones are refunded) and book the new provider.');
     let chosen = null;
     if (newProviderId) {
       const pro = await User.findOne({ _id: normalizeObjectId(newProviderId, 'professional id'), isActive: { $ne: false }, ...visitPolicy.VERIFIED_FILTER }).select('_id').lean();
@@ -1706,6 +1718,10 @@ class BookingService {
     const booking = await NurseBooking.findById(safeBookingId).lean();
     if (!booking) throw new NotFoundError('Booking', bookingId);
     if (String(booking.patient) !== String(safePatientId)) throw new AuthorizationError('Not your booking');
+    if (isMarketplace(booking)) {
+      const date = new Date(scheduledDate).toISOString().slice(0, 10);
+      return lazyPlans().rescheduleSession(safePatientId, safeBookingId, { date, time: scheduledTime });
+    }
     if (booking.status !== 'REQUESTED' || booking.serviceProvider) {
       throw new ValidationError('Only visits that no nurse has taken yet can be moved');
     }

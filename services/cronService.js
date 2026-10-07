@@ -67,6 +67,7 @@ async function runTick(now = new Date()) {
   await step('careRefundOutbox', () => require('./paymentService').processRefundOutboxBatch(), results);
   await step('campaignPush', () => require('./campaignService').sendDuePushes(), results);
   await step('partnerDocumentExpiry', () => require('./partnerVerificationService').sweepExpiry(), results);
+  await step('carePlans', () => require('./carePlanService').sweep(), results);
   const failed = Object.values(results).filter((r) => !r.ok).length;
   await JobLease.updateOne({ name: LEASE_NAME, owner: OWNER }, {
     $set: {

@@ -154,8 +154,22 @@ const NurseBookingSchema = new mongoose.Schema({
     jobOfMonth: Number,
     at: Date
   },
+  // Marketplace session: the shop the customer chose, its plan, and the
+  // slots it holds (careSlotService). Absent for dispatch-matched visits.
+  marketplace: {
+    store: { type: mongoose.Schema.Types.ObjectId, ref: 'CareStore' },
+    plan: { type: mongoose.Schema.Types.ObjectId, ref: 'CarePlan' },
+    rateCardItem: { type: mongoose.Schema.Types.ObjectId, ref: 'RateCardItem' },
+    mode: { type: String, enum: ['HOME', 'CLINIC'] },
+    slotKeys: [{ type: String }],
+    travel: {
+      roadKm: Number,
+      ratePerKm: Number
+    }
+  },
   pricing: {
     basePrice: Number, // Service charge
+    travelFee: Number, // marketplace home visits: paid in full to the provider
     platformFee: Number, // Our commission
     gst: Number,
     discount: Number,
@@ -423,6 +437,8 @@ NurseBookingSchema.index({ 'dispatch.status': 1, 'dispatch.offerExpiresAt': 1 })
 NurseBookingSchema.index({ 'dispatch.offeredTo': 1, 'dispatch.status': 1 });
 NurseBookingSchema.index({ shareToken: 1 }, { unique: true, sparse: true });
 NurseBookingSchema.index({ dedupeKey: 1 }, { unique: true, sparse: true });
+NurseBookingSchema.index({ 'marketplace.plan': 1 }, { sparse: true });
+NurseBookingSchema.index({ 'marketplace.store': 1, scheduledDate: 1 }, { sparse: true });
 
 // Pre-save hook to set timestamps
 NurseBookingSchema.pre('save', function() {

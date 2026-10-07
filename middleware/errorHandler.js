@@ -50,11 +50,16 @@ const errorHandler = (err, req, res, _next) => {
   if (status >= 500) logger.error('Unhandled middleware error', { ...logMeta, stack: err.stack });
   else logger.info('Request refused', logMeta);
 
+  // A refusal the apps can act on (e.g. PRICE_CHANGED with the new quote).
+  // Only string codes and details a service marked public are sent, never for 5xx.
+  const actionable = status < 500 && typeof err.code === 'string' && /^[A-Z_]{3,40}$/.test(err.code);
   res.status(status).json({
     success: false,
     // WARNING: never send internal error text for a 500 (it can reveal code
     // paths or data). The detail is in the log above.
-    message: status >= 500 ? 'Something went wrong. Please try again.' : (error.message || 'Request refused')
+    message: status >= 500 ? 'Something went wrong. Please try again.' : (error.message || 'Request refused'),
+    ...(actionable ? { code: err.code } : {}),
+    ...(actionable && err.publicDetails ? { details: err.publicDetails } : {})
   });
 };
 

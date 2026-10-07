@@ -30,6 +30,7 @@ const patientRoutes = require('../patient');
 const bookingRoutes = require('../booking');
 const pharmacyRoutes = require('../pharmacy');
 const careRoutes = require('../care');
+const careMarketplaceRoutes = require('../careMarketplace');
 const membershipRoutes = require('../membership');
 const revenueRoutes = require('../revenue');
 const socialAuthRoutes = require('../socialAuth');
@@ -102,6 +103,7 @@ router.use('/bookings', bookingRoutes);
 // MedRush pharmacy-vendor marketplace (public browse + patient/vendor/admin)
 router.use('/pharmacy', pharmacyRoutes);
 router.use('/care', careRoutes);
+router.use('/marketplace', careMarketplaceRoutes);
 router.use('/membership', membershipRoutes);
 router.use('/auth/social', socialAuthRoutes);
 router.use('/auth/admin-mfa', adminMfaRoutes);
