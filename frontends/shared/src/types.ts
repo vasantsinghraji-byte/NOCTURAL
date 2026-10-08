@@ -155,6 +155,69 @@ export interface InventoryBatch {
   statusReason?: string;
 }
 
+// ── Pharmacy store management (owner side) ──────────────────────────────
+export type StoreDay = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
+export interface StoreHours { day: StoreDay; open?: string; close?: string; isClosed?: boolean }
+
+export interface StoreProfile {
+  name: string;
+  address?: { line1?: string; line2?: string; city?: string; state?: string; pincode?: string };
+  status: string;
+  isOpen: boolean;
+  /** Open switch on, not paused by Nabz, and inside today's hours. */
+  openNow: boolean;
+  pausedUntil: string | null;
+  pauseReason: string | null;
+  operatingHours: StoreHours[];
+  serviceRadiusKm: number;
+  deliveryFee: number;
+  minOrderValue: number;
+  avgPreparationMinutes: number;
+  acceptsPrescriptionOrders: boolean;
+  contactPhone: string;
+  contactEmail: string;
+  rating: { average: number; count: number };
+  commissionPercentage?: number;
+}
+
+export type StoreProfileUpdate = Partial<Pick<StoreProfile,
+  'isOpen' | 'operatingHours' | 'serviceRadiusKm' | 'deliveryFee' | 'minOrderValue' | 'avgPreparationMinutes' | 'acceptsPrescriptionOrders' | 'contactPhone' | 'contactEmail'>>;
+
+export interface StoreToday {
+  shop: StoreProfile;
+  orders: { new: number; inProgress: number; deliveredToday: number; cancelledToday: number };
+  sales: { today: number; yesterday: number };
+  stock: { listed: number; hidden: number; out: number; low: number; expiringBatches: number; pulledBatches: number };
+  acceptanceRate: number | null;
+}
+
+export type StockFilter = 'all' | 'low' | 'out' | 'expiring' | 'hidden';
+
+export interface StoreStockItem {
+  _id: string;
+  medicine: Pick<Medicine, '_id' | 'name' | 'genericName' | 'manufacturer' | 'packSize' | 'form' | 'strength' | 'scheduleType' | 'requiresPrescription'>;
+  mrp: number;
+  sellingPrice: number;
+  discountPercentage?: number;
+  stockQty: number;
+  lowStockThreshold?: number;
+  isAvailable: boolean;
+  expiryDate?: string;
+  stockUpdatedAt?: string;
+  low: boolean;
+  batchSummary: { count: number; nextExpiry: string | null; expiringQty: number; pulledQty: number } | null;
+}
+
+export interface StoreEarningsOrder { orderId: string; ref?: string; date: string; sales: number; commission: number; payout: number; cash: number; rate: number | null; status: 'PENDING' | 'PAID' }
+
+export interface StoreEarnings {
+  days: number;
+  from: string;
+  totals: { orders: number; sales: number; commission: number; payout: number; cashCollected: number; paidOut: number };
+  daily: Array<{ date: string; sales: number; payout: number; orders: number }>;
+  orders: StoreEarningsOrder[];
+}
+
 export interface InventoryImport {
   _id: string;
   createdAt: string;

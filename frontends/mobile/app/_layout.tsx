@@ -67,7 +67,7 @@ export default function RootLayout() {
             {/* Partner app (Nabz Partner build) */}
             <Stack.Screen name="partner" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="partner-apply" options={{ title: 'Join Nabz Partner' }} />
-            <Stack.Screen name="vendor" options={{ title: 'Store orders', headerBackVisible: false }} />
+            <Stack.Screen name="store-settings" options={{ headerShown: false }} />
             <Stack.Screen name="(partner)" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="partner-account" options={{ headerShown: false }} />
             <Stack.Screen name="verification" options={{ headerShown: false }} />

@@ -85,7 +85,26 @@ const inventoryValidation = [
   body('mrp').notEmpty().isFloat({ min: 0 }),
   body('sellingPrice').notEmpty().isFloat({ min: 0 }),
   body('stockQty').optional().isInt({ min: 0 }),
-  body('isAvailable').optional().isBoolean()
+  body('isAvailable').optional().isBoolean(),
+  body('lowStockThreshold').optional().isInt({ min: 0, max: 1000 })
+];
+
+// Shop settings the owner can change (the service also allow-lists the keys).
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const vendorProfileValidation = [
+  body('isOpen').optional().isBoolean(),
+  body('acceptsPrescriptionOrders').optional().isBoolean(),
+  body('operatingHours').optional().isArray({ max: 7 }),
+  body('operatingHours.*.day').optional().isIn(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']),
+  body('operatingHours.*.open').optional({ values: 'falsy' }).matches(HHMM).withMessage('Opening time must look like 09:00'),
+  body('operatingHours.*.close').optional({ values: 'falsy' }).matches(HHMM).withMessage('Closing time must look like 21:00'),
+  body('operatingHours.*.isClosed').optional().isBoolean(),
+  body('serviceRadiusKm').optional().isFloat({ min: 0.5, max: 20 }).withMessage('Delivery distance must be 0.5 to 20 km'),
+  body('deliveryFee').optional().isFloat({ min: 0, max: 200 }).withMessage('Delivery fee must be ₹0 to ₹200'),
+  body('minOrderValue').optional().isFloat({ min: 0, max: 5000 }).withMessage('Minimum order must be ₹0 to ₹5000'),
+  body('avgPreparationMinutes').optional().isInt({ min: 5, max: 120 }).withMessage('Packing time must be 5 to 120 minutes'),
+  body('contactPhone').optional({ values: 'falsy' }).matches(/^[6-9]\d{9}$/).withMessage('Enter a 10-digit mobile number'),
+  body('contactEmail').optional({ values: 'falsy' }).isEmail().withMessage('Enter a valid email')
 ];
 
 const medicineValidation = [
@@ -217,7 +236,13 @@ router.post('/orders/:id/substitutions/:medicineId', protectPatient, mongoIdPara
     const order = await substitution().respond(req.params.id, req.params.medicineId, req.body.accept === true || req.body.accept === 'true', { patientId: req.user._id || req.user.id });
     res.json({ success: true, order });
   }));
-router.get('/vendor/inventory', protect, authorize('pharmacy_vendor'), ctrl.listInventory);
+router.get('/vendor/inventory', protect, authorize('pharmacy_vendor'),
+  query('q').optional().isString().isLength({ max: 60 }), query('filter').optional().isIn(['all', 'low', 'out', 'expiring', 'hidden']),
+  query('page').optional().isInt({ min: 1 }), query('limit').optional().isInt({ min: 1, max: 100 }), validate, ctrl.listInventory);
+// Store management: the day at a glance, shop settings and the sales statement.
+router.get('/vendor/today', protect, authorize('pharmacy_vendor'), ctrl.vendorToday);
+router.get('/vendor/profile', protect, authorize('pharmacy_vendor'), ctrl.getVendorProfile);
+router.get('/vendor/earnings', protect, authorize('pharmacy_vendor'), query('days').optional().isInt({ min: 1, max: 90 }), validate, ctrl.vendorEarnings);
 router.post('/vendor/inventory/confirm', protect, authorize('pharmacy_vendor'), confirmInventoryValidation, validate, ctrl.confirmInventory);
 router.get('/vendor/inventory/batches', protect, authorize('pharmacy_vendor'), ctrl.listBatches);
 router.post('/vendor/inventory/batches', protect, authorize('pharmacy_vendor'), batchValidation, validate, ctrl.receiveBatch);
@@ -229,7 +254,7 @@ router.post('/vendor/orders/:id/prescription/verify', protect, authorize('pharma
 router.get('/vendor/register/h1', protect, authorize('pharmacy_vendor'), registerValidation, validate, ctrl.vendorH1Register);
 router.get('/vendor/demand', protect, authorize('pharmacy_vendor'), query('days').optional().isInt({ min: 1, max: 90 }), validate, ctrl.vendorDemand);
 router.put('/vendor/inventory', protect, authorize('pharmacy_vendor'), inventoryValidation, validate, ctrl.upsertInventory);
-router.patch('/vendor/profile', protect, authorize('pharmacy_vendor'), ctrl.updateVendorProfile);
+router.patch('/vendor/profile', protect, authorize('pharmacy_vendor'), vendorProfileValidation, validate, ctrl.updateVendorProfile);
 
 // ══ Admin (role: admin / platform_admin) ══════════════════════════════════
 

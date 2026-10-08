@@ -15,6 +15,7 @@ const pharmacyComplianceService = require('../services/pharmacyComplianceService
 const pharmacyCatalogService = require('../services/pharmacyCatalogService');
 const pharmacyStockAlertService = require('../services/pharmacyStockAlertService');
 const pharmacyCheckoutService = require('../services/pharmacyCheckoutService');
+const pharmacyStoreService = require('../services/pharmacyStoreService');
 const responseHelper = require('../utils/responseHelper');
 const storageConfig = require('../config/storage');
 const { AuthorizationError } = require('../utils/errors');
@@ -282,7 +283,7 @@ exports.upsertInventory = async (req, res, next) => {
 exports.listInventory = async (req, res, next) => {
   try {
     const vendorId = resolveVendorId(req);
-    const { items, pagination } = await pharmacyService.listVendorInventory(vendorId, req.query);
+    const { items, pagination } = await pharmacyStoreService.inventory(vendorId, req.query);
     responseHelper.sendSuccess(res, { items, pagination }, 'Store inventory');
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
@@ -292,7 +293,8 @@ exports.listInventory = async (req, res, next) => {
 exports.updateVendorProfile = async (req, res, next) => {
   try {
     const vendorId = resolveVendorId(req);
-    const vendor = await pharmacyService.updateVendorProfile(vendorId, req.body);
+    await pharmacyService.updateVendorProfile(vendorId, req.body);
+    const vendor = await pharmacyStoreService.profile(vendorId);
     responseHelper.sendSuccess(res, { vendor }, 'Storefront updated');
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
@@ -501,4 +503,18 @@ exports.createSplitCheckout = wrap(async (req, res) => {
 exports.getCheckout = wrap(async (req, res) => {
   const result = await pharmacyCheckoutService.getCheckout(patientIdOf(req), req.params.id);
   responseHelper.sendSuccess(res, result, 'Checkout');
+});
+
+// ── Store management ──────────────────────────────────────────────────────
+
+exports.vendorToday = wrap(async (req, res) => {
+  responseHelper.sendSuccess(res, { today: await pharmacyStoreService.today(resolveVendorId(req)) }, 'Today');
+});
+
+exports.getVendorProfile = wrap(async (req, res) => {
+  responseHelper.sendSuccess(res, { vendor: await pharmacyStoreService.profile(resolveVendorId(req)) }, 'Shop settings');
+});
+
+exports.vendorEarnings = wrap(async (req, res) => {
+  responseHelper.sendSuccess(res, { earnings: await pharmacyStoreService.earnings(resolveVendorId(req), { days: req.query.days }) }, 'Sales statement');
 });

@@ -7,6 +7,12 @@
  */
 
 import type {
+  StoreProfile,
+  StoreProfileUpdate,
+  StoreToday,
+  StockFilter,
+  StoreStockItem,
+  StoreEarnings,
   PharmacyVendor,
   StorefrontItem,
   Medicine,
@@ -551,14 +557,33 @@ export class MedRushApi {
     return this.request<{ success: true; confirmed: number }>('POST', '/pharmacy/vendor/inventory/confirm', { body: medicineIds ? { medicineIds } : {} });
   }
 
-  vendorListInventory(params: { page?: number; limit?: number } = {}) {
-    return this.request<{ success: true; items: unknown[]; pagination: Pagination }>('GET', '/pharmacy/vendor/inventory', { query: params });
+  /** Store's stock, sorted by name: search by name, salt or maker, and filter. */
+  vendorListInventory(params: { q?: string; filter?: StockFilter; page?: number; limit?: number } = {}) {
+    return this.request<{ success: true; items: StoreStockItem[]; pagination: Pagination }>('GET', '/pharmacy/vendor/inventory', { query: params });
   }
 
   vendorUpsertInventory(body: {
-    medicineId: string; mrp: number; sellingPrice: number; stockQty?: number; isAvailable?: boolean;
+    medicineId: string; mrp: number; sellingPrice: number; stockQty?: number; isAvailable?: boolean; lowStockThreshold?: number;
   }) {
     return this.request<{ success: true; item: unknown }>('PUT', '/pharmacy/vendor/inventory', { body });
+  }
+
+  /** Store home: orders, sales, stock and expiry alerts, open state. */
+  vendorToday() {
+    return this.request<{ success: true; today: StoreToday }>('GET', '/pharmacy/vendor/today');
+  }
+
+  vendorProfile() {
+    return this.request<{ success: true; vendor: StoreProfile }>('GET', '/pharmacy/vendor/profile');
+  }
+
+  vendorUpdateProfile(patch: StoreProfileUpdate) {
+    return this.request<{ success: true; vendor: StoreProfile }>('PATCH', '/pharmacy/vendor/profile', { body: patch });
+  }
+
+  /** Sales statement for the last 1 to 90 days (withdrawals: getPayouts). */
+  vendorEarnings(days = 30) {
+    return this.request<{ success: true; earnings: StoreEarnings }>('GET', '/pharmacy/vendor/earnings', { query: { days } });
   }
 
   // ── Home care: nurse / physio visits ─────────────────────────────────────

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, FlatList, Image, Linking, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { PharmacyOrder, PharmacyRejectionReason } from '@medrush/shared';
 import { api, describeNetworkError, getAuthToken } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -8,6 +9,7 @@ import { C, F } from '@/lib/theme';
 import { notifyLocal, registerForServerPush, requestNotificationPermission } from '@/lib/notifications';
 import { appAlert, appPrompt } from '@/lib/dialog';
 import { UpdatesFeed } from '@/lib/updatesFeed';
+import { useTabBarSpace } from '@/lib/PillTabBar';
 
 const POLL_MS = 10_000;
 
@@ -85,8 +87,11 @@ function RxPanel({ order, busy, onVerify }: {
   );
 }
 
+/** Orders tab of a pharmacy store: new orders ring in, then accept, pack and hand over. */
 export default function VendorOrders() {
-  const { session, logout } = useAuth();
+  const { session } = useAuth();
+  const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const [orders, setOrders] = useState<PharmacyOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -221,36 +226,18 @@ export default function VendorOrders() {
     } catch (e) { setError(describeNetworkError(e)); }
   }
 
-  function confirmStock() {
-    appAlert('Confirm stock counts?', 'Tell Nabz your shelf matches the counts in the app. Stores with fresh counts rank higher.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Counts are right',
-        onPress: async () => {
-          try {
-            const res = await api.vendorConfirmInventory();
-            setNotice(`Confirmed ${res.confirmed} item(s).`);
-          } catch (e) {
-            setError(describeNetworkError(e));
-          }
-        }
-      }
-    ]);
-  }
-
   return (
     <View style={styles.screen}>
+      <View style={[styles.head, { paddingTop: insets.top + 10 }]}>
+        <Text style={styles.title}>Orders</Text>
+        <Text style={styles.headSub}>{orders.filter((o) => o.status === 'PLACED').length} new · {orders.filter((o) => ['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY'].includes(o.status)).length} in progress</Text>
+      </View>
       <View style={styles.banner}>
         <Text style={styles.bannerText}>{pushInfo}</Text>
-        <Pressable onPress={() => notifyLocal('Test alert', 'If you can see and hear this, order alerts work on this phone.')}>
+        <Pressable hitSlop={10} onPress={() => notifyLocal('Test alert', 'If you can see and hear this, order alerts work on this phone.')} accessibilityRole="button">
           <Text style={styles.link}>Test alert</Text>
         </Pressable>
-        <Pressable onPress={() => router.push('/partner-account')}><Text style={styles.link}>My account</Text></Pressable>
-        <Pressable onPress={logout}><Text style={[styles.link, { color: C.roseInk }]}>Log out</Text></Pressable>
       </View>
-      <Pressable style={styles.confirmBar} onPress={confirmStock}>
-        <Text style={styles.confirmText}>Confirm stock counts</Text>
-      </Pressable>
       {error && <Text style={styles.error} onPress={() => setError(null)}>{error}</Text>}
       {notice && <Text style={styles.good} onPress={() => setNotice(null)}>{notice}</Text>}
       {loading ? (
@@ -259,10 +246,10 @@ export default function VendorOrders() {
         <FlatList
           data={orders}
           keyExtractor={(o) => o._id}
-          contentContainerStyle={{ padding: 12, gap: 10 }}
+          contentContainerStyle={{ padding: 12, gap: 10, paddingBottom: tabSpace }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
           ListHeaderComponent={<UpdatesFeed audience="partner" title="Updates from Nabz" />}
-          ListEmptyComponent={<Text style={styles.muted}>No orders yet. Place one from a customer account to test.</Text>}
+          ListEmptyComponent={<Text style={styles.muted}>No orders yet. New orders ring this phone and show up here.</Text>}
           renderItem={({ item: o }) => {
             const busy = busyId === o._id;
             const editable = CAN_EDIT_ITEMS.includes(o.status);
@@ -376,11 +363,12 @@ export default function VendorOrders() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  banner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: 12, backgroundColor: C.brandSoft },
+  head: { paddingHorizontal: 16, paddingBottom: 8, gap: 2 },
+  title: { fontFamily: F.display, fontSize: 28, color: C.ink },
+  headSub: { fontFamily: F.semi, fontSize: 14, color: C.muted },
+  banner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginHorizontal: 12, padding: 12, borderRadius: 14, backgroundColor: C.brandSoft },
   bannerText: { flex: 1, color: C.brandDark, fontSize: 13, fontFamily: F.medium },
   link: { color: C.brand, fontFamily: F.bold },
-  confirmBar: { marginHorizontal: 12, marginTop: 10, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center' },
-  confirmText: { color: C.ink, fontFamily: F.bold },
   error: { backgroundColor: C.roseSoft, color: C.roseInk, padding: 10, margin: 12, marginBottom: 0, borderRadius: 10, fontFamily: F.semi },
   good: { backgroundColor: C.brandSoft, color: C.brandDark, padding: 10, margin: 12, marginBottom: 0, borderRadius: 10, fontFamily: F.semi },
   card: { backgroundColor: C.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border, gap: 4 },

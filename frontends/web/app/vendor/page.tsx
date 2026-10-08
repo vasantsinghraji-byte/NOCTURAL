@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import type { AuthUser, PharmacyOrder, PharmacyOrderStatus, PharmacyRejectionReason, SubstituteOption } from '@medrush/shared';
-import { StockTools } from './StockTools';
+import { VendorNav } from './VendorShell';
 import UpdatesFeed from '../_components/UpdatesFeed';
 import { Modal, confirmDialog, promptDialog } from '../_components/Dialog';
 
@@ -184,16 +184,6 @@ export default function VendorDashboard() {
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not load substitutes'); }
   }
 
-  async function confirmStock() {
-    if (!(await confirmDialog({ title: 'Confirm your stock counts?', message: 'Confirm your shelf matches the counts in Nabz. Stores with fresh counts rank higher.', confirmLabel: 'Confirm counts' }))) return;
-    try {
-      const res = await api.vendorConfirmInventory();
-      setNotice(`Confirmed ${res.confirmed} item(s).`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not confirm stock');
-    }
-  }
-
   if (checking) return <p className="muted" style={{ marginTop: 20 }}>Checking session…</p>;
 
   if (!user || user.role !== 'pharmacy_vendor') {
@@ -224,10 +214,10 @@ export default function VendorDashboard() {
           </div>
         </Modal>
       )}
+      <VendorNav />
       <div className="row" style={{ marginTop: 16, flexWrap: 'wrap' }}>
         <div className="section-title" style={{ margin: 0 }}>{user.name}: orders</div>
         <div className="row" style={{ gap: 8 }}>
-          <button className="btn secondary" onClick={confirmStock}>Confirm stock counts</button>
           <button className="btn secondary" onClick={loadOrders}>Refresh</button>
           <Link href="/partner/verification" className="btn secondary">Documents</Link>
           <Link href="/partner/account" className="btn secondary">My account</Link>
@@ -335,7 +325,6 @@ export default function VendorDashboard() {
         })}
       </div>
 
-      <StockTools />
     </>
   );
 }

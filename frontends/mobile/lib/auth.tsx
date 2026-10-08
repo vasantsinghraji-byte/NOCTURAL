@@ -10,8 +10,8 @@ export type AccountKind = 'patient' | 'staff' | 'pharmacy' | 'lab' | 'rider';
 export const STAFF_ROLES = ['nurse', 'physiotherapist', 'medical_staff'];
 
 /** Where each role lands after login. */
-export function homeForRole(role: string): '/' | '/vendor' | '/staff' | '/lab' | '/rider' {
-  if (role === 'pharmacy_vendor') return '/vendor';
+export function homeForRole(role: string): '/' | '/store' | '/staff' | '/lab' | '/rider' {
+  if (role === 'pharmacy_vendor') return '/store';
   if (role === 'delivery_partner') return '/rider';
   if (STAFF_ROLES.includes(role)) return '/staff';
   if (role === 'lab_partner' || role === 'phlebotomist') return '/lab';

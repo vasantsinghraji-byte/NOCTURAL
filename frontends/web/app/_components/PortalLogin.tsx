@@ -12,7 +12,7 @@ import AdminMfa from './AdminMfa';
 
 const PORTALS: Record<LoginPortal, { icon: LucideIcon; fg: string; title: string; tagline: string; tone: string; next: string }> = {
   staff: { icon: Stethoscope, fg: '#8a5a9e', title: 'Medical staff login', tagline: 'Nurses, physiotherapists & home-care staff', tone: 'var(--violet-soft)', next: '/staff' },
-  pharmacy: { icon: Store, fg: '#2f7d5b', title: 'Pharmacy partner login', tagline: 'Orders, stock and payouts for your store', tone: 'var(--brand-soft)', next: '/vendor' },
+  pharmacy: { icon: Store, fg: '#2f7d5b', title: 'Pharmacy partner login', tagline: 'Orders, stock and payouts for your store', tone: 'var(--brand-soft)', next: '/vendor/today' },
   lab: { icon: FlaskConical, fg: '#b7791f', title: 'Path lab partner login', tagline: 'Sample pickups, reports and lab orders', tone: 'var(--sky-soft)', next: '/lab' },
   rider: { icon: Bike, fg: '#b7791f', title: 'Delivery partner login', tagline: 'Pickups and drops near you', tone: 'var(--amber-soft)', next: '/' },
   admin: { icon: Wrench, fg: '#d9485f', title: 'Admin login', tagline: 'Partners, zones and catalog', tone: 'var(--rose-soft)', next: '/admin' }
