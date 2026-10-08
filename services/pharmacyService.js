@@ -595,6 +595,10 @@ async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note,
   if (!allowed.includes(status)) {
     throw new ConflictError(`Cannot move order from ${order.status} to ${status}`);
   }
+  // Waiting for the customer to answer a suggested substitute: don't pack yet.
+  if (['PREPARING', 'READY_FOR_PICKUP'].includes(status) && require('./pharmacySubstitutionService').hasPending(order)) {
+    throw new ConflictError('Waiting for the customer to accept or decline the substitute (up to 15 minutes)');
+  }
   // A Nabz rider is on it: only they take it out and hand it over.
   if (order.rider && ['OUT_FOR_DELIVERY', 'DELIVERED'].includes(status) && String(order.rider) !== String(actorUserId)) {
     throw new ConflictError('A Nabz rider is assigned to this order and will pick it up');

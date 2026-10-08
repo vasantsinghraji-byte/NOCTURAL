@@ -200,6 +200,27 @@ export default function VendorOrders() {
     ]);
   }
 
+  /** Out of this one but have the same salt from another maker: ask the customer. */
+  async function suggestSubstitute(order: PharmacyOrder, medicineId: string, name: string) {
+    try {
+      const { substitutes } = await api.vendorSubstitutes(order._id, medicineId);
+      const usable = substitutes.filter((x) => x.allowed).slice(0, 4);
+      if (!usable.length) {
+        appAlert('No substitute in stock', substitutes.length
+          ? 'On prepaid orders a substitute can’t cost more than the original. Mark it “Not available” instead.'
+          : `You have no other maker’s ${name} (same salt, strength and form) in stock. Mark it “Not available” instead.`);
+        return;
+      }
+      appAlert(`Substitute for ${name}`, 'The customer sees both side by side and answers within 15 minutes. Its units are held meanwhile.', [
+        ...usable.map((x) => ({
+          text: `${x.name} · ₹${x.lineTotal}${x.difference ? ` (${x.difference < 0 ? '−' : '+'}₹${Math.abs(x.difference)})` : ''}`,
+          onPress: () => run(order._id, () => api.vendorSuggestSubstitute(order._id, { medicineId, substituteId: x.medicineId }), 'Sent to the customer. Pack the rest; this item waits for their answer.')
+        })),
+        { text: 'Cancel', style: 'cancel' as const }
+      ]);
+    } catch (e) { setError(describeNetworkError(e)); }
+  }
+
   function confirmStock() {
     appAlert('Confirm stock counts?', 'Tell Nabz your shelf matches the counts in the app. Stores with fresh counts rank higher.', [
       { text: 'Cancel', style: 'cancel' },
@@ -266,16 +287,26 @@ export default function VendorOrders() {
                     <View key={i} style={styles.itemRow}>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.item, gone && styles.itemGone]}>{it.quantity} × {it.name}</Text>
+                        {it.substitutedFrom ? <Text style={styles.batch}>Substitute for {it.substitutedFrom.name} (customer agreed)</Text> : null}
                         {!gone && it.batches && it.batches.length > 0 && (
                           <Text style={styles.batch}>
                             Pick: {it.batches.map((b) => `${b.batchNumber} ×${b.quantity} (exp ${String(b.expiryDate).slice(0, 7)})`).join(', ')}
                           </Text>
                         )}
                       </View>
-                      {gone ? <Text style={styles.goneTag}>Removed</Text> : editable ? (
-                        <Pressable hitSlop={8} disabled={busy} onPress={() => markMissing(o, it.medicine, it.name)}>
-                          <Text style={styles.missingLink}>Not available</Text>
-                        </Pressable>
+                      {gone ? <Text style={styles.goneTag}>Removed</Text> : it.substitution?.status === 'PENDING' ? (
+                        <Text style={styles.goneTag}>Waiting: {it.substitution.name}</Text>
+                      ) : editable ? (
+                        <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                          {o.status === 'ACCEPTED' && (
+                            <Pressable hitSlop={8} disabled={busy} onPress={() => suggestSubstitute(o, it.medicine, it.name)}>
+                              <Text style={[styles.missingLink, { color: C.brand }]}>Substitute</Text>
+                            </Pressable>
+                          )}
+                          <Pressable hitSlop={8} disabled={busy} onPress={() => markMissing(o, it.medicine, it.name)}>
+                            <Text style={styles.missingLink}>Not available</Text>
+                          </Pressable>
+                        </View>
                       ) : null}
                     </View>
                   );

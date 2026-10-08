@@ -69,7 +69,8 @@ import type {
   AdminDocumentRow,
   PartnerDocument,
   PartnerDocumentKind,
-  VerificationStatus
+  VerificationStatus,
+  SubstituteOption
 } from './types';
 import type * as M from './marketplace';
 
@@ -472,6 +473,21 @@ export class MedRushApi {
   /** Store has the order but not these items: they're dropped and refunded. */
   vendorMarkItemsUnavailable(id: string, medicineIds: string[], reason?: string) {
     return this.request<{ success: true; order: PharmacyOrder }>('POST', `/pharmacy/vendor/orders/${id}/items/unavailable`, { body: { medicineIds, reason } });
+  }
+
+  /** Same-salt medicines this store has in stock for an ordered line (cheapest first). */
+  vendorSubstitutes(orderId: string, medicineId: string) {
+    return this.request<{ success: true; substitutes: SubstituteOption[] }>('GET', `/pharmacy/vendor/orders/${orderId}/substitutes`, { query: { medicineId } });
+  }
+
+  /** Suggest a substitute; the customer accepts or declines within 15 minutes. */
+  vendorSuggestSubstitute(orderId: string, body: { medicineId: string; substituteId: string; note?: string }) {
+    return this.request<{ success: true; order: PharmacyOrder }>('POST', `/pharmacy/vendor/orders/${orderId}/substitutions`, { body });
+  }
+
+  /** The customer's answer to a suggested substitute. */
+  answerSubstitute(orderId: string, medicineId: string, accept: boolean) {
+    return this.request<{ success: true; order: PharmacyOrder }>('POST', `/pharmacy/orders/${orderId}/substitutions/${medicineId}`, { body: { accept } });
   }
 
   // ── Pharmacy: batches, prescriptions, stock files, demand (store side) ───

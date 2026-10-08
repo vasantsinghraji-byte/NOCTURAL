@@ -200,6 +200,23 @@ router.get('/vendor/orders/:id', protect, authorize('pharmacy_vendor'), mongoIdP
 router.get('/vendor/orders/:id/prescription', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), validate, ctrl.getPrescription);
 router.patch('/vendor/orders/:id/status', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), orderStatusValidation, validate, ctrl.updateOrderStatus);
 router.post('/vendor/orders/:id/items/unavailable', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), markUnavailableValidation, validate, ctrl.markItemsUnavailable);
+// Substitution with the customer's consent (services/pharmacySubstitutionService.js).
+const substitution = () => require('../services/pharmacySubstitutionService');
+const wrapSub = (fn) => async (req, res, next) => { try { await fn(req, res); } catch (err) { next(err); } };
+router.get('/vendor/orders/:id/substitutes', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), query('medicineId').isMongoId(), validate, wrapSub(async (req, res) => {
+  res.json({ success: true, substitutes: await substitution().candidates(req.user.pharmacyVendor, req.params.id, req.query.medicineId) });
+}));
+router.post('/vendor/orders/:id/substitutions', protect, authorize('pharmacy_vendor'), mongoIdParam('id'),
+  body('medicineId').isMongoId(), body('substituteId').isMongoId(), body('note').optional().isString().isLength({ max: 200 }), validate,
+  wrapSub(async (req, res) => {
+    const order = await substitution().propose(req.params.id, { vendorId: req.user.pharmacyVendor, actorUserId: req.user._id, ...req.body });
+    res.status(201).json({ success: true, order });
+  }));
+router.post('/orders/:id/substitutions/:medicineId', protectPatient, mongoIdParam('id'), param('medicineId').isMongoId(), body('accept').isBoolean(), validate,
+  wrapSub(async (req, res) => {
+    const order = await substitution().respond(req.params.id, req.params.medicineId, req.body.accept === true || req.body.accept === 'true', { patientId: req.user._id || req.user.id });
+    res.json({ success: true, order });
+  }));
 router.get('/vendor/inventory', protect, authorize('pharmacy_vendor'), ctrl.listInventory);
 router.post('/vendor/inventory/confirm', protect, authorize('pharmacy_vendor'), confirmInventoryValidation, validate, ctrl.confirmInventory);
 router.get('/vendor/inventory/batches', protect, authorize('pharmacy_vendor'), ctrl.listBatches);

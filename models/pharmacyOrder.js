@@ -42,7 +42,36 @@ const OrderItemSchema = new mongoose.Schema({
     batchNumber: String,
     expiryDate: Date,
     quantity: Number
-  }]
+  }],
+  // The store suggested the same salt from another maker; the customer decides
+  // (services/pharmacySubstitutionService.js). Its units are held meanwhile.
+  substitution: {
+    medicine: { type: mongoose.Schema.Types.ObjectId, ref: 'Medicine' },
+    name: String,
+    manufacturer: String,
+    packSize: String,
+    form: String,
+    unitPrice: Number,
+    mrp: Number,
+    quantity: Number,
+    lineTotal: Number,
+    requiresPrescription: Boolean,
+    scheduleType: String,
+    batches: [{ _id: false, batchNumber: String, expiryDate: Date, quantity: Number }],
+    note: { type: String, maxlength: 200 },
+    status: { type: String, enum: ['PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED'] },
+    proposedAt: Date,
+    respondBy: Date,
+    respondedAt: Date,
+    proposedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  },
+  // After an accepted substitution: what was ordered first.
+  substitutedFrom: {
+    medicine: { type: mongoose.Schema.Types.ObjectId, ref: 'Medicine' },
+    name: String,
+    unitPrice: Number,
+    lineTotal: Number
+  }
 }, { _id: false });
 
 // One row per store the order was offered to (Zomato-style relay log).

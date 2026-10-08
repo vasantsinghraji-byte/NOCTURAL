@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import type { AuthUser, PharmacyOrder, PharmacyOrderStatus, PharmacyRejectionReason } from '@medrush/shared';
+import type { AuthUser, PharmacyOrder, PharmacyOrderStatus, PharmacyRejectionReason, SubstituteOption } from '@medrush/shared';
 import { StockTools } from './StockTools';
 import UpdatesFeed from '../_components/UpdatesFeed';
-import { confirmDialog, promptDialog } from '../_components/Dialog';
+import { Modal, confirmDialog, promptDialog } from '../_components/Dialog';
 
 // Vendor-driven next-status options, matching the backend transition map.
 const NEXT_STATUS: Partial<Record<PharmacyOrderStatus, PharmacyOrderStatus[]>> = {
@@ -78,6 +78,7 @@ export default function VendorDashboard() {
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [declining, setDeclining] = useState<string | null>(null);
+  const [subPicker, setSubPicker] = useState<{ order: PharmacyOrder; medicineId: string; name: string; options: SubstituteOption[] } | null>(null);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -170,6 +171,19 @@ export default function VendorDashboard() {
     run(o._id, () => api.vendorMarkItemsUnavailable(o._id, [medicineId]), `${name} removed.`);
   }
 
+  /** Out of this one but have the same salt from another maker: ask the customer. */
+  async function suggestSubstitute(o: PharmacyOrder, medicineId: string, name: string) {
+    try {
+      const { substitutes } = await api.vendorSubstitutes(o._id, medicineId);
+      const usable = substitutes.filter((x) => x.allowed);
+      if (!usable.length) {
+        setError(substitutes.length ? 'On prepaid orders a substitute can’t cost more than the original. Mark it “Not available” instead.' : `No other maker’s ${name} (same salt, strength and form) in stock. Mark it “Not available” instead.`);
+        return;
+      }
+      setSubPicker({ order: o, medicineId, name, options: usable });
+    } catch (e) { setError(e instanceof Error ? e.message : 'Could not load substitutes'); }
+  }
+
   async function confirmStock() {
     if (!(await confirmDialog({ title: 'Confirm your stock counts?', message: 'Confirm your shelf matches the counts in Nabz. Stores with fresh counts rank higher.', confirmLabel: 'Confirm counts' }))) return;
     try {
@@ -194,6 +208,22 @@ export default function VendorDashboard() {
 
   return (
     <>
+      {subPicker && (
+        <Modal onClose={() => setSubPicker(null)} labelledBy="sub-pick">
+          <div style={{ display: 'grid', gap: 10 }}>
+            <h2 id="sub-pick" style={{ margin: 0 }}>Substitute for {subPicker.name}</h2>
+            <p className="muted" style={{ margin: 0 }}>Same salt, strength and form. The customer sees both side by side and answers within 15 minutes; its units are held meanwhile.</p>
+            {subPicker.options.map((x) => (
+              <button key={x.medicineId} type="button" className="btn secondary" style={{ justifyContent: 'space-between', display: 'flex' }}
+                onClick={() => { const p = subPicker; setSubPicker(null); run(p.order._id, () => api.vendorSuggestSubstitute(p.order._id, { medicineId: p.medicineId, substituteId: x.medicineId }), 'Sent to the customer. This item waits for their answer (up to 15 minutes).'); }}>
+                <span>{x.name}{x.manufacturer ? ` · ${x.manufacturer}` : ''}</span>
+                <span>₹{x.lineTotal}{x.difference ? ` (${x.difference < 0 ? '−' : '+'}₹${Math.abs(x.difference)})` : ''}</span>
+              </button>
+            ))}
+            <button type="button" className="btn ghost" onClick={() => setSubPicker(null)}>Cancel</button>
+          </div>
+        </Modal>
+      )}
       <div className="row" style={{ marginTop: 16, flexWrap: 'wrap' }}>
         <div className="section-title" style={{ margin: 0 }}>{user.name}: orders</div>
         <div className="row" style={{ gap: 8 }}>
@@ -247,10 +277,17 @@ export default function VendorDashboard() {
                           <><br /><small>Pick: {it.batches.map((b) => `${b.batchNumber} ×${b.quantity} (exp ${String(b.expiryDate).slice(0, 7)})`).join(', ')}</small></>
                         )}
                       </span>
-                      {gone ? <span className="pill rx">Removed</span> : editable ? (
-                        <button className="linkish" style={{ color: 'var(--rose-ink)', fontSize: 12 }} disabled={busy} onClick={() => markMissing(o, it.medicine, it.name)}>
-                          Not available
-                        </button>
+                      {gone ? <span className="pill rx">Removed</span> : it.substitution?.status === 'PENDING' ? (
+                        <span className="pill">Waiting: {it.substitution.name}</span>
+                      ) : editable ? (
+                        <span style={{ display: 'flex', gap: 10 }}>
+                          {o.status === 'ACCEPTED' && (
+                            <button className="linkish" style={{ fontSize: 12 }} disabled={busy} onClick={() => suggestSubstitute(o, it.medicine, it.name)}>Substitute</button>
+                          )}
+                          <button className="linkish" style={{ color: 'var(--rose-ink)', fontSize: 12 }} disabled={busy} onClick={() => markMissing(o, it.medicine, it.name)}>
+                            Not available
+                          </button>
+                        </span>
                       ) : null}
                     </li>
                   );

@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { payForOrder, PaymentDismissedError } from '@/lib/razorpay';
 import type { PharmacyOrder } from '@medrush/shared';
+import SubstituteCard from '../../_components/SubstituteCard';
 
 const STEPS = ['PLACED', 'ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 const CANCELLABLE = ['PLACED', 'ACCEPTED'];
@@ -139,11 +140,15 @@ export default function OrderDetailPage() {
         </p>
       )}
 
+      {order.items.filter((it) => it.substitution?.status === 'PENDING').map((it) => (
+        <SubstituteCard key={String(it.medicine)} orderId={order._id} item={it} paymentMode={order.paymentMode} onAnswered={load} />
+      ))}
+
       <div className="card" style={{ marginTop: 12 }}>
         <h3 style={{ marginTop: 0 }}>Items</h3>
         {order.items.map((it, i) => (
           <div key={i} className="row" style={{ padding: '3px 0' }}>
-            <span className="muted">{it.quantity} × {it.name}</span>
+            <span className="muted">{it.quantity} × {it.name}{it.substitutedFrom ? ` (substitute for ${it.substitutedFrom.name})` : ''}{it.status === 'UNAVAILABLE' ? ' · removed' : ''}</span>
             <span>₹{it.lineTotal}</span>
           </div>
         ))}

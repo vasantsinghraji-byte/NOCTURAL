@@ -13,6 +13,7 @@ import { C, F, PASTELS, shadow, ui } from '@/lib/theme';
 import { chooseReschedule, confirmCancelVisit } from '@/lib/visitActions';
 import { appAlert } from '@/lib/dialog';
 import { PaymentSheet } from '@/lib/paymentSheet';
+import { SubstituteCard } from '@/lib/SubstituteCard';
 import { ProviderPicker } from '@/lib/providerPicker';
 import { PaymentDismissedError, awaitingPayment, payOrderOnline } from '@/lib/payments';
 
@@ -161,32 +162,37 @@ export default function Bookings() {
         ))
       ) : (
         orders.length === 0 ? <Empty text="No medicine orders yet." /> : orders.map((o) => (
-          <View key={o._id} style={[styles.item, { backgroundColor: C.card }]}>
-            <IconTile icon={o.fulfilment === 'STAFF_PICKUP' ? Stethoscope : Bike} size={50} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={ui.h3}>{o.orderNumber}</Text>
-              <Text style={ui.muted}>{o.items.length} item(s) · {inr(o.amounts.total)}</Text>
-              {o.fulfilment === 'STAFF_PICKUP' && <Text style={ui.muted}>Brought by your nurse</Text>}
-              {o.status === 'DELIVERED' && o.fulfilment !== 'STAFF_PICKUP' && (
-                refillOrders.has(o._id)
-                  ? <Text style={[ui.muted, { color: C.mint, fontFamily: F.bold }]}>Refill reminder on</Text>
-                  : <Pressable style={[styles.track, { alignSelf: 'flex-start', marginTop: 6 }]} onPress={() => setRefilling(o._id)} accessibilityRole="button">
-                    <Text style={styles.trackText}>Remind Me to Reorder</Text>
+          <View key={o._id} style={{ gap: 8 }}>
+            <View style={[styles.item, { backgroundColor: C.card }]}>
+              <IconTile icon={o.fulfilment === 'STAFF_PICKUP' ? Stethoscope : Bike} size={50} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={ui.h3}>{o.orderNumber}</Text>
+                <Text style={ui.muted}>{o.items.length} item(s) · {inr(o.amounts.total)}</Text>
+                {o.fulfilment === 'STAFF_PICKUP' && <Text style={ui.muted}>Brought by your nurse</Text>}
+                {o.status === 'DELIVERED' && o.fulfilment !== 'STAFF_PICKUP' && (
+                  refillOrders.has(o._id)
+                    ? <Text style={[ui.muted, { color: C.mint, fontFamily: F.bold }]}>Refill reminder on</Text>
+                    : <Pressable style={[styles.track, { alignSelf: 'flex-start', marginTop: 6 }]} onPress={() => setRefilling(o._id)} accessibilityRole="button">
+                      <Text style={styles.trackText}>Remind Me to Reorder</Text>
+                    </Pressable>
+                )}
+                {awaitingPayment(o) && (
+                  <Pressable style={[styles.track, { alignSelf: 'flex-start', marginTop: 6 }]} onPress={() => setPaying(o)}>
+                    <Text style={styles.trackText}>{o.paymentStatus === 'FAILED' ? 'Retry payment' : 'Pay now'}</Text>
                   </Pressable>
-              )}
-              {awaitingPayment(o) && (
-                <Pressable style={[styles.track, { alignSelf: 'flex-start', marginTop: 6 }]} onPress={() => setPaying(o)}>
-                  <Text style={styles.trackText}>{o.paymentStatus === 'FAILED' ? 'Retry payment' : 'Pay now'}</Text>
-                </Pressable>
-              )}
-              {o.deliveryOtp?.code && !o.deliveryOtp.verifiedAt && !['DELIVERED', 'CANCELLED', 'REJECTED'].includes(o.status) && (
-                <View style={styles.codeRow}>
-                  <Text style={styles.codeLabel}>Delivery code</Text>
-                  <Text style={styles.code}>{o.deliveryOtp.code}</Text>
-                </View>
-              )}
+                )}
+                {o.deliveryOtp?.code && !o.deliveryOtp.verifiedAt && !['DELIVERED', 'CANCELLED', 'REJECTED'].includes(o.status) && (
+                  <View style={styles.codeRow}>
+                    <Text style={styles.codeLabel}>Delivery code</Text>
+                    <Text style={styles.code}>{o.deliveryOtp.code}</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.status}><Text style={styles.statusText}>{o.status.replace(/_/g, ' ')}</Text></View>
             </View>
-            <View style={styles.status}><Text style={styles.statusText}>{o.status.replace(/_/g, ' ')}</Text></View>
+            {o.items.filter((it) => it.substitution?.status === 'PENDING').map((it) => (
+              <SubstituteCard key={String(it.medicine)} orderId={o._id} item={it} paymentMode={o.paymentMode} onAnswered={load} />
+            ))}
           </View>
         ))
       )}

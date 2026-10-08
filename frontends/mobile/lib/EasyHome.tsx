@@ -42,12 +42,14 @@ export function EasyHome() {
   const [services, setServices] = useState<CareService[] | null>(null);
   const [visits, setVisits] = useState<CareBooking[]>([]);
   const [due, setDue] = useState<RefillView | null>(null);
+  const [needsAnswer, setNeedsAnswer] = useState(false);
 
   useEffect(() => { api.listCareServices().then((r) => setServices(r.services)).catch(() => setServices([])); }, []);
   useFocusEffect(useCallback(() => {
     if (session?.kind !== 'patient') return;
     api.getMyCareBookings().then((r) => setVisits(r.data || r.bookings || [])).catch(() => undefined);
     api.myRefills().then((r) => setDue(r.refills.find((x) => x.dueSoon) || null)).catch(() => undefined);
+    api.getMyOrders({ limit: 10 }).then((r) => setNeedsAnswer(r.orders.some((o) => o.items.some((i) => i.substitution?.status === 'PENDING')))).catch(() => undefined);
   }, [session?.kind]));
 
   const upcoming = visits.find((v) => ACTIVE.includes(v.status));
@@ -82,6 +84,10 @@ export function EasyHome() {
           </View>
           <View style={s.visitBtn}><Text style={s.visitBtnText}>See Details</Text><ChevronRight size={18} color={C.brand} /></View>
         </PressScale>
+      ) : null}
+
+      {needsAnswer ? (
+        <BigAction icon={Pill} title="Your pharmacy needs an answer" sub="A medicine is out of stock; they suggest the same one from another maker" onPress={() => router.push('/bookings')} />
       ) : null}
 
       {due ? (

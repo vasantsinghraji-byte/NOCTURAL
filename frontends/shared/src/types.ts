@@ -131,6 +131,17 @@ export interface OrderItem {
   unavailableReason?: string;
   scheduleType?: string;
   batches?: Array<{ batchNumber: string; expiryDate: string; quantity: number }>;
+  /** The store suggested the same salt from another maker; the customer decides. */
+  substitution?: {
+    medicine: string; name: string; manufacturer?: string; packSize?: string; unitPrice: number; mrp?: number; quantity: number; lineTotal: number;
+    note?: string; status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED'; respondBy?: string;
+  };
+  substitutedFrom?: { medicine: string; name: string; unitPrice: number; lineTotal: number };
+}
+
+export interface SubstituteOption {
+  medicineId: string; name: string; manufacturer?: string; packSize?: string; unitPrice: number; mrp?: number;
+  lineTotal: number; difference: number; requiresPrescription: boolean; allowed: boolean;
 }
 
 export interface InventoryBatch {
