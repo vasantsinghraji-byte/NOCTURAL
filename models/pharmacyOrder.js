@@ -227,6 +227,10 @@ const PharmacyOrderSchema = new mongoose.Schema({
     type: String,
     enum: DELIVERY_STATUSES
   },
+  // Holds a 2–8°C medicine: the rider carries a cooler bag and it is never batched.
+  coldChain: { type: Boolean },
+  // Riders who said they can't take it (not offered to them again).
+  riderDeclined: [{ type: String }],
   estimatedDeliveryAt: Date,
   deliveredAt: Date,
 

@@ -6,7 +6,7 @@ import { router, useFocusEffect, type Href } from 'expo-router';
 import type { MembershipStatus } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { BadgeCheck, Briefcase, CalendarHeart, HeartHandshake, ChevronRight, Crown, FlaskConical, Gift, Languages, LogOut, MapPin, ShieldCheck, Trash2, Type, UserRound, type LucideIcon } from 'lucide-react-native';
+import { BadgeCheck, Briefcase, CalendarHeart, HeartHandshake, Pill, ChevronRight, Crown, FlaskConical, Gift, Languages, LogOut, MapPin, ShieldCheck, Trash2, Type, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useT } from '@/lib/i18n';
 import { CallMeBack } from '@/lib/CallMeBack';
 import { openTextSizeSettings, useEasyMode } from '@/lib/easyMode';
@@ -140,6 +140,7 @@ export default function Account() {
           <Row icon={CalendarHeart} title="Care plans and credit" desc="Physio and home care plans, suggestions, Nabz credit" href="/care/plans" />
           <Row icon={FlaskConical} title="Lab tests" desc="Bookings, collection codes and reports" href="/labs/orders" />
           <Row icon={MapPin} title="Saved addresses" desc="Home, work, family: one tap at booking" href="/addresses" />
+          <Row icon={Pill} title="Medicine refills" desc="Reminders before regular medicines run out; reorder in one tap" href="/refills" />
           <Row icon={HeartHandshake} title="Care Circle" desc="Help a parent with their care, or let family help you" href="/family" />
         </>
       )}

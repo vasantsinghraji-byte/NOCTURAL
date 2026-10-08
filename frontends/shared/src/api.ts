@@ -912,6 +912,52 @@ export class MedRushApi {
     return this.request<{ success: true; request: CallbackView }>('PUT', `/support/admin/callbacks/${id}`, { body });
   }
 
+  // ── Medicine refills ──────────────────────────────────────────────────────
+  myRefills() {
+    return this.request<{ success: true; refills: RefillView[] }>('GET', '/refills');
+  }
+
+  createRefill(orderId: string, everyDays: 15 | 30 | 60 | 90 = 30) {
+    return this.request<{ success: true; refill: RefillView }>('POST', '/refills', { body: { orderId, everyDays } });
+  }
+
+  updateRefill(id: string, body: { everyDays?: 15 | 30 | 60 | 90; status?: 'ACTIVE' | 'PAUSED' | 'CANCELLED' }) {
+    return this.request<{ success: true; refill: RefillView }>('PUT', `/refills/${id}`, { body });
+  }
+
+  refillReorder(id: string) {
+    return this.request<{ success: true; refillId: string; vendor: { _id: string; name: string; available: boolean } | null; items: { medicineId: string; name?: string; quantity: number }[] }>('GET', `/refills/${id}/reorder`);
+  }
+
+  refillOrdered(id: string, orderId: string) {
+    return this.request<{ success: true; refill: RefillView }>('POST', `/refills/${id}/ordered`, { body: { orderId } });
+  }
+
+  // ── Rider app (delivery partners) ─────────────────────────────────────────
+  riderOnline(online: boolean, point?: { lat: number; lng: number }) {
+    return this.request<{ success: true; online: boolean }>('POST', '/rider/online', { body: { online, ...(point || {}) } });
+  }
+
+  riderHeartbeat(point: { lat: number; lng: number }) {
+    return this.request<{ success: true; online: boolean }>('POST', '/rider/heartbeat', { body: point });
+  }
+
+  riderJobs() {
+    return this.request<{ success: true; batches: RiderBatch[] }>('GET', '/rider/jobs');
+  }
+
+  riderStep(orderId: string, action: 'arrived-store' | 'picked-up' | 'arrived' | 'delivered', body: { code?: string; reason?: string } = {}) {
+    return this.request<{ success: true; ok?: boolean; delivered?: boolean; pay?: number }>('POST', `/rider/jobs/${orderId}/${action}`, { body });
+  }
+
+  riderRelease(orderId: string, reason?: string) {
+    return this.request<{ success: true; released: boolean }>('POST', `/rider/jobs/${orderId}/release`, { body: { reason } });
+  }
+
+  riderEarnings() {
+    return this.request<{ success: true; today: RiderEarning; week: RiderEarning }>('GET', '/rider/earnings');
+  }
+
   // ── Care Circle (family) and care logs ────────────────────────────────────
   myFamily() {
     return this.request<{ success: true; members: FamilyLinkView[]; helpers: FamilyLinkView[]; invites: FamilyLinkView[] }>('GET', '/family');
@@ -1309,4 +1355,16 @@ export interface CareLogView {
   bookingId: string; serviceType: string; status: string; scheduledDate: string; scheduledTime: string; professional?: string;
   startedAt?: string; completedAt?: string;
   entries: { _id: string; kind: CareLogKind; text?: string; vitals?: CareVitals; at: string }[];
+}
+
+export interface RiderEarning { earned: number; drops: number; cashCollected: number }
+export interface RiderDrop {
+  orderId: string; orderNumber: string; deliveryStatus: string; coldChain: boolean; items: number; collectCash: number;
+  address: { line1?: string; line2?: string; city?: string }; contactName?: string | null; contactPhone?: string | null; lat?: number; lng?: number; pay: number;
+}
+export interface RiderBatch { store: { _id: string; name: string; address?: { line1?: string; city?: string }; phone?: string; lat?: number; lng?: number }; drops: RiderDrop[] }
+
+export interface RefillView {
+  _id: string; vendor: { _id: string; name?: string }; items: { medicine: string; name?: string; quantity: number }[];
+  everyDays: 15 | 30 | 60 | 90; nextDue: string; status: 'ACTIVE' | 'PAUSED' | 'CANCELLED'; fromOrder: string; lastOrder?: string; dueSoon: boolean;
 }

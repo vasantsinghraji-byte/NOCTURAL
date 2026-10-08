@@ -60,6 +60,7 @@ export default function RootLayout() {
             <Stack.Screen name="labs/order/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="addresses" options={{ headerShown: false }} />
             <Stack.Screen name="family/index" options={{ headerShown: false }} />
+            <Stack.Screen name="refills" options={{ headerShown: false }} />
             <Stack.Screen name="family/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="care-log/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="care-log/staff/[id]" options={{ headerShown: false }} />

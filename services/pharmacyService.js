@@ -595,6 +595,10 @@ async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note,
   if (!allowed.includes(status)) {
     throw new ConflictError(`Cannot move order from ${order.status} to ${status}`);
   }
+  // A Nabz rider is on it: only they take it out and hand it over.
+  if (order.rider && ['OUT_FOR_DELIVERY', 'DELIVERED'].includes(status) && String(order.rider) !== String(actorUserId)) {
+    throw new ConflictError('A Nabz rider is assigned to this order and will pick it up');
+  }
 
   // Accept / decline end the store's turn: reliability, SLA and reassignment.
   if (status === 'ACCEPTED') return assignment().acceptOrder(orderId, { vendorId, actorUserId, note });
@@ -656,6 +660,10 @@ async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note,
     { new: true }
   );
   if (!updated) throw new ConflictError('This order just changed. Refresh to see its latest status');
+  // Ready: find a Nabz rider (batched with nearby drops when possible). The store can still deliver itself if none is free.
+  if (status === 'READY_FOR_PICKUP' && updated.fulfilment === 'DELIVERY') {
+    setImmediate(() => { require('./riderService').assign(updated._id).catch(() => undefined); });
+  }
   // Delivered: book the store's payout, our commission and the delivery fee.
   if (status === 'DELIVERED') {
     const referral = require('./partnerReferralService');

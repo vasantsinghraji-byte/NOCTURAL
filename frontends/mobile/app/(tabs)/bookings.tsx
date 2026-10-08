@@ -30,6 +30,19 @@ export default function Bookings() {
   // Change the professional for a package's remaining sessions.
   const [changing, setChanging] = useState<CareBooking | null>(null);
   const [newPro, setNewPro] = useState<string | null>(null);
+  // Refill reminders: which delivered orders already have one, and the sheet to set one up.
+  const [refillOrders, setRefillOrders] = useState<Set<string>>(new Set());
+  const [refilling, setRefilling] = useState<string | null>(null);
+
+  async function startRefill(everyDays: 15 | 30 | 60 | 90) {
+    if (!refilling) return;
+    try {
+      await api.createRefill(refilling, everyDays);
+      setRefilling(null);
+      appAlert('Reminder set', `We’ll remind you two days before these medicines run out, every ${everyDays} days. One tap orders them again.`);
+      load();
+    } catch (e) { appAlert('Could not set the reminder', describeNetworkError(e)); }
+  }
 
   async function confirmChange() {
     if (!changing?.series) return;
@@ -47,6 +60,7 @@ export default function Bookings() {
     if (session?.kind !== 'patient') return;
     api.getMyCareBookings().then((r) => setVisits(r.data || r.bookings || [])).catch((e) => setError(describeNetworkError(e)));
     api.getMyOrders({ limit: 20 }).then((r) => setOrders(r.orders)).catch(() => undefined);
+    api.myRefills().then((r) => setRefillOrders(new Set(r.refills.map((x) => String(x.fromOrder))))).catch(() => undefined);
   }, [session?.kind]);
   useFocusEffect(load);
 
@@ -146,13 +160,20 @@ export default function Bookings() {
           </View>
         ))
       ) : (
-        orders.length === 0 ? <Empty text="No medicine orders yet." /> : orders.map((o, i) => (
-          <View key={o._id} style={[styles.item, { backgroundColor: PASTELS[(i + 1) % PASTELS.length] }]}>
-            <IconTile icon={o.fulfilment === 'STAFF_PICKUP' ? Stethoscope : Bike} bg={C.card} color={TONES[(i + 1) % TONES.length].fg} size={50} />
+        orders.length === 0 ? <Empty text="No medicine orders yet." /> : orders.map((o) => (
+          <View key={o._id} style={[styles.item, { backgroundColor: C.card }]}>
+            <IconTile icon={o.fulfilment === 'STAFF_PICKUP' ? Stethoscope : Bike} size={50} />
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={ui.h3}>{o.orderNumber}</Text>
               <Text style={ui.muted}>{o.items.length} item(s) · {inr(o.amounts.total)}</Text>
               {o.fulfilment === 'STAFF_PICKUP' && <Text style={ui.muted}>Brought by your nurse</Text>}
+              {o.status === 'DELIVERED' && o.fulfilment !== 'STAFF_PICKUP' && (
+                refillOrders.has(o._id)
+                  ? <Text style={[ui.muted, { color: C.mint, fontFamily: F.bold }]}>Refill reminder on</Text>
+                  : <Pressable style={[styles.track, { alignSelf: 'flex-start', marginTop: 6 }]} onPress={() => setRefilling(o._id)} accessibilityRole="button">
+                    <Text style={styles.trackText}>Remind Me to Reorder</Text>
+                  </Pressable>
+              )}
               {awaitingPayment(o) && (
                 <Pressable style={[styles.track, { alignSelf: 'flex-start', marginTop: 6 }]} onPress={() => setPaying(o)}>
                   <Text style={styles.trackText}>{o.paymentStatus === 'FAILED' ? 'Retry payment' : 'Pay now'}</Text>
@@ -169,6 +190,19 @@ export default function Bookings() {
           </View>
         ))
       )}
+      <Modal visible={!!refilling} transparent animationType="slide" onRequestClose={() => setRefilling(null)}>
+        <Pressable style={styles.overlay} onPress={() => setRefilling(null)}>
+          <Pressable style={styles.sheet} onPress={() => undefined}>
+            <Text style={styles.title}>How often do you need these?</Text>
+            <Text style={ui.muted}>We remind you two days before they run out. Nothing is ordered without you.</Text>
+            {([15, 30, 60, 90] as const).map((d) => (
+              <Pressable key={d} style={[styles.track, { justifyContent: 'center', paddingVertical: 14 }]} onPress={() => startRefill(d)} accessibilityRole="button">
+                <Text style={[styles.trackText, { fontSize: 16 }]}>Every {d} days{d === 30 ? ' (a month)' : ''}</Text>
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
       <Modal visible={!!changing} transparent animationType="slide" onRequestClose={() => setChanging(null)}>
         <Pressable style={styles.overlay} onPress={() => setChanging(null)}>
           <Pressable style={styles.sheet} onPress={() => undefined}>

@@ -93,6 +93,16 @@ function loadRevenuePolicy() {
         SEVERE: num('REVENUE_SURGE_SEVERE', 2, { min: 1, max: 5 })
       }),
       nightSurcharge: num('REVENUE_NIGHT_SURCHARGE', 20),
+      // Rider pay per delivered drop: a base + per road km from the store, and a
+      // bonus for each extra drop carried on the same trip (batching).
+      rider: Object.freeze({
+        perDrop: num('REVENUE_RIDER_PER_DROP', 20),
+        perKm: num('REVENUE_RIDER_PER_KM', 5),
+        batchBonus: num('REVENUE_RIDER_BATCH_BONUS', 10),
+        maxBatch: num('REVENUE_RIDER_MAX_BATCH', 3, { min: 1, max: 6 }),
+        batchRadiusKm: num('REVENUE_RIDER_BATCH_RADIUS_KM', 3, { min: 0.5, max: 10 }),
+        searchRadiusKm: num('REVENUE_RIDER_SEARCH_RADIUS_KM', 6, { min: 1, max: 25 })
+      }),
       nightStartHour: num('REVENUE_NIGHT_START_HOUR', 22, { max: 23 }),
       nightEndHour: num('REVENUE_NIGHT_END_HOUR', 6, { max: 23 }),
       timezone: process.env.REVENUE_TIMEZONE || 'Asia/Kolkata',

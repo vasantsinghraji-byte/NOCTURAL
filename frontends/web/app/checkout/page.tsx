@@ -118,6 +118,11 @@ export default function CheckoutPage() {
       });
       cart.clear();
       const orderId = res.order._id;
+      // Ordered from a refill reminder: the next reminder moves a cycle on.
+      try {
+        const refillId = sessionStorage.getItem('nabz.refillId');
+        if (refillId) { sessionStorage.removeItem('nabz.refillId'); api.refillOrdered(refillId, orderId).catch(() => undefined); }
+      } catch { /* storage blocked */ }
       if (mode !== 'cod') {
         // Stock is reserved; if the modal is closed the order page offers "Pay now".
         try {

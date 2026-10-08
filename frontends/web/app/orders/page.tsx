@@ -11,6 +11,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<PharmacyOrder[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState('');
 
   useEffect(() => {
     if (loading) return;
@@ -36,9 +37,11 @@ export default function OrdersPage() {
       <div className="mk-grid two" style={{ marginTop: 16 }}>
         <Link className="mk-card-link" href="/care/plans"><div className="mk-card red"><p className="mk-title">My care plans</p><p className="mk-meta" style={{ margin: 0 }}>Physio, home care and nursing sessions</p></div></Link>
         <Link className="mk-card-link" href="/lab-tests/orders"><div className="mk-card"><p className="mk-title">My lab tests</p><p className="mk-meta" style={{ margin: 0 }}>Collections, progress and reports</p></div></Link>
+        <Link className="mk-card-link" href="/refills"><div className="mk-card"><p className="mk-title">Medicine refills</p><p className="mk-meta" style={{ margin: 0 }}>Reminders before regular medicines run out</p></div></Link>
       </div>
       <div className="section-title" style={{ marginTop: 16 }}>Medicine orders</div>
       {error && <div className="notice">{error}</div>}
+      {note && <div className="notice good" role="status">{note}</div>}
       {orders.length === 0 && <p className="muted">No orders yet. <Link href="/pharmacy" style={{ color: 'var(--brand)' }}>Order medicines →</Link></p>}
       <div className="grid cards">
         {orders.map((o) => (
@@ -48,6 +51,9 @@ export default function OrdersPage() {
               <span className="muted">Delivery code <b style={{ letterSpacing: 3 }}>{o.deliveryOtp.code}</b></span>
             )}
             <span className="muted">{o.items.length} item(s) · ₹{o.amounts.total} · {o.paymentMode === 'PREPAID' && ['PENDING', 'FAILED'].includes(o.paymentStatus) && o.status === 'PLACED' ? 'Awaiting payment' : o.paymentMode}</span>
+            {o.status === 'DELIVERED' && o.fulfilment !== 'STAFF_PICKUP' && (
+              <button type="button" className="btn secondary" style={{ justifySelf: 'start' }} onClick={(e) => { e.preventDefault(); api.createRefill(o._id, 30).then(() => setNote('Reminder set: we’ll remind you before these run out (every 30 days). Change it in Medicine refills.')).catch((err) => setNote(err instanceof Error ? err.message : 'Could not set the reminder')); }}>Remind Me to Reorder</button>
+            )}
           </Link>
         ))}
       </div>

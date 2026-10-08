@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight, Clock, FlaskConical, HeartHandshake, Pill, PersonStanding, UserRound, Users, type LucideIcon } from 'lucide-react-native';
-import type { CareBooking, CareService } from '@medrush/shared';
+import type { CareBooking, CareService, RefillView } from '@medrush/shared';
 import { api } from './api';
 import { useAuth } from './auth';
 import { CallMeBack } from './CallMeBack';
@@ -41,11 +41,13 @@ export function EasyHome() {
   const live = useLiveLocation(DEMO_POINT, 'Jaipur');
   const [services, setServices] = useState<CareService[] | null>(null);
   const [visits, setVisits] = useState<CareBooking[]>([]);
+  const [due, setDue] = useState<RefillView | null>(null);
 
   useEffect(() => { api.listCareServices().then((r) => setServices(r.services)).catch(() => setServices([])); }, []);
   useFocusEffect(useCallback(() => {
     if (session?.kind !== 'patient') return;
     api.getMyCareBookings().then((r) => setVisits(r.data || r.bookings || [])).catch(() => undefined);
+    api.myRefills().then((r) => setDue(r.refills.find((x) => x.dueSoon) || null)).catch(() => undefined);
   }, [session?.kind]));
 
   const upcoming = visits.find((v) => ACTIVE.includes(v.status));
@@ -80,6 +82,11 @@ export function EasyHome() {
           </View>
           <View style={s.visitBtn}><Text style={s.visitBtnText}>See Details</Text><ChevronRight size={18} color={C.brand} /></View>
         </PressScale>
+      ) : null}
+
+      {due ? (
+        <BigAction icon={Pill} title="Your medicines are due" sub={`${due.items.map((i) => i.name).filter(Boolean).slice(0, 2).join(', ') || 'Regular medicines'}: tap to order again`}
+          onPress={() => router.push({ pathname: '/pharmacy', params: { refill: due._id } })} />
       ) : null}
 
       <Text style={s.section}>Care at home</Text>

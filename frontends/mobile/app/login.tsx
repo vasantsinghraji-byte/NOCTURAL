@@ -16,24 +16,16 @@ type Mode = 'login' | 'register';
 // medical-staff area and vice versa. Customers never see this chooser.
 const PARTNER_PORTALS: Array<{ kind: AccountKind; icon: LucideIcon; title: string; hint: string; tone: string; fg: string }> = [
   { kind: 'staff', icon: Stethoscope, title: 'Medical staff', hint: 'Nurses & physios', tone: C.violetSoft, fg: C.violet },
-  { kind: 'pharmacy', icon: Store, title: 'Pharmacy', hint: 'Store partner', tone: C.mintSoft, fg: C.mint }
+  { kind: 'pharmacy', icon: Store, title: 'Pharmacy', hint: 'Store partner', tone: C.mintSoft, fg: C.mint },
+  { kind: 'rider', icon: Bike, title: 'Delivery partner', hint: 'Medicine deliveries', tone: C.skySoft, fg: C.sky },
+  { kind: 'lab', icon: FlaskConical, title: 'Path lab', hint: 'Nabz-certified labs', tone: C.amberSoft, fg: C.amber }
 ];
 
-// Delivery and path-lab partners are onboarding now; their dashboards open next
-// (sign-in stays off until then so nobody lands on an empty screen).
+// Roles still onboarding (none right now: delivery and path labs have their dashboards).
 type WaitlistRole = 'DELIVERY' | 'PATH_LAB';
-const WAITLIST: Array<{ role: WaitlistRole; icon: LucideIcon; title: string; hint: string; tone: string; fg: string; steps: string[] }> = [
-  {
-    role: 'DELIVERY', icon: Bike, title: 'Delivery partner', hint: 'Medicine deliveries', tone: C.skySoft, fg: C.sky,
-    steps: ['Get delivery requests from partner pharmacies near you', 'Pick up the packed order at the store', 'Hand it over with the customer’s delivery code', 'Earn per delivery, paid weekly']
-  },
-  {
-    role: 'PATH_LAB', icon: FlaskConical, title: 'Path lab', hint: 'Nabz-certified labs', tone: C.amberSoft, fg: C.amber,
-    steps: ['A customer books a test at the Nabz common rate', 'A certified collector takes the sample at home and brings it to your lab', 'You confirm receipt, run the test and upload the report', 'The report reaches the patient directly in the Nabz app']
-  }
-];
+const WAITLIST: Array<{ role: WaitlistRole; icon: LucideIcon; title: string; hint: string; tone: string; fg: string; steps: string[] }> = [];
 
-/** Email sign-in. Customer app: customers only. Nabz Partner: staff / pharmacy (delivery and path lab: apply). */
+/** Email sign-in. Customer app: customers only. Nabz Partner: medical staff, pharmacy, delivery and path lab. */
 export default function Login() {
   const { login, register } = useAuth();
   const params = useLocalSearchParams<{ kind?: AccountKind }>();

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarSpace } from '@/lib/PillTabBar';
 import { api, describeNetworkError } from '@/lib/api';
@@ -17,6 +17,8 @@ import { PaymentDismissedError, payOrderOnline } from '@/lib/payments';
 const FALLBACK = { lat: 26.9110, lng: 75.8010 }; // launch city demo area (C-Scheme, Jaipur)
 
 export default function Pharmacy() {
+  const params = useLocalSearchParams<{ refill?: string }>();
+  const [refillId, setRefillId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const tabSpace = useTabBarSpace();
   const { session } = useAuth();
@@ -82,6 +84,21 @@ export default function Pharmacy() {
   }
 
   const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
+
+  // "Order again" from a refill reminder: same store, same medicines, ready to check out.
+  useEffect(() => {
+    if (!params.refill) return;
+    (async () => {
+      try {
+        const r = await api.refillReorder(String(params.refill));
+        if (!r.vendor || !r.vendor.available) { appAlert('That store isn’t taking orders', 'Pick another pharmacy below; your medicines are listed in Account → Medicine refills.'); return; }
+        await selectVendor({ _id: r.vendor._id, name: r.vendor.name } as PharmacyVendor);
+        setCart(Object.fromEntries(r.items.map((i) => [String(i.medicineId), i.quantity])));
+        setRefillId(String(params.refill));
+      } catch (e) { setError(describeNetworkError(e)); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.refill]);
 
   // Prices can change while the cart is open: refresh them without losing the cart.
   async function refreshPrices() {
@@ -194,6 +211,7 @@ export default function Pharmacy() {
       });
       setCart({});
       setRx(null);
+      if (refillId) { api.refillOrdered(refillId, res.order._id).catch(() => undefined); setRefillId(null); }
       if (forOther) rememberRecipient(recipient).catch(() => undefined);
       if (!prepaid) {
         appAlert('Order placed', `${res.order.orderNumber}: the pharmacy has been notified.`);

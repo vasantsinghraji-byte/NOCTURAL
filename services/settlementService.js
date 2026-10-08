@@ -36,7 +36,8 @@ async function recordPharmacyOrder(order) {
     const occurredAt = order.deliveredAt || new Date();
     const source = { kind: 'PHARMACY_ORDER', id: order._id, ref: order.orderNumber };
     // Cash on delivery by the store itself: the store already holds the money.
-    const storeTookCash = order.paymentMode === 'COD' && order.fulfilment !== 'STAFF_PICKUP';
+    // (With a Nabz rider the rider collects it instead: recordRiderDrop.)
+    const storeTookCash = order.paymentMode === 'COD' && order.fulfilment !== 'STAFF_PICKUP' && !order.rider;
     return await insertIdempotent([
       { source, party: { kind: 'VENDOR', id: order.vendor }, type: 'VENDOR_PAYOUT', amount: split.vendorPayout, basis: split.itemsSubtotal, rate: split.commissionRate, occurredAt },
       { source, party: { kind: 'PLATFORM' }, type: 'COMMISSION', amount: split.commission, basis: split.itemsSubtotal, rate: split.commissionRate, occurredAt, status: 'PAID' },
@@ -45,6 +46,21 @@ async function recordPharmacyOrder(order) {
     ], { orderId: String(order._id) });
   } catch (err) {
     logger.error('Settlement recording failed', { orderId: String(order && order._id), error: err.message });
+    return 0;
+  }
+}
+
+/** A rider's pay for one delivered drop (and the cash they took on COD). Idempotent per order. */
+async function recordRiderDrop(order, riderId, pay) {
+  try {
+    const occurredAt = order.deliveredAt || new Date();
+    const source = { kind: 'PHARMACY_ORDER', id: order._id, ref: order.orderNumber };
+    return await insertIdempotent([
+      { source, party: { kind: 'RIDER', id: riderId }, type: 'RIDER_PAYOUT', amount: pricing.round2(pay.amount), basis: pay.roadKm, rate: 0, occurredAt },
+      ...(order.paymentMode === 'COD' ? [{ source, party: { kind: 'RIDER', id: riderId }, type: 'CASH_COLLECTED', amount: pricing.round2(order.amounts.total), occurredAt }] : [])
+    ], { orderId: String(order._id) });
+  } catch (err) {
+    logger.error('Rider settlement failed', { orderId: String(order && order._id), error: err.message });
     return 0;
   }
 }
@@ -204,6 +220,7 @@ async function getPendingPayouts() {
 }
 
 module.exports = {
+  recordRiderDrop,
   recordPharmacyOrder,
   recordCareBooking,
   recordCareCancellationFee,
