@@ -9,13 +9,17 @@ import { Wordmark } from './Brand';
 import { Avatar } from './ProfilePhoto';
 
 const APP_LINKS = [
-  { href: '/book', label: 'Book a visit' },
+  { href: '/care', label: 'Care' },
+  { href: '/lab-tests', label: 'Lab tests' },
+  { href: '/book', label: 'Nurse now' },
   { href: '/pharmacy', label: 'Pharmacy' },
   { href: '/orders', label: 'My orders' },
   { href: '/plus', label: 'Plus' }
 ];
 
 const PUBLIC_LINKS = [
+  { href: '/care', label: 'Care' },
+  { href: '/lab-tests', label: 'Lab tests' },
   { href: '/#services', label: 'Services' },
   { href: '/#how', label: 'How it works' },
   { href: '/#safety', label: 'Safety' },

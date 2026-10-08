@@ -33,7 +33,11 @@ export default function OrdersPage() {
 
   return (
     <>
-      <div className="section-title" style={{ marginTop: 16 }}>Your orders</div>
+      <div className="mk-grid two" style={{ marginTop: 16 }}>
+        <Link className="mk-card-link" href="/care/plans"><div className="mk-card red"><p className="mk-title">My care plans</p><p className="mk-meta" style={{ margin: 0 }}>Physio, home care and nursing sessions</p></div></Link>
+        <Link className="mk-card-link" href="/lab-tests/orders"><div className="mk-card"><p className="mk-title">My lab tests</p><p className="mk-meta" style={{ margin: 0 }}>Collections, progress and reports</p></div></Link>
+      </div>
+      <div className="section-title" style={{ marginTop: 16 }}>Medicine orders</div>
       {error && <div className="notice">{error}</div>}
       {orders.length === 0 && <p className="muted">No orders yet. <Link href="/pharmacy" style={{ color: 'var(--brand)' }}>Order medicines →</Link></p>}
       <div className="grid cards">

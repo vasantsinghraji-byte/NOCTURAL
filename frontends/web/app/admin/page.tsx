@@ -10,14 +10,18 @@ import PaymentsPanel from './PaymentsPanel';
 import LogsPanel from './LogsPanel';
 import CampaignsPanel from './CampaignsPanel';
 import DocumentsPanel from './DocumentsPanel';
+import MarketplacePanel from './MarketplacePanel';
+import AdsSettingsPanel from './AdsSettingsPanel';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { ApiError, type AuthUser, type Medicine, type PharmacyVendor } from '@medrush/shared';
 import { StepUpDialog } from '../_components/AdminMfa';
 
-type Tab = 'users' | 'documents' | 'verification' | 'payments' | 'logs' | 'campaigns' | 'partners' | 'withdrawals' | 'vendors' | 'medicines';
+type Tab = 'care' | 'ads' | 'users' | 'documents' | 'verification' | 'payments' | 'logs' | 'campaigns' | 'partners' | 'withdrawals' | 'vendors' | 'medicines';
 // Platform-admin tabs first: the day-to-day operations.
 const TABS: Array<{ key: Tab; label: string; platformOnly?: boolean }> = [
+  { key: 'care', label: 'Care marketplace', platformOnly: true },
+  { key: 'ads', label: 'Ads & settings', platformOnly: true },
   { key: 'users', label: 'Users', platformOnly: true },
   { key: 'documents', label: 'Documents', platformOnly: true },
   { key: 'verification', label: 'Staff checks', platformOnly: true },
@@ -68,7 +72,7 @@ export default function AdminConsole() {
         const wanted = new URLSearchParams(window.location.search).get('tab') as Tab | null;
         const allowed = TABS.filter((t) => !t.platformOnly || res.user.role === 'platform_admin').map((t) => t.key);
         if (wanted && allowed.includes(wanted)) setTab(wanted);
-        else if (res.user.role === 'platform_admin') setTab('users');
+        else if (res.user.role === 'platform_admin') setTab('care');
         if (res.user.role === 'admin' || res.user.role === 'platform_admin') load();
       })
       .catch(() => setUser(null))
@@ -143,6 +147,8 @@ export default function AdminConsole() {
         </div>
       )}
 
+      {tab === 'care' && <MarketplacePanel sensitive={sensitive} />}
+      {tab === 'ads' && <AdsSettingsPanel sensitive={sensitive} />}
       {tab === 'partners' && <ApplicationsPanel sensitive={sensitive} />}
       {tab === 'withdrawals' && <WithdrawalsPanel sensitive={sensitive} />}
       {tab === 'users' && <UsersPanel sensitive={sensitive} />}

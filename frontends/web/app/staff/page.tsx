@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { IndianRupee, MapPin, Navigation, Phone, ShieldAlert, Star, UserRound, Wallet } from 'lucide-react';
+import { ClipboardList, IndianRupee, MapPin, Navigation, Phone, ShieldAlert, Star, Store, UserRound, Wallet } from 'lucide-react';
+import ProposalDialog from '../_components/care/ProposalDialog';
 import type { CareBooking, StaffDashboard, VisitOffer } from '@medrush/shared';
 import { api } from '@/lib/api';
 import UpdatesFeed from '../_components/UpdatesFeed';
@@ -93,6 +94,7 @@ export default function StaffDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [completing, setCompleting] = useState<Visit | null>(null);
+  const [proposing, setProposing] = useState<string | null>(null);
   const ringer = useRinger();
   const offerId = useRef<string | null>(null);
 
@@ -242,7 +244,10 @@ export default function StaffDashboardPage() {
               <Star size={14} aria-hidden="true" /> {dash?.rating ? `${dash.rating.toFixed(1)} · ${dash.totalReviews} reviews` : 'New · no reviews yet'}
             </p>
           </div>
-          <Link href="/partner/account" className="btn light" aria-label="My account"><UserRound size={16} aria-hidden="true" /> My account</Link>
+          <div className="row" style={{ gap: 8 }}>
+            <Link href="/partner/shop" className="btn light"><Store size={16} aria-hidden="true" /> My Shop</Link>
+            <Link href="/partner/account" className="btn light" aria-label="My account"><UserRound size={16} aria-hidden="true" /> My account</Link>
+          </div>
         </div>
 
         <div className={`online-card ${online ? 'on' : ''}`}>
@@ -282,15 +287,16 @@ export default function StaffDashboardPage() {
       {visits === null && <div className="stack" aria-busy="true" aria-label="Loading visits">{[0, 1].map((i) => <div key={i} className="card skeleton-card" />)}</div>}
       {visits?.length === 0 && <p className="muted">No visits yet. Go online to receive requests.</p>}
       <div className="grid cards">
-        {active.map((v) => <VisitCard key={v._id} v={v} onStep={() => step(v)} onSos={() => sos(v)} />)}
+        {active.map((v) => <VisitCard key={v._id} v={v} onStep={() => step(v)} onSos={() => sos(v)} onPropose={() => setProposing(v._id)} />)}
       </div>
       {past.length > 0 && (
         <>
           <h3 style={{ marginTop: 24 }}>Recent</h3>
-          <div className="grid cards">{past.map((v) => <VisitCard key={v._id} v={v} />)}</div>
+          <div className="grid cards">{past.map((v) => <VisitCard key={v._id} v={v} onPropose={v.status === 'COMPLETED' ? () => setProposing(v._id) : undefined} />)}</div>
         </>
       )}
 
+      {proposing && <ProposalDialog bookingId={proposing} onClose={() => setProposing(null)} />}
       {completing && <CompleteDialog visit={completing} onClose={() => setCompleting(null)} onDone={() => { setCompleting(null); load(); }} />}
     </>
   );
@@ -327,7 +333,7 @@ function OfferCard({ offer, onAccept, onDecline }: { offer: VisitOffer; onAccept
   );
 }
 
-function VisitCard({ v, onStep, onSos }: { v: Visit; onStep?: () => void; onSos?: () => void }) {
+function VisitCard({ v, onStep, onSos, onPropose }: { v: Visit; onStep?: () => void; onSos?: () => void; onPropose?: () => void }) {
   const store = v.supplies && typeof v.supplies.pharmacyVendor === 'object' ? v.supplies.pharmacyVendor : null;
   const next = NEXT[v.status];
   return (
@@ -348,8 +354,11 @@ function VisitCard({ v, onStep, onSos }: { v: Visit; onStep?: () => void; onSos?
           <div className="muted">Collect {inr(v.supplies.amount || 0)} from the patient for supplies.</div>
         </div>
       )}
-      {(onStep || onSos) && (
+      {(onStep || onSos || onPropose) && (
         <div className="row" style={{ gap: 8, justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+          {onPropose && ['IN_PROGRESS', 'COMPLETED'].includes(v.status) && (
+            <button className="btn secondary" onClick={onPropose}><ClipboardList size={16} aria-hidden="true" /> Suggest Plan</button>
+          )}
           {next && onStep && <button className="btn" onClick={onStep}>{next.label}</button>}
           {onSos && ['CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'].includes(v.status) && (
             <button className="btn secondary" onClick={onSos} aria-label="SOS: alert the Nabz safety team"><ShieldAlert size={16} aria-hidden="true" /> SOS</button>

@@ -106,3 +106,41 @@ export async function payForMembership(prefill: { name?: string; email?: string;
   });
   await api.verifyMembership(response);
 }
+
+/** Care plan paid upfront: Razorpay modal for the plan total → server-side verification. */
+export async function payForCarePlan(planId: string, prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
+  const [Razorpay, created] = await Promise.all([loadCheckout(), api.carePlanPaymentOrder(planId)]);
+  const order = created.order;
+  const response = await new Promise<RazorpayHandlerResponse>((resolve, reject) => {
+    const rzp = new Razorpay({
+      key: order.keyId,
+      order_id: order.orderId,
+      amount: Math.round(order.amount * 100),
+      currency: order.currency,
+      name: 'Nabz',
+      description: 'Care plan',
+      prefill,
+      theme: { color: '#b8243f' },
+      handler: (resp: RazorpayHandlerResponse) => resolve(resp),
+      modal: { ondismiss: () => reject(new PaymentDismissedError()) }
+    });
+    rzp.open();
+  });
+  await api.verifyCarePlanPayment(planId, { orderId: response.razorpay_order_id, paymentId: response.razorpay_payment_id, signature: response.razorpay_signature });
+}
+
+/** Partner ad wallet top-up: Razorpay modal → server-side verification. */
+export async function payForAdTopup(amount: number): Promise<void> {
+  const [Razorpay, created] = await Promise.all([loadCheckout(), api.adTopupOrder(amount)]);
+  const order = created.order;
+  const response = await new Promise<RazorpayHandlerResponse>((resolve, reject) => {
+    const rzp = new Razorpay({
+      key: order.keyId, order_id: order.orderId, amount: Math.round(order.amount * 100), currency: order.currency,
+      name: 'Nabz Ads', description: 'Ad wallet top-up', theme: { color: '#b8243f' },
+      handler: (resp: RazorpayHandlerResponse) => resolve(resp),
+      modal: { ondismiss: () => reject(new PaymentDismissedError()) }
+    });
+    rzp.open();
+  });
+  await api.verifyAdTopup({ orderId: response.razorpay_order_id, paymentId: response.razorpay_payment_id, signature: response.razorpay_signature });
+}

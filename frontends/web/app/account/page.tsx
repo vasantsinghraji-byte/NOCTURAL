@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, Crown, Gift, LogOut, Package, Trash2 } from 'lucide-react';
+import { CalendarHeart, ChevronRight, Crown, FlaskConical, Gift, LogOut, MapPin, Package, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import ProfilePhotoEditor from '../_components/ProfilePhoto';
@@ -63,6 +63,9 @@ export default function AccountPage() {
       {notice && <div className={`notice ${notice.tone}`} role="status" style={{ marginTop: 16 }}>{notice.text}</div>}
 
       <nav className="card account-links" aria-label="Account" style={{ marginTop: 16 }}>
+        <Link href="/care/plans"><CalendarHeart size={18} aria-hidden="true" /><span>My care plans</span><ChevronRight size={16} aria-hidden="true" /></Link>
+        <Link href="/lab-tests/orders"><FlaskConical size={18} aria-hidden="true" /><span>My lab tests</span><ChevronRight size={16} aria-hidden="true" /></Link>
+        <Link href="/account/addresses"><MapPin size={18} aria-hidden="true" /><span>Saved addresses</span><ChevronRight size={16} aria-hidden="true" /></Link>
         <Link href="/orders"><Package size={18} aria-hidden="true" /><span>My orders and visits</span><ChevronRight size={16} aria-hidden="true" /></Link>
         <Link href="/plus"><Crown size={18} aria-hidden="true" /><span>Nabz Plus</span><ChevronRight size={16} aria-hidden="true" /></Link>
         <button type="button" onClick={referral}><Gift size={18} aria-hidden="true" /><span>Have a referral code?</span><ChevronRight size={16} aria-hidden="true" /></button>

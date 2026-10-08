@@ -71,6 +71,7 @@ import type {
   PartnerDocumentKind,
   VerificationStatus
 } from './types';
+import type * as M from './marketplace';
 
 export interface ApiClientOptions {
   /** e.g. "https://api.medrush.app" or "http://localhost:5000" */
@@ -104,11 +105,14 @@ export interface SessionTokens { accessToken: string; refreshToken: string }
 export class ApiError extends Error {
   status: number;
   details?: unknown;
-  constructor(status: number, message: string, details?: unknown) {
+  /** Machine-readable reason the screens act on, e.g. PRICE_CHANGED, SLOT_TAKEN, OUT_OF_RANGE. */
+  code?: string;
+  constructor(status: number, message: string, details?: unknown, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.details = details;
+    this.code = code;
   }
 }
 
@@ -201,7 +205,7 @@ export class MedRushApi {
       const message = res.status === 429
         ? 'Nabz is busy right now. Please wait a few seconds and try again.'
         : (payload && (payload.message || payload.error)) || `Request failed (${res.status})`;
-      throw new ApiError(res.status, message, payload && payload.details);
+      throw new ApiError(res.status, message, payload && payload.details, payload && typeof payload.code === 'string' ? payload.code : undefined);
     }
     return payload as T;
   }
@@ -874,6 +878,344 @@ export class MedRushApi {
   adminCreateMedicine(body: Partial<Medicine> & { name: string }) {
     return this.request<{ success: true; medicine: Medicine }>('POST', '/pharmacy/admin/medicines', { body });
   }
+  // ── Address book (saved places for visits and deliveries) ───────────────
+  addAddress(body: { label?: string; street: string; landmark?: string; city: string; state: string; pincode: string; coordinates?: { lat: number; lng: number }; isDefault?: boolean }) {
+    return this.request<{ success: true; data?: PatientProfile; patient?: PatientProfile }>('POST', '/patients/me/addresses', { body });
+  }
+
+  updateAddress(id: string, body: { label?: string; street: string; landmark?: string; city: string; state: string; pincode: string; coordinates?: { lat: number; lng: number }; isDefault?: boolean }) {
+    return this.request<{ success: true; data?: PatientProfile; patient?: PatientProfile }>('PUT', `/patients/me/addresses/${id}`, { body });
+  }
+
+  deleteAddress(id: string) {
+    return this.request<{ success: true }>('DELETE', `/patients/me/addresses/${id}`);
+  }
+
+  // ── Care marketplace (physio, home care, nursing, labs) ─────────────────
+  // See docs/product/PROVIDER_MARKETPLACE_PLAN.md. Errors carry `code`
+  // (PRICE_CHANGED, SLOT_TAKEN, OUT_OF_RANGE, …) and `details`.
+
+  marketHome(city?: string) {
+    return this.request<{ success: true; spotlight: M.SpotlightAd[]; physio: M.MarketService[]; homecare: M.MarketService[]; labs: M.MarketService[] }>('GET', '/marketplace/home', { query: { city } });
+  }
+
+  marketServices(kind: M.ShopKind) {
+    return this.request<{ success: true; services: M.MarketService[] }>('GET', '/marketplace/services', { query: { kind } });
+  }
+
+  marketServiceBanner(serviceId: string, city?: string) {
+    return this.request<{ success: true; banner: M.SpotlightAd | null }>('GET', `/marketplace/services/${serviceId}/banner`, { query: { city } });
+  }
+
+  marketStores(q: { kind: M.ShopKind; serviceId?: string; mode?: M.CareMode; lat?: number; lng?: number; sort?: 'recommended' | 'price' | 'distance' | 'rating'; gender?: 'FEMALE' | 'MALE'; language?: string; city?: string }) {
+    return this.request<{ success: true; stores: M.ShopCard[] }>('GET', '/marketplace/stores', { query: q });
+  }
+
+  marketStore(id: string, point?: M.LatLng) {
+    return this.request<{ success: true; store: M.ShopPage }>('GET', `/marketplace/stores/${id}`, { query: point ? { lat: point.lat, lng: point.lng } : undefined });
+  }
+
+  marketSlots(id: string, q: { serviceId: string; mode: M.CareMode; from?: string; days?: number }) {
+    return this.request<{ success: true; paused: boolean; durationMinutes?: number; days: M.SlotDay[] }>('GET', `/marketplace/stores/${id}/slots`, { query: q });
+  }
+
+  adClick(token: string, city?: string) {
+    return this.request<{ success: true; valid: boolean }>('POST', '/marketplace/ads/click', { body: { token, city } });
+  }
+
+  careQuote(input: M.QuoteInput) {
+    return this.request<{ success: true; quote: M.CareQuote }>('POST', '/marketplace/quotes', { body: input });
+  }
+
+  bookCarePlan(quoteId: string) {
+    return this.request<{ success: true; plan: M.CarePlanView }>('POST', '/marketplace/plans', { body: { quoteId } });
+  }
+
+  myCarePlans() {
+    return this.request<{ success: true; plans: M.CarePlanView[] }>('GET', '/marketplace/plans');
+  }
+
+  carePlan(id: string) {
+    return this.request<{ success: true; plan: M.CarePlanView }>('GET', `/marketplace/plans/${id}`);
+  }
+
+  cancelCarePlan(id: string, reason?: string) {
+    return this.request<{ success: true; cancelled: number; plan: M.CarePlanView }>('POST', `/marketplace/plans/${id}/cancel`, { body: { reason } });
+  }
+
+  carePlanPaymentOrder(id: string) {
+    return this.request<{ success: true; order: { orderId: string; amount: number; currency: string; keyId: string } }>('POST', `/marketplace/plans/${id}/payment/order`);
+  }
+
+  verifyCarePlanPayment(id: string, body: { orderId: string; paymentId: string; signature: string }) {
+    return this.request<{ success: true; plan: M.CarePlanView }>('POST', `/marketplace/plans/${id}/payment/verify`, { body });
+  }
+
+  moveSession(bookingId: string, date: string, time: string) {
+    return this.request<{ success: true; session: M.PlanSession }>('PUT', `/marketplace/sessions/${bookingId}/schedule`, { body: { date, time } });
+  }
+
+  changeSessionAddress(bookingId: string, body: { addressId?: string; address?: M.QuoteInput['address']; allUpcoming?: boolean }) {
+    return this.request<{ success: true; sessions: number; travelFee: number; roadKm: number; extraDue: number; credit: number }>('PUT', `/marketplace/sessions/${bookingId}/address`, { body });
+  }
+
+  reportSession(bookingId: string, kind: 'EXTRA_CASH' | 'NO_SHOW' | 'OTHER', note?: string) {
+    return this.request<{ success: true; reported: boolean }>('POST', `/marketplace/sessions/${bookingId}/report`, { body: { kind, note } });
+  }
+
+  myWallet() {
+    return this.request<{ success: true } & M.WalletView>('GET', '/marketplace/wallet');
+  }
+
+  myProposals() {
+    return this.request<{ success: true; proposals: M.PlanProposalView[] }>('GET', '/marketplace/proposals');
+  }
+
+  declineProposal(id: string) {
+    return this.request<{ success: true }>('POST', `/marketplace/proposals/${id}/decline`);
+  }
+
+  // Labs
+  compareLabs(serviceIds: string[], q: { mode?: M.CareMode; lat?: number; lng?: number } = {}) {
+    return this.request<{ success: true; labs: M.LabCompareRow[] }>('GET', '/marketplace/labs/compare', { query: { serviceIds: serviceIds.join(','), ...q } });
+  }
+
+  labMenu(storeId: string) {
+    return this.request<{ success: true; tests: M.LabMenuItem[] }>('GET', `/marketplace/labs/${storeId}/menu`);
+  }
+
+  labQuote(input: M.LabOrderInput) {
+    return this.request<{ success: true; quote: M.LabQuote }>('POST', '/marketplace/labs/quote', { body: input });
+  }
+
+  bookLabOrder(input: M.LabOrderInput) {
+    return this.request<{ success: true; order: M.LabOrderView }>('POST', '/marketplace/labs/orders', { body: input });
+  }
+
+  myLabOrders() {
+    return this.request<{ success: true; orders: M.LabOrderView[] }>('GET', '/marketplace/labs/orders');
+  }
+
+  labOrder(id: string) {
+    return this.request<{ success: true; order: M.LabOrderView }>('GET', `/marketplace/labs/orders/${id}`);
+  }
+
+  cancelLabOrder(id: string, reason?: string) {
+    return this.request<{ success: true; order: M.LabOrderView }>('POST', `/marketplace/labs/orders/${id}/cancel`, { body: { reason } });
+  }
+
+  moveLabOrder(id: string, date: string, time: string) {
+    return this.request<{ success: true; order: M.LabOrderView }>('PUT', `/marketplace/labs/orders/${id}/schedule`, { body: { date, time } });
+  }
+
+  bookRecollection(id: string, date: string, time: string) {
+    return this.request<{ success: true; order: M.LabOrderView }>('POST', `/marketplace/labs/orders/${id}/recollect`, { body: { date, time } });
+  }
+
+  labReportLink(id: string) {
+    return this.request<{ success: true; url: string; mimeType: string; expiresInSeconds: number }>('GET', `/marketplace/labs/orders/${id}/report`);
+  }
+
+  // Partner: shop, rate card, team, offers, proposals, ads
+  myShop(kind?: M.ShopKind) {
+    return this.request<{ success: true; kinds: M.ShopKind[]; store: M.MyShop | null; rateCard: M.MyRateCardItem[]; upcomingSessions?: number }>('GET', '/marketplace/partner/store', { query: { kind } });
+  }
+
+  saveMyShop(body: Record<string, unknown>) {
+    return this.request<{ success: true; store: M.MyShop; warnings: string[] }>('PUT', '/marketplace/partner/store', { body });
+  }
+
+  saveRateCardItem(serviceId: string, body: Record<string, unknown>) {
+    return this.request<{ success: true; item: M.MyRateCardItem; warnings: string[] }>('PUT', `/marketplace/partner/store/rate-card/${serviceId}`, { body });
+  }
+
+  removeRateCardItem(serviceId: string, kind?: M.ShopKind) {
+    return this.request<{ success: true; warnings: string[] }>('DELETE', `/marketplace/partner/store/rate-card/${serviceId}`, { query: { kind } });
+  }
+
+  setShopOffer(serviceId: string, body: { percent: number; maxDiscount: number; kind?: M.ShopKind }) {
+    return this.request<{ success: true; item: M.MyRateCardItem }>('PUT', `/marketplace/partner/store/rate-card/${serviceId}/offer`, { body });
+  }
+
+  removeShopOffer(serviceId: string, kind?: M.ShopKind) {
+    return this.request<{ success: true }>('DELETE', `/marketplace/partner/store/rate-card/${serviceId}/offer`, { query: { kind } });
+  }
+
+  pauseShop(paused: boolean, kind?: M.ShopKind) {
+    return this.request<{ success: true; isPaused: boolean }>('PUT', '/marketplace/partner/store/pause', { body: { paused, kind } });
+  }
+
+  addShopLeave(body: { from: string; to?: string; reason?: string; kind?: M.ShopKind }) {
+    return this.request<{ success: true; leave: M.MyShop['leave']; released: number }>('POST', '/marketplace/partner/store/leave', { body });
+  }
+
+  removeShopLeave(id: string, kind?: M.ShopKind) {
+    return this.request<{ success: true }>('DELETE', `/marketplace/partner/store/leave/${id}`, { query: { kind } });
+  }
+
+  myTeam(kind?: M.ShopKind) {
+    return this.request<{ success: true; members: M.TeamMember[] }>('GET', '/marketplace/partner/team', { query: { kind } });
+  }
+
+  addTeamMember(body: { phone?: string; email?: string; kind?: M.ShopKind }) {
+    return this.request<{ success: true; members: M.TeamMember[] }>('POST', '/marketplace/partner/team', { body });
+  }
+
+  removeTeamMember(userId: string, kind?: M.ShopKind) {
+    return this.request<{ success: true; members: M.TeamMember[]; released: number }>('DELETE', `/marketplace/partner/team/${userId}`, { query: { kind } });
+  }
+
+  myShopPlans() {
+    return this.request<{ success: true; plans: { _id: string; serviceName: string; mode: M.CareMode; sessionsTotal: number; sessionsCompleted: number; status: string; paymentMode: string; patientDetails?: { name?: string }; city?: string; createdAt: string }[] }>('GET', '/marketplace/partner/plans');
+  }
+
+  proposePlan(bookingId: string, body: { serviceId: string; mode: M.CareMode; sessions: number; sessionsPerWeek?: number; note?: string }) {
+    return this.request<{ success: true }>('POST', `/marketplace/partner/visits/${bookingId}/proposal`, { body });
+  }
+
+  myAds() {
+    return this.request<{ success: true; campaigns: M.AdCampaignView[]; wallet: M.AdWalletView }>('GET', '/marketplace/partner/ads');
+  }
+
+  createAd(body: Record<string, unknown>) {
+    return this.request<{ success: true; campaign: M.AdCampaignView }>('POST', '/marketplace/partner/ads', { body });
+  }
+
+  setAdStatus(id: string, status: 'ACTIVE' | 'PAUSED' | 'ENDED') {
+    return this.request<{ success: true; campaign: M.AdCampaignView }>('PUT', `/marketplace/partner/ads/${id}/status`, { body: { status } });
+  }
+
+  adTopupOrder(amount: number) {
+    return this.request<{ success: true; order: { orderId: string; amount: number; currency: string; keyId: string } }>('POST', '/marketplace/partner/ads/wallet/order', { body: { amount } });
+  }
+
+  verifyAdTopup(body: { orderId: string; paymentId: string; signature: string }) {
+    return this.request<{ success: true; wallet: M.AdWalletView }>('POST', '/marketplace/partner/ads/wallet/verify', { body });
+  }
+
+  // Lab partner
+  labPartnerOrders(q: { date?: string; status?: string } = {}) {
+    return this.request<{ success: true; orders: M.LabOrderForLab[] }>('GET', '/marketplace/partner/lab/orders', { query: q });
+  }
+
+  labCollect(id: string, body: { code?: string; paidAmount?: number; method?: 'CASH' | 'UPI' }) {
+    return this.request<{ success: true; order: M.LabOrderForLab }>('POST', `/marketplace/partner/lab/orders/${id}/collect`, { body });
+  }
+
+  labAdvance(id: string, status: 'AT_LAB' | 'PROCESSING') {
+    return this.request<{ success: true; order: M.LabOrderForLab }>('POST', `/marketplace/partner/lab/orders/${id}/status`, { body: { status } });
+  }
+
+  labReject(id: string, reason: string) {
+    return this.request<{ success: true; order: M.LabOrderForLab }>('POST', `/marketplace/partner/lab/orders/${id}/reject`, { body: { reason } });
+  }
+
+  async uploadLabReport(id: string, file: unknown, filename = 'report.pdf'): Promise<{ success: true; order: M.LabOrderForLab }> {
+    const form = new FormData();
+    form.append('report', file as any, filename);
+    const res = await this.send(`/marketplace/partner/lab/orders/${id}/report`, { method: 'POST', headers: { Accept: 'application/json' }, body: form });
+    const text = await res.text();
+    let payload: any = null;
+    try { payload = text ? JSON.parse(text) : null; } catch { payload = { message: text }; }
+    if (!res.ok || (payload && payload.success === false)) {
+      throw new ApiError(res.status, (payload && payload.message) || `Upload failed (${res.status})`, payload?.details, payload?.code);
+    }
+    return payload;
+  }
+
+  // Admin
+  adminMarketOverview() {
+    return this.request<{ success: true; overview: M.MarketplaceOverview }>('GET', '/marketplace/admin/overview');
+  }
+
+  adminMarketStores(q: { status?: string; kind?: M.ShopKind } = {}) {
+    return this.request<{ success: true; stores: (M.MyShop & { owner?: { name?: string; email?: string } })[] }>('GET', '/marketplace/admin/stores', { query: q });
+  }
+
+  adminSetShopStatus(id: string, status: 'PENDING' | 'APPROVED' | 'SUSPENDED' | 'REJECTED', reason?: string) {
+    return this.request<{ success: true; released: number }>('PUT', `/marketplace/admin/stores/${id}/status`, { body: { status, reason } });
+  }
+
+  adminShopStrike(id: string, reason: string) {
+    return this.request<{ success: true; strikes: number }>('POST', `/marketplace/admin/stores/${id}/strikes`, { body: { reason } });
+  }
+
+  adminRefunds() {
+    return this.request<{ success: true; refunds: { type: 'PLAN' | 'LAB'; id: string; customer: string; shop: string; amount: number; reason?: string; paymentId?: string; since: string }[] }>('GET', '/marketplace/admin/refunds');
+  }
+
+  adminProcessRefund(body: { type: 'PLAN' | 'LAB'; id: string; reference?: string }) {
+    return this.request<{ success: true; amount: number; refundId: string }>('POST', '/marketplace/admin/refunds', { body });
+  }
+
+  adminReports() {
+    return this.request<{ success: true; reports: { bookingId: string; reason: string; status: string; date: string; time: string; customer: string; professional: string; shop?: string; amount?: number }[] }>('GET', '/marketplace/admin/reports');
+  }
+
+  adminResolveReport(bookingId: string, outcome: 'NO_SHOW' | 'EXTRA_CASH' | 'DISMISS', note?: string) {
+    return this.request<{ success: true; credit: number; strike: boolean }>('POST', `/marketplace/admin/reports/${bookingId}/resolve`, { body: { outcome, note } });
+  }
+
+  adminNeedsAction() {
+    return this.request<{ success: true; sessions: { bookingId: string; plan: string; date: string; time: string; customer: string; shop?: string; reason: string }[] }>('GET', '/marketplace/admin/needs-action');
+  }
+
+  adminSessionsBoard(date?: string) {
+    return this.request<{ success: true; sessions: { bookingId: string; time: string; status: string; mode: M.CareMode; service?: string; customer: string; professional: string; city?: string; flagged: boolean }[] }>('GET', '/marketplace/admin/sessions', { query: { date } });
+  }
+
+  adminLabBoard(q: { status?: string; late?: boolean } = {}) {
+    return this.request<{ success: true; orders: { id: string; lab?: string; customer: string; tests: string[]; mode: M.CareMode; slot: { date: string; time: string }; status: string; reportDueAt?: string; late: boolean; total?: number; payment?: string }[] }>('GET', '/marketplace/admin/lab-orders', { query: { status: q.status, late: q.late ? 'true' : undefined } });
+  }
+
+  adminCatalog(kind?: M.ShopKind) {
+    return this.request<{ success: true; services: (M.MarketService & { marketplace: { kind: M.ShopKind; priceFloor: number; priceCeiling: number; defaultDurationMinutes?: number; homeAllowed?: boolean; clinicAllowed?: boolean }; availability: { isActive: boolean }; shops: number })[] }>('GET', '/marketplace/admin/catalog', { query: { kind } });
+  }
+
+  adminCreateCatalogService(body: Record<string, unknown>) {
+    return this.request<{ success: true }>('POST', '/marketplace/admin/catalog', { body });
+  }
+
+  adminUpdateCatalogService(id: string, body: Record<string, unknown>) {
+    return this.request<{ success: true }>('PUT', `/marketplace/admin/catalog/${id}`, { body });
+  }
+
+  adminOffers(status: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING') {
+    return this.request<{ success: true; offers: { _id: string; service: { displayName?: string; name: string }; store: { name: string }; clinic: { price?: number }; home: { price?: number }; offer: { percent: number; maxDiscount: number; status: string } }[] }>('GET', '/marketplace/admin/offers', { query: { status } });
+  }
+
+  adminReviewOffer(itemId: string, decision: 'APPROVED' | 'REJECTED', reason?: string) {
+    return this.request<{ success: true }>('PUT', `/marketplace/admin/offers/${itemId}`, { body: { decision, reason } });
+  }
+
+  adminGiveCredit(patientId: string, amount: number, reason: string) {
+    return this.request<{ success: true; balance: number }>('POST', `/marketplace/admin/customers/${patientId}/credit`, { body: { amount, reason } });
+  }
+
+  adminAds(status?: string) {
+    return this.request<{ success: true; campaigns: M.AdCampaignView[]; report: { date: string; placement: string; impressions: number; clicks: number; spend: number; bookings: number; invalidClicks: number }[] }>('GET', '/marketplace/admin/ads', { query: { status } });
+  }
+
+  adminReviewAd(id: string, decision: 'APPROVE' | 'REJECT' | 'PAUSE' | 'RESUME', reason?: string) {
+    return this.request<{ success: true }>('PUT', `/marketplace/admin/ads/${id}`, { body: { decision, reason } });
+  }
+
+  adminCreateHouseAd(body: { name: string; product?: 'SPOTLIGHT' | 'CATEGORY_BANNER'; creative: { title: string; subtitle?: string; ctaPath?: string }; services?: string[]; cities?: string[] }) {
+    return this.request<{ success: true }>('POST', '/marketplace/admin/ads/house', { body });
+  }
+
+  adminSettings() {
+    return this.request<{ success: true; fields: M.SettingField[]; blockedCities: string[]; pending: { _id: string; key: string; changes: { path: string; value: unknown; previous: unknown }[]; reason: string; proposedBy?: { name?: string }; createdAt: string }[]; history: { _id: string; key: string; status: string; changes: { path: string; value: unknown; previous: unknown }[]; reason: string; createdAt: string; selfApproved?: boolean }[] }>('GET', '/marketplace/admin/settings');
+  }
+
+  adminProposeSetting(body: { key: 'revenue' | 'ads'; changes?: Record<string, number | boolean>; blockedCities?: string[]; reason: string }) {
+    return this.request<{ success: true }>('POST', '/marketplace/admin/settings', { body });
+  }
+
+  adminReviewSetting(id: string, decision: 'APPROVE' | 'REJECT', note?: string) {
+    return this.request<{ success: true }>('PUT', `/marketplace/admin/settings/${id}`, { body: { decision, note } });
+  }
+
 }
 
 export function createApiClient(opts: ApiClientOptions): MedRushApi {

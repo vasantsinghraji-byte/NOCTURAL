@@ -1,8 +1,9 @@
 import RevealOnScroll from './_components/RevealOnScroll';
 import type { Metadata, Viewport } from 'next';
-import { Instrument_Serif, Manrope } from 'next/font/google';
+import { Outfit, Manrope } from 'next/font/google';
 import './globals.css';
 import './nabz.css';
+import './market.css';
 import Providers from './_components/Providers';
 import { DialogHost } from './_components/Dialog';
 import SiteNav from './_components/SiteNav';
@@ -11,7 +12,8 @@ import AppTabBar from './_components/AppTabBar';
 
 // Self-hosted at build time (no request to Google from visitors' browsers).
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope', display: 'swap' });
-const instrument = Instrument_Serif({ subsets: ['latin'], weight: '400', style: ['normal', 'italic'], variable: '--font-instrument', display: 'swap' });
+// Display: a bold geometric sans (headings, prices, numbers).
+const outfit = Outfit({ subsets: ['latin'], weight: ['500', '600', '700', '800'], variable: '--font-outfit', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'Nabz · Care that comes home',
@@ -32,7 +34,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fbf8f3' },
+    { media: '(prefers-color-scheme: light)', color: '#fbf7f7' },
     { media: '(prefers-color-scheme: dark)', color: '#131014' }
   ],
   width: 'device-width',
@@ -41,7 +43,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${manrope.variable} ${instrument.variable}`}>
+    <html lang="en" className={`${manrope.variable} ${outfit.variable}`}>
       <body>
         <a href="#main" className="skip-link">Skip to content</a>
         <RevealOnScroll />

@@ -1,17 +1,20 @@
 /* Nabz web design system: ivory + deep rose + sage green with soft claymorphism
-   (gentle lift, faint light edge, subtle inner shade). Instrument Serif display,
+   (gentle lift, faint light edge, subtle inner shade). Outfit display,
    Manrope text (fonts self-hosted via next/font in app/layout.tsx).
    Mirrors frontends/mobile/lib/theme.ts. */
 :root {
-  --bg: #fbf8f3;
-  --card: #fffdf9;
-  --card-alt: #f4efe7;
+  --bg: #fbf7f7;
+  --card: #ffffff;
+  --card-alt: #f6eeef;
   --ink: #2a2523;
   --ink-soft: #5b524c;
   --muted: #8e857d;
   --faint: #c9c0b6;
-  --night: #b83a50;
-  --night-2: #9e2f43;
+  --night: #b8243f;
+  --night-2: #8f1730;
+  /* Deep wine for hero backgrounds (care marketplace, splash). */
+  --wine: #2b0910;
+  --wine-2: #4a0f1d;
   --on-night: #fff8f6;
   --on-night-muted: #f8d7dc;
   --gold: #f0c77e;
@@ -43,7 +46,7 @@
   --clay-btn-green: 0 12px 22px -10px rgba(47, 125, 91, 0.55), inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 0 -3px 0 rgba(0, 0, 0, 0.12);
   --clay-inset: inset 0 2px 4px rgba(122, 74, 58, 0.07);
   --font-sans: var(--font-manrope), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: var(--font-instrument), Georgia, "Times New Roman", serif;
+  --font-display: var(--font-outfit), var(--font-manrope), system-ui, sans-serif;
 }
 
 /* Dark: follows the device setting (plum-black, same as the app); a
@@ -57,8 +60,10 @@
   --ink-soft: #dcd2d6;
   --muted: #a0959b;
   --faint: #5a5058;
-  --night: #d4506a;
-  --night-2: #b8425a;
+  --night: #e0455f;
+  --night-2: #b8243f;
+  --wine: #1a0609;
+  --wine-2: #36101a;
   --on-night: #fff8f6;
   --on-night-muted: #fbd9df;
   --gold: #ecc684;
@@ -98,8 +103,10 @@
   --ink-soft: #dcd2d6;
   --muted: #a0959b;
   --faint: #5a5058;
-  --night: #d4506a;
-  --night-2: #b8425a;
+  --night: #e0455f;
+  --night-2: #b8243f;
+  --wine: #1a0609;
+  --wine-2: #36101a;
   --on-night: #fff8f6;
   --on-night-muted: #fbd9df;
   --gold: #ecc684;
@@ -160,9 +167,9 @@ html, body {
 }
 
 a { color: inherit; text-decoration: none; }
-h1 { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.01em; }
+h1 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; }
 h2, h3 { letter-spacing: -0.02em; font-weight: 800; }
-.serif { font-family: var(--font-display); font-weight: 400; }
+.serif { font-family: var(--font-display); font-weight: 700; }
 
 .container { max-width: 1160px; margin: 0 auto; padding: 16px; }
 /* Full-bleed section inside the centred container */
@@ -178,7 +185,7 @@ h2, h3 { letter-spacing: -0.02em; font-weight: 800; }
   padding: 10px 16px;
 }
 .brandmark { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 22px; letter-spacing: -0.05em; color: var(--ink); }
-.brandmark .suffix { font-family: var(--font-display); font-weight: 400; font-style: italic; color: var(--gold); letter-spacing: 0; font-size: 19px; }
+.brandmark .suffix { font-family: var(--font-display); font-weight: 700; color: var(--gold); letter-spacing: 0; font-size: 19px; }
 .navbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .navlinks { display: flex; align-items: center; gap: 4px; font-weight: 600; font-size: 14px; flex-wrap: wrap; }
 .navlinks a, .navlinks .linkbtn { padding: 8px 13px; border-radius: 999px; color: var(--ink-soft); transition: background .15s, color .15s; }
@@ -187,7 +194,7 @@ h2, h3 { letter-spacing: -0.02em; font-weight: 800; }
 .navlinks .cta:hover { background: var(--night-2); color: var(--on-night); }
 .cartlink { background: var(--night) !important; color: #fff !important; }
 .navuser { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 700; padding: 0 6px; }
-.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--night); color: var(--on-night); display: grid; place-items: center; font-family: var(--font-display); font-size: 17px; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--night); color: var(--on-night); display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 17px; }
 .linkbtn { background: none; border: none; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer; padding: 7px 10px; }
 .linkbtn:hover { color: var(--rose); }
 @media (max-width: 760px) { .navlinks .hide-sm { display: none; } }
@@ -373,7 +380,7 @@ h2, h3 { letter-spacing: -0.02em; font-weight: 800; }
 .track-page { min-height: 100vh; display: grid; place-items: start center; padding: 32px 16px; background: radial-gradient(700px 400px at 100% 0%, rgba(255, 196, 206, 0.3), transparent 60%), #b83a50; }
 .track-card { width: 100%; max-width: 560px; background: #fbf8f3; color: #2a2523; border-radius: 28px; padding: 24px; box-shadow: 0 30px 80px -30px rgba(0,0,0,.6); }
 .track-kicker { font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #a8283d; margin: 0; }
-.track-title { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 38px; line-height: 1.1; margin: 8px 0 6px; }
+.track-title { font-family: var(--font-display); font-weight: 700; font-size: 38px; line-height: 1.1; margin: 8px 0 6px; }
 .track-muted { color: #8e857d; margin: 0; }
 .track-error { background: #fbe5e8; color: #a8283d; padding: 12px; border-radius: 12px; }
 .track-stats { display: flex; gap: 10px; margin: 18px 0; }

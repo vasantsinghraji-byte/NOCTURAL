@@ -573,6 +573,9 @@ async function listMarketplaceServices(kind = 'PHYSIO') {
       icon: s.icon,
       homeAllowed: !s.marketplace || s.marketplace.homeAllowed !== false,
       clinicAllowed: !s.marketplace || s.marketplace.clinicAllowed !== false,
+      priceFloor: s.marketplace && s.marketplace.priceFloor,
+      priceCeiling: s.marketplace && s.marketplace.priceCeiling,
+      defaultDurationMinutes: s.marketplace && s.marketplace.defaultDurationMinutes,
       lab: s.lab,
       providers: st.providers || 0,
       fromPrice: prices.length ? Math.min(...prices) : null
