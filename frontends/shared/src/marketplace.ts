@@ -269,7 +269,7 @@ export interface TeamMember { user: string; role: string; active: boolean; name?
 
 export interface AdCampaignView {
   _id: string;
-  product: 'SPONSORED_LISTING' | 'SPOTLIGHT' | 'CATEGORY_BANNER';
+  product: 'SPONSORED_LISTING' | 'SPOTLIGHT' | 'CATEGORY_BANNER' | 'MAP_PIN';
   name: string;
   status: 'PENDING_REVIEW' | 'ACTIVE' | 'PAUSED' | 'REJECTED' | 'ENDED';
   bidCpc?: number;
@@ -299,3 +299,5 @@ export interface MarketplaceOverview {
 }
 
 export interface SettingField { key: 'revenue' | 'ads'; path: string; type: 'number' | 'boolean'; min?: number; max?: number; label: string; value: number | boolean }
+
+export interface MapShop { _id: string; name: string; kind: ShopKind; format?: string; isPaused?: boolean; rating?: { avg: number; count: number }; lat: number; lng: number }

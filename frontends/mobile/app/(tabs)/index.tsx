@@ -7,13 +7,13 @@ import { router, useFocusEffect } from 'expo-router';
 import {
   ChevronRight, Crown, MapPin as MapPinIcon, Navigation, PackageCheck, Radio, RotateCcw, Search, ShieldCheck, Store, Truck, X, type LucideIcon
 } from 'lucide-react-native';
-import type { CareBooking, CareService, HomeBanner, HomeFeed, PharmacyVendor } from '@medrush/shared';
+import type { CareBooking, CareService, HomeBanner, HomeFeed, MapShop, PharmacyVendor, ShopKind } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useT } from '@/lib/i18n';
 import { useLiveLocation } from '@/lib/useLiveLocation';
 import { DEMO_AREA_ENABLED } from '@/lib/variant';
-import { LiveMap, type MapPin } from '@/lib/MapView';
+import { LiveMap, PIN_LOOK, pinKindForRole, type MapPin, type PinKind } from '@/lib/MapView';
 import { DEMO_POINT, inr, shortName } from '@/lib/care';
 import { CareMoments } from '@/lib/CareMoments';
 import { IconTile, serviceIcon } from '@/lib/icons';
@@ -27,6 +27,7 @@ import { useEasyMode } from '@/lib/easyMode';
 import CareArt, { WineGradient } from '@/lib/CareArt';
 
 type Mode = 'ASAP' | 'SCHEDULED';
+const SHOP_PIN: Record<ShopKind, PinKind> = { PHYSIO: 'physio', LAB: 'lab', HOMECARE: 'caregiver', NURSING: 'nurse' };
 const DEMO_AREA_KEY = 'nabz.demoArea';
 const MAP_H = Math.round(Dimensions.get('window').height * 0.34);
 const ACTIVE = ['REQUESTED', 'ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'];
@@ -74,7 +75,8 @@ function BookHome() {
   }
   const [stores, setStores] = useState<PharmacyVendor[]>([]);
   const [storesChecked, setStoresChecked] = useState(false);
-  const [nearby, setNearby] = useState<{ count: number; nearestKm: number | null; staff: Array<{ lat: number; lng: number }> }>({ count: 0, nearestKm: null, staff: [] });
+  const [nearby, setNearby] = useState<{ count: number; nearestKm: number | null; staff: Array<{ role?: string; lat: number; lng: number }> }>({ count: 0, nearestKm: null, staff: [] });
+  const [mapShops, setMapShops] = useState<{ shops: MapShop[]; sponsored: Array<MapShop & { token: string; store: string }> }>({ shops: [], sponsored: [] });
   const storesLoadedFor = useRef<string | null>(null);
   const [services, setServices] = useState<CareService[] | null>(null);
   const [feed, setFeed] = useState<HomeFeed | null>(null);
@@ -104,6 +106,8 @@ function BookHome() {
     if (storesLoadedFor.current !== key) {
       storesLoadedFor.current = key;
       api.getNearbyVendors({ ...point, radiusKm: 10 }).then((r) => { setStores(r.vendors); setStoresChecked(true); }).catch(() => undefined);
+      // Clinics and labs near you, plus labelled sponsored pins (admin controls these in Ads & settings).
+      api.marketMap({ ...point, radiusKm: 8 }).then((r) => setMapShops({ shops: r.shops, sponsored: r.sponsored })).catch(() => undefined);
     }
     const loadStaff = () => api.getNearbyStaff({ ...point, radiusKm: 10 }).then(setNearby).catch(() => undefined);
     loadStaff();
@@ -111,13 +115,35 @@ function BookHome() {
     return () => clearInterval(tm);
   }, [point]);
 
+  // Every service has its own pin (nurse, physio, caregiver, lab, pharmacy); live professionals pulse.
   const pins = useMemo<MapPin[]>(() => [
     ...stores.map((s) => ({
-      id: s._id, kind: 'store' as const, label: s.name,
+      id: `store:${s._id}`, kind: 'pharmacy' as const, label: s.name,
       lat: s.location?.coordinates?.[1] ?? 0, lng: s.location?.coordinates?.[0] ?? 0
     })),
-    ...nearby.staff.map((s, i) => ({ id: `staff-${i}`, kind: 'staff' as const, label: 'Medical staff online', lat: s.lat, lng: s.lng }))
-  ], [stores, nearby]);
+    ...mapShops.shops.map((sh) => ({ id: `shop:${sh._id}`, kind: SHOP_PIN[sh.kind], label: sh.name, lat: sh.lat, lng: sh.lng })),
+    ...mapShops.sponsored.map((sh) => ({ id: `ad:${sh.store}`, kind: SHOP_PIN[sh.kind], label: `${sh.name} · Ad`, lat: sh.lat, lng: sh.lng, sponsored: true })),
+    ...nearby.staff.map((s, i) => {
+      const kind = pinKindForRole(s.role);
+      return { id: `staff:${i}`, kind, live: true, label: `${PIN_LOOK[kind === 'store' ? 'pharmacy' : kind].label} online nearby`, lat: s.lat, lng: s.lng };
+    })
+  ], [stores, nearby, mapShops]);
+  const legend = useMemo(() => Array.from(new Set(pins.map((p) => (p.kind === 'store' ? 'pharmacy' : p.kind)))).slice(0, 5) as Array<keyof typeof PIN_LOOK>, [pins]);
+
+  const onPin = (pin: MapPin) => {
+    const [type, ref] = pin.id.split(':');
+    if (type === 'ad') {
+      const ad = mapShops.sponsored.find((a) => String(a.store) === ref);
+      if (ad) api.adClick(ad.token).catch(() => undefined);
+      router.push(`/care/shop/${ref}`);
+    } else if (type === 'shop') {
+      if (pin.kind === 'lab') router.push('/labs'); else router.push(`/care/shop/${ref}`);
+    } else if (type === 'store') {
+      router.push('/pharmacy');
+    } else {
+      appAlert(pin.label, 'Exact positions are hidden for their safety. Book a visit and we send the nearest free professional.');
+    }
+  };
 
   const nursing = (services || []).filter((s) => s.category !== 'PACKAGE');
   const q = query.trim().toLowerCase();
@@ -147,7 +173,16 @@ function BookHome() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <View style={[styles.mapWrap, { height: MAP_H + 40 }]}><LiveMap center={point} pins={pins} dark={IS_DARK} /></View>
+      <View style={[styles.mapWrap, { height: MAP_H + 40 }]}>
+        <LiveMap center={point} pins={pins} dark={IS_DARK} onPinPress={onPin} />
+        {legend.length > 1 ? (
+          <View style={styles.legend} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            {legend.map((k) => (
+              <View key={k} style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: PIN_LOOK[k].color }]} /><Text style={styles.legendText}>{PIN_LOOK[k].label}</Text></View>
+            ))}
+          </View>
+        ) : null}
+      </View>
 
       <Pressable onPress={chooseArea} style={[styles.where, { top: insets.top + 10 }]} accessibilityRole="button" accessibilityLabel="Change location">
         <View style={styles.dot} />
@@ -391,6 +426,10 @@ function BookHome() {
 }
 
 const styles = StyleSheet.create({
+  legend: { position: 'absolute', left: 12, bottom: 52, flexDirection: 'row', flexWrap: 'wrap', gap: 6, maxWidth: '92%' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.card, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5, ...shadow },
+  legendDot: { width: 9, height: 9, borderRadius: 5 },
+  legendText: { fontFamily: F.bold, fontSize: 11, color: C.ink },
   easyOffer: { backgroundColor: C.card, borderRadius: 22, padding: 16, gap: 4, marginTop: 14, borderWidth: 1.5, borderColor: C.brandSoft },
   carePromo: { marginTop: 16, borderRadius: 24, padding: 16, paddingRight: 8, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', backgroundColor: C.night },
   careEyebrow: { color: '#ffd3da', fontFamily: F.heavy, fontSize: 10, letterSpacing: 1.2 },

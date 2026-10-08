@@ -477,6 +477,30 @@ describe('Care marketplace part 2 (real MongoDB)', () => {
       await CareStore.updateOne({ _id: stores.pw._id }, { $set: { rating: { avg: 4.5, count: 12 } } });
     });
 
+    it('the map shows clinics (never a home-only base) and a paid, labelled map pin', async () => {
+      if (!db) return;
+      const map = () => api('get', `/map?lat=${JAIPUR.lat}&lng=${JAIPUR.lng}&radiusKm=15`, 'c3');
+      await CareStore.updateOne({ _id: stores.pw._id }, { $set: { 'clinic.enabled': true } });
+      await CareStore.updateOne({ _id: stores.pz._id }, { $set: { 'clinic.enabled': false } }); // home visits only
+      const before = await map();
+      expect(before.status).toBe(200);
+      expect(before.body.shops.some((sh) => sh._id === String(stores.pz._id))).toBe(false);
+      expect(before.body.sponsored).toEqual([]);
+
+      const ads = require('../../services/adService');
+      await ads.addFunds(users.pw._id, 2000, `test-pin-${RUN}`);
+      const pin = await api('post', '/partner/ads', 'pw', { product: 'MAP_PIN', creative: { title: 'Physio clinic, walk in today' } });
+      expect(pin.status).toBe(201);
+      await ads.adminReview(admin._id, pin.body.campaign._id, { decision: 'APPROVE' });
+      const after = await map();
+      expect(after.body.sponsored).toHaveLength(1);
+      expect(after.body.sponsored[0]).toMatchObject({ label: 'Sponsored', name: expect.any(String), kind: 'PHYSIO' });
+      expect(String(after.body.sponsored[0].store)).toBe(String(stores.pw._id));
+      expect(after.body.shops.some((sh) => sh._id === String(stores.pw._id))).toBe(false); // shown once, as the ad
+      expect(Number.isFinite(after.body.sponsored[0].lat)).toBe(true);
+      await CareStore.updateOne({ _id: stores.pz._id }, { $set: { 'clinic.enabled': true } });
+    });
+
     it('the admin kill switch and fee changes go through propose → approve', async () => {
       if (!db) return;
       const settings = require('../../services/settingsService');

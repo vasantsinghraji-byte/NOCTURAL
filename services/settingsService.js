@@ -52,7 +52,8 @@ const AD_DEFAULTS = Object.freeze({
   placements: {
     SEARCH: { enabled: true, positions: [2, 6], maxAds: 2, minCpc: 5, ratingFloor: 4, minReviews: 10 },
     HOME_SPOTLIGHT: { enabled: true, maxAds: 1, weeklyPrice: 2999 },
-    SERVICE_BANNER: { enabled: true, maxAds: 1, weeklyPrice: 1999 }
+    SERVICE_BANNER: { enabled: true, maxAds: 1, weeklyPrice: 1999 },
+    MAP_PIN: { enabled: true, maxAds: 2, weeklyPrice: 999, ratingFloor: 4, minReviews: 5, radiusKm: 8 }
   }
 });
 
@@ -67,7 +68,13 @@ const AD_FIELDS = Object.freeze({
   'placements.HOME_SPOTLIGHT.enabled': bool('Home spotlight tile'),
   'placements.HOME_SPOTLIGHT.weeklyPrice': num(0, 1000000, 'Spotlight price per week (₹)'),
   'placements.SERVICE_BANNER.enabled': bool('Service page banner'),
-  'placements.SERVICE_BANNER.weeklyPrice': num(0, 1000000, 'Banner price per week (₹)')
+  'placements.SERVICE_BANNER.weeklyPrice': num(0, 1000000, 'Banner price per week (₹)'),
+  'placements.MAP_PIN.enabled': bool('Sponsored pins on the map'),
+  'placements.MAP_PIN.maxAds': num(0, 5, 'Sponsored pins on one map'),
+  'placements.MAP_PIN.weeklyPrice': num(0, 1000000, 'Map pin price per week (₹)'),
+  'placements.MAP_PIN.ratingFloor': num(3, 5, 'Lowest rating for a map pin'),
+  'placements.MAP_PIN.minReviews': num(0, 100, 'Reviews needed for a map pin'),
+  'placements.MAP_PIN.radiusKm': num(1, 25, 'Show map pins within (km)')
 });
 
 const FIELDS = { revenue: REVENUE_FIELDS, ads: AD_FIELDS };

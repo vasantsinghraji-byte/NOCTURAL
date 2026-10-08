@@ -24,6 +24,7 @@ const settingsService = require('../services/settingsService');
 const storageConfig = require('../config/storage');
 const { uploadLabReport } = require('../middleware/upload');
 const { STORE_KINDS } = require('../constants/marketplace');
+const AdCampaignModel = require('../models/adCampaign');
 
 const router = express.Router();
 const wrap = (fn) => async (req, res, next) => {
@@ -302,6 +303,23 @@ router.get('/home', optionalUser, [query('city').optional().isString().isLength(
   res.json({ success: true, spotlight, physio: physio.slice(0, 8), homecare: homecare.slice(0, 8), labs: labs.slice(0, 8) });
 }));
 
+// Customer map: clinics and labs nearby (public locations) plus labelled sponsored pins.
+router.get(
+  '/map',
+  optionalUser,
+  [query('lat').isFloat({ min: -90, max: 90 }), query('lng').isFloat({ min: -180, max: 180 }), query('radiusKm').optional().isFloat({ min: 1, max: 25 }), query('kind').optional().isIn(STORE_KINDS), query('city').optional().isString().isLength({ max: 60 })],
+  validate,
+  wrap(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const [shops, sponsored] = await Promise.all([
+      careStoreService.mapShops(req.query),
+      adService.mapPins({ lat: req.query.lat, lng: req.query.lng, city: req.query.city, viewer: adService.viewerKey(req) })
+    ]);
+    const paid = new Set(sponsored.map((p) => String(p.store)));
+    res.json({ success: true, shops: shops.filter((sh) => !paid.has(String(sh._id))), sponsored });
+  })
+);
+
 router.get('/services/:id/banner', optionalUser, [id('id'), query('city').optional().isString().isLength({ max: 60 })], validate, wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, banner: await adService.serviceBanner({ serviceId: req.params.id, city: req.query.city, viewer: adService.viewerKey(req) }) });
@@ -487,7 +505,7 @@ router.post(
   '/partner/ads',
   partner,
   [
-    body('product').isIn(['SPONSORED_LISTING', 'SPOTLIGHT', 'CATEGORY_BANNER']),
+    body('product').isIn(AdCampaignModel.PRODUCTS),
     body('name').optional().isString().isLength({ max: 80 }),
     body('bidCpc').optional().isFloat({ min: 0, max: 1000 }),
     body('dailyBudget').optional().isFloat({ min: 0, max: 1000000 }),

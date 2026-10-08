@@ -10,7 +10,10 @@ import {
 import type { VisitTracking } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useT } from '@/lib/i18n';
-import { LiveMap, type MapPin } from '@/lib/MapView';
+import { LiveMap, type MapPin, type PinKind } from '@/lib/MapView';
+
+/** The pin for whoever is coming: physio, caregiver or nurse. */
+const kindForService = (t?: string): PinKind => (/PHYSIO|THERAPY|REHAB/.test(t || '') ? 'physio' : /ELDERLY|ATTENDANT|CARETAKER|BABY|JAPA/.test(t || '') ? 'caregiver' : 'nurse');
 import { NabzMark } from '@/lib/Brand';
 import { PressScale, Radar, Rise, success, warn } from '@/lib/motion';
 import { WEB_BASE_URL } from '@/lib/variant';
@@ -69,7 +72,7 @@ export default function Track() {
   }, [load, searching]);
 
   const pins = useMemo<MapPin[]>(() => (tracking?.staffLocation
-    ? [{ id: 'staff', kind: 'staff', label: tracking.staff?.name || 'Your nurse', ...tracking.staffLocation }]
+    ? [{ id: 'staff', kind: kindForService(tracking.serviceType), live: true, label: tracking.staff?.name || 'Your professional', ...tracking.staffLocation }]
     : []), [tracking]);
   const route = useMemo(() => (tracking?.staffLocation && tracking.destination ? [tracking.staffLocation, tracking.destination] : undefined), [tracking]);
 

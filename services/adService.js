@@ -168,6 +168,45 @@ async function spotlight({ city, viewer } = {}) {
   return out;
 }
 
+/**
+ * Sponsored pins for the customer map: paid MAP_PIN campaigns whose clinic or
+ * lab is near the point, live, open and well rated. Home-only professionals
+ * never get a pin (their base address is private).
+ */
+async function mapPins({ lat, lng, city, viewer } = {}) {
+  const settings = await settingsService.getAds();
+  const pl = settings.placements.MAP_PIN;
+  if (!settings.enabled || !pl || !pl.enabled || !pl.maxAds || (city && settings.blockedCities.includes(String(city).toLowerCase()))) return [];
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return [];
+  const now = new Date();
+  const rows = await AdCampaign.find({ ...liveFilter(now), product: 'MAP_PIN', house: false, paidUntil: { $gte: now } }).select('store creative target').lean();
+  if (!rows.length) return [];
+  const near = await CareStore.find({
+    _id: { $in: rows.map((c) => c.store) },
+    status: 'APPROVED',
+    isPaused: false,
+    'clinic.enabled': true,
+    'rating.avg': { $gte: pl.ratingFloor },
+    'rating.count': { $gte: pl.minReviews },
+    location: { $geoWithin: { $centerSphere: [[Number(lng), Number(lat)], (pl.radiusKm || 8) / 6378.1] } }
+  }).select('name kind location rating').lean();
+  const byStore = new Map(near.map((s) => [String(s._id), s]));
+  const out = [];
+  for (const c of rows.sort(() => Math.random() - 0.5)) {
+    if (out.length >= pl.maxAds) break;
+    const s = byStore.get(String(c.store));
+    if (!s) continue;
+    if (city && c.target && c.target.cities && c.target.cities.length && !c.target.cities.some((x) => x.toLowerCase() === String(city).toLowerCase())) continue;
+    if (!(await takeView(viewer, c, settings.frequencyCap))) continue;
+    out.push(adCard(c, 0, 'MAP_PIN', viewer, {
+      store: s._id, name: s.name, kind: s.kind, rating: s.rating,
+      lat: s.location.coordinates[1], lng: s.location.coordinates[0]
+    }));
+    await bumpStat(c._id, 'MAP_PIN', city, { impressions: 1 });
+  }
+  return out;
+}
+
 /** Top banner on a service page. */
 async function serviceBanner({ serviceId, city, viewer } = {}) {
   const settings = await settingsService.getAds();
@@ -287,7 +326,9 @@ async function createCampaign(user, input = {}) {
     if (!Number.isFinite(daily) || daily < bid || daily > 1000000) throw new ValidationError('Daily budget must cover at least one click');
     Object.assign(doc, { bidCpc: bid, dailyBudget: daily, totalBudget: Number(input.totalBudget) > 0 ? Number(input.totalBudget) : 0 });
   } else {
-    const price = settings.placements[product === 'SPOTLIGHT' ? 'HOME_SPOTLIGHT' : 'SERVICE_BANNER'].weeklyPrice;
+    const placementOf = { SPOTLIGHT: 'HOME_SPOTLIGHT', CATEGORY_BANNER: 'SERVICE_BANNER', MAP_PIN: 'MAP_PIN' };
+    if (product === 'MAP_PIN' && !(store.clinic && store.clinic.enabled)) throw new ValidationError('Map pins show your clinic or lab on the map. Turn on clinic visits first.');
+    const price = settings.placements[placementOf[product]].weeklyPrice;
     doc.weeklyPrice = price;
     if (product === 'CATEGORY_BANNER' && !doc.target.services.length) throw new ValidationError('Pick the service page for the banner');
   }
@@ -470,6 +511,7 @@ module.exports = {
   viewerKey,
   withSponsoredListings,
   spotlight,
+  mapPins,
   serviceBanner,
   recordClick,
   attributeBooking,

@@ -10,7 +10,8 @@
  */
 const mongoose = require('mongoose');
 
-const AD_PRODUCTS = ['SPONSORED_LISTING', 'SPOTLIGHT', 'CATEGORY_BANNER'];
+// MAP_PIN: the shop's pin on customer maps is highlighted ("Ad") and listed first when tapped; sold per week.
+const AD_PRODUCTS = ['SPONSORED_LISTING', 'SPOTLIGHT', 'CATEGORY_BANNER', 'MAP_PIN'];
 const AD_STATUSES = ['PENDING_REVIEW', 'ACTIVE', 'PAUSED', 'REJECTED', 'ENDED'];
 
 const AdCampaignSchema = new mongoose.Schema({

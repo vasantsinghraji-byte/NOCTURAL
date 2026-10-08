@@ -10,7 +10,7 @@ import { PaymentDismissedError, payAdTopup } from '@/lib/payments';
 import { Skeleton, success } from '@/lib/motion';
 import { C, F, ui } from '@/lib/theme';
 
-const PRODUCT: Record<AdCampaignView['product'], string> = { SPONSORED_LISTING: 'Sponsored listing', SPOTLIGHT: 'Home spotlight', CATEGORY_BANNER: 'Service banner' };
+const PRODUCT: Record<AdCampaignView['product'], string> = { SPONSORED_LISTING: 'Sponsored listing', SPOTLIGHT: 'Home spotlight', CATEGORY_BANNER: 'Service banner', MAP_PIN: 'Map pin' };
 const STATUS: Record<AdCampaignView['status'], string> = { PENDING_REVIEW: 'In review', ACTIVE: 'Running', PAUSED: 'Paused', REJECTED: 'Not approved', ENDED: 'Ended' };
 const TOPUPS = [500, 1000, 2500];
 

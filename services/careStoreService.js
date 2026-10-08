@@ -711,7 +711,26 @@ async function addStrike(storeId, reason, bookingId) {
   return { strikes: recent };
 }
 
+/**
+ * Clinics and labs on the customer map (public clinic locations only; a
+ * professional who only does home visits has no pin).
+ */
+async function mapShops({ lat, lng, radiusKm = 8, kind } = {}) {
+  const la = Number(lat);
+  const ln = Number(lng);
+  if (!Number.isFinite(la) || !Number.isFinite(ln)) throw new ValidationError('Location needed');
+  const r = Math.min(Math.max(Number(radiusKm) || 8, 1), 25);
+  const filter = { status: 'APPROVED', 'clinic.enabled': true, location: { $geoWithin: { $centerSphere: [[ln, la], r / 6378.1] } } };
+  if (kind && STORE_KINDS.includes(kind)) filter.kind = kind;
+  const rows = await CareStore.find(filter).select('name kind format location rating isPaused').limit(60).lean();
+  return rows.map((s) => ({
+    _id: s._id, name: s.name, kind: s.kind, format: s.format, isPaused: s.isPaused, rating: s.rating,
+    lat: s.location.coordinates[1], lng: s.location.coordinates[0]
+  }));
+}
+
 module.exports = {
+  mapShops,
   kindForRole,
   getMyStore,
   saveMyStore,

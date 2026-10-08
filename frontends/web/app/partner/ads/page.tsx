@@ -9,7 +9,7 @@ import { inr, problem, fmtDay } from '@/lib/care';
 import CareArt from '../../_components/care/CareArt';
 import { payForAdTopup, PaymentDismissedError } from '@/lib/razorpay';
 
-const PRODUCT: Record<AdCampaignView['product'], string> = { SPONSORED_LISTING: 'Sponsored listing', SPOTLIGHT: 'Home spotlight', CATEGORY_BANNER: 'Service page banner' };
+const PRODUCT: Record<AdCampaignView['product'], string> = { SPONSORED_LISTING: 'Sponsored listing', SPOTLIGHT: 'Home spotlight', CATEGORY_BANNER: 'Service page banner', MAP_PIN: 'Map pin' };
 const STATUS: Record<AdCampaignView['status'], string> = { PENDING_REVIEW: 'In review', ACTIVE: 'Running', PAUSED: 'Paused', REJECTED: 'Not approved', ENDED: 'Ended' };
 
 export default function PartnerAds() {

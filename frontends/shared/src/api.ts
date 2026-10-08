@@ -977,6 +977,11 @@ export class MedRushApi {
     return this.request<{ success: true; paused: boolean; durationMinutes?: number; days: M.SlotDay[] }>('GET', `/marketplace/stores/${id}/slots`, { query: q });
   }
 
+  /** Clinics and labs near a point (public locations) plus sponsored map pins. */
+  marketMap(q: { lat: number; lng: number; radiusKm?: number; kind?: M.ShopKind; city?: string }) {
+    return this.request<{ success: true; shops: M.MapShop[]; sponsored: (M.MapShop & { sponsored: true; label: string; token: string; store: string; creative?: { title?: string } })[] }>('GET', '/marketplace/map', { query: q });
+  }
+
   adClick(token: string, city?: string) {
     return this.request<{ success: true; valid: boolean }>('POST', '/marketplace/ads/click', { body: { token, city } });
   }
