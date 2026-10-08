@@ -5,7 +5,7 @@ import { router, useFocusEffect, type Href } from 'expo-router';
 import type { MembershipStatus } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { BadgeCheck, Briefcase, ChevronRight, Crown, Gift, Languages, LogOut, ShieldCheck, Trash2, UserRound, type LucideIcon } from 'lucide-react-native';
+import { BadgeCheck, Briefcase, CalendarHeart, ChevronRight, Crown, FlaskConical, Gift, Languages, LogOut, MapPin, ShieldCheck, Trash2, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useT } from '@/lib/i18n';
 import { C, F, shadow, ui } from '@/lib/theme';
 import { appAlert, appPrompt } from '@/lib/dialog';
@@ -127,6 +127,15 @@ export default function Account() {
             </Text>
           )}
         </View>
+      )}
+
+      {session?.kind === 'patient' && (
+        <>
+          <Text style={ui.section}>Your care</Text>
+          <Row icon={CalendarHeart} title="Care plans and credit" desc="Physio and home care plans, suggestions, Nabz credit" href="/care/plans" />
+          <Row icon={FlaskConical} title="Lab tests" desc="Bookings, collection codes and reports" href="/labs/orders" />
+          <Row icon={MapPin} title="Saved addresses" desc="Home, work, family: one tap at booking" href="/addresses" />
+        </>
       )}
 
       <Text style={ui.section}>Settings</Text>

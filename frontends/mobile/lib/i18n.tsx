@@ -64,6 +64,7 @@ const EN = {
   'rate.thanks': 'Thank you. Your feedback helps us keep care safe.',
   // Tabs & account
   'tab.home': 'Home',
+  'tab.care': 'Care',
   'tab.pharmacy': 'Pharmacy',
   'tab.bookings': 'Bookings',
   'tab.account': 'Account',
@@ -132,6 +133,7 @@ const HI: Partial<Record<Key, string>> = {
   'rate.submit': 'रेटिंग भेजें',
   'rate.thanks': 'धन्यवाद। आपकी राय से देखभाल सुरक्षित रहती है।',
   'tab.home': 'होम',
+  'tab.care': 'देखभाल',
   'tab.pharmacy': 'फ़ार्मेसी',
   'tab.bookings': 'बुकिंग',
   'tab.account': 'खाता',

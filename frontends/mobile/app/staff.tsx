@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Redirect, router } from 'expo-router';
 import * as Location from 'expo-location';
 import {
-  BadgeCheck, Circle, Flame, IndianRupee, LogOut, MapPin, Navigation, Package, Phone, ShieldAlert, Star, Store, UserRound, Wallet
+  BadgeCheck, Circle, Flame, IndianRupee, LogOut, MapPin, Navigation, Package, Phone, ShieldAlert, Star, Store, UserRound, Wallet, Sparkles, Megaphone
 } from 'lucide-react-native';
 import type { CareBooking, StaffDashboard, VisitOffer } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
@@ -21,6 +21,7 @@ import { DEMO_AREA_ENABLED } from '@/lib/variant';
 import { TextArea } from '@/lib/fields';
 import { C, F, shadow, ui } from '@/lib/theme';
 import { appAlert } from '@/lib/dialog';
+import { ProposalSheet } from '@/lib/ProposalSheet';
 
 type StoreInfo = { name?: string; address?: { line1?: string } };
 type Visit = Omit<CareBooking, 'supplies'> & {
@@ -55,6 +56,7 @@ export default function StaffHome() {
   const [lastPing, setLastPing] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [codeFor, setCodeFor] = useState<Visit | null>(null);
+  const [proposeFor, setProposeFor] = useState<string | null>(null);
   const [completeFor, setCompleteFor] = useState<Visit | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -274,6 +276,9 @@ export default function StaffHome() {
               <Text style={styles.hello}>{hello()},</Text>
               <Text style={styles.name}>{first}</Text>
             </View>
+            <Pressable hitSlop={10} onPress={() => router.push('/shop')} style={[styles.iconBtn, { marginRight: 8 }]} accessibilityRole="button" accessibilityLabel="My Shop: prices, hours and ads">
+              <Store size={18} color={C.onNightMuted} />
+            </Pressable>
             <Pressable hitSlop={10} onPress={() => router.push('/partner-account')} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel="My account">
               <UserRound size={18} color={C.onNightMuted} />
             </Pressable>
@@ -349,6 +354,15 @@ export default function StaffHome() {
           <UpdatesFeed audience="partner" title="Updates from Nabz" />
 
           <Text style={ui.section}>Your visits</Text>
+          {/* Marketplace: your own shop (prices, hours, ads) */}
+          <PressScale onPress={() => router.push('/shop')} style={[ui.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]} accessibilityRole="button">
+            <View style={{ width: 44, height: 44, borderRadius: 16, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Store size={20} color={C.brand} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={ui.h3}>My Shop</Text>
+              <Text style={ui.muted}>Your rate card, hours, leave, team and plans</Text>
+            </View>
+            <Pressable hitSlop={8} onPress={() => router.push('/partner-ads')} accessibilityRole="button" accessibilityLabel="Ads"><Megaphone size={20} color={C.brand} /></Pressable>
+          </PressScale>
           {visits === null && <ActivityIndicator color={C.brand} />}
           {visits?.length === 0 && <Text style={ui.muted}>No visits yet. Go online to receive requests. Pull down to refresh.</Text>}
           {visits?.map((v) => {
@@ -402,12 +416,18 @@ export default function StaffHome() {
                     <PressScale style={styles.sosBtn} onPress={() => sos(v)}><ShieldAlert size={18} color="#ffffff" /></PressScale>
                   )}
                 </View>
+                {['IN_PROGRESS', 'COMPLETED'].includes(v.status) && (
+                  <PressScale style={[ui.btnOutline, { flexDirection: 'row', justifyContent: 'center', gap: 8 }]} onPress={() => setProposeFor(v._id)} accessibilityRole="button">
+                    <Sparkles size={16} color={C.brand} /><Text style={ui.btnOutlineText}>Suggest a Plan</Text>
+                  </PressScale>
+                )}
               </Rise>
             );
           })}
         </View>
       </ScrollView>
 
+      {proposeFor && <ProposalSheet bookingId={proposeFor} onClose={() => setProposeFor(null)} />}
       <CodeSheet
         visit={codeFor}
         onClose={() => setCodeFor(null)}

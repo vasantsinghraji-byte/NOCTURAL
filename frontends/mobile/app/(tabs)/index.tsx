@@ -20,6 +20,7 @@ import { PressScale, Rise, Skeleton } from '@/lib/motion';
 import { C, F, IS_DARK, shadow, ui } from '@/lib/theme';
 import { appAlert } from '@/lib/dialog';
 import { UpdatesFeed } from '@/lib/updatesFeed';
+import CareArt, { WineGradient } from '@/lib/CareArt';
 
 type Mode = 'ASAP' | 'SCHEDULED';
 const DEMO_AREA_KEY = 'nabz.demoArea';
@@ -182,6 +183,19 @@ export default function BookHome() {
           )}
 
           {error && <Text style={[ui.error, { marginTop: 12 }]}>{error}</Text>}
+
+          {/* Care marketplace: physio, home care and labs, compared */}
+          <Rise delay={90}>
+            <PressScale style={styles.carePromo} onPress={() => router.push('/care')} accessibilityRole="button" accessibilityLabel="Physio, home care and lab tests">
+              <WineGradient radius={24} />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={styles.careEyebrow}>NEW · NABZ CARE</Text>
+                <Text style={styles.careTitle}>Physio, home care and lab tests</Text>
+                <Text style={styles.careSub}>Compare prices near you. Book one visit or a full plan.</Text>
+              </View>
+              <CareArt kind="heart" size={96} style={{ marginRight: -8, marginVertical: -10 }} />
+            </PressScale>
+          </Rise>
 
           {!demoArea && live.source !== 'fallback' && storesChecked && stores.length === 0 && (
             <PressScale style={styles.outside} onPress={chooseArea} disabled={!DEMO_AREA_ENABLED}>
@@ -346,6 +360,10 @@ export default function BookHome() {
 }
 
 const styles = StyleSheet.create({
+  carePromo: { marginTop: 14, borderRadius: 24, padding: 16, paddingRight: 8, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', backgroundColor: C.night },
+  careEyebrow: { color: '#ffd3da', fontFamily: F.heavy, fontSize: 10, letterSpacing: 1.2 },
+  careTitle: { color: '#ffffff', fontFamily: F.display, fontSize: 18, lineHeight: 22 },
+  careSub: { color: '#ffd3da', fontFamily: F.medium, fontSize: 12, lineHeight: 17 },
   mapWrap: { position: 'absolute', top: 0, left: 0, right: 0 },
   where: {
     position: 'absolute', left: 16, right: 16, zIndex: 5, flexDirection: 'row', alignItems: 'center', gap: 12,

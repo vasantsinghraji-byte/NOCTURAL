@@ -60,3 +60,48 @@ export async function payOrderOnline(
 /** PREPAID order still waiting for payment (can be paid from Bookings). */
 export const awaitingPayment = (o: PharmacyOrder) =>
   o.paymentMode === 'PREPAID' && ['PENDING', 'FAILED'].includes(o.paymentStatus) && o.status === 'PLACED';
+
+type GatewayOrder = { orderId: string; amount: number; currency: string; keyId: string };
+type Prefill = { name?: string; email?: string; contact?: string };
+
+/** Razorpay checkout for a server-created order; returns the signed result (or throws PaymentDismissedError). */
+async function openCheckout(order: GatewayOrder, description: string, prefill: Prefill = {}) {
+  try {
+    const r = await RazorpayCheckout.open({
+      key: order.keyId,
+      order_id: order.orderId,
+      amount: Math.round(order.amount * 100),
+      currency: order.currency,
+      name: 'Nabz',
+      description,
+      prefill,
+      theme: { color: C.brand }
+    });
+    return { orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature };
+  } catch (e) {
+    const err = (e || {}) as RazorpayError;
+    if (isCancel(err)) throw new PaymentDismissedError();
+    throw new Error(err.error?.description || err.description || 'Payment failed');
+  }
+}
+
+/** Care plan paid upfront. The server checks the signature before the plan becomes active. */
+export async function payCarePlan(planId: string, prefill?: Prefill) {
+  const { order } = await api.carePlanPaymentOrder(planId);
+  const signed = await openCheckout(order, 'Care plan', prefill);
+  return (await api.verifyCarePlanPayment(planId, signed)).plan;
+}
+
+/** Lab tests paid online. */
+export async function payLabOrder(orderId: string, prefill?: Prefill) {
+  const { order } = await api.labPaymentOrder(orderId);
+  const signed = await openCheckout(order, 'Lab tests', prefill);
+  return (await api.verifyLabPayment(orderId, signed)).order;
+}
+
+/** Partner ad wallet top-up. */
+export async function payAdTopup(amount: number, prefill?: Prefill) {
+  const { order } = await api.adTopupOrder(amount);
+  const signed = await openCheckout(order, 'Nabz Ads wallet', prefill);
+  return (await api.verifyAdTopup(signed)).wallet;
+}

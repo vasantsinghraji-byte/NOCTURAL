@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
-import { InstrumentSerif_400Regular, InstrumentSerif_400Regular_Italic } from '@expo-google-fonts/instrument-serif';
+import { Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold } from '@expo-google-fonts/outfit';
 import {
   Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold
 } from '@expo-google-fonts/manrope';
@@ -17,7 +17,7 @@ import { C, F, IS_DARK } from '@/lib/theme';
 export default function RootLayout() {
   // Fonts ship inside the app bundle (no network at runtime).
   const [fontsLoaded, fontError] = useFonts({
-    InstrumentSerif_400Regular, InstrumentSerif_400Regular_Italic,
+    Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold,
     Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold
   });
   if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: C.night }} />;
@@ -47,6 +47,15 @@ export default function RootLayout() {
             <Stack.Screen name="login" options={{ title: 'Sign in' }} />
             <Stack.Screen name="forgot" options={{ headerShown: false }} />
             <Stack.Screen name="permissions" options={{ title: 'Permissions' }} />
+            {/* Care marketplace (physio, home care, labs) */}
+            <Stack.Screen name="care/[kind]" options={{ headerShown: false }} />
+            <Stack.Screen name="care/shop/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="care/plan/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="care/plans" options={{ headerShown: false }} />
+            <Stack.Screen name="labs/index" options={{ headerShown: false }} />
+            <Stack.Screen name="labs/orders" options={{ headerShown: false }} />
+            <Stack.Screen name="labs/order/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="addresses" options={{ headerShown: false }} />
             {/* Partner app (Nabz Partner build) */}
             <Stack.Screen name="partner" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="partner-apply" options={{ title: 'Join Nabz Partner' }} />
@@ -54,7 +63,9 @@ export default function RootLayout() {
             <Stack.Screen name="staff" options={{ headerShown: false }} />
             <Stack.Screen name="partner-account" options={{ headerShown: false }} />
             <Stack.Screen name="verification" options={{ headerShown: false }} />
-            <Stack.Screen name="lab" options={{ title: 'Path lab partner', headerBackVisible: false }} />
+            <Stack.Screen name="lab" options={{ headerShown: false }} />
+            <Stack.Screen name="shop" options={{ headerShown: false }} />
+            <Stack.Screen name="partner-ads" options={{ headerShown: false }} />
           </Stack>
           <DialogHost />
         </AuthProvider>

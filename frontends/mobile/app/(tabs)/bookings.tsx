@@ -7,7 +7,7 @@ import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { inr } from '@/lib/care';
 import { IconTile, serviceIcon, TONES } from '@/lib/icons';
-import { Bike, CalendarDays, Lock, Navigation, Star, Store, Stethoscope } from 'lucide-react-native';
+import { Bike, CalendarDays, CalendarHeart, FlaskConical, Lock, Navigation, Star, Store, Stethoscope } from 'lucide-react-native';
 import { C, F, PASTELS, shadow, ui } from '@/lib/theme';
 import { chooseReschedule, confirmCancelVisit } from '@/lib/visitActions';
 import { appAlert } from '@/lib/dialog';
@@ -74,6 +74,16 @@ export default function Bookings() {
           </Pressable>
         ))}
       </View>
+      {session?.kind === 'patient' && (
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <Pressable style={[ui.card, styles.shortcut]} onPress={() => router.push('/care/plans')} accessibilityRole="button">
+            <CalendarHeart size={20} color={C.brand} /><Text style={styles.shortcutText}>Care plans</Text>
+          </Pressable>
+          <Pressable style={[ui.card, styles.shortcut]} onPress={() => router.push('/labs/orders')} accessibilityRole="button">
+            <FlaskConical size={20} color={C.brand} /><Text style={styles.shortcutText}>Lab tests</Text>
+          </Pressable>
+        </View>
+      )}
       {error && <Text style={ui.error}>{error}</Text>}
 
       {session?.kind !== 'patient' ? (
@@ -184,6 +194,8 @@ function Empty({ text }: { text: string }) {
 }
 
 const styles = StyleSheet.create({
+  shortcut: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
+  shortcutText: { fontFamily: F.bold, fontSize: 14, color: C.ink },
   title: { fontSize: 38, fontFamily: F.display, color: C.ink },
   overlay: { flex: 1, backgroundColor: C.overlay, justifyContent: 'flex-end' },
   sheet: { backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 34, gap: 10 },
