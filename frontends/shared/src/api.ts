@@ -1012,6 +1012,14 @@ export class MedRushApi {
     return this.request<{ success: true; order: M.LabOrderView }>('POST', `/marketplace/labs/orders/${id}/recollect`, { body: { date, time } });
   }
 
+  labPaymentOrder(id: string) {
+    return this.request<{ success: true; order: { orderId: string; amount: number; currency: string; keyId: string } }>('POST', `/marketplace/labs/orders/${id}/payment/order`);
+  }
+
+  verifyLabPayment(id: string, body: { orderId: string; paymentId: string; signature: string }) {
+    return this.request<{ success: true; order: M.LabOrderView }>('POST', `/marketplace/labs/orders/${id}/payment/verify`, { body });
+  }
+
   labReportLink(id: string) {
     return this.request<{ success: true; url: string; mimeType: string; expiresInSeconds: number }>('GET', `/marketplace/labs/orders/${id}/report`);
   }

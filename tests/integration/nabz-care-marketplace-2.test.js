@@ -260,6 +260,44 @@ describe('Care marketplace part 2 (real MongoDB)', () => {
       await admin2.processRefund(admin._id, { type: 'LAB', id: res.body.order._id, reference: 'NEFT-123' });
       expect((await LabOrder.findById(res.body.order._id)).payment.status).toBe('REFUNDED');
     });
+
+    it('a prepaid lab order is paid online: forged signatures fail, a late payment is refunded in full', async () => {
+      if (!db) return;
+      const crypto = require('crypto');
+      const saved = { id: process.env.RAZORPAY_KEY_ID, secret: process.env.RAZORPAY_KEY_SECRET, on: process.env.RAZORPAY_ENABLED };
+      process.env.RAZORPAY_KEY_ID = 'rzp_test_lab';
+      process.env.RAZORPAY_KEY_SECRET = 'lab_test_secret';
+      delete process.env.RAZORPAY_ENABLED;
+      const sign = (orderId, paymentId) => crypto.createHmac('sha256', 'lab_test_secret').update(`${orderId}|${paymentId}`).digest('hex');
+      try {
+        // Pay-at-collection orders aren't payable online.
+        const cash = await api('post', '/labs/orders', 'c2', { storeId: String(stores.lab._id), serviceIds: [String(svc.tsh._id)], mode: 'CLINIC', slot: { date: ist(7), time: '09:30' } });
+        expect(cash.status).toBe(201);
+        expect((await api('post', `/labs/orders/${cash.body.order._id}/payment/order`, 'c2')).body.code).toBe('NOT_PAYABLE');
+
+        const res = await api('post', '/labs/orders', 'c2', { storeId: String(stores.lab._id), serviceIds: [String(svc.tsh._id)], mode: 'CLINIC', slot: { date: ist(7), time: '10:30' }, paymentMode: 'PREPAID' });
+        expect(res.status).toBe(201);
+        const id = res.body.order._id;
+        await LabOrder.updateOne({ _id: id }, { $set: { 'payment.orderId': 'order_lab_1' } }); // what createPaymentOrder stores
+        expect((await api('post', `/labs/orders/${id}/payment/verify`, 'c2', { orderId: 'order_lab_1', paymentId: 'pay_1', signature: 'f'.repeat(64) })).status).toBeGreaterThanOrEqual(400);
+        expect((await api('post', `/labs/orders/${id}/payment/verify`, 'c3', { orderId: 'order_lab_1', paymentId: 'pay_1', signature: sign('order_lab_1', 'pay_1') })).status).toBe(404); // someone else's order
+        const ok = await api('post', `/labs/orders/${id}/payment/verify`, 'c2', { orderId: 'order_lab_1', paymentId: 'pay_1', signature: sign('order_lab_1', 'pay_1') });
+        expect(ok.status).toBe(200);
+        expect(ok.body.order.payment).toMatchObject({ status: 'PAID', method: 'ONLINE' });
+
+        // The hold ran out before the money arrived: the order is gone, so all of it goes back.
+        const late = await api('post', '/labs/orders', 'c2', { storeId: String(stores.lab._id), serviceIds: [String(svc.tsh._id)], mode: 'CLINIC', slot: { date: ist(7), time: '11:30' }, paymentMode: 'PREPAID' });
+        await LabOrder.updateOne({ _id: late.body.order._id }, { $set: { 'payment.orderId': 'order_lab_2', 'payment.holdUntil': new Date(Date.now() - 1000) } });
+        expect(await labs().expireUnpaid()).toBeGreaterThanOrEqual(1);
+        const paidLate = await api('post', `/labs/orders/${late.body.order._id}/payment/verify`, 'c2', { orderId: 'order_lab_2', paymentId: 'pay_2', signature: sign('order_lab_2', 'pay_2') });
+        expect(paidLate.body.code).toBe('PAID_TOO_LATE');
+        expect((await LabOrder.findById(late.body.order._id)).payment.status).toBe('REFUND_PENDING');
+      } finally {
+        if (saved.id === undefined) delete process.env.RAZORPAY_KEY_ID; else process.env.RAZORPAY_KEY_ID = saved.id;
+        if (saved.secret === undefined) delete process.env.RAZORPAY_KEY_SECRET; else process.env.RAZORPAY_KEY_SECRET = saved.secret;
+        if (saved.on !== undefined) process.env.RAZORPAY_ENABLED = saved.on;
+      }
+    });
   });
 
   // ── Home care ────────────────────────────────────────────────────────────

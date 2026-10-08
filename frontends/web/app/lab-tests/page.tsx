@@ -8,6 +8,7 @@ import type { LabCompareRow, LabQuote, MarketService, SlotDay, CareMode } from '
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { fmtDay, fmtTime, inr, problem, useVisitPlace } from '@/lib/care';
+import { payForLabOrder } from '@/lib/razorpay';
 import CareArt from '../_components/care/CareArt';
 import PlacePicker from '../_components/care/PlacePicker';
 
@@ -186,6 +187,8 @@ function LabBooking({ row, serviceIds, mode, place, fasting, signedIn, onBooked 
     setErr('');
     try {
       const r = await api.bookLabOrder({ ...input(), expectedTotal: quote.amounts.total });
+      // Online: open the payment right away; if it's closed, the order page offers Pay Now until the hold ends.
+      if (r.order.payment.mode === 'PREPAID' && r.order.payment.status === 'PENDING') await payForLabOrder(r.order._id).catch(() => undefined);
       onBooked(r.order._id);
     } catch (e) {
       const p = problem(e);

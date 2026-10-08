@@ -129,6 +129,22 @@ export async function payForCarePlan(planId: string, prefill: { name?: string; e
   await api.verifyCarePlanPayment(planId, { orderId: response.razorpay_order_id, paymentId: response.razorpay_payment_id, signature: response.razorpay_signature });
 }
 
+/** Lab tests paid online: Razorpay modal for the booking total → server-side verification. */
+export async function payForLabOrder(orderId: string, prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
+  const [Razorpay, created] = await Promise.all([loadCheckout(), api.labPaymentOrder(orderId)]);
+  const order = created.order;
+  const response = await new Promise<RazorpayHandlerResponse>((resolve, reject) => {
+    const rzp = new Razorpay({
+      key: order.keyId, order_id: order.orderId, amount: Math.round(order.amount * 100), currency: order.currency,
+      name: 'Nabz', description: 'Lab tests', prefill, theme: { color: '#b8243f' },
+      handler: (resp: RazorpayHandlerResponse) => resolve(resp),
+      modal: { ondismiss: () => reject(new PaymentDismissedError()) }
+    });
+    rzp.open();
+  });
+  await api.verifyLabPayment(orderId, { orderId: response.razorpay_order_id, paymentId: response.razorpay_payment_id, signature: response.razorpay_signature });
+}
+
 /** Partner ad wallet top-up: Razorpay modal → server-side verification. */
 export async function payForAdTopup(amount: number): Promise<void> {
   const [Razorpay, created] = await Promise.all([loadCheckout(), api.adTopupOrder(amount)]);

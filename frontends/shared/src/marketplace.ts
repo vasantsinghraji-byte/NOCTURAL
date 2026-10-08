@@ -215,7 +215,7 @@ export interface LabOrderView {
   mode: CareMode;
   slot: { date: string; time: string };
   amounts: LabQuote['amounts'] & { credit?: number };
-  payment: { mode: string; status: string; amount: number; method?: string };
+  payment: { mode: string; status: string; amount: number; method?: string; holdUntil?: string };
   status: 'SCHEDULED' | 'COLLECTED' | 'AT_LAB' | 'PROCESSING' | 'REPORT_READY' | 'SAMPLE_REJECTED' | 'CANCELLED';
   collectedAt?: string;
   reportDueAt?: string;

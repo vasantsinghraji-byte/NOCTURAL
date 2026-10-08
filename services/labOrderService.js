@@ -28,7 +28,7 @@ const walletService = require('./walletService');
 const settlementService = require('./settlementService');
 const { haversineKm, toLatLng } = require('../utils/geoDistance');
 const { reserveAttempt } = require('../utils/attemptGuard');
-const { ValidationError, NotFoundError, ConflictError } = require('../utils/errors');
+const { ValidationError, NotFoundError, ConflictError, PaymentError } = require('../utils/errors');
 const logger = require('../utils/logger');
 
 const round2 = pricingService.round2;
@@ -343,7 +343,7 @@ function publicOrder(o, { forCustomer = false } = {}) {
     address: o.address,
     patientDetails: o.patientDetails,
     amounts: o.amounts,
-    payment: o.payment && { mode: o.payment.mode, status: o.payment.status, amount: o.payment.amount, method: o.payment.method },
+    payment: o.payment && { mode: o.payment.mode, status: o.payment.status, amount: o.payment.amount, method: o.payment.method, holdUntil: o.payment.holdUntil },
     status: o.status,
     collectedAt: o.collectedAt,
     reportDueAt: o.reportDueAt,
@@ -605,6 +605,72 @@ async function rejectSample(user, orderId, reason) {
   return publicOrder(updated.toObject());
 }
 
+// ── Prepaid payment (Razorpay, same flow as care plans) ──────────────────
+
+function razorpayConfig() {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !keySecret || process.env.RAZORPAY_ENABLED === 'false') return null;
+  return { keyId, keySecret };
+}
+
+async function createPaymentOrder(patientId, orderId) {
+  const order = await LabOrder.findOne({ _id: orderId, patient: patientId });
+  if (!order) throw new NotFoundError('Lab order');
+  if (order.payment.mode !== 'PREPAID' || order.payment.status !== 'PENDING' || order.status !== 'SCHEDULED') {
+    throw coded(ConflictError, order.payment.status === 'PAID' ? 'This booking is already paid' : 'This booking can’t be paid now', 'NOT_PAYABLE');
+  }
+  const cfg = razorpayConfig();
+  if (!cfg) throw new PaymentError('Online payment isn’t available yet. Choose “Pay at collection”.');
+  const Razorpay = require('razorpay');
+  const client = new Razorpay({ key_id: cfg.keyId, key_secret: cfg.keySecret });
+  const gateway = await client.orders.create({
+    amount: Math.round(order.payment.amount * 100),
+    currency: 'INR',
+    receipt: `lab_${order._id}`.slice(0, 40),
+    notes: { labOrderId: String(order._id) }
+  });
+  await LabOrder.updateOne({ _id: order._id, 'payment.status': 'PENDING' }, { $set: { 'payment.orderId': gateway.id } });
+  return { orderId: gateway.id, amount: order.payment.amount, currency: 'INR', keyId: cfg.keyId };
+}
+
+/** Mark paid after the signature check. Paid after the hold ran out → full refund. */
+async function markLabOrderPaid(id, { orderId, paymentId }) {
+  const now = new Date();
+  const paid = await LabOrder.findOneAndUpdate(
+    { _id: id, status: 'SCHEDULED', 'payment.status': 'PENDING' },
+    { $set: { 'payment.status': 'PAID', 'payment.method': 'ONLINE', 'payment.paidAt': now, 'payment.orderId': orderId, 'payment.paymentId': paymentId } },
+    { returnDocument: 'after' }
+  );
+  if (paid) return paid;
+  const late = await LabOrder.findById(id);
+  if (late && late.payment.status === 'PENDING' && late.status === 'CANCELLED') {
+    await LabOrder.updateOne({ _id: late._id, 'payment.status': 'PENDING' }, {
+      $set: { 'payment.status': 'REFUND_PENDING', 'payment.method': 'ONLINE', 'payment.paidAt': now, 'payment.orderId': orderId, 'payment.paymentId': paymentId }
+    });
+    logger.warn('Lab order paid after hold expired; full refund queued', { labOrderId: String(id) });
+    throw coded(ConflictError, 'Your payment came after the booking hold expired. A full refund is on its way.', 'PAID_TOO_LATE');
+  }
+  if (late && late.payment.status === 'PAID') return late;
+  throw new NotFoundError('Lab order');
+}
+
+async function verifyPayment(patientId, id, { orderId, paymentId, signature } = {}) {
+  const order = await LabOrder.findOne({ _id: id, patient: patientId }).select('_id payment').lean();
+  if (!order) throw new NotFoundError('Lab order');
+  const cfg = razorpayConfig();
+  if (!cfg) throw new PaymentError('Online payment isn’t available yet');
+  if (!orderId || orderId !== order.payment.orderId) throw new PaymentError('This payment isn’t for this booking');
+  const expected = crypto.createHmac('sha256', cfg.keySecret).update(`${orderId}|${paymentId}`).digest('hex');
+  const given = String(signature || '');
+  if (given.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected))) {
+    if (logger.logSecurity) logger.logSecurity('lab_order_payment_signature_invalid', { labOrderId: String(id) });
+    throw new PaymentError('Payment could not be verified');
+  }
+  await markLabOrderPaid(order._id, { orderId, paymentId });
+  return getMyLabOrder(patientId, order._id);
+}
+
 // ── Sweeps ───────────────────────────────────────────────────────────────
 
 async function expireUnpaid(now = new Date()) {
@@ -657,6 +723,9 @@ module.exports = {
   rescheduleLabOrder,
   bookRecollection,
   reportLink,
+  createPaymentOrder,
+  markLabOrderPaid,
+  verifyPayment,
   listLabOrdersForLab,
   markCollected,
   advance,

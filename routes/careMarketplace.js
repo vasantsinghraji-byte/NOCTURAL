@@ -387,6 +387,20 @@ router.post('/labs/orders/:id/recollect', patient, [id('id'), ...slotBody], vali
   res.status(201).json({ success: true, order: await labOrderService.bookRecollection(req.user._id || req.user.id, req.params.id, req.body) });
 }));
 
+router.post('/labs/orders/:id/payment/order', patient, [id('id')], validate, wrap(async (req, res) => {
+  res.json({ success: true, order: await labOrderService.createPaymentOrder(req.user._id || req.user.id, req.params.id) });
+}));
+
+router.post(
+  '/labs/orders/:id/payment/verify',
+  patient,
+  [id('id'), body('orderId').isString().isLength({ max: 100 }), body('paymentId').isString().isLength({ max: 100 }), body('signature').isString().isLength({ max: 200 })],
+  validate,
+  wrap(async (req, res) => {
+    res.json({ success: true, order: await labOrderService.verifyPayment(req.user._id || req.user.id, req.params.id, req.body) });
+  })
+);
+
 router.get('/labs/orders/:id/report', patient, [id('id')], validate, wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, ...(await labOrderService.reportLink(req.user._id || req.user.id, req.params.id)) });

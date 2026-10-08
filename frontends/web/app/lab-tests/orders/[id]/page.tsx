@@ -7,6 +7,8 @@ import { CheckCircle2, Droplets, FileText, FlaskConical, Home, Building2, Timer,
 import type { LabOrderView, SlotDay } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { fmtDay, fmtTime, inr, problem, LAB_STATUS_LABEL } from '@/lib/care';
+import { useAuth } from '@/lib/auth';
+import { payForLabOrder, PaymentDismissedError } from '@/lib/razorpay';
 import { confirmDialog, alertDialog, Modal } from '../../../_components/Dialog';
 import CareArt from '../../../_components/care/CareArt';
 
@@ -25,6 +27,7 @@ export default function LabOrderRoute() {
 function LabOrderDetail() {
   const { id } = useParams<{ id: string }>();
   const fresh = useSearchParams().get('new') === '1';
+  const { patient } = useAuth();
   const [order, setOrder] = useState<LabOrderView | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
@@ -42,6 +45,10 @@ function LabOrderDetail() {
       const r = await api.labReportLink(order._id);
       window.open(r.url, '_blank', 'noopener,noreferrer');
     } catch (e) { await alertDialog({ title: 'Report not available', message: problem(e).message }); } finally { setBusy(''); }
+  };
+  const pay = async () => {
+    setBusy('pay');
+    try { await payForLabOrder(order._id, { name: patient?.name, email: patient?.email, contact: patient?.phone }); await load(); } catch (e) { if (!(e instanceof PaymentDismissedError)) await alertDialog({ title: 'Payment didn’t go through', message: problem(e).message }); } finally { setBusy(''); }
   };
   const cancel = async () => {
     if (!(await confirmDialog({ title: 'Cancel this lab booking?', message: 'Free before the sample is collected. Any credit used comes back.', confirmLabel: 'Cancel Booking', danger: true }))) return;
@@ -64,6 +71,13 @@ function LabOrderDetail() {
               <span className={`mk-badge ${order.status === 'REPORT_READY' ? 'green' : order.status === 'SAMPLE_REJECTED' ? 'red' : ''}`}>{LAB_STATUS_LABEL[order.status]}</span>
             </div>
 
+            {order.payment.mode === 'PREPAID' && order.payment.status === 'PENDING' && order.status === 'SCHEDULED' && (
+              <div className="mk-card red" style={{ display: 'grid', gap: 10 }}>
+                <p className="mk-title">Pay {inr(order.payment.amount)} to confirm</p>
+                <p className="mk-meta" style={{ margin: 0 }}>Your collection time is held{order.payment.holdUntil ? ` until ${new Date(order.payment.holdUntil).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })}` : ''}.</p>
+                <button type="button" className="mk-btn dark" onClick={pay} disabled={busy === 'pay'}>{busy === 'pay' ? 'Opening Payment…' : 'Pay Now'}</button>
+              </div>
+            )}
             {order.collectionCode && order.status === 'SCHEDULED' && (
               <div className="mk-card red" style={{ display: 'grid', gap: 10 }}>
                 <p className="mk-title">Collection code</p>
