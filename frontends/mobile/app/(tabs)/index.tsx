@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarSpace } from '@/lib/PillTabBar';
 import { router, useFocusEffect } from 'expo-router';
 import {
   ChevronRight, Crown, MapPin as MapPinIcon, Navigation, PackageCheck, Radio, RotateCcw, Search, ShieldCheck, Store, Truck, X, type LucideIcon
@@ -15,11 +16,14 @@ import { DEMO_AREA_ENABLED } from '@/lib/variant';
 import { LiveMap, type MapPin } from '@/lib/MapView';
 import { DEMO_POINT, inr, shortName } from '@/lib/care';
 import { CareMoments } from '@/lib/CareMoments';
-import { IconTile, serviceIcon, TONES } from '@/lib/icons';
+import { IconTile, serviceIcon } from '@/lib/icons';
+import { inr as money } from '@/lib/market';
 import { PressScale, Rise, Skeleton } from '@/lib/motion';
-import { C, F, IS_DARK, shadow, ui } from '@/lib/theme';
+import { C, F, IS_DARK, clay, shadow, ui } from '@/lib/theme';
 import { appAlert } from '@/lib/dialog';
 import { UpdatesFeed } from '@/lib/updatesFeed';
+import { EasyHome } from '@/lib/EasyHome';
+import { useEasyMode } from '@/lib/easyMode';
 import CareArt, { WineGradient } from '@/lib/CareArt';
 
 type Mode = 'ASAP' | 'SCHEDULED';
@@ -41,8 +45,16 @@ const STATUS_LINE: Record<string, string> = {
 };
 
 /** Home = book a medical staff (Uber/Rapido style): live map, then the booking sheet. */
-export default function BookHome() {
+/** Home: the simple Easy mode screen, or the full booking home. */
+export default function HomeTab() {
+  const { easy } = useEasyMode();
+  return easy ? <EasyHome /> : <BookHome />;
+}
+
+function BookHome() {
+  const { suggest: easySuggest, setEasy, dismissSuggestion } = useEasyMode();
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const { session } = useAuth();
   const { t } = useT();
   const live = useLiveLocation(DEMO_POINT, 'C-Scheme, Jaipur (demo)');
@@ -148,7 +160,7 @@ export default function BookHome() {
         {demoArea ? <View style={styles.demoPill}><Text style={styles.demoPillText}>DEMO</Text></View> : <Navigation size={18} color={C.brand} fill={C.brand} />}
       </Pressable>
 
-      <ScrollView style={StyleSheet.absoluteFill} contentContainerStyle={{ paddingTop: MAP_H }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={StyleSheet.absoluteFill} contentContainerStyle={{ paddingTop: MAP_H, paddingBottom: tabSpace }} showsVerticalScrollIndicator={false}>
         <View style={styles.sheet}>
           <View style={styles.grabber} />
           <Rise>
@@ -168,6 +180,19 @@ export default function BookHome() {
             </View>
           </Rise>
 
+          {easySuggest && (
+            <Rise delay={40}>
+              <View style={styles.easyOffer}>
+                <Text style={ui.h3}>Prefer bigger buttons and fewer choices?</Text>
+                <Text style={ui.muted}>Easy mode shows a simple home with large text. You can switch back any time in Account.</Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                  <PressScale style={[ui.btn, { flex: 1, paddingVertical: 12 }]} onPress={() => setEasy(true)}><Text style={ui.btnText}>Turn On Easy Mode</Text></PressScale>
+                  <PressScale style={[ui.btnOutline, { paddingHorizontal: 18, paddingVertical: 12 }]} onPress={dismissSuggestion}><Text style={ui.btnOutlineText}>No Thanks</Text></PressScale>
+                </View>
+              </View>
+            </Rise>
+          )}
+
           {upcoming && (
             <Rise delay={60}>
               <PressScale style={styles.upcoming} onPress={() => router.push({ pathname: '/track', params: { id: upcoming._id } })}>
@@ -175,6 +200,7 @@ export default function BookHome() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.upLabel}>{t('home.upcoming').toUpperCase()} · {STATUS_LINE[upcoming.status] || upcoming.status}</Text>
                   <Text style={styles.upTitle}>{upcoming.serviceType.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}</Text>
+                  {typeof upcoming.serviceProvider === 'object' && upcoming.serviceProvider?.name ? <Text style={styles.upSub}>{upcoming.serviceProvider.name} is coming</Text> : null}
                   <Text style={styles.upSub}>{upcoming.dispatch?.mode === 'ASAP' ? 'Now' : `${String(upcoming.scheduledDate).slice(0, 10)} · ${upcoming.scheduledTime}`}</Text>
                 </View>
                 <View style={styles.upBtn}><Text style={styles.upBtnText}>{t('home.track')}</Text></View>
@@ -183,6 +209,77 @@ export default function BookHome() {
           )}
 
           {error && <Text style={[ui.error, { marginTop: 12 }]}>{error}</Text>}
+
+
+          {!demoArea && live.source !== 'fallback' && storesChecked && stores.length === 0 && (
+            <PressScale style={styles.outside} onPress={chooseArea} disabled={!DEMO_AREA_ENABLED}>
+              <MapPinIcon size={20} color={C.amber} />
+              <View style={{ flex: 1 }}>
+                <Text style={ui.h3}>Nabz isn’t in your area yet</Text>
+                <Text style={ui.muted}>{DEMO_AREA_ENABLED ? 'We’re live in Jaipur. Tap to try the app in the Jaipur demo area.' : 'We’re live in Jaipur and coming to more cities soon.'}</Text>
+              </View>
+            </PressScale>
+          )}
+
+          {/* Book a professional: one grouped card (when, what, price, action) */}
+          <View style={styles.bookCard}>
+            <View style={styles.segment}>
+              {(['ASAP', 'SCHEDULED'] as Mode[]).map((m) => {
+                const disabled = m === 'ASAP' && !nearby.count;
+                const on = effectiveMode === m;
+                return (
+                  <Pressable key={m} disabled={disabled} onPress={() => setMode(m)} style={[styles.segBtn, on && styles.segOn, disabled && { opacity: 0.45 }]}
+                    accessibilityRole="radio" accessibilityState={{ checked: on, disabled }}>
+                    <Text style={[styles.segText, on && { color: '#ffffff' }]}>{m === 'ASAP' ? t('home.bookNow') : t('home.schedule')}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {services === null ? (
+              <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 14 }}>
+                {[0, 1, 2, 3].map((i) => <Skeleton key={i} width={64} height={84} radius={20} />)}
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 14, paddingHorizontal: 14 }} style={{ marginHorizontal: -14 }}>
+                {shown.map((s) => {
+                  const on = s.serviceType === selected;
+                  const Icon = serviceIcon(s.serviceType);
+                  return (
+                    <Pressable key={s.serviceType} onPress={() => setSelected(s.serviceType)} style={styles.cat} accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={shortName(s)}>
+                      <View style={[styles.catTile, on && styles.catTileOn]}>
+                        <Icon size={24} color={on ? '#ffffff' : C.brand} strokeWidth={on ? 2.2 : 1.9} />
+                      </View>
+                      <Text style={[styles.catText, on && { color: C.ink }]} numberOfLines={2}>{shortName(s)}</Text>
+                    </Pressable>
+                  );
+                })}
+                {shown.length === 0 && <Text style={ui.muted}>No service matches {query}.</Text>}
+              </ScrollView>
+            )}
+
+            {service && (
+              <View style={styles.summary}>
+                <View style={{ flex: 1 }}>
+                  <Text style={ui.h3}>{service.displayName || service.name}</Text>
+                  <Text style={ui.muted}>
+                    {service.serviceDetails?.duration ? `${service.serviceDetails.duration} min · ` : ''}
+                    {service.supplies?.length ? 'Supplies can be brought' : 'Brings own kit'}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.price}>{money(service.pricingPreview?.regular.totalAmount ?? service.pricing.basePrice)}</Text>
+                  <Text style={styles.priceNote}>incl. fee & GST</Text>
+                </View>
+              </View>
+            )}
+
+            <PressScale style={[ui.btn, { marginTop: 12 }, (!service || !point) && { opacity: 0.5 }]} disabled={!service || !point} onPress={() => book()}>
+              <Text style={ui.btnText}>
+                {service ? (effectiveMode === 'ASAP' ? `${t('home.bookNow')} · ${shortName(service)}` : `${t('home.schedule')} · ${shortName(service)}`) : 'Book'}
+              </Text>
+            </PressScale>
+          </View>
 
           {/* Care marketplace: physio, home care and labs, compared */}
           <Rise delay={90}>
@@ -196,72 +293,6 @@ export default function BookHome() {
               <CareArt kind="heart" size={96} style={{ marginRight: -8, marginVertical: -10 }} />
             </PressScale>
           </Rise>
-
-          {!demoArea && live.source !== 'fallback' && storesChecked && stores.length === 0 && (
-            <PressScale style={styles.outside} onPress={chooseArea} disabled={!DEMO_AREA_ENABLED}>
-              <MapPinIcon size={20} color={C.amber} />
-              <View style={{ flex: 1 }}>
-                <Text style={ui.h3}>Nabz isn’t in your area yet</Text>
-                <Text style={ui.muted}>{DEMO_AREA_ENABLED ? 'We’re live in Jaipur. Tap to try the app in the Jaipur demo area.' : 'We’re live in Jaipur and coming to more cities soon.'}</Text>
-              </View>
-            </PressScale>
-          )}
-
-          {/* Book now vs schedule */}
-          <View style={styles.segment}>
-            {(['ASAP', 'SCHEDULED'] as Mode[]).map((m) => {
-              const disabled = m === 'ASAP' && !nearby.count;
-              const on = effectiveMode === m;
-              return (
-                <Pressable key={m} disabled={disabled} onPress={() => setMode(m)} style={[styles.segBtn, on && styles.segOn, disabled && { opacity: 0.45 }]}>
-                  <Text style={[styles.segText, on && { color: C.onNight }]}>{m === 'ASAP' ? t('home.bookNow') : t('home.schedule')}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {services === null ? (
-            <View style={{ flexDirection: 'row', gap: 14, paddingVertical: 14 }}>
-              {[0, 1, 2, 3].map((i) => <Skeleton key={i} width={66} height={86} radius={20} />)}
-            </View>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingVertical: 14 }}>
-              {shown.map((s, i) => {
-                const on = s.serviceType === selected;
-                return (
-                  <Pressable key={s.serviceType} onPress={() => setSelected(s.serviceType)} style={styles.cat}>
-                    <View style={[styles.catRing, on && styles.catOn]}>
-                      <IconTile icon={serviceIcon(s.serviceType)} bg={TONES[i % TONES.length].bg} color={TONES[i % TONES.length].fg} size={58} radius={20} />
-                    </View>
-                    <Text style={[styles.catText, on && { color: C.ink }]} numberOfLines={2}>{shortName(s)}</Text>
-                  </Pressable>
-                );
-              })}
-              {shown.length === 0 && <Text style={ui.muted}>No service matches “{query}”.</Text>}
-            </ScrollView>
-          )}
-
-          {service && (
-            <View style={styles.summary}>
-              <View style={{ flex: 1 }}>
-                <Text style={ui.h3}>{service.displayName || service.name}</Text>
-                <Text style={ui.muted}>
-                  {service.serviceDetails?.duration ? `${service.serviceDetails.duration} min · ` : ''}
-                  {service.supplies?.length ? 'Supplies can be brought' : 'Brings own kit'}
-                </Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.price}>{inr(service.pricingPreview?.regular.totalAmount ?? service.pricing.basePrice)}</Text>
-                <Text style={styles.priceNote}>incl. fee & GST</Text>
-              </View>
-            </View>
-          )}
-
-          <PressScale style={[ui.btnDark, { marginTop: 12 }, (!service || !point) && { opacity: 0.5 }]} disabled={!service || !point} onPress={() => book()}>
-            <Text style={[ui.btnText, { color: C.onNight }]}>
-              {service ? (effectiveMode === 'ASAP' ? `${t('home.bookNow')} · ${shortName(service)}` : `${t('home.schedule')} · ${shortName(service)}`) : 'Book'}
-            </Text>
-          </PressScale>
 
           {session?.kind === 'patient' && <UpdatesFeed audience="customer" />}
 
@@ -316,12 +347,12 @@ export default function BookHome() {
             <>
               <Text style={ui.section}>{t('home.packages')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-                {feed.packages.map((p, i) => (
+                {feed.packages.map((p) => (
                   <PressScale key={p.serviceType} style={styles.pack} onPress={() => book(p, 'SCHEDULED')}>
-                    <IconTile icon={serviceIcon(p.serviceType)} bg={TONES[(i + 2) % TONES.length].bg} color={TONES[(i + 2) % TONES.length].fg} size={42} />
+                    <IconTile icon={serviceIcon(p.serviceType)} size={42} />
                     <Text style={ui.h3} numberOfLines={2}>{p.displayName || p.name}</Text>
                     {p.shortDescription ? <Text style={ui.muted} numberOfLines={2}>{p.shortDescription}</Text> : null}
-                    <Text style={styles.price}>{inr(p.pricing.basePrice)}</Text>
+                    <Text style={styles.price}>{money(p.pricing.basePrice)}</Text>
                   </PressScale>
                 ))}
               </ScrollView>
@@ -332,14 +363,14 @@ export default function BookHome() {
             <>
               <Text style={ui.section}>{t('home.popular')}</Text>
               <View style={{ gap: 8 }}>
-                {feed.popular.slice(0, 5).map((s, i) => (
+                {feed.popular.slice(0, 5).map((s) => (
                   <PressScale key={s.serviceType} style={styles.row} onPress={() => { setSelected(s.serviceType); book(s, effectiveMode); }}>
-                    <IconTile icon={serviceIcon(s.serviceType)} bg={TONES[i % TONES.length].bg} color={TONES[i % TONES.length].fg} size={40} />
+                    <IconTile icon={serviceIcon(s.serviceType)} size={40} />
                     <View style={{ flex: 1 }}>
                       <Text style={ui.h3}>{s.displayName || s.name}</Text>
                       {s.serviceDetails?.duration ? <Text style={ui.muted}>{s.serviceDetails.duration} min</Text> : null}
                     </View>
-                    <Text style={styles.priceSmall}>{inr(s.pricing.basePrice)}</Text>
+                    <Text style={styles.priceSmall}>{money(s.pricing.basePrice)}</Text>
                   </PressScale>
                 ))}
               </View>
@@ -360,7 +391,8 @@ export default function BookHome() {
 }
 
 const styles = StyleSheet.create({
-  carePromo: { marginTop: 14, borderRadius: 24, padding: 16, paddingRight: 8, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', backgroundColor: C.night },
+  easyOffer: { backgroundColor: C.card, borderRadius: 22, padding: 16, gap: 4, marginTop: 14, borderWidth: 1.5, borderColor: C.brandSoft },
+  carePromo: { marginTop: 16, borderRadius: 24, padding: 16, paddingRight: 8, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', backgroundColor: C.night },
   careEyebrow: { color: '#ffd3da', fontFamily: F.heavy, fontSize: 10, letterSpacing: 1.2 },
   careTitle: { color: '#ffffff', fontFamily: F.display, fontSize: 18, lineHeight: 22 },
   careSub: { color: '#ffd3da', fontFamily: F.medium, fontSize: 12, lineHeight: 17 },
@@ -378,13 +410,13 @@ const styles = StyleSheet.create({
     minHeight: Dimensions.get('window').height - MAP_H, ...shadow, elevation: 20
   },
   grabber: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: C.border, marginBottom: 12 },
-  title: { fontFamily: F.display, fontSize: 34, color: C.ink, letterSpacing: -0.3 },
+  title: { fontFamily: F.display, fontSize: 30, color: C.ink, letterSpacing: -0.8 },
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: 16, paddingHorizontal: 14,
     marginTop: 12, borderWidth: 1, borderColor: C.border
   },
   searchInput: { flex: 1, paddingVertical: 12, fontFamily: F.medium, fontSize: 14, color: C.ink },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, alignSelf: 'flex-start', backgroundColor: C.cardAlt, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, maxWidth: '100%' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingHorizontal: 4, maxWidth: '100%' },
   chipText: { fontFamily: F.semi, fontSize: 12, color: C.muted, flexShrink: 1 },
   upcoming: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.night, borderRadius: 22, padding: 14, marginTop: 14 },
   upLabel: { color: C.gold, fontFamily: F.heavy, fontSize: 10, letterSpacing: 1 },
@@ -392,16 +424,17 @@ const styles = StyleSheet.create({
   upSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 12 },
   upBtn: { backgroundColor: C.onNight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
   upBtnText: { color: '#2a2523', fontFamily: F.heavy, fontSize: 12 },
-  segment: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 14, padding: 4, marginTop: 16 },
-  segBtn: { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center' },
-  segOn: { backgroundColor: C.night },
+  bookCard: { backgroundColor: C.card, borderRadius: 24, padding: 14, marginTop: 16, ...clay },
+  segment: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 999, padding: 4 },
+  segBtn: { flex: 1, paddingVertical: 11, borderRadius: 999, alignItems: 'center' },
+  segOn: { backgroundColor: C.brand },
   segText: { fontFamily: F.bold, color: C.muted, fontSize: 13 },
-  cat: { width: 76, alignItems: 'center', gap: 6 },
-  catRing: { padding: 2, borderRadius: 23, borderWidth: 2, borderColor: 'transparent' },
-  catOn: { borderColor: C.ink },
+  cat: { width: 72, alignItems: 'center', gap: 6 },
+  catTile: { width: 58, height: 58, borderRadius: 20, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
+  catTileOn: { backgroundColor: C.brand, boxShadow: '0 8px 16px -8px rgba(194,31,61,0.6)' },
   catText: { fontSize: 11, lineHeight: 14, fontFamily: F.bold, color: C.muted, textAlign: 'center' },
-  summary: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: C.border },
-  price: { fontFamily: F.heavy, color: C.ink, fontSize: 17 },
+  summary: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.cardAlt, borderRadius: 18, padding: 14 },
+  price: { fontFamily: F.display, color: C.ink, fontSize: 19 },
   priceSmall: { fontFamily: F.bold, color: C.ink, fontSize: 14 },
   priceNote: { fontFamily: F.medium, color: C.muted, fontSize: 10 },
   banner: { width: 280, borderRadius: 22, padding: 16, gap: 6, minHeight: 150 },

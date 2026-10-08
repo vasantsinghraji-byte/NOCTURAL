@@ -38,7 +38,7 @@ module.exports = {
     version: '0.1.0',
     orientation: 'portrait',
     icon: variant.icon,
-    splash: { image: './assets/splash.png', resizeMode: 'contain', backgroundColor: '#fbf8f3' },
+    splash: { image: './assets/splash.png', resizeMode: 'contain', backgroundColor: '#f5f3f4' },
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
     plugins: [

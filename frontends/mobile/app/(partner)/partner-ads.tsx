@@ -37,7 +37,7 @@ export default function PartnerAds() {
   };
 
   return (
-    <Screen header={<TopBar title="Ads" />} refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={C.brand} />}>
+    <Screen tabBar header={<TopBar title="Ads" back={false} />} refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={C.brand} />}>
       <MkHero title="Get found by more patients" subtitle="Your shop shows in a labelled sponsored slot when it’s a good match: open, nearby, offering the service and well rated. Pay only when someone taps." art="heart" />
       {error ? <Note>{error}</Note> : null}
       {!data && !error ? <Skeleton height={200} radius={24} /> : null}

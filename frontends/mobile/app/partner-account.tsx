@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarSpace } from '@/lib/PillTabBar';
 import { router, useFocusEffect } from 'expo-router';
 import { ArrowLeft, BadgeCheck, Fingerprint, Gift, IndianRupee, LogOut, Share2, ShieldCheck, Star, Store, Syringe, Wallet } from 'lucide-react-native';
 import type { PartnerAccount } from '@medrush/shared';
@@ -17,7 +18,13 @@ const STAFF_ROLES = ['nurse', 'physiotherapist', 'medical_staff'];
 
 /** Partner account: who I am, what I earned, my rating, payouts and my referral code. */
 export default function PartnerAccountScreen() {
+  return <PartnerAccount />;
+}
+
+/** `embedded`: shown as the Account tab of the partner app (no back arrow, room for the tab bar). */
+export function PartnerAccount({ embedded = false }: { embedded?: boolean }) {
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const { session, logout } = useAuth();
   const [acct, setAcct] = useState<PartnerAccount | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,11 +62,13 @@ export default function PartnerAccountScreen() {
   const v = acct?.verification;
 
   return (
-    <ScrollView style={ui.screen} contentContainerStyle={{ paddingBottom: insets.bottom + 30 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
+    <ScrollView style={ui.screen} contentContainerStyle={{ paddingBottom: embedded ? tabSpace : insets.bottom + 30 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
+{!embedded && (
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.back} accessibilityRole="button" accessibilityLabel="Back">
           <ArrowLeft size={20} color={C.onNight} />
         </Pressable>
+        )}
         <Text style={styles.eyebrow}>MY ACCOUNT</Text>
         {acct && <View style={{ marginVertical: 8 }}><PhotoAvatar name={acct.name} url={acct.photoUrl} size={72} editable onChange={(url) => setAcct({ ...acct, photoUrl: url })} /></View>}
         <Text style={styles.name}>{acct?.name || session?.name || ''}</Text>

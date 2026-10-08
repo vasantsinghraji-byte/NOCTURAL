@@ -29,7 +29,7 @@ const maskName = (name) => {
 /** Numbers for the admin overview cards. */
 async function overview() {
   const todayStart = new Date(`${careSlotService.todayIst()}T00:00:00Z`);
-  const [shopsPending, refundsPlans, refundsLabs, reports, needsAction, todaySessions, labLate, labToday, adsPending, settingsPending, offersPending] = await Promise.all([
+  const [shopsPending, refundsPlans, refundsLabs, reports, needsAction, todaySessions, labLate, labToday, adsPending, settingsPending, offersPending, callbacksOpen] = await Promise.all([
     CareStore.countDocuments({ status: 'PENDING' }),
     CarePlan.countDocuments({ 'refund.status': 'PENDING' }),
     LabOrder.countDocuments({ 'payment.status': 'REFUND_PENDING' }),
@@ -40,9 +40,10 @@ async function overview() {
     LabOrder.countDocuments({ 'slot.date': careSlotService.todayIst(), status: { $ne: 'CANCELLED' } }),
     AdCampaign.countDocuments({ status: 'PENDING_REVIEW' }),
     SettingChange.countDocuments({ status: 'PENDING' }),
-    RateCardItem.countDocuments({ 'offer.status': 'PENDING' })
+    RateCardItem.countDocuments({ 'offer.status': 'PENDING' }),
+    require('../models/callbackRequest').countDocuments({ status: 'OPEN' })
   ]);
-  return { shopsPending, refundsPending: refundsPlans + refundsLabs, reports, needsAction, todaySessions, labLate, labToday, adsPending, settingsPending, offersPending };
+  return { shopsPending, refundsPending: refundsPlans + refundsLabs, reports, needsAction, todaySessions, labLate, labToday, adsPending, settingsPending, offersPending, callbacksOpen };
 }
 
 /** Plans and lab orders with money to give back. */

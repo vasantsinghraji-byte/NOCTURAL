@@ -6,6 +6,7 @@ import { ArrowLeft, Check, LocateFixed, MapPin, Minus, Plus, type LucideIcon } f
 import type { SavedAddress, SlotDay } from '@medrush/shared';
 import CareArt, { WineGradient, type ArtKind } from './CareArt';
 import { PressScale, Skeleton } from './motion';
+import { useTabBarSpace } from './PillTabBar';
 import { dayShort, fmtTime, fromSaved, inr, usableAddresses, type VisitPlace } from './market';
 import { C, F, IS_DARK, clay, ui } from './theme';
 
@@ -18,11 +19,12 @@ import { C, F, IS_DARK, clay, ui } from './theme';
 /** Scrollable page with room for the floating tab bar. */
 export function Screen({ children, tabBar = false, header, refreshControl }: { children: ReactNode; tabBar?: boolean; header?: ReactNode; refreshControl?: React.ReactElement }) {
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   return (
     <View style={ui.screen}>
       {header}
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingTop: header ? 4 : insets.top + 12, paddingBottom: tabBar ? 24 : 40 + insets.bottom, gap: 14 }}
+        contentContainerStyle={{ padding: 16, paddingTop: header ? 4 : insets.top + 12, paddingBottom: tabBar ? tabSpace : 40 + insets.bottom, gap: 14 }}
         keyboardShouldPersistTaps="handled"
         refreshControl={refreshControl}
       >
@@ -33,13 +35,15 @@ export function Screen({ children, tabBar = false, header, refreshControl }: { c
 }
 
 /** Back arrow + title for stack screens. */
-export function TopBar({ title, right }: { title?: string; right?: ReactNode }) {
+export function TopBar({ title, right, back = true, onBack }: { title?: string; right?: ReactNode; back?: boolean; onBack?: () => void }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[s.topBar, { paddingTop: insets.top + 8 }]}>
-      <PressScale onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Back">
-        <ArrowLeft size={20} color={C.ink} />
-      </PressScale>
+      {back ? (
+        <PressScale onPress={onBack || (() => (router.canGoBack() ? router.back() : router.replace('/')))} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Back">
+          <ArrowLeft size={20} color={C.ink} />
+        </PressScale>
+      ) : <View style={{ width: 44 }} />}
       <Text style={s.topTitle} numberOfLines={1}>{title}</Text>
       <View style={{ minWidth: 44, alignItems: 'flex-end' }}>{right}</View>
     </View>
@@ -87,13 +91,13 @@ export function Btn({ label, onPress, variant = 'primary', small, disabled, load
       accessibilityRole="button"
       accessibilityState={{ disabled: off, busy: loading }}
       style={[{
-        backgroundColor: l.bg, borderRadius: 999, paddingVertical: small ? 9 : 15, paddingHorizontal: small ? 14 : 20,
+        backgroundColor: l.bg, borderRadius: 999, paddingVertical: small ? 11 : 16, paddingHorizontal: small ? 16 : 22, minHeight: small ? 44 : 52,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: off ? 0.55 : 1,
         borderWidth: l.border ? 1.5 : 0, borderColor: l.border
-      }, variant === 'primary' && !off ? ui.btn : null, variant === 'primary' ? { paddingVertical: small ? 9 : 15, paddingHorizontal: small ? 14 : 20 } : null, style]}
+      }, variant === 'primary' && !off ? ui.btn : null, variant === 'primary' ? { paddingVertical: small ? 11 : 16, paddingHorizontal: small ? 16 : 22 } : null, style]}
     >
       {loading ? <ActivityIndicator size="small" color={l.fg} /> : Icon ? <Icon size={small ? 15 : 17} color={l.fg} /> : null}
-      <Text style={{ color: l.fg, fontFamily: F.heavy, fontSize: small ? 13 : 15 }} numberOfLines={1}>{label}</Text>
+      <Text style={{ color: l.fg, fontFamily: F.heavy, fontSize: small ? 14 : 16 }} numberOfLines={1}>{label}</Text>
     </PressScale>
   );
 }
@@ -121,7 +125,7 @@ export function Title({ children, size = 17, style }: { children: ReactNode; siz
   return <Text style={[{ fontFamily: F.display, fontSize: size, color: C.ink, letterSpacing: -0.3 }, style]}>{children}</Text>;
 }
 export function Meta({ children, style, onDark }: { children: ReactNode; style?: StyleProp<any>; onDark?: boolean }) {
-  return <Text style={[{ fontFamily: F.medium, fontSize: 13, color: onDark ? C.onNightMuted : C.muted, lineHeight: 18 }, style]}>{children}</Text>;
+  return <Text style={[{ fontFamily: F.medium, fontSize: 14, color: onDark ? C.onNightMuted : C.muted, lineHeight: 20 }, style]}>{children}</Text>;
 }
 export function Section({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
@@ -151,8 +155,8 @@ export function Badge({ label, tone = 'neutral', icon: Icon }: { label: string; 
 export function Chip({ label, on, onPress }: { label: string; on?: boolean; onPress?: () => void }) {
   return (
     <PressScale onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }}
-      style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: on ? C.brand : C.card, borderWidth: on ? 0 : 1, borderColor: C.border }}>
-      <Text style={{ color: on ? '#ffffff' : C.inkSoft, fontFamily: F.bold, fontSize: 13 }}>{label}</Text>
+      style={{ paddingHorizontal: 16, minHeight: 44, justifyContent: 'center', borderRadius: 999, backgroundColor: on ? C.brand : C.card, borderWidth: on ? 0 : 1, borderColor: C.border }}>
+      <Text style={{ color: on ? '#ffffff' : C.inkSoft, fontFamily: F.bold, fontSize: 14 }}>{label}</Text>
     </PressScale>
   );
 }
@@ -171,7 +175,7 @@ export function Seg<T extends string>({ options, value, onChange, disabled }: { 
           <Pressable key={o.value} onPress={() => !disabled && onChange(o.value)} accessibilityRole="radio" accessibilityState={{ checked: on, disabled }}
             style={[s.segBtn, on && s.segOn]}>
             {Icon ? <Icon size={14} color={on ? '#ffffff' : C.inkSoft} /> : null}
-            <Text style={{ color: on ? '#ffffff' : C.inkSoft, fontFamily: F.bold, fontSize: 13 }} numberOfLines={1}>{o.label}</Text>
+            <Text style={{ color: on ? '#ffffff' : C.inkSoft, fontFamily: F.bold, fontSize: 14 }} numberOfLines={1}>{o.label}</Text>
           </Pressable>
         );
       })}
@@ -180,15 +184,20 @@ export function Seg<T extends string>({ options, value, onChange, disabled }: { 
 }
 
 export function Stepper({ value, min = 1, max = 30, onChange, disabled }: { value: number; min?: number; max?: number; onChange: (n: number) => void; disabled?: boolean }) {
+  const lowOff = disabled || value <= min;
+  const highOff = disabled || value >= max;
+  // Plain Pressables (not PressScale): fixed 44 px circles that never stretch.
   return (
     <View style={s.stepper}>
-      <PressScale onPress={() => onChange(Math.max(min, value - 1))} disabled={disabled || value <= min} style={[s.stepBtn, (disabled || value <= min) && { opacity: 0.4 }]} accessibilityRole="button" accessibilityLabel="Fewer">
+      <Pressable onPress={() => onChange(Math.max(min, value - 1))} disabled={lowOff} accessibilityRole="button" accessibilityLabel="Fewer"
+        style={({ pressed }) => [s.stepBtn, { opacity: lowOff ? 0.4 : pressed ? 0.7 : 1 }]}>
         <Minus size={18} color={C.ink} />
-      </PressScale>
-      <Text style={{ minWidth: 40, textAlign: 'center', fontFamily: F.display, fontSize: 22, color: C.ink }} accessibilityLiveRegion="polite">{value}</Text>
-      <PressScale onPress={() => onChange(Math.min(max, value + 1))} disabled={disabled || value >= max} style={[s.stepBtn, { backgroundColor: C.brand }, (disabled || value >= max) && { opacity: 0.4 }]} accessibilityRole="button" accessibilityLabel="More">
+      </Pressable>
+      <Text style={s.stepValue} accessibilityLiveRegion="polite">{value}</Text>
+      <Pressable onPress={() => onChange(Math.min(max, value + 1))} disabled={highOff} accessibilityRole="button" accessibilityLabel="More"
+        style={({ pressed }) => [s.stepBtn, { backgroundColor: C.brand, opacity: highOff ? 0.4 : pressed ? 0.7 : 1 }]}>
         <Plus size={18} color="#ffffff" />
-      </PressScale>
+      </Pressable>
     </View>
   );
 }
@@ -217,14 +226,39 @@ export function DateStrip({ days, value, onChange, openLabel }: { days: SlotDay[
 
 export function TimeGrid({ times, value, onChange }: { times: string[]; value: string; onChange: (t: string) => void }) {
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+    <View style={s.slotGrid}>
       {times.map((t) => {
         const on = t === value;
         return (
           <PressScale key={t} onPress={() => onChange(t)} accessibilityRole="button" accessibilityState={{ selected: on }}
-            style={[s.slot, on && { backgroundColor: C.tabBar, borderColor: C.tabBar }]}>
-            <Text style={{ color: on ? '#ffffff' : C.ink, fontFamily: F.bold, fontSize: 13 }}>{fmtTime(t)}</Text>
+            style={[s.slot, on && { backgroundColor: C.brand, borderColor: C.brand }]}>
+            <Text style={{ color: on ? '#ffffff' : C.ink, fontFamily: F.bold, fontSize: 14 }}>{fmtTime(t)}</Text>
           </PressScale>
+        );
+      })}
+    </View>
+  );
+}
+
+const PARTS: Array<[string, (h: number) => boolean]> = [
+  ['Morning', (h) => h < 12],
+  ['Afternoon', (h) => h >= 12 && h < 17],
+  ['Evening', (h) => h >= 17]
+];
+
+/** Free times split into Morning / Afternoon / Evening, three to a row. */
+export function TimeGroups({ times, value, onChange }: { times: string[]; value: string; onChange: (t: string) => void }) {
+  if (!times.length) return null;
+  return (
+    <View style={{ gap: 14 }}>
+      {PARTS.map(([label, test]) => {
+        const list = times.filter((t) => test(Number(t.slice(0, 2))));
+        if (!list.length) return null;
+        return (
+          <View key={label} style={{ gap: 8 }}>
+            <Text style={s.partLabel}>{label} <Text style={{ color: C.faint }}>· {list.length}</Text></Text>
+            <TimeGrid times={list} value={value} onChange={onChange} />
+          </View>
         );
       })}
     </View>
@@ -349,24 +383,27 @@ export const mk = StyleSheet.create({
 const s = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8, gap: 10, backgroundColor: C.bg },
   topTitle: { flex: 1, textAlign: 'center', fontFamily: F.display, fontSize: 18, color: C.ink },
-  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...clay },
+  iconBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...clay },
   hero: { borderRadius: 28, padding: 20, overflow: 'hidden', backgroundColor: C.night },
   eyebrow: { alignSelf: 'flex-start', color: '#ffffff', fontFamily: F.heavy, fontSize: 11, letterSpacing: 1.2, backgroundColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, overflow: 'hidden', marginBottom: 8 },
   heroTitle: { color: '#ffffff', fontFamily: F.display, fontSize: 26, lineHeight: 31, letterSpacing: -0.6 },
   heroSub: { color: '#ffd3da', fontFamily: F.medium, fontSize: 13, lineHeight: 19, marginTop: 6 },
   seg: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 999, padding: 4, gap: 4 },
-  segBtn: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 10, borderRadius: 999, minHeight: 44 },
+  segBtn: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 10, borderRadius: 999, minHeight: 48 },
   segOn: { backgroundColor: C.brand },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.cardAlt, borderRadius: 999, padding: 4, alignSelf: 'flex-start' },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.cardAlt, borderRadius: 999, padding: 4, alignSelf: 'flex-start', height: 52 },
   stepBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  stepValue: { minWidth: 44, textAlign: 'center', fontFamily: F.display, fontSize: 22, color: C.ink },
   date: { width: 72, paddingVertical: 10, borderRadius: 20, alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
-  dateDay: { fontFamily: F.bold, fontSize: 12, color: C.muted },
+  dateDay: { fontFamily: F.bold, fontSize: 13, color: C.muted },
   dateNum: { fontFamily: F.display, fontSize: 22, color: C.ink, marginVertical: 1 },
-  dateFree: { fontFamily: F.semi, fontSize: 10, color: C.muted },
-  slot: { paddingHorizontal: 14, paddingVertical: 11, borderRadius: 999, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, minWidth: 86, alignItems: 'center' },
+  dateFree: { fontFamily: F.semi, fontSize: 11, color: C.muted },
+  slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  slot: { flexBasis: '31%', flexGrow: 0, paddingVertical: 12, borderRadius: 14, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
+  partLabel: { fontFamily: F.heavy, fontSize: 12, color: C.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
   billLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
-  billLabel: { flex: 1, fontFamily: F.medium, fontSize: 14, color: C.inkSoft },
-  billAmt: { fontFamily: F.bold, fontSize: 14, color: C.ink },
+  billLabel: { flex: 1, fontFamily: F.medium, fontSize: 15, color: C.inkSoft },
+  billAmt: { fontFamily: F.bold, fontSize: 15, color: C.ink },
   tile: { width: 40, height: 40, borderRadius: 14, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
   sheet: { backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, gap: 10 },
   grabber: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: C.faint, marginBottom: 6 },

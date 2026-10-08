@@ -6,9 +6,10 @@ import type { MarketplaceOverview, ShopKind } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { inr, todayIst, fmtDay, fmtTime, KINDS } from '@/lib/care';
 import { promptDialog, confirmDialog } from '../_components/Dialog';
+import CallbacksPanel from './CallbacksPanel';
 
 type Sensitive = (action: () => Promise<void>) => Promise<void>;
-const SUBTABS = [['overview', 'Today'], ['shops', 'Shops'], ['catalog', 'Catalog'], ['refunds', 'Refunds'], ['reports', 'Reported visits'], ['labs', 'Lab orders'], ['offers', 'Offers']] as const;
+const SUBTABS = [['overview', 'Today'], ['callbacks', 'Call-backs'], ['shops', 'Shops'], ['catalog', 'Catalog'], ['refunds', 'Refunds'], ['reports', 'Reported visits'], ['labs', 'Lab orders'], ['offers', 'Offers']] as const;
 type Sub = typeof SUBTABS[number][0];
 
 /** Care marketplace operations (docs/product/ADMIN_AND_ADS_GUIDE.md, Part 1). */
@@ -17,7 +18,7 @@ export default function MarketplacePanel({ sensitive }: { sensitive: Sensitive }
   const [overview, setOverview] = useState<MarketplaceOverview | null>(null);
   const refreshOverview = useCallback(() => api.adminMarketOverview().then((r) => setOverview(r.overview)).catch(() => undefined), []);
   useEffect(() => { refreshOverview(); }, [refreshOverview, sub]);
-  const badge: Partial<Record<Sub, number>> = overview ? { shops: overview.shopsPending, refunds: overview.refundsPending, reports: overview.reports, labs: overview.labLate, offers: overview.offersPending } : {};
+  const badge: Partial<Record<Sub, number>> = overview ? { shops: overview.shopsPending, refunds: overview.refundsPending, reports: overview.reports, labs: overview.labLate, offers: overview.offersPending, callbacks: overview.callbacksOpen } : {};
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div className="mk-chips" role="tablist" aria-label="Marketplace sections">
@@ -28,6 +29,7 @@ export default function MarketplacePanel({ sensitive }: { sensitive: Sensitive }
         ))}
       </div>
       {sub === 'overview' && <Today overview={overview} />}
+      {sub === 'callbacks' && <CallbacksPanel sensitive={sensitive} />}
       {sub === 'shops' && <Shops sensitive={sensitive} />}
       {sub === 'catalog' && <Catalog sensitive={sensitive} />}
       {sub === 'refunds' && <Refunds sensitive={sensitive} />}

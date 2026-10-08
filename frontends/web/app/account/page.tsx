@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import ProfilePhotoEditor from '../_components/ProfilePhoto';
 import { promptDialog } from '../_components/Dialog';
+import CallMeBack from '../_components/care/CallMeBack';
 
 /**
  * Customer account on the website (same as the app's Account tab): profile
@@ -62,6 +63,7 @@ export default function AccountPage() {
 
       {notice && <div className={`notice ${notice.tone}`} role="status" style={{ marginTop: 16 }}>{notice.text}</div>}
 
+      <div style={{ marginTop: 16 }}><CallMeBack /></div>
       <nav className="card account-links" aria-label="Account" style={{ marginTop: 16 }}>
         <Link href="/care/plans"><CalendarHeart size={18} aria-hidden="true" /><span>My care plans</span><ChevronRight size={16} aria-hidden="true" /></Link>
         <Link href="/lab-tests/orders"><FlaskConical size={18} aria-hidden="true" /><span>My lab tests</span><ChevronRight size={16} aria-hidden="true" /></Link>

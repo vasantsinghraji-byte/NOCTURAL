@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarSpace } from '@/lib/PillTabBar';
 import { router, useFocusEffect } from 'expo-router';
 import type { CareBooking, OnlinePayMethod, PharmacyOrder } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
@@ -19,6 +20,7 @@ type Tab = 'visits' | 'orders';
 
 export default function Bookings() {
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const { session } = useAuth();
   const [tab, setTab] = useState<Tab>('visits');
   const [visits, setVisits] = useState<CareBooking[]>([]);
@@ -64,7 +66,7 @@ export default function Bookings() {
   }
 
   return (
-    <ScrollView style={ui.screen} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, gap: 12 }}
+    <ScrollView style={ui.screen} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: tabSpace, gap: 12 }}
       refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
       <Text style={styles.title}>Bookings</Text>
       <View style={styles.segment}>

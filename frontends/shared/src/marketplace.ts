@@ -295,7 +295,7 @@ export interface LabOrderForLab extends Omit<LabOrderView, 'store' | 'collection
 
 export interface MarketplaceOverview {
   shopsPending: number; refundsPending: number; reports: number; needsAction: number; todaySessions: number;
-  labLate: number; labToday: number; adsPending: number; settingsPending: number; offersPending: number;
+  labLate: number; labToday: number; adsPending: number; settingsPending: number; offersPending: number; callbacksOpen?: number;
 }
 
 export interface SettingField { key: 'revenue' | 'ads'; path: string; type: 'number' | 'boolean'; min?: number; max?: number; label: string; value: number | boolean }

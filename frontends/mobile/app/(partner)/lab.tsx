@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { Redirect, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarSpace } from '@/lib/PillTabBar';
 import * as ImagePicker from 'expo-image-picker';
-import { Ban, Building2, FlaskConical, Home, LogOut, Microscope, Store, Truck, Upload } from 'lucide-react-native';
+import { Ban, Building2, FlaskConical, Home, Microscope, Store, Truck, Upload } from 'lucide-react-native';
 import type { LabOrderForLab, SlotDay } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -17,8 +18,9 @@ const week = (): SlotDay[] => [-1, 0, 1, 2, 3, 4, 5].map((n) => ({ date: new Dat
 
 /** Path-lab partner desk (mirrors the website's /lab): the day's collections, sample steps, reports. */
 export default function LabDesk() {
-  const { session, logout } = useAuth();
+  const { session } = useAuth();
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const [date, setDate] = useState(todayIst());
   const [orders, setOrders] = useState<LabOrderForLab[] | null>(null);
   const [error, setError] = useState('');
@@ -62,13 +64,12 @@ export default function LabDesk() {
   const counts = (orders || []).reduce<Record<string, number>>((m, o) => ({ ...m, [o.status]: (m[o.status] || 0) + 1 }), {});
   return (
     <View style={ui.screen}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 40 + insets.bottom, gap: 14 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={C.brand} />}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: tabSpace, gap: 14 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={C.brand} />}>
         <MkHero eyebrow="PATH LAB PARTNER" title="Lab desk"
           subtitle={orders ? `${orders.length} booking${orders.length === 1 ? '' : 's'} on ${fmtDay(date)}. ${counts.SCHEDULED || 0} to collect, ${(counts.COLLECTED || 0) + (counts.AT_LAB || 0) + (counts.PROCESSING || 0)} in progress.` : 'Loading today…'}
           art="lab">
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Btn small variant="light" icon={Store} label="Tests & Prices" onPress={() => router.push({ pathname: '/shop', params: { kind: 'LAB' } })} />
-            <Btn small variant="dark" icon={LogOut} label="Log Out" onPress={logout} />
           </View>
         </MkHero>
         <DateStrip days={week()} value={date} onChange={setDate} openLabel={() => ''} />

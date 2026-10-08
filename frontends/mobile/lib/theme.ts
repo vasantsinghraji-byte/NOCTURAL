@@ -13,7 +13,7 @@ const LIGHT = {
   cardAlt: '#f1ecee',
   ink: '#1f1a1c',
   inkSoft: '#4f4649',
-  muted: '#8a7f83',
+  muted: '#6b6165', // 5.4:1 on bg: readable secondary text (was 3.4:1)
   faint: '#c4babe',
   border: '#ebe4e6',
   brand: '#c21f3d', // crimson: links, active, primary actions
@@ -52,7 +52,7 @@ const DARK: typeof LIGHT = {
   cardAlt: '#262025',
   ink: '#f7f1f3',
   inkSoft: '#dcd2d6',
-  muted: '#a0959b',
+  muted: '#b3a8ae',
   faint: '#5a5058',
   border: '#332b31',
   brand: '#ff5c78',
@@ -132,9 +132,9 @@ export const ui = StyleSheet.create({
   display: { fontFamily: F.display, fontSize: 34, color: C.ink, letterSpacing: -1, lineHeight: 40 },
   h1: { fontFamily: F.display, fontSize: 28, color: C.onNight, letterSpacing: -0.6, lineHeight: 34 },
   h2: { fontFamily: F.heavy, fontSize: 19, color: C.ink, letterSpacing: -0.3 },
-  h3: { fontFamily: F.bold, fontSize: 15, color: C.ink },
-  body: { fontFamily: F.medium, fontSize: 14, color: C.inkSoft, lineHeight: 20 },
-  muted: { fontFamily: F.medium, color: C.muted, fontSize: 13 },
+  h3: { fontFamily: F.bold, fontSize: 16, color: C.ink },
+  body: { fontFamily: F.medium, fontSize: 15, color: C.inkSoft, lineHeight: 22 },
+  muted: { fontFamily: F.medium, color: C.muted, fontSize: 14, lineHeight: 20 },
   label: { fontFamily: F.bold, color: C.muted, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' },
   section: { fontFamily: F.heavy, fontSize: 17, color: C.ink, marginTop: 20, marginBottom: 10 },
   // No boxShadow on TextInput: on Android it swallows the left padding and the

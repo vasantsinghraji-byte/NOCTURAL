@@ -1,12 +1,15 @@
 import { useCallback, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarSpace } from '@/lib/PillTabBar';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import type { MembershipStatus } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { BadgeCheck, Briefcase, CalendarHeart, ChevronRight, Crown, FlaskConical, Gift, Languages, LogOut, MapPin, ShieldCheck, Trash2, UserRound, type LucideIcon } from 'lucide-react-native';
+import { BadgeCheck, Briefcase, CalendarHeart, ChevronRight, Crown, FlaskConical, Gift, Languages, LogOut, MapPin, ShieldCheck, Trash2, Type, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useT } from '@/lib/i18n';
+import { CallMeBack } from '@/lib/CallMeBack';
+import { openTextSizeSettings, useEasyMode } from '@/lib/easyMode';
 import { C, F, shadow, ui } from '@/lib/theme';
 import { appAlert, appPrompt } from '@/lib/dialog';
 import { PhotoAvatar } from '@/lib/profilePhoto';
@@ -26,6 +29,7 @@ function Row({ icon: Icon, title, desc, href, onPress, right }: { icon: LucideIc
 
 export default function Account() {
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const { session, logout, setExplored } = useAuth();
 
   async function enterReferral() {
@@ -61,6 +65,7 @@ export default function Account() {
     ]);
   }
   const { t, lang, setLang } = useT();
+  const { easy, setEasy } = useEasyMode();
   const [plus, setPlus] = useState<MembershipStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -92,7 +97,7 @@ export default function Account() {
   const plan = plus?.plans?.[0];
 
   return (
-    <ScrollView style={ui.screen} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, gap: 12 }}>
+    <ScrollView style={ui.screen} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: tabSpace, gap: 12 }}>
       <View style={styles.profile}>
         {session
           ? <PhotoAvatar name={session.name} url={photo} size={60} editable={session.kind === 'patient'} onChange={setPhoto} />
@@ -137,6 +142,17 @@ export default function Account() {
           <Row icon={MapPin} title="Saved addresses" desc="Home, work, family: one tap at booking" href="/addresses" />
         </>
       )}
+
+      <Text style={ui.section}>Easy to use</Text>
+      <View style={[styles.row, { alignItems: 'center' }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={ui.h3}>Easy mode</Text>
+          <Text style={ui.muted}>A simple home with big buttons and fewer choices</Text>
+        </View>
+        <Switch value={easy} onValueChange={setEasy} trackColor={{ true: C.brand, false: C.faint }} thumbColor="#ffffff" accessibilityLabel="Easy mode" />
+      </View>
+      <Row icon={Type} title="Make text bigger" desc="Opens your phone’s display settings. Nabz follows the size you choose." onPress={openTextSizeSettings} />
+      {session?.kind === 'patient' && <CallMeBack topic="OTHER" />}
 
       <Text style={ui.section}>Settings</Text>
       <Row icon={Languages} title={t('account.language')} desc={t('account.languageDesc')} onPress={() => setLang(lang === 'en' ? 'hi' : 'en')}

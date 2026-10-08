@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, T
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarSpace } from '@/lib/PillTabBar';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { pickAndUploadPrescription } from '@/lib/prescription';
@@ -17,6 +18,7 @@ const FALLBACK = { lat: 26.9110, lng: 75.8010 }; // launch city demo area (C-Sch
 
 export default function Pharmacy() {
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const { session } = useAuth();
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [address, setAddress] = useState({ line1: '', pincode: '' });
@@ -242,7 +244,7 @@ export default function Pharmacy() {
       <FlatList
         data={items}
         keyExtractor={(it) => it.inventoryId}
-        contentContainerStyle={{ padding: 12, gap: 10 }}
+        contentContainerStyle={{ padding: 12, gap: 10, paddingBottom: cartCount > 0 ? 16 : tabSpace }}
         ListEmptyComponent={<Text style={styles.muted}>No items. Seed demo data: npm run db:seed:pharmacy</Text>}
         renderItem={({ item: it }) => (
           <View style={styles.card}>
@@ -267,7 +269,7 @@ export default function Pharmacy() {
       />
 
       {cartCount > 0 && (
-        <View style={styles.checkout}>
+        <View style={[styles.checkout, { paddingBottom: tabSpace }]}>
           <Text style={styles.cartText}>{cartCount} item(s) · ₹{Math.round(cartTotal * 100) / 100}</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {[{ v: false, t: 'For me' }, { v: true, t: 'For someone else' }].map((o) => (

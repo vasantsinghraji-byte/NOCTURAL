@@ -9,6 +9,7 @@ import { appAlert } from '@/lib/dialog';
 import { LAB_STATUS_LABEL, fmtClock, fmtDay, fmtStamp, fmtTime, inr, problem, useMe } from '@/lib/market';
 import { Badge, Bill, BottomSheet, Btn, Card, DateStrip, Empty, Meta, Note, Screen, TimeGrid, Title, TopBar, mk } from '@/lib/marketUI';
 import { PaymentDismissedError, payLabOrder } from '@/lib/payments';
+import { CallMeBack } from '@/lib/CallMeBack';
 import { Skeleton } from '@/lib/motion';
 import { C, F, ui } from '@/lib/theme';
 
@@ -156,6 +157,8 @@ export default function LabOrderDetail() {
           <Btn variant="ghost" label={busy === 'cancel' ? 'Cancelling…' : 'Cancel Booking'} loading={busy === 'cancel'} onPress={cancel} />
         </>
       ) : null}
+
+      <CallMeBack topic="LAB" context={{ kind: 'LAB_ORDER', id: order._id }} label="Question about this test? We’ll call" />
 
       {picker && order.store ? (
         <SlotSheet

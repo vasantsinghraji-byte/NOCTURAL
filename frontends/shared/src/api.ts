@@ -891,6 +891,27 @@ export class MedRushApi {
     return this.request<{ success: true }>('DELETE', `/patients/me/addresses/${id}`);
   }
 
+  // ── Support: "Call me back" ───────────────────────────────────────────────
+  requestCallback(body: { topic?: CallbackTopic; note?: string; language?: 'en' | 'hi'; context?: { kind: 'VISIT' | 'PLAN' | 'LAB_ORDER' | 'PHARMACY_ORDER'; id: string } } = {}) {
+    return this.request<{ success: true; request: CallbackView; existing: boolean }>('POST', '/support/callback', { body });
+  }
+
+  myCallback() {
+    return this.request<{ success: true; request: CallbackView | null }>('GET', '/support/callback');
+  }
+
+  adminCallbacks(status: 'OPEN' | 'CALLED' | 'CLOSED' | 'ALL' = 'OPEN') {
+    return this.request<{ success: true; requests: (CallbackView & { customer: string; phone: string; language: string; reveals: number; context?: { kind: string; id: string } })[] }>('GET', '/support/admin/callbacks', { query: { status } });
+  }
+
+  adminRevealCallback(id: string) {
+    return this.request<{ success: true; phone: string; name?: string }>('POST', `/support/admin/callbacks/${id}/reveal`);
+  }
+
+  adminUpdateCallback(id: string, body: { status: 'OPEN' | 'CALLED' | 'CLOSED'; outcome?: string }) {
+    return this.request<{ success: true; request: CallbackView }>('PUT', `/support/admin/callbacks/${id}`, { body });
+  }
+
   // ── Care marketplace (physio, home care, nursing, labs) ─────────────────
   // See docs/product/PROVIDER_MARKETPLACE_PLAN.md. Errors carry `code`
   // (PRICE_CHANGED, SLOT_TAKEN, OUT_OF_RANGE, …) and `details`.
@@ -1229,3 +1250,6 @@ export class MedRushApi {
 export function createApiClient(opts: ApiClientOptions): MedRushApi {
   return new MedRushApi(opts);
 }
+
+export type CallbackTopic = 'BOOKING' | 'VISIT' | 'MEDICINES' | 'LAB' | 'PAYMENT' | 'OTHER';
+export interface CallbackView { _id: string; topic: CallbackTopic; note?: string; status: 'OPEN' | 'CALLED' | 'CLOSED'; outcome?: string; createdAt: string; handledAt?: string }

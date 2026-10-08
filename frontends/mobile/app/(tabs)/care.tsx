@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Activity, ArrowRight, CalendarHeart, FlaskConical, HeartHandshake, Sparkles, Wallet, type LucideIcon } from 'lucide-react-native';
+import { Activity, ArrowRight, CalendarHeart, FlaskConical, HeartHandshake, RotateCcw, Sparkles, Wallet, type LucideIcon } from 'lucide-react-native';
+import { CallMeBack } from '@/lib/CallMeBack';
 import type { CarePlanView, MarketService, PlanProposalView, SpotlightAd } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -36,6 +37,8 @@ export default function CareHub() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const active = mine?.plans.filter((p) => p.status === 'ACTIVE' || p.status === 'PENDING_PAYMENT') || [];
+  // The last finished plan, offered again in one tap (same professional, service and place).
+  const last = mine?.plans.find((p) => p.status === 'COMPLETED' && p.store);
 
   return (
     <Screen tabBar refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={C.brand} />}>
@@ -89,6 +92,17 @@ export default function CareHub() {
         </Card>
       )}
 
+      {last && last.store ? (
+        <PressScale onPress={() => router.push({ pathname: '/care/book', params: { id: last.store!._id, service: last.service, mode: last.mode } })} style={[ui.card, mk.row]} accessibilityRole="button" accessibilityLabel={`Book again: ${last.serviceName} with ${last.store.name}`}>
+          <View style={mk.tile}><RotateCcw size={20} color={C.brand} /></View>
+          <View style={{ flex: 1 }}>
+            <Title size={16}>Book again</Title>
+            <Meta>{last.serviceName} with {last.store.name} · {last.mode === 'HOME' ? 'at home' : 'at the clinic'}</Meta>
+          </View>
+          <ArrowRight size={18} color={C.brand} />
+        </PressScale>
+      ) : null}
+
       <Section>What do you need?</Section>
       <KindCard title="Physiotherapy" text="Back, knee, sports injuries, rehab. At home or at the clinic." icon={Activity} art="physio" red onPress={() => router.push('/care/PHYSIO')} delay={80} />
       <KindCard title="Home care" text="Attendants, elderly, baby and post-hospital care. Same person every day." icon={HeartHandshake} art="homecare" onPress={() => router.push('/care/HOMECARE')} delay={140} />
@@ -118,6 +132,7 @@ export default function CareHub() {
           </View>
         ))}
       </Card>
+      <CallMeBack topic="BOOKING" label="Need help choosing? Talk to us" />
       {signedIn && (
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Btn variant="soft" label="My Care Plans" onPress={() => router.push('/care/plans')} style={{ flex: 1 }} />

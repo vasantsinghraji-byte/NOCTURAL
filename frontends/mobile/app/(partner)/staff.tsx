@@ -22,6 +22,8 @@ import { TextArea } from '@/lib/fields';
 import { C, F, shadow, ui } from '@/lib/theme';
 import { appAlert } from '@/lib/dialog';
 import { ProposalSheet } from '@/lib/ProposalSheet';
+import { ShopOverview } from '@/lib/ShopOverview';
+import { useTabBarSpace } from '@/lib/PillTabBar';
 
 type StoreInfo = { name?: string; address?: { line1?: string } };
 type Visit = Omit<CareBooking, 'supplies'> & {
@@ -47,6 +49,7 @@ const hello = () => {
 /** Nabz Partner (medical staff): go online, get offers with a countdown, earnings, visits. */
 export default function StaffHome() {
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const { session, logout } = useAuth();
   const [dash, setDash] = useState<StaffDashboard | null>(null);
   const [visits, setVisits] = useState<Visit[] | null>(null);
@@ -268,7 +271,7 @@ export default function StaffHome() {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 30 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
+      <ScrollView contentContainerStyle={{ paddingBottom: tabSpace }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
         {/* Midnight header: greeting + big online switch */}
         <View style={[styles.head, { paddingTop: insets.top + 14 }]}>
           <View style={styles.headRow}>
@@ -276,12 +279,7 @@ export default function StaffHome() {
               <Text style={styles.hello}>{hello()},</Text>
               <Text style={styles.name}>{first}</Text>
             </View>
-            <Pressable hitSlop={10} onPress={() => router.push('/shop')} style={[styles.iconBtn, { marginRight: 8 }]} accessibilityRole="button" accessibilityLabel="My Shop: prices, hours and ads">
-              <Store size={18} color={C.onNightMuted} />
-            </Pressable>
-            <Pressable hitSlop={10} onPress={() => router.push('/partner-account')} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel="My account">
-              <UserRound size={18} color={C.onNightMuted} />
-            </Pressable>
+
           </View>
 
           <View style={[styles.online, online && styles.onlineOn]}>
@@ -319,6 +317,9 @@ export default function StaffHome() {
 
           {offer && <OfferCard offer={offer} onAccept={() => respond(true)} onDecline={() => respond(false)} />}
 
+          {/* The shop, up front: status, prices, bookings switch and shortcuts */}
+          <ShopOverview />
+
           {online && !offer && dash?.demand?.length ? (
             <View style={ui.card}>
               <View style={styles.inline}><Flame size={16} color={C.accent} /><Text style={ui.h3}>Busy near you (last 7 days)</Text></View>
@@ -354,15 +355,6 @@ export default function StaffHome() {
           <UpdatesFeed audience="partner" title="Updates from Nabz" />
 
           <Text style={ui.section}>Your visits</Text>
-          {/* Marketplace: your own shop (prices, hours, ads) */}
-          <PressScale onPress={() => router.push('/shop')} style={[ui.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]} accessibilityRole="button">
-            <View style={{ width: 44, height: 44, borderRadius: 16, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Store size={20} color={C.brand} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={ui.h3}>My Shop</Text>
-              <Text style={ui.muted}>Your rate card, hours, leave, team and plans</Text>
-            </View>
-            <Pressable hitSlop={8} onPress={() => router.push('/partner-ads')} accessibilityRole="button" accessibilityLabel="Ads"><Megaphone size={20} color={C.brand} /></Pressable>
-          </PressScale>
           {visits === null && <ActivityIndicator color={C.brand} />}
           {visits?.length === 0 && <Text style={ui.muted}>No visits yet. Go online to receive requests. Pull down to refresh.</Text>}
           {visits?.map((v) => {

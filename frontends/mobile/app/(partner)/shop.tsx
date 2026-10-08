@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Switch, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
-import { BadgeCheck, CalendarOff, LocateFixed, Megaphone, PauseCircle, PlayCircle, Plus, Save, Store, Tag, Trash2, Users } from 'lucide-react-native';
+import { BadgeCheck, CalendarOff, LocateFixed, PauseCircle, PlayCircle, Plus, Save, Store, Tag, Trash2, Users } from 'lucide-react-native';
 import type { DayHours, MarketService, MyRateCardItem, MyShop, ShopKind, SlotDay, TeamMember } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { appAlert } from '@/lib/dialog';
@@ -27,6 +27,8 @@ const confirm = (title: string, message: string, label: string) => new Promise<b
 export default function PartnerShop() {
   const params = useLocalSearchParams<{ kind?: string; tab?: string }>();
   const [tab, setTab] = useState<Tab>((params.tab as Tab) || 'profile');
+  // Shortcuts on the home screen open this tab on a section.
+  useEffect(() => { if (params.tab) setTab(params.tab as Tab); }, [params.tab]);
   const [kind, setKind] = useState<ShopKind | undefined>((params.kind as ShopKind) || undefined);
   const [kinds, setKinds] = useState<ShopKind[]>([]);
   const [shop, setShop] = useState<MyShop | null>(null);
@@ -44,13 +46,13 @@ export default function PartnerShop() {
   }).catch((e) => { setError(problem(e).message); setLoaded(true); }), [kind]);
   useEffect(() => { load(); }, [load]);
 
-  if (!loaded) return <View style={ui.screen}><TopBar title="My Shop" /><View style={{ padding: 16, gap: 12 }}><Skeleton height={180} radius={28} /><Skeleton height={300} radius={24} /></View></View>;
-  if (error && !shop && !kinds.length) return <View style={ui.screen}><TopBar title="My Shop" /><Empty title={error} /></View>;
+  if (!loaded) return <View style={ui.screen}><TopBar title="My Shop" back={false} /><View style={{ padding: 16, gap: 12 }}><Skeleton height={180} radius={28} /><Skeleton height={300} radius={24} /></View></View>;
+  if (error && !shop && !kinds.length) return <View style={ui.screen}><TopBar title="My Shop" back={false} /><Empty title={error} /></View>;
   const meta = kind ? KINDS[kind] : KINDS.PHYSIO;
   const statusLabel = shop ? (shop.status === 'APPROVED' ? 'Live' : shop.status === 'PENDING' ? 'Waiting for Nabz review' : shop.status === 'SUSPENDED' ? 'Suspended' : 'Not approved') : '';
 
   return (
-    <Screen header={<TopBar title="My Shop" right={shop ? <Btn small variant="soft" icon={Megaphone} label="Ads" onPress={() => router.push('/partner-ads')} /> : undefined} />}>
+    <Screen tabBar header={<TopBar title="My Shop" back={false} />}>
       <MkHero
         title={shop ? shop.name : `Open your ${meta.label.toLowerCase()} shop`}
         subtitle={shop ? 'Set your own prices, hours and where you go. Customers compare and book you directly.' : 'Customers near you compare providers and book the one they like. You set the prices.'}

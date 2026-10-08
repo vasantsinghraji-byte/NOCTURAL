@@ -8,6 +8,7 @@ import { appAlert } from '@/lib/dialog';
 import { PLAN_STATUS_LABEL, SESSION_LABEL, fmtClock, fmtDay, fmtLongDay, fmtTime, inr, problem, useMe, usableAddresses, fromSaved } from '@/lib/market';
 import { Badge, BottomSheet, Btn, Card, DateStrip, Empty, Meta, Note, Screen, TimeGrid, Title, TopBar, mk } from '@/lib/marketUI';
 import { PaymentDismissedError, payCarePlan } from '@/lib/payments';
+import { CallMeBack } from '@/lib/CallMeBack';
 import { Skeleton } from '@/lib/motion';
 import { C, F, ui } from '@/lib/theme';
 
@@ -151,6 +152,7 @@ export default function PlanDetail() {
       {open && plan.mode === 'HOME' && next && addresses.length > 0
         ? <Btn variant="soft" icon={MapPin} label={busy === 'addr' ? 'Updating…' : 'Visits at Another Address?'} loading={busy === 'addr'} onPress={() => setAddrOpen(true)} /> : null}
       {open ? <Btn variant="ghost" label={busy === 'plan' ? 'Cancelling…' : 'Cancel Rest of Plan'} loading={busy === 'plan'} onPress={cancelPlan} /> : null}
+      <CallMeBack topic="VISIT" context={{ kind: 'PLAN', id: plan._id }} label="Question about this plan? We’ll call" />
       {plan.store ? <Btn variant="soft" label="Book Again" onPress={() => router.push(`/care/shop/${plan.store!._id}`)} /> : null}
       {(plan.creditUsed || 0) > 0 || plan.refund?.amount ? <View style={mk.row}><Wallet size={14} color={C.muted} /><Meta>Credits and refunds show in your Nabz wallet.</Meta></View> : null}
 

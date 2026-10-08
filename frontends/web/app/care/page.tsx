@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { inr, fmtDay, fmtTime } from '@/lib/care';
 import CareArt from '../_components/care/CareArt';
+import CallMeBack from '../_components/care/CallMeBack';
 
 type Home = { spotlight: SpotlightAd[]; physio: MarketService[]; homecare: MarketService[]; labs: MarketService[] };
 
@@ -105,6 +106,8 @@ export default function CareHub() {
       <ServiceStrip items={home?.homecare} failed={failed} base="/care/homecare" />
       <h2 className="mk-h2">Lab tests and checkups</h2>
       <ServiceStrip items={home?.labs} failed={failed} base="/lab-tests" lab />
+
+      <div style={{ marginTop: 22 }}><CallMeBack topic="BOOKING" label="Need help choosing? Talk to us" /></div>
 
       <section className="mk-card" style={{ marginTop: 26 }} aria-labelledby="how-title">
         <h2 id="how-title" className="mk-title" style={{ fontSize: 20 }}>How booking works</h2>

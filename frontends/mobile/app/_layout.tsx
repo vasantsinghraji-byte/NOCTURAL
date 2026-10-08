@@ -1,4 +1,3 @@
-import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -12,6 +11,8 @@ import '@/lib/partnerOnline';
 import { AuthProvider } from '@/lib/auth';
 import { DialogHost } from '@/lib/dialog';
 import { LangProvider } from '@/lib/i18n';
+import { LoadingScreen } from '@/lib/LoadingScreen';
+import { EasyModeProvider } from '@/lib/easyMode';
 import { C, F, IS_DARK } from '@/lib/theme';
 
 export default function RootLayout() {
@@ -20,12 +21,13 @@ export default function RootLayout() {
     Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold,
     Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold
   });
-  if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: C.night }} />;
+  if (!fontsLoaded && !fontError) return <LoadingScreen fontsReady={false} />;
 
   return (
     <SafeAreaProvider>
       <LangProvider>
         <AuthProvider>
+          <EasyModeProvider>
           <StatusBar style={IS_DARK ? 'light' : 'dark'} />
           <Stack
             screenOptions={{
@@ -50,6 +52,7 @@ export default function RootLayout() {
             {/* Care marketplace (physio, home care, labs) */}
             <Stack.Screen name="care/[kind]" options={{ headerShown: false }} />
             <Stack.Screen name="care/shop/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="care/book" options={{ headerShown: false }} />
             <Stack.Screen name="care/plan/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="care/plans" options={{ headerShown: false }} />
             <Stack.Screen name="labs/index" options={{ headerShown: false }} />
@@ -60,14 +63,12 @@ export default function RootLayout() {
             <Stack.Screen name="partner" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="partner-apply" options={{ title: 'Join Nabz Partner' }} />
             <Stack.Screen name="vendor" options={{ title: 'Store orders', headerBackVisible: false }} />
-            <Stack.Screen name="staff" options={{ headerShown: false }} />
+            <Stack.Screen name="(partner)" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="partner-account" options={{ headerShown: false }} />
             <Stack.Screen name="verification" options={{ headerShown: false }} />
-            <Stack.Screen name="lab" options={{ headerShown: false }} />
-            <Stack.Screen name="shop" options={{ headerShown: false }} />
-            <Stack.Screen name="partner-ads" options={{ headerShown: false }} />
           </Stack>
           <DialogHost />
+          </EasyModeProvider>
         </AuthProvider>
       </LangProvider>
     </SafeAreaProvider>
