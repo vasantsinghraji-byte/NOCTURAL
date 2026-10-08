@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Redirect, router } from 'expo-router';
 import * as Location from 'expo-location';
 import {
-  BadgeCheck, Circle, Flame, IndianRupee, LogOut, MapPin, Navigation, Package, Phone, ShieldAlert, Star, Store, UserRound, Wallet, Sparkles, Megaphone
+  BadgeCheck, Circle, Flame, IndianRupee, LogOut, MapPin, Navigation, Package, Phone, ShieldAlert, Star, Store, UserRound, Wallet, Sparkles, Megaphone, ClipboardList
 } from 'lucide-react-native';
 import type { CareBooking, StaffDashboard, VisitOffer } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
@@ -408,6 +408,11 @@ export default function StaffHome() {
                     <PressScale style={styles.sosBtn} onPress={() => sos(v)}><ShieldAlert size={18} color="#ffffff" /></PressScale>
                   )}
                 </View>
+                {['IN_PROGRESS', 'COMPLETED'].includes(v.status) && (
+                  <PressScale style={[ui.btnOutline, { flexDirection: 'row', justifyContent: 'center', gap: 8 }]} onPress={() => router.push({ pathname: '/care-log/staff/[id]', params: { id: v._id } })} accessibilityRole="button">
+                    <ClipboardList size={16} color={C.brand} /><Text style={ui.btnOutlineText}>{v.status === 'IN_PROGRESS' ? 'Care Log: Meals, Medicines, Readings' : 'Care Log'}</Text>
+                  </PressScale>
+                )}
                 {['IN_PROGRESS', 'COMPLETED'].includes(v.status) && (
                   <PressScale style={[ui.btnOutline, { flexDirection: 'row', justifyContent: 'center', gap: 8 }]} onPress={() => setProposeFor(v._id)} accessibilityRole="button">
                     <Sparkles size={16} color={C.brand} /><Text style={ui.btnOutlineText}>Suggest a Plan</Text>

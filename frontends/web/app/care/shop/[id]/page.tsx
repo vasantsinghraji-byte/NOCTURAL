@@ -35,6 +35,13 @@ function Shop() {
   const [days, setDays] = useState<SlotDay[] | null>(null);
   const [forWhom, setForWhom] = useState<'me' | 'other'>('me');
   const [pd, setPd] = useState({ name: '', age: '', gender: '', relation: '' });
+  // Started from Care Circle ("Book for Mom"): prefill as someone else.
+  useEffect(() => {
+    try {
+      const v = JSON.parse(sessionStorage.getItem('nabz.bookingFor') || 'null') as { name?: string; relation?: string } | null;
+      if (v?.name) { setForWhom('other'); setPd((p) => ({ ...p, name: v.name || '', relation: v.relation || '' })); }
+    } catch { /* storage blocked */ }
+  }, []);
   const [payment, setPayment] = useState<PlanPaymentMode>('PER_SESSION');
   const [proposal, setProposal] = useState<PlanProposalView | null>(null);
   const [quote, setQuote] = useState<CareQuote | null>(null);
@@ -130,6 +137,7 @@ function Shop() {
     setNotice('');
     try {
       const r = await api.bookCarePlan(quote._id);
+      try { sessionStorage.removeItem('nabz.bookingFor'); } catch { /* storage blocked */ }
       router.push(`/care/plans/${r.plan._id}?new=1`);
     } catch (e) {
       const p = problem(e);

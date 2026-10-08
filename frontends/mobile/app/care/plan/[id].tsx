@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { CalendarClock, CheckCircle2, Heart, MapPin, TriangleAlert, Wallet, XCircle } from 'lucide-react-native';
+import { CalendarClock, CheckCircle2, ClipboardList, Heart, MapPin, TriangleAlert, Wallet, XCircle } from 'lucide-react-native';
 import type { CarePlanView, PlanSession, SlotDay } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { appAlert } from '@/lib/dialog';
@@ -123,6 +123,9 @@ export default function PlanDetail() {
             </View>
           </View>
           {s.needsAction ? <Note>Your professional can’t make this time. Move it to a new time, or cancel it for free.</Note> : null}
+          {['IN_PROGRESS', 'COMPLETED'].includes(s.status) ? (
+            <Btn small variant="soft" icon={ClipboardList} label="Care Log" onPress={() => router.push({ pathname: '/care-log/[id]', params: { id: s._id } })} style={{ alignSelf: 'flex-start' }} />
+          ) : null}
           {(open && MOVABLE.includes(s.status)) || ['COMPLETED', 'EN_ROUTE', 'IN_PROGRESS'].includes(s.status) ? (
             <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
               {open && MOVABLE.includes(s.status) ? <Btn small variant="soft" label="Move" onPress={() => setMoving(s)} disabled={Boolean(busy)} /> : null}

@@ -8,6 +8,8 @@ import { appAlert } from '@/lib/dialog';
 import { fmtDay, fmtTime, inr, placeBody, problem, useMe, useVisitPlace, type VisitPlace } from '@/lib/market';
 import { Badge, Bill, Btn, Card, DateStrip, Empty, Label, Meta, MkHero, Note, PlaceCard, Screen, Seg, TapCard, TimeGrid, Title, TopBar, mk } from '@/lib/marketUI';
 import { PaymentDismissedError, payLabOrder } from '@/lib/payments';
+import { BookingForBanner } from '@/lib/BookingForBanner';
+import { getBookingFor, setBookingFor } from '@/lib/bookingFor';
 import { PressScale, Rise, Skeleton, success } from '@/lib/motion';
 import { C, F, ui } from '@/lib/theme';
 
@@ -43,6 +45,7 @@ export default function LabTests() {
 
   return (
     <Screen header={<TopBar title="Lab tests" right={signedIn ? <Btn small variant="soft" label="My Tests" onPress={() => router.push('/labs/orders')} /> : undefined} />}>
+      <BookingForBanner />
       <Rise><MkHero title="Lab tests," accent="compared" subtitle="See every lab’s price, report time and collection fee, then book a home collection." art="lab" /></Rise>
 
       <Title size={19}>1. Choose tests</Title>
@@ -143,7 +146,11 @@ function LabBooking({ row, serviceIds, mode, place, fasting, signedIn, prefill }
   }, [row, serviceIds, mode]);
   const times = (days?.find((d) => d.date === date)?.times || []).filter((t) => !fasting || t <= '10:00');
 
-  const input = () => ({ storeId: row.store._id, serviceIds, mode, slot: { date, time }, paymentMode: payment, ...(mode === 'HOME' ? placeBody(place) : {}) });
+  const forWho = getBookingFor();
+  const input = () => ({
+    storeId: row.store._id, serviceIds, mode, slot: { date, time }, paymentMode: payment, ...(mode === 'HOME' ? placeBody(place) : {}),
+    ...(forWho ? { patientDetails: { name: forWho.name, relation: forWho.relation } } : {})
+  });
   useEffect(() => {
     if (!signedIn || !date || !time) { setQuote(null); return; }
     setErr('');
@@ -158,6 +165,7 @@ function LabBooking({ row, serviceIds, mode, place, fasting, signedIn, prefill }
     try {
       const { order } = await api.bookLabOrder({ ...input(), expectedTotal: quote.amounts.total });
       success();
+      setBookingFor(null);
       if (order.payment.mode === 'PREPAID' && order.payment.status === 'PENDING') {
         try { await payLabOrder(order._id, prefill); } catch (e) {
           if (!(e instanceof PaymentDismissedError)) appAlert('Payment didn’t go through', `${problem(e).message} You can pay from the booking page while the time is held.`);

@@ -192,4 +192,15 @@ notificationSchema.methods.markAsRead = async function() {
   return await this.save();
 };
 
+// Care Circle: a customer's visit and order updates also go to the family
+// helping them (services/familyService.js). Runs after the save, never blocks
+// or fails it; copies are marked as family notices so they don't fan out again.
+notificationSchema.post('save', (doc) => {
+  if (doc.recipientModel !== 'Patient' || (doc.metadata && doc.metadata.family)) return;
+  if (doc.type !== 'CARE_VISIT_UPDATE' && doc.type !== 'PHARMACY_ORDER_UPDATE') return;
+  setImmediate(() => {
+    require('../services/familyService').fanOut(doc).catch(() => undefined);
+  });
+});
+
 module.exports = mongoose.models.Notification || mongoose.model('Notification', notificationSchema);

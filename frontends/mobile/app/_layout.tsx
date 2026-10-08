@@ -59,6 +59,10 @@ export default function RootLayout() {
             <Stack.Screen name="labs/orders" options={{ headerShown: false }} />
             <Stack.Screen name="labs/order/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="addresses" options={{ headerShown: false }} />
+            <Stack.Screen name="family/index" options={{ headerShown: false }} />
+            <Stack.Screen name="family/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="care-log/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="care-log/staff/[id]" options={{ headerShown: false }} />
             {/* Partner app (Nabz Partner build) */}
             <Stack.Screen name="partner" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="partner-apply" options={{ title: 'Join Nabz Partner' }} />

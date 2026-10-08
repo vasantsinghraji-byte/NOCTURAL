@@ -125,6 +125,7 @@ function PlanDetail() {
                   <div className="mk-row" style={{ gap: 6 }}>
                     {open && MOVABLE.includes(s.status) && <button type="button" className="mk-btn soft small" onClick={() => setMoving(s)} disabled={Boolean(busy)}>Move</button>}
                     {open && MOVABLE.includes(s.status) && <button type="button" className="mk-btn ghost small" onClick={() => cancelSession(s)} disabled={Boolean(busy)}>Cancel</button>}
+                    {['COMPLETED', 'IN_PROGRESS'].includes(s.status) && <Link className="mk-btn soft small" href={`/care-log/${s._id}`}>Care Log</Link>}
                     {['COMPLETED', 'EN_ROUTE', 'IN_PROGRESS'].includes(s.status) && (
                       <button type="button" className="mk-btn ghost small" onClick={() => report(s, s.status === 'COMPLETED' ? 'EXTRA_CASH' : 'NO_SHOW')}><TriangleAlert size={14} aria-hidden="true" /> Report</button>
                     )}

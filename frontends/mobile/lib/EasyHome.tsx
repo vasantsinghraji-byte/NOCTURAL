@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronRight, Clock, FlaskConical, HeartHandshake, Pill, PersonStanding, UserRound, type LucideIcon } from 'lucide-react-native';
+import { ChevronRight, Clock, FlaskConical, HeartHandshake, Pill, PersonStanding, UserRound, Users, type LucideIcon } from 'lucide-react-native';
 import type { CareBooking, CareService } from '@medrush/shared';
 import { api } from './api';
 import { useAuth } from './auth';
 import { CallMeBack } from './CallMeBack';
+import { FamilyInvites } from './FamilyInvites';
 import { DEMO_POINT, shortName } from './care';
 import { WineGradient } from './CareArt';
 import { useEasyMode } from './easyMode';
@@ -65,6 +66,8 @@ export function EasyHome() {
         <Text style={s.ask}>What do you need today?</Text>
       </Rise>
 
+      <FamilyInvites big />
+
       {upcoming ? (
         <PressScale onPress={() => router.push({ pathname: '/track', params: { id: upcoming._id } })} style={s.visit} accessibilityRole="button"
           accessibilityLabel={`${STATUS[upcoming.status] || 'Upcoming visit'}. ${fmtDay(String(upcoming.scheduledDate))} at ${fmtTime(upcoming.scheduledTime)}. Open to see details.`}>
@@ -91,6 +94,8 @@ export function EasyHome() {
       <Text style={s.section}>Tests and medicines</Text>
       <BigAction icon={FlaskConical} title="Blood test at home" sub="Sample taken at home, report on your phone" onPress={() => router.push('/labs')} />
       <BigAction icon={Pill} title="Order medicines" sub="Delivered from a pharmacy near you" onPress={() => router.push('/pharmacy')} />
+
+      <BigAction icon={Users} title="My family" sub="Help a parent, or let family help you" onPress={() => router.push('/family')} />
 
       <Text style={s.section}>Need help?</Text>
       <CallMeBack big topic={upcoming ? 'VISIT' : 'BOOKING'} context={upcoming ? { kind: 'VISIT', id: upcoming._id } : undefined} label="Call me, I need help" />

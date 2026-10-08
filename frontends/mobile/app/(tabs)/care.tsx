@@ -3,6 +3,8 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { router, useFocusEffect } from 'expo-router';
 import { Activity, ArrowRight, CalendarHeart, FlaskConical, HeartHandshake, RotateCcw, Sparkles, Wallet, type LucideIcon } from 'lucide-react-native';
 import { CallMeBack } from '@/lib/CallMeBack';
+import { BookingForBanner } from '@/lib/BookingForBanner';
+import { FamilyInvites } from '@/lib/FamilyInvites';
 import type { CarePlanView, MarketService, PlanProposalView, SpotlightAd } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -42,6 +44,8 @@ export default function CareHub() {
 
   return (
     <Screen tabBar refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={C.brand} />}>
+      <BookingForBanner />
+      <FamilyInvites />
       <Rise>
         <MkHero eyebrow="NABZ CARE" title="Care at home, by people" accent="you choose" subtitle="Compare physios, caregivers and labs near you. Every price shown before you book." art="heart">
           <View style={{ flexDirection: 'row', gap: 8 }}>

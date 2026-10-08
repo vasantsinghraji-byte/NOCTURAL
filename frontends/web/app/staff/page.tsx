@@ -357,6 +357,9 @@ function VisitCard({ v, onStep, onSos, onPropose }: { v: Visit; onStep?: () => v
       {(onStep || onSos || onPropose) && (
         <div className="row" style={{ gap: 8, justifyContent: 'flex-start', flexWrap: 'wrap' }}>
           {onPropose && ['IN_PROGRESS', 'COMPLETED'].includes(v.status) && (
+            <Link className="btn secondary" href={`/staff/care-log/${v._id}`}><ClipboardList size={16} aria-hidden="true" /> Care Log</Link>
+          )}
+          {onPropose && ['IN_PROGRESS', 'COMPLETED'].includes(v.status) && (
             <button className="btn secondary" onClick={onPropose}><ClipboardList size={16} aria-hidden="true" /> Suggest Plan</button>
           )}
           {next && onStep && <button className="btn" onClick={onStep}>{next.label}</button>}

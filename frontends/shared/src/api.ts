@@ -912,6 +912,43 @@ export class MedRushApi {
     return this.request<{ success: true; request: CallbackView }>('PUT', `/support/admin/callbacks/${id}`, { body });
   }
 
+  // ── Care Circle (family) and care logs ────────────────────────────────────
+  myFamily() {
+    return this.request<{ success: true; members: FamilyLinkView[]; helpers: FamilyLinkView[]; invites: FamilyLinkView[] }>('GET', '/family');
+  }
+
+  inviteFamily(body: { phone: string; relation?: string }) {
+    return this.request<{ success: true; link: FamilyLinkView }>('POST', '/family/invite', { body });
+  }
+
+  answerFamilyInvite(linkId: string, accept: boolean) {
+    return this.request<{ success: true; link: FamilyLinkView }>('POST', `/family/${linkId}/${accept ? 'accept' : 'decline'}`);
+  }
+
+  removeFamilyLink(linkId: string) {
+    return this.request<{ success: true; removed: boolean }>('DELETE', `/family/${linkId}`);
+  }
+
+  familyMemberCare(memberId: string) {
+    return this.request<{ success: true } & FamilyMemberCare>('GET', `/family/members/${memberId}/care`);
+  }
+
+  visitCareLog(bookingId: string) {
+    return this.request<{ success: true; log: CareLogView }>('GET', `/family/care-log/visit/${bookingId}`);
+  }
+
+  planCareLogs(planId: string) {
+    return this.request<{ success: true; logs: { bookingId: string; count: number; last: string | null }[] }>('GET', `/family/care-log/plan/${planId}`);
+  }
+
+  staffCareLog(bookingId: string) {
+    return this.request<{ success: true; log: CareLogView }>('GET', `/family/care-log/staff/${bookingId}`);
+  }
+
+  addCareLogEntry(bookingId: string, body: { kind: CareLogKind; text?: string; vitals?: CareVitals }) {
+    return this.request<{ success: true; log: CareLogView }>('POST', `/family/care-log/staff/${bookingId}`, { body });
+  }
+
   // ── Care marketplace (physio, home care, nursing, labs) ─────────────────
   // See docs/product/PROVIDER_MARKETPLACE_PLAN.md. Errors carry `code`
   // (PRICE_CHANGED, SLOT_TAKEN, OUT_OF_RANGE, …) and `details`.
@@ -1253,3 +1290,18 @@ export function createApiClient(opts: ApiClientOptions): MedRushApi {
 
 export type CallbackTopic = 'BOOKING' | 'VISIT' | 'MEDICINES' | 'LAB' | 'PAYMENT' | 'OTHER';
 export interface CallbackView { _id: string; topic: CallbackTopic; note?: string; status: 'OPEN' | 'CALLED' | 'CLOSED'; outcome?: string; createdAt: string; handledAt?: string }
+
+export interface FamilyLinkView { _id: string; role: 'HELPER' | 'MEMBER'; status: 'PENDING' | 'ACTIVE'; relation?: string; person: { _id: string; name: string } | null; createdAt: string }
+export interface FamilyMemberCare {
+  member: { _id: string; name: string };
+  visits: { _id: string; serviceType: string; status: string; scheduledDate: string; scheduledTime: string; professional?: string; planId?: string }[];
+  plans: { _id: string; serviceName: string; store?: string; status: string; sessionsTotal: number; sessionsCompleted: number }[];
+  labOrders: { _id: string; lab?: string; tests: string[]; status: string; slot: { date: string; time: string } }[];
+}
+export type CareLogKind = 'MEAL' | 'MEDICINE' | 'VITALS' | 'ACTIVITY' | 'NOTE';
+export interface CareVitals { bpSys?: number; bpDia?: number; sugar?: number; pulse?: number; spo2?: number; temp?: number }
+export interface CareLogView {
+  bookingId: string; serviceType: string; status: string; scheduledDate: string; scheduledTime: string; professional?: string;
+  startedAt?: string; completedAt?: string;
+  entries: { _id: string; kind: CareLogKind; text?: string; vitals?: CareVitals; at: string }[];
+}

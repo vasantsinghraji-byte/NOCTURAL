@@ -10,6 +10,7 @@ import { KINDS, WEEKDAY_LETTERS, WEEKDAY_NAMES, dayShort, fmtClock, fmtDay, fmtT
 import { Bill, Btn, Chip, Chips, DateStrip, Empty, Label, Meta, Note, PlaceCard, Seg, Stepper, TimeGroups, Title, TopBar } from '@/lib/marketUI';
 import { PaymentDismissedError, payCarePlan } from '@/lib/payments';
 import { CallMeBack } from '@/lib/CallMeBack';
+import { getBookingFor, setBookingFor } from '@/lib/bookingFor';
 import { PressScale, Rise, Skeleton, success, tap } from '@/lib/motion';
 import { C, F, IS_DARK, clay, ui } from '@/lib/theme';
 
@@ -38,8 +39,10 @@ export default function BookFlow() {
   const [loadError, setLoadError] = useState('');
   const [item, setItem] = useState<RateCardLine | null>(null);
   const [mode, setMode] = useState<CareMode>(params.mode === 'CLINIC' ? 'CLINIC' : 'HOME');
-  const [forWhom, setForWhom] = useState<'me' | 'other'>('me');
-  const [pd, setPd] = useState({ name: '', age: '', gender: '' as '' | 'Female' | 'Male' | 'Other', relation: '' });
+  // Started from the Care Circle ("Book for Mom"): prefilled as someone else.
+  const bookingFor = getBookingFor();
+  const [forWhom, setForWhom] = useState<'me' | 'other'>(bookingFor ? 'other' : 'me');
+  const [pd, setPd] = useState({ name: bookingFor?.name || '', age: '', gender: '' as '' | 'Female' | 'Male' | 'Other', relation: bookingFor?.relation || '' });
   const [sessions, setSessions] = useState(1);
   const [custom, setCustom] = useState(false);
   const [weekdays, setWeekdays] = useState<number[]>([]);
@@ -151,6 +154,7 @@ export default function BookFlow() {
     try {
       const { plan } = await api.bookCarePlan(quote._id);
       success();
+      setBookingFor(null);
       if (plan.status === 'PENDING_PAYMENT') {
         try { await payCarePlan(plan._id, { name: me?.name, email: me?.email, contact: me?.phone }); } catch (e) {
           if (!(e instanceof PaymentDismissedError)) appAlert('Payment didn’t go through', `${problem(e).message} You can pay from the plan page while your times are held.`);
