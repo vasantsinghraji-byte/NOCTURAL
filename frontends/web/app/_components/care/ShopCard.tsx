@@ -41,6 +41,7 @@ export default function ShopCard({ shop, mode, serviceId, unit }: { shop: Shop; 
         <div className="mk-badges">
           {shop.registered && <span className="mk-badge green"><BadgeCheck size={13} aria-hidden="true" /> Verified</span>}
           {shop.accredited && <span className="mk-badge green"><BadgeCheck size={13} aria-hidden="true" /> NABL</span>}
+          {shop.reliable && <span className="mk-badge green">Reliable</span>}
           {shop.clinic.enabled && <span className="mk-badge"><Building2 size={13} aria-hidden="true" /> Clinic{Number.isFinite(shop.distanceKm) ? ` ${shop.distanceKm} km` : ''}</span>}
           {shop.home.enabled && !homeOnlyHere && <span className="mk-badge"><Home size={13} aria-hidden="true" /> Home visits</span>}
           {homeOnlyHere && <span className="mk-badge">Clinic only for your address</span>}

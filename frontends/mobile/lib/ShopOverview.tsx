@@ -73,11 +73,10 @@ export function ShopOverview() {
       <View style={s.stats}>
         <Stat value={String(live.length)} label="Services live" />
         <Stat value={String(data.upcoming)} label="Upcoming" />
-        <Stat
-          value={shop.home.enabled ? `${shop.home.radiusKm} km` : 'Clinic'}
-          label={shop.home.enabled ? `Travel ${inr(shop.home.ratePerKm)}/km` : 'No home visits'}
-        />
+        <Stat value={Number.isFinite(shop.reliability?.score) ? String(shop.reliability!.score) : 'New'} label="Reliability" />
       </View>
+
+      <Text style={s.meta}>{shop.home.enabled ? `Home visits within ${shop.home.radiusKm} km · travel ${inr(shop.home.ratePerKm)}/km` : 'Clinic visits only'} · Reliability counts being on time, finishing visits and ratings (last 60 days).</Text>
 
       {shop.status === 'APPROVED' ? (
         <View style={s.pauseRow}>

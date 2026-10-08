@@ -131,7 +131,7 @@ function Shops({ sensitive }: { sensitive: Sensitive }) {
             <div className="grow">
               <p className="mk-title">{s.name} <span className="mk-badge">{KINDS[s.kind].label}</span> <span className="mk-badge">{s.format.toLowerCase()}</span></p>
               <p className="mk-meta" style={{ margin: 0 }}>Owner {s.owner?.name || '–'} · {s.address?.city || 'no city'} · registration {s.registration?.number || 'none'}{s.registration?.body ? ` (${s.registration.body})` : ''}</p>
-              <p className="mk-meta" style={{ margin: 0 }}>{s.clinic.enabled ? 'Clinic' : ''}{s.clinic.enabled && s.home.enabled ? ' + ' : ''}{s.home.enabled ? `home ${s.home.radiusKm} km at ${inr(s.home.ratePerKm)}/km` : ''} · rating {s.rating.avg.toFixed(1)} ({s.rating.count}) · {(s.strikes || []).length} strikes</p>
+              <p className="mk-meta" style={{ margin: 0 }}>{s.clinic.enabled ? 'Clinic' : ''}{s.clinic.enabled && s.home.enabled ? ' + ' : ''}{s.home.enabled ? `home ${s.home.radiusKm} km at ${inr(s.home.ratePerKm)}/km` : ''} · rating {s.rating.avg.toFixed(1)} ({s.rating.count}) · reliability {Number.isFinite(s.reliability?.score) ? s.reliability!.score : 'new'} · {(s.strikes || []).length} strikes</p>
             </div>
             <div className="mk-row" style={{ gap: 6, flexWrap: 'wrap' }}>
               {s.status !== 'APPROVED' && <button type="button" className="mk-btn small" onClick={() => decide(s._id, 'APPROVED')}>Approve</button>}

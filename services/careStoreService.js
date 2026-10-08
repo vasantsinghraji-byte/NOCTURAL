@@ -491,6 +491,9 @@ function publicStore(store) {
     accredited: Boolean(store.registration && store.registration.accredited),
     registered: Boolean(store.registration && store.registration.number),
     rating: store.rating || { avg: 0, count: 0 },
+    // Reliability (on time, completes visits): the score drives ranking; customers just see "Reliable" at 90+.
+    reliabilityScore: store.reliability && Number.isFinite(store.reliability.score) ? store.reliability.score : null,
+    reliable: Boolean(store.reliability && store.reliability.score >= 90),
     isPaused: Boolean(store.isPaused),
     city: store.address && store.address.city,
     clinic: clinicOn ? {
@@ -623,12 +626,13 @@ async function searchStores({ kind = 'PHYSIO', serviceId, mode, lat, lng, sort =
     cards.push({ ...publicStore(store), ...reach, item: item ? publicItem(item) : null, price: Number.isFinite(price) ? price : null });
   }
   const dist = (c) => (Number.isFinite(c.distanceKm) ? c.distanceKm : c.travel ? c.travel.roadKm : 999);
+  const merit = (c) => Math.round((0.6 * ((c.rating.count >= 3 ? c.rating.avg : 4) / 5) + 0.4 * ((c.reliabilityScore ?? 80) / 100)) * 1000);
   const sorters = {
     price: (a, b) => (a.price ?? Infinity) - (b.price ?? Infinity) || dist(a) - dist(b),
     distance: (a, b) => dist(a) - dist(b),
     rating: (a, b) => b.rating.avg - a.rating.avg || b.rating.count - a.rating.count,
-    // Well-rated first (a rating counts once it has 3+ reviews), then nearer.
-    recommended: (a, b) => (b.rating.count >= 3 ? b.rating.avg : 4) - (a.rating.count >= 3 ? a.rating.avg : 4) || dist(a) - dist(b)
+    // Well-rated and reliable first (a rating counts once it has 3+ reviews; new shops count as 4★ / 80), then nearer.
+    recommended: (a, b) => merit(b) - merit(a) || dist(a) - dist(b)
   };
   cards.sort(sorters[sort] || sorters.recommended);
   return cards.slice(0, Math.min(Math.max(1, Number(limit) || 30), 50));

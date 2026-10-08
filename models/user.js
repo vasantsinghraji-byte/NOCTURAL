@@ -334,6 +334,14 @@ const UserSchema = new mongoose.Schema({
       vaccinated: { type: Boolean, default: false },
       verifiedAt: Date,
       verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    },
+    // Worked out daily from the last 60 days (services/reliabilityService.js).
+    reliability: {
+      score: { type: Number, min: 0, max: 100 },
+      onTimeRate: Number,
+      completionRate: Number,
+      visits: Number,
+      updatedAt: Date
     }
   },
   // Delivery partner vehicle details.

@@ -17,6 +17,7 @@
  * can't assign two nurses.
  */
 
+const mongoose = require('mongoose');
 const NurseBooking = require('../models/nurseBooking');
 const User = require('../models/user');
 const Notification = require('../models/notification');
@@ -75,15 +76,30 @@ async function busyStaffFor(booking) {
   return held.filter((b) => visitPolicy.overlaps(b, start)).map((b) => b.serviceProvider);
 }
 
+/**
+ * Among the nearest professionals, prefer the more reliable one when they're
+ * about as close (within 2 km of the nearest). New professionals count as 80.
+ */
+function pickReliable(candidates) {
+  if (!candidates.length) return null;
+  const nearest = candidates[0].distanceMeters;
+  const close = candidates.filter((c) => c.distanceMeters <= nearest + 2000);
+  return close.reduce((best, c) => ((c.reliability ?? 80) > (best.reliability ?? 80) ? c : best), close[0]);
+}
+
 async function findCandidate(booking) {
   const coords = booking.serviceLocation && booking.serviceLocation.address && booking.serviceLocation.address.coordinates;
   if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) return null;
 
-  const [busy, holding] = await Promise.all([
+  const start = booking.dispatch && booking.dispatch.mode === 'ASAP' ? new Date() : (visitTime(booking) || new Date());
+  const [busy, holding, held] = await Promise.all([
     busyStaffFor(booking),
-    NurseBooking.distinct('dispatch.offeredTo', { 'dispatch.status': 'OFFERED', _id: { $ne: booking._id } })
+    NurseBooking.distinct('dispatch.offeredTo', { 'dispatch.status': 'OFFERED', _id: { $ne: booking._id } }),
+    // One calendar per person: planned sessions and home-care shifts block urgent offers too.
+    require('./careSlotService').peopleHeldAround(start, 120).catch(() => [])
   ]);
-  const exclude = [...(booking.dispatch?.declined || []), ...busy, ...holding].filter(Boolean);
+  const toId = (v) => (typeof v === 'string' && /^[a-f0-9]{24}$/i.test(v) ? new mongoose.Types.ObjectId(v) : v);
+  const exclude = [...(booking.dispatch?.declined || []), ...busy, ...holding, ...held.map(toId)].filter(Boolean);
 
   const query = {
     ...staffAvailabilityService.discoverableFilter(),
@@ -113,7 +129,7 @@ async function findCandidate(booking) {
   }
   if (requested && booking.dispatch.allowSubstitute === false) return null;
 
-  const [candidate] = await User.aggregate([
+  const candidates = await User.aggregate([
     {
       $geoNear: {
         near: { type: 'Point', coordinates: [coords.lng, coords.lat] },
@@ -124,10 +140,10 @@ async function findCandidate(booking) {
         query
       }
     },
-    { $limit: 1 },
-    { $project: { _id: 1, name: 1, distanceMeters: 1 } }
+    { $limit: 5 },
+    { $project: { _id: 1, name: 1, distanceMeters: 1, reliability: '$careProfile.reliability.score' } }
   ]);
-  return candidate || null;
+  return pickReliable(candidates);
 }
 
 /** What this professional would earn for the visit at their current monthly tier. */
@@ -436,6 +452,8 @@ module.exports = {
   lockSeriesProvider,
   SCHEDULE_LEAD_MS,
   busyStaffFor,
+  findCandidate,
+  pickReliable,
   startDispatch,
   offerNext,
   getMyOffer,

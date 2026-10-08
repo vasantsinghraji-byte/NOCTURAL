@@ -229,7 +229,29 @@ function planDates({ startDate, weekdays, sessions, untilDate, store }) {
   return dates;
 }
 
+/**
+ * People whose own calendar is held at any point from `start` for `minutes`
+ * (planned marketplace sessions and home-care shifts, including their travel
+ * buffer). Urgent "book now" dispatch skips them, so one person never gets
+ * two places at once.
+ * @returns {string[]} user ids
+ */
+async function peopleHeldAround(start = new Date(), minutes = 120) {
+  const SlotReservation = require('../models/slotReservation');
+  const ist = new Date(start.getTime() + 330 * 60000);
+  const day = ist.toISOString().slice(0, 10);
+  const from = Math.floor((ist.getUTCHours() * 60 + ist.getUTCMinutes()) / GRID) * GRID;
+  const blocks = [];
+  for (let m = from; m < from + minutes; m += GRID) {
+    blocks.push({ date: m >= 1440 ? addDays(day, 1) : day, time: toHHMM(m % 1440) });
+  }
+  if (!blocks.length) return [];
+  const rows = await SlotReservation.find({ resource: /^person:/, count: { $gt: 0 }, $or: blocks }).select('resource').lean();
+  return [...new Set(rows.map((r) => r.resource.slice('person:'.length)))];
+}
+
 module.exports = {
+  peopleHeldAround,
   GRID,
   practitionersOf,
   assignsPractitioner,

@@ -101,6 +101,8 @@ const CareStoreSchema = new mongoose.Schema({
     avg: { type: Number, default: 0, min: 0, max: 5 },
     count: { type: Number, default: 0, min: 0 }
   },
+  // The shop's professionals' reliability (services/reliabilityService.js); null while new.
+  reliability: { score: { type: Number, min: 0, max: 100 }, updatedAt: Date },
   // Reliability: no-shows, extra cash asked at the door, etc.
   strikes: [{
     _id: false,

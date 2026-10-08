@@ -54,6 +54,9 @@ export interface ShopCard {
   accredited: boolean;
   registered: boolean;
   rating: { avg: number; count: number };
+  /** 90+ reliability (on time, completes visits). */
+  reliable?: boolean;
+  reliabilityScore?: number | null;
   isPaused: boolean;
   city?: string;
   clinic: { enabled: boolean; address?: { line1?: string; line2?: string; city?: string; pincode?: string }; location?: LatLng; hours?: DayHours[] };
@@ -250,6 +253,7 @@ export interface MyShop {
   home: { enabled: boolean; radiusKm: number; ratePerKm: number; bufferMinutes: number; capacity: number; hours: DayHours[]; freeCollectionAbove?: number };
   leave: { _id: string; from: string; to: string; reason?: string }[];
   rating: { avg: number; count: number };
+  reliability?: { score?: number | null; updatedAt?: string };
   strikes?: { at: string; reason: string }[];
 }
 

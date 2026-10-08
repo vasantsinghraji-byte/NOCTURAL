@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { BadgeCheck, Building2, Home, MapPin, ShieldCheck, Star, Tag } from 'lucide-react-native';
+import { BadgeCheck, Building2, Clock, Home, MapPin, ShieldCheck, Star, Tag } from 'lucide-react-native';
 import type { CareMode, MarketService, ShopCard as Shop } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { KINDS, inr, problem, useMe, useVisitPlace, type CareKind } from '@/lib/market';
@@ -110,6 +110,7 @@ function ShopRow({ shop, mode, serviceId, unit }: { shop: Shop; mode: CareMode; 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
         {shop.sponsored ? <Badge tone="amber" label={shop.label || 'Sponsored'} /> : null}
         {shop.registered ? <Badge tone="green" icon={BadgeCheck} label="Verified" /> : null}
+        {shop.reliable ? <Badge tone="green" icon={Clock} label="Reliable" /> : null}
         {shop.accredited ? <Badge tone="green" icon={ShieldCheck} label="NABL" /> : null}
         {Number.isFinite(shop.distanceKm) ? <Badge icon={MapPin} label={`${shop.distanceKm} km`} /> : null}
         {shop.item?.offer ? <Badge tone="red" icon={Tag} label={shop.item.offer.label} /> : null}
