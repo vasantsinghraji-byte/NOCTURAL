@@ -113,6 +113,7 @@ async function seedDemo() {
   const plan = [
     ['physiotherapist', 'PHYSIO', 'SOLO', 6],
     ['medical_staff', 'HOMECARE', 'SOLO', 4],
+    ['nurse', 'HOMECARE', 'SOLO', 2], // home care can also be run by a nurse (constants/marketplace.js)
     ['lab_partner', 'LAB', 'LAB', 3]
   ];
   for (const [role, kind, format, max] of plan) {
@@ -154,7 +155,8 @@ async function seedDemo() {
 (async () => {
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error('Set MONGODB_URI');
-  await mongoose.connect(uri);
+  // Same as config/database.js: without MONGODB_DB_NAME a URI with no path means the "test" database.
+  await mongoose.connect(uri, process.env.MONGODB_DB_NAME ? { dbName: process.env.MONGODB_DB_NAME } : {});
   for (const M of [ServiceCatalog, require('../models/careStore'), require('../models/rateCardItem')]) await M.createIndexes();
   console.log(`Catalog services upserted: ${await seedCatalog()}`);
   if (process.argv.includes('--demo')) console.log(`Demo shops created: ${await seedDemo()}`);

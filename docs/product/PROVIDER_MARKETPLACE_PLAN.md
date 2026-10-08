@@ -238,15 +238,20 @@ This should be a setting, switched only after the CA confirms.
   - a late payment is fully refunded.
 - **Reports:** "asked to pay extra" and "didn't come" flag the visit for ops.
 
-**Not built yet:**
+**Built since (8 Oct 2026):** steps 2–4 are live on staging.
 
-| Item | Step |
+- **Labs** on the same engine: one-lab cart, compare, fasting mornings, collection code, sample steps, report upload and private report links, rejected samples with free re-collection, late-report credit, pay at collection or online.
+- **Home care** with the same named caregiver every day, night shifts across midnight, live-in care with travel charged once, agency teams.
+- **Customer screens** on the website and both apps: care hub, compare, shop menu, booking with a live bill, plans, lab tests, saved addresses, Nabz credit, plan suggestions.
+- **Partner screens** on the website and the partner app: My Shop (profile, hours, rate card, team, leave and pause, plans), ads, lab desk, "Suggest a plan" after a visit.
+- **Admin** on the website: shop review, catalog, refunds, reports, needs-action queue, sessions and lab boards, offers, ads and settings (propose → approve).
+- **Also done:** arrival location check, free second trip for family at one address, no-show credit through the customer wallet, online payment for plans, lab tests and ad top-ups (Razorpay; needs the live keys).
+
+**Still open:**
+
+| Item | Note |
 |---|---|
-| Website and app screens for customers and partners | 2 and 3 |
-| Labs on the same engine (one-lab cart, sample tracking, reports) | 4 |
-| Moving existing physio services and providers over | 5 |
-| Admin screens for shops, refunds and reports (APIs exist) | See the admin guide |
-| Online payment for prepaid plans: the code is ready and needs the Razorpay keys | Tomorrow's setup |
-| Pin-vs-pincode check, the arrival location check, and the free second trip for two family members at one address | Next server round |
-| Physio "plan proposal" after the first visit; changing physio in the middle of a plan (today: cancel the rest, refunded, then book the new physio) | Next server round |
-| ₹100 credit after a provider no-show (needs a customer wallet) | Next server round |
+| Moving existing physio services and providers over; retiring the fixed packages | Step 5 |
+| Pin-vs-pincode check at address entry | The arrival check covers fake pins today |
+| Changing physio in the middle of a plan | Today: cancel the rest (refunded), then book the new physio |
+| Real road distance (maps service) and the GST switch after the CA confirms | Settings ready |
