@@ -35,12 +35,12 @@ export default function PartnerAds() {
   return (
     <div>
       <section className="mk-hero" aria-labelledby="ads-title">
-        <div className="in" style={{ gridTemplateColumns: '1.3fr .7fr' }}>
+        <div className="in slim">
           <div>
             <h1 id="ads-title">Get found by more patients</h1>
             <p>Your shop appears in a labelled sponsored slot when it’s a good match: open, nearby, offering the service and well rated. You pay only when someone taps.</p>
           </div>
-          <div className="art" style={{ maxWidth: 200 }}><CareArt kind="heart" /></div>
+          <div className="art"><CareArt kind="heart" /></div>
         </div>
       </section>
       {error && <p className="mk-note" role="alert">{error}</p>}

@@ -15,6 +15,14 @@
 }
 .mk-hero .in { display: grid; grid-template-columns: 1.05fr .95fr; gap: 24px; align-items: center; padding: 40px 40px 36px; }
 @media (max-width: 860px) { .mk-hero .in { grid-template-columns: 1fr; padding: 28px 22px 26px; } .mk-hero .art { order: -1; max-width: 300px; margin: 0 auto; } }
+.mk-hero .in.slim { grid-template-columns: minmax(0, 1fr) 220px; padding: 32px 36px 30px; }
+.mk-hero .in.slim .art { max-width: 220px; }
+@media (max-width: 860px) {
+  .mk-hero .in.slim { grid-template-columns: minmax(0, 1fr) 96px; gap: 12px; padding: 22px 18px 20px; }
+  .mk-hero .in.slim .art { order: 0; max-width: 96px; margin: 0; align-self: start; }
+  .mk-hero .in.slim h1 { font-size: 28px; }
+  .mk-hero .in.slim p { font-size: 14.5px; margin-bottom: 12px; }
+}
 .mk-hero h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(32px, 4.6vw, 54px); line-height: 1.04; letter-spacing: -0.03em; margin: 0 0 12px; text-wrap: balance; }
 .mk-hero h1 b { color: #ff6b81; font-weight: 800; }
 .mk-hero p { color: rgba(255, 238, 241, .82); font-size: 16px; line-height: 1.55; margin: 0 0 22px; max-width: 46ch; }
@@ -121,6 +129,19 @@
 .mk-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
 .mk-slot { min-height: 42px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--card); color: var(--ink); font: 700 13.5px var(--font-sans); cursor: pointer; font-variant-numeric: tabular-nums; }
 .mk-slot[aria-pressed="true"] { background: var(--night); border-color: var(--night); color: #fff; }
+
+/* Address picker: icon + select, actions beside on wide screens, below on phones */
+.mk-place-main { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.mk-place-actions { display: flex; gap: 8px; }
+@media (max-width: 640px) {
+  .mk-place-main { grid-template-columns: 40px minmax(0, 1fr); }
+  .mk-place-actions { grid-column: 1 / -1; }
+  .mk-place-actions > * { flex: 1; }
+}
+.mk-kinds { display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 900px) { .mk-kinds { grid-template-columns: 1fr; } }
+.mk-kind { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 12px; align-items: center; min-height: 168px; }
+.mk-kind .mk-title { overflow-wrap: normal; word-break: normal; }
 
 /* ── Bill / sticky summary ──────────────────────────────────────────────── */
 .mk-book { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }

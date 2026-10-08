@@ -91,7 +91,7 @@ export default function CareHub() {
       )}
 
       <h2 className="mk-h2">What do you need?</h2>
-      <div className="mk-grid">
+      <div className="mk-kinds">
         <KindCard href="/care/physio" title="Physiotherapy" text="Back, knee, sports injuries, rehab. At home or at the clinic." icon={<Activity size={22} aria-hidden="true" />} art="physio" red />
         <KindCard href="/care/homecare" title="Home care" text="Attendants, elderly, baby and post-hospital care. Same person every day." icon={<HeartHandshake size={22} aria-hidden="true" />} art="homecare" />
         <KindCard href="/lab-tests" title="Lab tests" text="Compare labs and prices. Sample collected at home." icon={<FlaskConical size={22} aria-hidden="true" />} art="lab" />
@@ -129,13 +129,13 @@ export default function CareHub() {
 function KindCard({ href, title, text, icon, art, red }: { href: string; title: string; text: string; icon: React.ReactNode; art: 'physio' | 'homecare' | 'lab'; red?: boolean }) {
   return (
     <Link href={href} className="mk-card-link">
-      <div className={`mk-card ${red ? 'red' : ''} mk-reveal`} style={{ display: 'grid', gridTemplateColumns: '1fr 110px', gap: 8, alignItems: 'center', minHeight: 170 }}>
+      <div className={`mk-card mk-kind ${red ? 'red' : ''} mk-reveal`}>
         <div>
           <span className="mk-tile" style={{ marginBottom: 12 }}>{icon}</span>
           <p className="mk-title" style={{ fontSize: 19 }}>{title}</p>
           <p className="mk-meta" style={{ margin: '6px 0 0' }}>{text}</p>
         </div>
-        <div style={{ width: 110, height: 110, borderRadius: 24, background: red ? 'rgba(255,255,255,.08)' : 'linear-gradient(150deg, var(--wine-2), var(--wine))', overflow: 'hidden' }}>
+        <div style={{ width: 96, height: 96, borderRadius: 24, background: red ? 'rgba(255,255,255,.08)' : 'linear-gradient(150deg, var(--wine-2), var(--wine))', overflow: 'hidden' }}>
           <CareArt kind={art} />
         </div>
       </div>

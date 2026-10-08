@@ -16,7 +16,8 @@ const API_ORIGIN = (process.env.API_ORIGIN || '').replace(/\/+$/, '');
 // a nonce-based policy is the next step.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com",
+  // Development only: React Fast Refresh needs eval. Production stays strict.
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''} https://checkout.razorpay.com`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",

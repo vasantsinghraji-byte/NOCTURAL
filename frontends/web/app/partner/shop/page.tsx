@@ -52,7 +52,7 @@ function PartnerShop() {
   return (
     <div>
       <section className="mk-hero" aria-labelledby="shop-title">
-        <div className="in" style={{ gridTemplateColumns: '1.3fr .7fr' }}>
+        <div className="in slim">
           <div>
             <h1 id="shop-title">{shop ? shop.name : `Open your ${meta.label.toLowerCase()} shop`}</h1>
             <p>{shop ? 'Set your own prices, hours and where you go. Customers compare and book you directly.' : 'Customers near you compare providers and book the one they like. You set the prices.'}</p>
@@ -64,7 +64,7 @@ function PartnerShop() {
               </div>
             )}
           </div>
-          <div className="art" style={{ maxWidth: 220 }}><CareArt kind={meta.art} /></div>
+          <div className="art"><CareArt kind={meta.art} /></div>
         </div>
       </section>
       {shop?.statusReason && shop.status !== 'APPROVED' && <p className="mk-note">{shop.statusReason}</p>}

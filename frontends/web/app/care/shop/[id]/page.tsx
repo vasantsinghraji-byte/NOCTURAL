@@ -149,7 +149,7 @@ function Shop() {
   return (
     <div>
       <section className="mk-hero" aria-labelledby="shop-name">
-        <div className="in" style={{ gridTemplateColumns: '1.3fr .7fr' }}>
+        <div className="in slim">
           <div>
             <div className="mk-badges" style={{ marginBottom: 12 }}>
               {shop.registered && <span className="mk-badge green"><BadgeCheck size={13} aria-hidden="true" /> Verified</span>}
@@ -164,7 +164,7 @@ function Shop() {
               {shop.languages.length > 0 && <span className="mk-badge" style={{ background: 'rgba(255,255,255,.14)', color: '#fff' }}><Languages size={13} aria-hidden="true" /> {shop.languages.join(', ')}</span>}
             </div>
           </div>
-          <div className="art" style={{ maxWidth: 220 }}><CareArt kind={meta.art} /></div>
+          <div className="art"><CareArt kind={meta.art} /></div>
         </div>
       </section>
 

@@ -63,13 +63,13 @@ function KindBrowser() {
   return (
     <div>
       <section className="mk-hero" aria-labelledby="kind-title">
-        <div className="in" style={{ gridTemplateColumns: '1.2fr .8fr' }}>
+        <div className="in slim">
           <div>
             <h1 id="kind-title">{meta.label}</h1>
             <p>{meta.pitch}</p>
             {chosen && chosen.fromPrice != null && <p style={{ margin: 0, fontWeight: 700 }}>{chosen.displayName}: from {inr(chosen.fromPrice)} per {meta.unit}</p>}
           </div>
-          <div className="art" style={{ maxWidth: 240 }}><CareArt kind={meta.art} /></div>
+          <div className="art"><CareArt kind={meta.art} /></div>
         </div>
       </section>
 

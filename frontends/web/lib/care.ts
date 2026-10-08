@@ -9,8 +9,14 @@ import type { ShopKind, SavedAddress, LatLng } from '@medrush/shared';
 import { ApiError } from '@medrush/shared';
 import { loadDeliveryCoords, saveDeliveryCoords } from './location';
 
-const inrFmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2, minimumFractionDigits: 0 });
-export const inr = (n: number | null | undefined) => (Number.isFinite(n as number) ? inrFmt.format(n as number) : '–');
+const inrWhole = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+const inrPaise = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** ₹1,060 for whole rupees, ₹14,844.40 when there are paise. */
+export const inr = (n: number | null | undefined) => {
+  if (!Number.isFinite(n as number)) return '–';
+  const v = n as number;
+  return Math.round(v * 100) % 100 === 0 ? inrWhole.format(v) : inrPaise.format(v);
+};
 
 const dayFmt = new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
 const longFmt = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Kolkata' });

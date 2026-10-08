@@ -45,12 +45,12 @@ function LabTests() {
   return (
     <div>
       <section className="mk-hero" aria-labelledby="lab-title">
-        <div className="in" style={{ gridTemplateColumns: '1.2fr .8fr' }}>
+        <div className="in slim">
           <div>
             <h1 id="lab-title">Lab tests, <b>compared</b></h1>
             <p>Pick your tests, see every lab’s price, report time and collection fee, and book a home collection.</p>
           </div>
-          <div className="art" style={{ maxWidth: 240 }}><CareArt kind="lab" /></div>
+          <div className="art"><CareArt kind="lab" /></div>
         </div>
       </section>
 

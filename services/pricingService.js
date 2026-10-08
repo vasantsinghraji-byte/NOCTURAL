@@ -132,10 +132,11 @@ function quoteCarePlan({ listPrice, sessions, mode, travelPerSession = 0, discou
     total: toRupees(perSessionP * n),
     memberFeeWaived: waived
   };
+  const rs = (v) => `₹${Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
   const lines = [
-    { code: 'SERVICE', label: `${n} session${n > 1 ? 's' : ''} × ₹${amounts.listPricePerSession}`, amount: amounts.serviceSubtotal },
+    { code: 'SERVICE', label: `${n} session${n > 1 ? 's' : ''} × ${rs(amounts.listPricePerSession)}`, amount: amounts.serviceSubtotal },
     ...(amounts.discount > 0 ? [{ code: 'DISCOUNT', label: `${discountPercent}% off for ${n} sessions`, amount: -amounts.discount }] : []),
-    ...(travelP > 0 ? [{ code: 'TRAVEL', label: `Travel ₹${amounts.travelPerSession} × ${n}`, amount: amounts.travelTotal }] : []),
+    ...(travelP > 0 ? [{ code: 'TRAVEL', label: `Travel ${rs(amounts.travelPerSession)} × ${n}`, amount: amounts.travelTotal }] : []),
     { code: 'PLATFORM_FEE', label: waived ? 'Nabz fee (waived for Plus)' : 'Nabz fee', amount: amounts.platformFee },
     { code: 'GST', label: 'GST', amount: amounts.gst }
   ];

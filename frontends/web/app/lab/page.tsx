@@ -47,13 +47,13 @@ export default function LabDashboard() {
   return (
     <div>
       <section className="mk-hero" aria-labelledby="lab-dash">
-        <div className="in" style={{ gridTemplateColumns: '1.3fr .7fr' }}>
+        <div className="in slim">
           <div>
             <h1 id="lab-dash">Lab dashboard</h1>
             <p>{orders ? `${orders.length} booking${orders.length === 1 ? '' : 's'} on ${fmtDay(date)}. ${counts.SCHEDULED || 0} to collect, ${(counts.COLLECTED || 0) + (counts.AT_LAB || 0) + (counts.PROCESSING || 0)} in progress.` : 'Loading today…'}</p>
             <div className="cta-row"><Link className="mk-btn dark" href="/partner/shop?kind=LAB"><Store size={16} aria-hidden="true" /> Tests, Prices & Hours</Link></div>
           </div>
-          <div className="art" style={{ maxWidth: 200 }}><CareArt kind="lab" /></div>
+          <div className="art"><CareArt kind="lab" /></div>
         </div>
       </section>
 

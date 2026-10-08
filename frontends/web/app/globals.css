@@ -18,9 +18,10 @@
   --on-night: #fff8f6;
   --on-night-muted: #f8d7dc;
   --gold: #f0c77e;
-  --brand: #2f7d5b;
-  --brand-2: #25644a;
-  --brand-soft: #e3f1e8;
+  /* Links and secondary actions use the crimson accent; green (--mint) is for success only. */
+  --brand: #b8243f;
+  --brand-2: #8f1730;
+  --brand-soft: #fbe5e8;
   --brand-ink: #ffffff;
   --accent: #d9485f;
   --accent-soft: #fbe5e8;
@@ -43,7 +44,7 @@
   --clay: 0 14px 30px -12px rgba(122, 74, 58, 0.20), inset 0 2px 1px rgba(255, 255, 255, 0.9), inset 0 -3px 8px rgba(122, 74, 58, 0.05);
   --clay-hover: 0 20px 40px -14px rgba(122, 74, 58, 0.28), inset 0 2px 1px rgba(255, 255, 255, 0.9), inset 0 -3px 8px rgba(122, 74, 58, 0.05);
   --clay-btn: 0 12px 22px -10px rgba(184, 58, 80, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.28), inset 0 -3px 0 rgba(0, 0, 0, 0.14);
-  --clay-btn-green: 0 12px 22px -10px rgba(47, 125, 91, 0.55), inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 0 -3px 0 rgba(0, 0, 0, 0.12);
+  --clay-btn-green: 0 12px 22px -10px rgba(184, 36, 63, 0.55), inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 0 -3px 0 rgba(0, 0, 0, 0.12);
   --clay-inset: inset 0 2px 4px rgba(122, 74, 58, 0.07);
   --font-sans: var(--font-manrope), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: var(--font-outfit), var(--font-manrope), system-ui, sans-serif;
@@ -67,10 +68,10 @@
   --on-night: #fff8f6;
   --on-night-muted: #fbd9df;
   --gold: #ecc684;
-  --brand: #6fd3a5;
-  --brand-2: #9be3c2;
-  --brand-soft: #15302a;
-  --brand-ink: #0d1f18;
+  --brand: #ff8da0;
+  --brand-2: #ffb3bf;
+  --brand-soft: #3a1c26;
+  --brand-ink: #2b0910;
   --accent: #f28b9b;
   --accent-soft: #3a1c26;
   --violet: #c9a3dc;
@@ -110,10 +111,10 @@
   --on-night: #fff8f6;
   --on-night-muted: #fbd9df;
   --gold: #ecc684;
-  --brand: #6fd3a5;
-  --brand-2: #9be3c2;
-  --brand-soft: #15302a;
-  --brand-ink: #0d1f18;
+  --brand: #ff8da0;
+  --brand-2: #ffb3bf;
+  --brand-soft: #3a1c26;
+  --brand-ink: #2b0910;
   --accent: #f28b9b;
   --accent-soft: #3a1c26;
   --violet: #c9a3dc;
