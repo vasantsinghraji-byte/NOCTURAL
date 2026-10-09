@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import { GoogleSignin, isErrorWithCode, isSuccessResponse, statusCodes } from '@react-native-google-signin/google-signin';
 import Svg, { Path } from 'react-native-svg';
 import type { SocialSignInResult } from '@medrush/shared';
 import { api, describeNetworkError } from './api';
@@ -11,16 +12,63 @@ import { C, F } from './theme';
 
 WebBrowser.maybeCompleteAuthSession();
 
-/**
- * "Continue with Google". Render only when GOOGLE_CONFIGURED: the Google
- * provider hook throws without client IDs. The server verifies the ID token
- * (audience = GOOGLE_OAUTH_CLIENT_IDS) before creating any session.
- */
-export function GoogleButton({ label, onResult, onError }: {
+type Props = {
   label: string;
   onResult: (res: SocialSignInResult) => void;
   onError: (message: string) => void;
-}) {
+};
+
+/**
+ * "Continue with Google". Render only when GOOGLE_CONFIGURED. The server
+ * verifies the ID token (audience = GOOGLE_OAUTH_CLIENT_IDS) before creating
+ * any session.
+ *
+ * Android uses native Google sign-in (the system account picker): no browser
+ * and no custom-scheme redirect, which Google blocks for new Android clients.
+ * The token is issued for the web client id; Google checks this app's package
+ * name and signing key against the Android client.
+ */
+export function GoogleButton(props: Props) {
+  return Platform.OS === 'android' ? <NativeGoogleButton {...props} /> : <BrowserGoogleButton {...props} />;
+}
+
+function NativeGoogleButton({ label, onResult, onError }: Props) {
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    GoogleSignin.configure({ webClientId: GOOGLE_CLIENT_IDS.web, scopes: ['email', 'profile'], offlineAccess: false });
+  }, []);
+
+  async function signIn() {
+    if (!GOOGLE_CLIENT_IDS.web) { onError('Google sign-in isn’t set up in this build.'); return; }
+    setBusy(true);
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const res = await GoogleSignin.signIn();
+      if (!isSuccessResponse(res)) return; // closed the picker
+      const idToken = res.data.idToken;
+      // Our own session takes over; forget Google's so the picker shows next time.
+      GoogleSignin.signOut().catch(() => undefined);
+      if (!idToken) { onError('Google did not return a sign-in token.'); return; }
+      onResult(await api.googleSignIn(idToken));
+    } catch (e) {
+      if (isErrorWithCode(e)) {
+        if (e.code === statusCodes.SIGN_IN_CANCELLED || e.code === statusCodes.IN_PROGRESS) return;
+        if (e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) { onError('Google Play services are needed for Google sign-in on this phone.'); return; }
+        // DEVELOPER_ERROR (10): package name / signing key don't match the Android client.
+        onError(String(e.code) === '10' ? 'Google sign-in isn’t set up for this app version yet.' : 'Google sign-in failed. Please try again.');
+        return;
+      }
+      onError(describeNetworkError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <ButtonFace label={label} busy={busy} disabled={busy} onPress={signIn} />;
+}
+
+function BrowserGoogleButton({ label, onResult, onError }: Props) {
   const [busy, setBusy] = useState(false);
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     androidClientId: GOOGLE_CLIENT_IDS.android || undefined,
@@ -40,8 +88,12 @@ export function GoogleButton({ label, onResult, onError }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [response]);
 
+  return <ButtonFace label={label} busy={busy} disabled={!request || busy} onPress={() => { setBusy(true); promptAsync().catch(() => setBusy(false)); }} />;
+}
+
+function ButtonFace({ label, busy, disabled, onPress }: { label: string; busy: boolean; disabled: boolean; onPress: () => void }) {
   return (
-    <PressScale style={styles.btn} disabled={!request || busy} onPress={() => { setBusy(true); promptAsync().catch(() => setBusy(false)); }}>
+    <PressScale style={styles.btn} disabled={disabled} onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ busy, disabled }}>
       {busy ? <ActivityIndicator color={C.onNight} /> : (
         <View style={styles.row}>
           <Svg width={18} height={18} viewBox="0 0 48 48">
