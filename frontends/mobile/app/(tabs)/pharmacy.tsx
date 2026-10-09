@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pill } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -259,31 +260,39 @@ export default function Pharmacy() {
         ))}
       </ScrollView>
 
+      {/* Three products per row, like quick-commerce apps */}
       <FlatList
         data={items}
         keyExtractor={(it) => it.inventoryId}
-        contentContainerStyle={{ padding: 12, gap: 10, paddingBottom: cartCount > 0 ? 16 : tabSpace }}
+        numColumns={3}
+        columnWrapperStyle={{ gap: 8 }}
+        contentContainerStyle={{ padding: 12, gap: 8, paddingBottom: cartCount > 0 ? 16 : tabSpace }}
         ListEmptyComponent={<Text style={styles.muted}>No items. Seed demo data: npm run db:seed:pharmacy</Text>}
-        renderItem={({ item: it }) => (
-          <View style={styles.card}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{it.medicine.name}</Text>
-              <Text style={styles.muted}>{it.medicine.packSize || it.medicine.form}</Text>
-              <Text style={styles.price}>₹{it.sellingPrice}
-                {it.mrp > it.sellingPrice ? <Text style={styles.strike}>  ₹{it.mrp}</Text> : null}
-              </Text>
+        renderItem={({ item: it }) => {
+          const off = it.mrp > it.sellingPrice ? Math.round(((it.mrp - it.sellingPrice) / it.mrp) * 100) : 0;
+          const qty = cart[it.medicine._id];
+          return (
+            <View style={styles.tile}>
+              <View style={styles.tileIcon}><Pill size={22} color={C.brand} /></View>
+              {off >= 5 ? <Text style={styles.off}>{off}% off</Text> : null}
+              <Text style={styles.tileName} numberOfLines={3}>{it.medicine.name}</Text>
+              <Text style={styles.tileMeta} numberOfLines={1}>{it.medicine.packSize || it.medicine.form}</Text>
+              <View style={{ marginTop: 'auto', gap: 6 }}>
+                <Text style={styles.tilePrice}>₹{it.sellingPrice}{it.mrp > it.sellingPrice ? <Text style={styles.strike}> ₹{it.mrp}</Text> : null}</Text>
+                {it.inStock ? (
+                  <Pressable style={[styles.tileBtn, qty ? styles.tileBtnOn : null]} onPress={() => add(it.medicine._id)}
+                    accessibilityRole="button" accessibilityLabel={qty ? `${it.medicine.name}, ${qty} in cart. Add one more` : `Add ${it.medicine.name}`}>
+                    <Text style={[styles.addBtnText, qty ? { color: C.brand } : null]}>{qty ? `${qty} in cart` : 'Add'}</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable style={styles.tileFind} onPress={() => findElsewhere(it.medicine._id, it.medicine.name)} accessibilityRole="button" accessibilityLabel={`${it.medicine.name} is out of stock. Find it nearby`}>
+                    <Text style={styles.findBtnText}>Find</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
-            {it.inStock ? (
-              <Pressable style={styles.addBtn} onPress={() => add(it.medicine._id)}>
-                <Text style={styles.addBtnText}>{cart[it.medicine._id] ? `× ${cart[it.medicine._id]}` : 'Add'}</Text>
-              </Pressable>
-            ) : (
-              <Pressable style={styles.findBtn} onPress={() => findElsewhere(it.medicine._id, it.medicine.name)}>
-                <Text style={styles.findBtnText}>Find nearby</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
+          );
+        }}
       />
 
       {cartCount > 0 && (
@@ -347,6 +356,15 @@ const styles = StyleSheet.create({
   findBtn: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: C.brand },
   findBtnText: { color: C.brand, fontFamily: F.bold, fontSize: 13 },
   addBtnText: { color: C.onBrand, fontFamily: F.bold },
+  tile: { flexGrow: 1, flexBasis: 0, maxWidth: '32.2%', minHeight: 196, backgroundColor: C.card, borderRadius: 16, padding: 10, gap: 3, borderWidth: 1, borderColor: C.border },
+  tileIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  off: { position: 'absolute', top: 8, right: 8, backgroundColor: C.mintSoft, color: C.mint, fontFamily: F.heavy, fontSize: 10, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
+  tileName: { fontSize: 13, lineHeight: 17, fontFamily: F.bold, color: C.ink },
+  tileMeta: { color: C.muted, fontSize: 11.5, fontFamily: F.medium },
+  tilePrice: { fontFamily: F.heavy, fontSize: 15, color: C.ink },
+  tileBtn: { backgroundColor: C.brand, borderRadius: 10, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.brand },
+  tileBtnOn: { backgroundColor: C.brandSoft },
+  tileFind: { borderRadius: 10, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.brand },
   error: { backgroundColor: C.roseSoft, color: C.roseInk, padding: 10, margin: 12, borderRadius: 10, fontFamily: F.semi },
   checkout: { backgroundColor: C.night, padding: 16, gap: 8, borderTopLeftRadius: 22, borderTopRightRadius: 22 },
   cartText: { color: C.onNight, fontFamily: F.bold },

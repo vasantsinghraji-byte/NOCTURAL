@@ -67,22 +67,17 @@ function LabTests() {
             </div>
             {!tests && !error && <div className="mk-skel" style={{ minHeight: 140 }} />}
             {error && <p className="mk-note" role="alert">{error}</p>}
-            <div className="mk-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+            <div className="prod-grid">
               {shown.map((t) => {
                 const on = basket.includes(t._id);
                 return (
-                  <button key={t._id} type="button" aria-pressed={on} onClick={() => toggle(t._id)} className="mk-card" style={{ textAlign: 'left', cursor: 'pointer', padding: 14, boxShadow: on ? '0 0 0 2px var(--night)' : undefined, borderColor: on ? 'var(--night)' : undefined }}>
-                    <div className="mk-row" style={{ alignItems: 'flex-start' }}>
-                      <div className="grow">
-                        <p className="mk-title" style={{ fontSize: 15 }}>{t.displayName}</p>
-                        <div className="mk-badges" style={{ marginTop: 6 }}>
-                          {t.category === 'LAB_PACKAGE' && <span className="mk-badge red">Package</span>}
-                          {(t.lab?.fastingHours || 0) > 0 && <span className="mk-badge">Fasting {t.lab?.fastingHours} h</span>}
-                          {t.lab?.homeCollectable === false && <span className="mk-badge">Lab visit only</span>}
-                        </div>
-                      </div>
-                      {t.fromPrice != null && <span className="mk-price" style={{ fontSize: 16 }}><small>from </small>{inr(t.fromPrice)}</span>}
-                    </div>
+                  <button key={t._id} type="button" aria-pressed={on} onClick={() => toggle(t._id)} className={`prod-tile${on ? ' on' : ''}`}>
+                    <p className="prod-name">{t.displayName}</p>
+                    <span className="prod-meta" style={{ color: 'var(--amber)' }}>
+                      {[t.category === 'LAB_PACKAGE' ? 'Package' : '', (t.lab?.fastingHours || 0) > 0 ? `Fasting ${t.lab?.fastingHours} h` : '', t.lab?.homeCollectable === false ? 'Lab visit only' : ''].filter(Boolean).join(' · ')}
+                    </span>
+                    {t.fromPrice != null && <span className="prod-price"><small>from </small>{inr(t.fromPrice)}</span>}
+                    <span className="prod-check" aria-hidden="true">{on ? 'Added' : 'Add'}</span>
                   </button>
                 );
               })}

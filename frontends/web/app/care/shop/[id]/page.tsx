@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ShopPosts } from '../../../_components/PartnerPosts';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { BadgeCheck, Building2, Clock, Home, Languages, MapPin, Minus, Plus, ShieldCheck, Star, Tag, Lock } from 'lucide-react';
@@ -213,6 +214,9 @@ function Shop() {
               })}
             </div>
           </section>
+
+          {/* Photos and videos the provider posted (nothing when there are none) */}
+          <ShopPosts storeId={shop._id} />
 
           {item && (
             <section ref={bookingRef} className="mk-card" aria-labelledby="book-title" style={{ display: 'grid', gap: 18, scrollMarginTop: 90 }}>

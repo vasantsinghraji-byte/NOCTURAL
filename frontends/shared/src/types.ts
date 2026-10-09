@@ -218,6 +218,24 @@ export interface StoreEarnings {
   orders: StoreEarningsOrder[];
 }
 
+// ── Partner posts (photos and short videos on a partner's profile / shop) ──
+export interface PartnerPost {
+  _id: string;
+  author: string | { _id: string; name: string; role: string };
+  kind: 'IMAGE' | 'VIDEO';
+  caption: string;
+  /** API path; open it with api.absoluteUrl(). */
+  mediaUrl: string;
+  createdAt: string;
+  status?: 'VISIBLE' | 'HIDDEN';
+  hiddenReason?: string;
+}
+
+/** Where to send a post's file: straight to S3 (signed PUT), or to POST /partner-posts. */
+export type PartnerPostUpload =
+  | { mode: 's3'; url: string; key: string; method: 'PUT'; headers: Record<string, string> }
+  | { mode: 'direct' };
+
 export interface InventoryImport {
   _id: string;
   createdAt: string;

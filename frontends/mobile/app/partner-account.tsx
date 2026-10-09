@@ -11,6 +11,7 @@ import { inr } from '@/lib/care';
 import { appAlert } from '@/lib/dialog';
 import { stopBackgroundOnline } from '@/lib/partnerOnline';
 import { PayoutsCard } from '@/lib/payoutsCard';
+import { MyPostsCard } from '@/lib/partnerPosts';
 import { C, F, clay, ui } from '@/lib/theme';
 import { PhotoAvatar } from '@/lib/profilePhoto';
 
@@ -101,6 +102,7 @@ export function PartnerAccount({ embedded = false }: { embedded?: boolean }) {
         )}
 
         {acct && <PayoutsCard />}
+        {acct && <MyPostsCard />}
 
         {acct?.commission && (
           <View style={[styles.card, { gap: 8 }]}>

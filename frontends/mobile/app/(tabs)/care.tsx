@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Activity, ArrowRight, CalendarHeart, FlaskConical, HeartHandshake, RotateCcw, Sparkles, Wallet, type LucideIcon } from 'lucide-react-native';
 import { CallMeBack } from '@/lib/CallMeBack';
@@ -169,16 +169,24 @@ function KindCard({ title, text, icon: Icon, art, red, onPress, delay }: { title
 function ServiceStrip({ items, lab, onPick }: { items?: MarketService[]; lab?: boolean; onPick: (s: MarketService) => void }) {
   if (!items) return <View style={{ flexDirection: 'row', gap: 10 }}>{[0, 1].map((i) => <Skeleton key={i} height={96} width="48%" radius={22} />)}</View>;
   if (!items.length) return <Note tone="neutral">Coming to your area soon.</Note>;
+  // A two-column grid on the page itself (a sideways strip clipped the cards' shadows).
+  const shown = items.slice(0, 6);
+  const rows = Array.from({ length: Math.ceil(shown.length / 2) }, (_, r) => shown.slice(r * 2, r * 2 + 2));
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 16 }}>
-      {items.slice(0, 8).map((sv) => (
-        <PressScale key={sv._id} onPress={() => onPick(sv)} style={[ui.card, { width: 190, padding: 14, gap: 6 }]} accessibilityRole="button" accessibilityLabel={sv.displayName}>
-          <Text style={{ fontFamily: F.bold, fontSize: 14, color: C.ink }} numberOfLines={2}>{sv.displayName}</Text>
-          <Meta>{sv.providers ? `${sv.providers} ${lab ? 'lab' : 'provider'}${sv.providers === 1 ? '' : 's'}` : 'Coming soon'}</Meta>
-          {sv.fromPrice != null ? <Text style={mk.price}><Text style={{ fontFamily: F.medium, fontSize: 12, color: C.muted }}>from </Text>{inr(sv.fromPrice)}</Text> : null}
-        </PressScale>
+    <View style={{ gap: 10 }}>
+      {rows.map((row, r) => (
+        <View key={r} style={{ flexDirection: 'row', gap: 10 }}>
+          {row.map((sv) => (
+            <PressScale key={sv._id} onPress={() => onPick(sv)} style={[ui.card, { flex: 1, padding: 14, gap: 6 }]} accessibilityRole="button" accessibilityLabel={sv.displayName}>
+              <Text style={{ fontFamily: F.bold, fontSize: 14, lineHeight: 19, color: C.ink }} numberOfLines={3}>{sv.displayName}</Text>
+              <Meta>{sv.providers ? `${sv.providers} ${lab ? 'lab' : 'provider'}${sv.providers === 1 ? '' : 's'}` : 'Coming soon'}</Meta>
+              {sv.fromPrice != null ? <Text style={[mk.price, { marginTop: 'auto' }]}><Text style={{ fontFamily: F.medium, fontSize: 12, color: C.muted }}>from </Text>{inr(sv.fromPrice)}</Text> : null}
+            </PressScale>
+          ))}
+          {row.length < 2 ? <View style={{ flex: 1 }} /> : null}
+        </View>
       ))}
-    </ScrollView>
+    </View>
   );
 }
 

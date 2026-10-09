@@ -9,6 +9,7 @@ import CareArt, { WineGradient } from '@/lib/CareArt';
 import { KINDS, hoursLabel, inr, problem, useMe, useVisitPlace } from '@/lib/market';
 import { Badge, Btn, Empty, Meta, Seg, TopBar } from '@/lib/marketUI';
 import { PressScale, Rise, Skeleton } from '@/lib/motion';
+import { ShopPosts } from '@/lib/partnerPosts';
 import { C, F, clay, ui } from '@/lib/theme';
 
 /**
@@ -137,6 +138,9 @@ export default function ShopScreen() {
             })}
           </View>
         )}
+
+        {/* Photos and videos the provider posted (nothing when there are none) */}
+        <ShopPosts storeId={id} />
 
         {shop.bio ? (
           <View style={{ gap: 6 }}>

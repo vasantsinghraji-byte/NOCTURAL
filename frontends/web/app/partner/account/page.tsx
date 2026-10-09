@@ -8,6 +8,7 @@ import type { PartnerAccount, PayoutDetailsInput, PayoutSummary } from '@medrush
 import { api } from '@/lib/api';
 import { Modal, confirmDialog } from '../../_components/Dialog';
 import ProfilePhotoEditor from '../../_components/ProfilePhoto';
+import { MyPosts } from '../../_components/PartnerPosts';
 
 /**
  * Website version of the Partner app's Account screen (nurses, physios and
@@ -93,6 +94,7 @@ export default function PartnerAccountPage() {
       {acct && (
         <div className="account-grid">
           <Payouts />
+          <MyPosts />
 
           {acct.commission && (
             <div className="card stack">

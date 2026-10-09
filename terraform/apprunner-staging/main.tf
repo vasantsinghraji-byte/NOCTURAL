@@ -145,6 +145,37 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "all" {
   }
 }
 
+# Partner photos/videos are uploaded straight from the website with a one-time
+# signed link (PUT); the browser needs CORS for that. The app doesn't.
+resource "aws_s3_bucket_cors_configuration" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+  cors_rule {
+    allowed_methods = ["PUT"]
+    allowed_origins = compact([var.create_web ? local.web_url : "", "http://localhost:3000"])
+    allowed_headers = ["content-type"]
+    max_age_seconds = 3000
+  }
+}
+
+# Uploads that were never published (abandoned or rejected) expire after a day.
+resource "aws_s3_bucket_lifecycle_configuration" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+  rule {
+    id     = "expire-unpublished-partner-posts"
+    status = "Enabled"
+    filter {
+      prefix = "partner-posts-pending/"
+    }
+    expiration {
+      days = 1
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = 1
+    }
+  }
+  depends_on = [aws_s3_bucket_versioning.uploads]
+}
+
 resource "aws_s3_bucket_versioning" "uploads" {
   bucket = aws_s3_bucket.uploads.id
   versioning_configuration {

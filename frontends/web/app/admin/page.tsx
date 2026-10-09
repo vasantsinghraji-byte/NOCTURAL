@@ -12,16 +12,18 @@ import CampaignsPanel from './CampaignsPanel';
 import DocumentsPanel from './DocumentsPanel';
 import MarketplacePanel from './MarketplacePanel';
 import AdsSettingsPanel from './AdsSettingsPanel';
+import PostsPanel from './PostsPanel';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { ApiError, type AuthUser, type Medicine, type PharmacyVendor } from '@medrush/shared';
 import { StepUpDialog } from '../_components/AdminMfa';
 
-type Tab = 'care' | 'ads' | 'users' | 'documents' | 'verification' | 'payments' | 'logs' | 'campaigns' | 'partners' | 'withdrawals' | 'vendors' | 'medicines';
+type Tab = 'care' | 'ads' | 'posts' | 'users' | 'documents' | 'verification' | 'payments' | 'logs' | 'campaigns' | 'partners' | 'withdrawals' | 'vendors' | 'medicines';
 // Platform-admin tabs first: the day-to-day operations.
 const TABS: Array<{ key: Tab; label: string; platformOnly?: boolean }> = [
   { key: 'care', label: 'Care marketplace', platformOnly: true },
   { key: 'ads', label: 'Ads & settings', platformOnly: true },
+  { key: 'posts', label: 'Partner posts', platformOnly: true },
   { key: 'users', label: 'Users', platformOnly: true },
   { key: 'documents', label: 'Documents', platformOnly: true },
   { key: 'verification', label: 'Staff checks', platformOnly: true },
@@ -149,6 +151,7 @@ export default function AdminConsole() {
 
       {tab === 'care' && <MarketplacePanel sensitive={sensitive} />}
       {tab === 'ads' && <AdsSettingsPanel sensitive={sensitive} />}
+      {tab === 'posts' && <PostsPanel />}
       {tab === 'partners' && <ApplicationsPanel sensitive={sensitive} />}
       {tab === 'withdrawals' && <WithdrawalsPanel sensitive={sensitive} />}
       {tab === 'users' && <UsersPanel sensitive={sensitive} />}

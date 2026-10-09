@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { BadgeCheck, Building2, Clock, Droplets, FlaskConical, Home, Search, ShieldCheck, X } from 'lucide-react-native';
+import { BadgeCheck, Building2, Check, Clock, Droplets, FlaskConical, Home, Search, ShieldCheck, X } from 'lucide-react-native';
 import type { CareMode, LabCompareRow, LabQuote, MarketService, SlotDay } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { appAlert } from '@/lib/dialog';
 import { fmtDay, fmtTime, inr, placeBody, problem, useMe, useVisitPlace, type VisitPlace } from '@/lib/market';
-import { Badge, Bill, Btn, Card, DateStrip, Empty, Label, Meta, MkHero, Note, PlaceCard, Screen, Seg, TapCard, TimeGrid, Title, TopBar, mk } from '@/lib/marketUI';
+import { Badge, Bill, Btn, Card, DateStrip, Empty, Label, Meta, MkHero, Note, PlaceCard, Screen, Seg, TimeGrid, Title, TopBar, mk } from '@/lib/marketUI';
 import { PaymentDismissedError, payLabOrder } from '@/lib/payments';
 import { BookingForBanner } from '@/lib/BookingForBanner';
 import { getBookingFor, setBookingFor } from '@/lib/bookingFor';
@@ -66,24 +66,22 @@ export default function LabTests() {
       )}
       {!tests && !error ? <Skeleton height={140} radius={22} /> : null}
       {error ? <Note>{error}</Note> : null}
-      {shown.slice(0, q ? 40 : 12).map((t) => {
-        const on = basket.includes(t._id);
-        return (
-          <TapCard key={t._id} selected={on} onPress={() => toggle(t._id)} label={`${t.displayName}${on ? ', selected' : ''}`}>
-            <View style={mk.row}>
-              <View style={{ flex: 1, gap: 5 }}>
-                <Text style={{ fontFamily: F.bold, fontSize: 14, color: C.ink }}>{t.displayName}</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                  {t.category === 'LAB_PACKAGE' ? <Badge tone="red" label="Package" /> : null}
-                  {(t.lab?.fastingHours || 0) > 0 ? <Badge label={`Fasting ${t.lab?.fastingHours} h`} /> : null}
-                  {t.lab?.homeCollectable === false ? <Badge label="Lab visit only" /> : null}
-                </View>
-              </View>
-              {t.fromPrice != null ? <Text style={mk.price}><Text style={{ fontSize: 11, color: C.muted, fontFamily: F.medium }}>from </Text>{inr(t.fromPrice)}</Text> : null}
-            </View>
-          </TapCard>
-        );
-      })}
+      {/* Three tests per row; tap to add or remove */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {shown.slice(0, q ? 40 : 12).map((t) => {
+          const on = basket.includes(t._id);
+          const tags = [t.category === 'LAB_PACKAGE' ? 'Package' : '', (t.lab?.fastingHours || 0) > 0 ? `Fasting ${t.lab?.fastingHours} h` : '', t.lab?.homeCollectable === false ? 'Lab visit only' : ''].filter(Boolean);
+          return (
+            <PressScale key={t._id} onPress={() => toggle(t._id)} style={[labTile.tile, on && labTile.on]}
+              accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`${t.displayName}${t.fromPrice != null ? `, from ${inr(t.fromPrice)}` : ''}`}>
+              <View style={[labTile.icon, on && { backgroundColor: C.brand }]}>{on ? <Check size={18} color="#ffffff" /> : <FlaskConical size={18} color={C.brand} />}</View>
+              <Text style={labTile.name} numberOfLines={3}>{t.displayName}</Text>
+              {tags.length ? <Text style={labTile.tag} numberOfLines={2}>{tags.join(' · ')}</Text> : null}
+              {t.fromPrice != null ? <Text style={labTile.price}><Text style={labTile.from}>from </Text>{inr(t.fromPrice)}</Text> : null}
+            </PressScale>
+          );
+        })}
+      </View>
       {tests && !q && tests.length > 12 ? <Meta>Search to see all {tests.length} tests.</Meta> : null}
 
       {basket.length > 0 && (
@@ -208,3 +206,13 @@ function LabBooking({ row, serviceIds, mode, place, fasting, signedIn, prefill }
     </Card>
   );
 }
+
+const labTile = StyleSheet.create({
+  tile: { width: '31.8%', minHeight: 150, backgroundColor: C.card, borderRadius: 16, padding: 10, gap: 4, borderWidth: 1.5, borderColor: C.border },
+  on: { borderColor: C.brand, backgroundColor: C.brandSoft },
+  icon: { width: 34, height: 34, borderRadius: 10, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  name: { fontFamily: F.bold, fontSize: 13, lineHeight: 17, color: C.ink },
+  tag: { fontFamily: F.semi, fontSize: 11, color: C.amber },
+  price: { marginTop: 'auto', fontFamily: F.heavy, fontSize: 14, color: C.ink },
+  from: { fontFamily: F.medium, fontSize: 11, color: C.muted }
+});

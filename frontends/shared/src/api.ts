@@ -7,6 +7,8 @@
  */
 
 import type {
+  PartnerPost,
+  PartnerPostUpload,
   StoreProfile,
   StoreProfileUpdate,
   StoreToday,
@@ -772,6 +774,57 @@ export class MedRushApi {
 
   removeProfilePhoto() {
     return this.request<{ success: true }>('DELETE', '/profile-photo');
+  }
+
+  // ── Partner posts (photos and short videos; partners post, everyone views) ──
+
+  /** Step 1: where to upload a file of this type and size. */
+  partnerPostUploadUrl(mime: string, size: number) {
+    return this.request<{ success: true; upload: PartnerPostUpload }>('POST', '/partner-posts/upload-url', { body: { mime, size } });
+  }
+
+  /** Step 2 after a direct S3 upload: publish it. */
+  completePartnerPost(key: string, caption?: string) {
+    return this.request<{ success: true; post: PartnerPost }>('POST', '/partner-posts/complete', { body: { key, caption } });
+  }
+
+  /** Upload through the API instead (no S3, e.g. local development). */
+  async createPartnerPost(file: unknown, filename: string, caption?: string): Promise<{ success: true; post: PartnerPost }> {
+    const form = new FormData();
+    if (caption) form.append('caption', caption);
+    form.append('media', file as any, filename);
+    const res = await this.send('/partner-posts', { method: 'POST', headers: { Accept: 'application/json' }, body: form });
+    const text = await res.text();
+    let payload: any = null;
+    try { payload = text ? JSON.parse(text) : null; } catch { payload = { message: text }; }
+    if (!res.ok || (payload && payload.success === false)) {
+      throw new ApiError(res.status, (payload && payload.message) || `Upload failed (${res.status})`, payload?.details);
+    }
+    return payload;
+  }
+
+  myPartnerPosts() {
+    return this.request<{ success: true; posts: PartnerPost[] }>('GET', '/partner-posts/mine');
+  }
+
+  deletePartnerPost(id: string) {
+    return this.request<{ success: true }>('DELETE', `/partner-posts/${id}`);
+  }
+
+  partnerPostsBy(userId: string) {
+    return this.request<{ success: true; posts: PartnerPost[] }>('GET', `/partner-posts/by/${userId}`);
+  }
+
+  shopPosts(storeId: string) {
+    return this.request<{ success: true; posts: PartnerPost[] }>('GET', `/partner-posts/store/${storeId}`);
+  }
+
+  adminPartnerPosts(status?: 'VISIBLE' | 'HIDDEN') {
+    return this.request<{ success: true; posts: PartnerPost[] }>('GET', '/partner-posts/admin', { query: status ? { status } : {} });
+  }
+
+  adminSetPartnerPostHidden(id: string, hidden: boolean, reason?: string) {
+    return this.request<{ success: true; post: PartnerPost }>('PATCH', `/partner-posts/admin/${id}`, { body: { hidden, reason } });
   }
 
   /** Absolute URL for a stored photo path like /api/v1/profile-photo/user/<id>?v=... */

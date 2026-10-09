@@ -203,40 +203,26 @@ export default function PharmacyPage() {
           {activeVendor && (
             <>
               <div className="section-title">{activeVendor.name}: catalogue</div>
-              <div className="grid cards">
+              <div className="prod-grid">
                 {items.map((it) => {
                   const qty = qtyOf(it.medicine._id);
                   return (
-                    <div key={it.inventoryId} className="card">
-                      <div className="row">
-                        <h3>{it.medicine.name}</h3>
-                        {it.medicine.requiresPrescription
-                          ? <span className="pill rx">Rx</span>
-                          : <span className="pill">OTC</span>}
-                      </div>
-                      <span className="muted">{it.medicine.packSize || it.medicine.form}</span>
-                      <div className="row" style={{ marginTop: 10 }}>
-                        <div>
-                          <span className="price">₹{it.sellingPrice}</span>
-                          {it.mrp > it.sellingPrice && <span className="strike">₹{it.mrp}</span>}
+                    <div key={it.inventoryId} className="prod-tile">
+                      {it.medicine.requiresPrescription ? <span className="pill rx prod-tag">Rx</span> : null}
+                      <p className="prod-name">{it.medicine.name}</p>
+                      <span className="prod-meta">{it.medicine.packSize || it.medicine.form}</span>
+                      <span className="prod-price">₹{it.sellingPrice}{it.mrp > it.sellingPrice && <span className="strike">₹{it.mrp}</span>}</span>
+                      {!it.inStock ? (
+                        <button className="btn secondary prod-btn" onClick={() => findNearby(it.medicine._id)}>Find nearby</button>
+                      ) : qty === 0 ? (
+                        <button className="btn prod-btn" onClick={() => activeVendor && cart.add(activeVendor._id, activeVendor.name, it)} aria-label={`Add ${it.medicine.name}`}>Add</button>
+                      ) : (
+                        <div className="prod-qty">
+                          <button className="btn secondary" onClick={() => cart.decrement(it.medicine._id)} aria-label={`One less ${it.medicine.name}`}>−</button>
+                          <b aria-live="polite">{qty}</b>
+                          <button className="btn" onClick={() => activeVendor && cart.add(activeVendor._id, activeVendor.name, it)} aria-label={`One more ${it.medicine.name}`}>+</button>
                         </div>
-                        {!it.inStock ? (
-                          <button className="btn secondary" onClick={() => findNearby(it.medicine._id)}>Find nearby</button>
-                        ) : qty === 0 ? (
-                          <button
-                            className="btn"
-                            onClick={() => activeVendor && cart.add(activeVendor._id, activeVendor.name, it)}
-                          >
-                            Add
-                          </button>
-                        ) : (
-                          <div className="row" style={{ gap: 8 }}>
-                            <button className="btn secondary" onClick={() => cart.decrement(it.medicine._id)}>−</button>
-                            <b>{qty}</b>
-                            <button className="btn" onClick={() => activeVendor && cart.add(activeVendor._id, activeVendor.name, it)}>+</button>
-                          </div>
-                        )}
-                      </div>
+                      )}
                       {!it.inStock && nearby[it.medicine._id] && (
                         <NearbyPanel
                           result={nearby[it.medicine._id]}
