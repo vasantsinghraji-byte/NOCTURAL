@@ -34,7 +34,8 @@ module.exports = {
   expo: {
     name: variant.name,
     slug: variant.slug,
-    scheme: variant.scheme,
+    // Customer app: Google sign-in returns to <package>:/oauthredirect.
+    scheme: IS_PARTNER ? variant.scheme : [variant.scheme, variant.id],
     version: '0.1.0',
     orientation: 'portrait',
     icon: variant.icon,

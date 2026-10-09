@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import AuthShell from '../_components/AuthShell';
 import PasswordField from '../_components/PasswordField';
+import GoogleSignIn from '../_components/GoogleSignIn';
 
 export default function LoginPage() {
   const { login, patient } = useAuth();
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [googleFinishing, setGoogleFinishing] = useState(false);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -45,7 +47,8 @@ export default function LoginPage() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to book visits, order medicines and track your care.">
-      <form onSubmit={submit} noValidate>
+      <GoogleSignIn onSignedIn={() => router.replace(next)} onFinishing={setGoogleFinishing} />
+      <form onSubmit={submit} noValidate hidden={googleFinishing}>
         {notice && <div className="notice good">{notice}</div>}
         <label htmlFor="email">Email</label>
         <input id="email" className="input" type="email" autoComplete="email" placeholder="you@example.com…" value={email} onChange={(e) => setEmail(e.target.value)} required />

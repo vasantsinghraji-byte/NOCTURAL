@@ -275,9 +275,16 @@ async function completeSignup({ signupToken: token, name, email, phone }) {
   throw new AuthenticationError('Your sign-in session expired. Please start again.');
 }
 
+/** The website's Google client id: public, and only if the server accepts its tokens. */
+function googleWebClientId() {
+  const id = String(process.env.GOOGLE_WEB_CLIENT_ID || '').trim();
+  return id && googleAudiences().includes(id) ? id : null;
+}
+
 function getMethods() {
   return {
     google: isGoogleEnabled(),
+    googleWebClientId: googleWebClientId(),
     phone: !!process.env.SMS_PROVIDER || process.env.NODE_ENV !== 'production',
     email: true
   };

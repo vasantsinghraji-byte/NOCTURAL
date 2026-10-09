@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import AuthShell from '../_components/AuthShell';
 import PasswordField from '../_components/PasswordField';
+import GoogleSignIn from '../_components/GoogleSignIn';
 
 export default function SignupPage() {
   const { register, patient } = useAuth();
@@ -14,6 +15,7 @@ export default function SignupPage() {
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [googleFinishing, setGoogleFinishing] = useState(false);
 
   useEffect(() => {
     if (patient) router.replace('/book');
@@ -54,7 +56,8 @@ export default function SignupPage() {
       subtitle="It takes under a minute. You can book your first visit right after."
       sideTitle="Your care, one tap away."
     >
-      <form onSubmit={submit} noValidate>
+      <GoogleSignIn onSignedIn={() => router.replace('/book')} onFinishing={setGoogleFinishing} />
+      <form onSubmit={submit} noValidate hidden={googleFinishing}>
         <label htmlFor="name">Full name</label>
         <input id="name" className="input" autoComplete="name" value={form.name} onChange={(e) => set('name')(e.target.value)} placeholder="Meera Sharma…" />
         <label htmlFor="email">Email</label>

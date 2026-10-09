@@ -672,7 +672,7 @@ export interface HomeFeed { banners: HomeBanner[]; packages: CareService[]; popu
 
 // ── Sign-in (phone OTP / Google) & partner onboarding ─────────────────────
 
-export interface SignInMethods { google: boolean; phone: boolean; email: boolean }
+export interface SignInMethods { google: boolean; phone: boolean; email: boolean; /** Website's Google client id (public). */ googleWebClientId?: string | null }
 
 export type SocialSignInResult =
   | { success: true; needsProfile: true; signupToken: string; profile: { phone?: string; email?: string; name?: string; needs: string[] } }

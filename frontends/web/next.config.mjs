@@ -11,18 +11,19 @@ const API_ORIGIN = (process.env.API_ORIGIN || '').replace(/\/+$/, '');
 
 // Browser security headers for every page (security bot finding: the website
 // sent none, so it could be framed for clickjacking). Allowed third parties:
-// Razorpay checkout (script, frames, telemetry) and the OpenStreetMap embed.
+// Razorpay checkout (script, frames, telemetry), the OpenStreetMap embed and
+// Google sign-in (accounts.google.com/gsi only).
 // Scripts keep 'unsafe-inline' because Next.js hydration uses inline scripts;
 // a nonce-based policy is the next step.
 const CSP = [
   "default-src 'self'",
   // Development only: React Fast Refresh needs eval. Production stays strict.
-  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''} https://checkout.razorpay.com`,
-  "style-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''} https://checkout.razorpay.com https://accounts.google.com/gsi/client`,
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com",
-  "frame-src https://www.openstreetmap.org https://api.razorpay.com https://checkout.razorpay.com",
+  "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com https://accounts.google.com/gsi/",
+  "frame-src https://www.openstreetmap.org https://api.razorpay.com https://checkout.razorpay.com https://accounts.google.com/gsi/",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
