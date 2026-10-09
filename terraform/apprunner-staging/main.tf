@@ -356,6 +356,9 @@ resource "aws_apprunner_service" "api" {
           SERVICEABILITY_TEST_RADIUS_KM = tostring(var.test_store_radius_km)
           # Testers need time to open the partner app; production default is 180s.
           PHARMACY_ACCEPT_SLA_SECONDS = tostring(var.pharmacy_accept_sla_seconds)
+          # Google sign-in (empty = the Google button stays hidden).
+          GOOGLE_OAUTH_CLIENT_IDS = var.google_oauth_client_ids
+          GOOGLE_WEB_CLIENT_ID    = var.google_web_client_id
         }
         runtime_environment_secrets = merge(
           { for k in local.generated : k => aws_secretsmanager_secret.generated[k].arn },

@@ -48,6 +48,19 @@ variable "pharmacy_accept_sla_seconds" {
   default = 600
 }
 
+# Google sign-in: OAuth client ids are public values (not secrets).
+variable "google_oauth_client_ids" {
+  description = "Comma-separated Google OAuth client ids whose ID tokens the API accepts (web + Android)."
+  type        = string
+  default     = ""
+}
+
+variable "google_web_client_id" {
+  description = "The website's Google OAuth client id (must also be in google_oauth_client_ids)."
+  type        = string
+  default     = ""
+}
+
 variable "alert_email" {
   description = "Email for staging alarms (tick stopped/failed, API 5xx). Empty = alarms go to the SNS topic only."
   type        = string
