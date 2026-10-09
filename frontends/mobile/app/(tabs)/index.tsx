@@ -5,31 +5,30 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarSpace } from '@/lib/PillTabBar';
 import { router, useFocusEffect } from 'expo-router';
 import {
-  ChevronRight, Crown, MapPin as MapPinIcon, Navigation, PackageCheck, Radio, RotateCcw, Search, ShieldCheck, Store, Truck, X, type LucideIcon
+  Activity, CalendarClock, ChevronDown, ChevronRight, Crown, FlaskConical, LayoutGrid, Map as MapIcon, MapPin as MapPinIcon, PackageCheck, Pill, Radio,
+  RotateCcw, Search, ShieldCheck, Truck, X, Zap, type LucideIcon
 } from 'lucide-react-native';
-import type { CareBooking, CareService, HomeBanner, HomeFeed, MapShop, PharmacyVendor, ShopKind } from '@medrush/shared';
+import type { CareBooking, CareService, HomeBanner, HomeFeed, PharmacyVendor } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useT } from '@/lib/i18n';
 import { useLiveLocation } from '@/lib/useLiveLocation';
 import { DEMO_AREA_ENABLED } from '@/lib/variant';
-import { LiveMap, PIN_LOOK, pinKindForRole, type MapPin, type PinKind } from '@/lib/MapView';
-import { DEMO_POINT, inr, shortName } from '@/lib/care';
-import { CareMoments } from '@/lib/CareMoments';
+import { DEMO_POINT, shortName } from '@/lib/care';
 import { IconTile, serviceIcon } from '@/lib/icons';
 import { inr as money } from '@/lib/market';
+import { BottomSheet } from '@/lib/marketUI';
 import { PressScale, Rise, Skeleton } from '@/lib/motion';
-import { C, F, IS_DARK, clay, shadow, ui } from '@/lib/theme';
+import { C, F, clay, ui } from '@/lib/theme';
 import { appAlert } from '@/lib/dialog';
 import { UpdatesFeed } from '@/lib/updatesFeed';
 import { EasyHome } from '@/lib/EasyHome';
 import { useEasyMode } from '@/lib/easyMode';
-import CareArt, { WineGradient } from '@/lib/CareArt';
 
 type Mode = 'ASAP' | 'SCHEDULED';
-const SHOP_PIN: Record<ShopKind, PinKind> = { PHYSIO: 'physio', LAB: 'lab', HOMECARE: 'caregiver', NURSING: 'nurse' };
 const DEMO_AREA_KEY = 'nabz.demoArea';
-const MAP_H = Math.round(Dimensions.get('window').height * 0.34);
+// Services shown on Home before "See all" (two rows of four).
+const GRID_MAX = 8;
 const ACTIVE = ['REQUESTED', 'ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'];
 const BANNER_LOOK: Record<HomeBanner['kind'], { icon: LucideIcon; bg: string; fg: string; ink: string }> = {
   PLUS: { icon: Crown, bg: C.night, fg: C.gold, ink: C.onNight },
@@ -45,8 +44,11 @@ const STATUS_LINE: Record<string, string> = {
   IN_PROGRESS: 'Visit in progress'
 };
 
-/** Home = book a medical staff (Uber/Rapido style): live map, then the booking sheet. */
-/** Home: the simple Easy mode screen, or the full booking home. */
+/**
+ * Home (Zomato / Blinkit style): address and search up top, a one-line "who's
+ * online" with the map a tap away, every nursing service in a grid, then the
+ * rest of Nabz as big tiles. Easy mode swaps in the simpler EasyHome.
+ */
 export default function HomeTab() {
   const { easy } = useEasyMode();
   return easy ? <EasyHome /> : <BookHome />;
@@ -75,21 +77,18 @@ function BookHome() {
   }
   const [stores, setStores] = useState<PharmacyVendor[]>([]);
   const [storesChecked, setStoresChecked] = useState(false);
-  const [nearby, setNearby] = useState<{ count: number; nearestKm: number | null; staff: Array<{ role?: string; lat: number; lng: number }> }>({ count: 0, nearestKm: null, staff: [] });
-  const [mapShops, setMapShops] = useState<{ shops: MapShop[]; sponsored: Array<MapShop & { token: string; store: string }> }>({ shops: [], sponsored: [] });
+  const [nearby, setNearby] = useState<{ count: number; nearestKm: number | null }>({ count: 0, nearestKm: null });
   const storesLoadedFor = useRef<string | null>(null);
   const [services, setServices] = useState<CareService[] | null>(null);
   const [feed, setFeed] = useState<HomeFeed | null>(null);
   const [visits, setVisits] = useState<CareBooking[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [mode, setMode] = useState<Mode>('ASAP');
+  const [picked, setPicked] = useState<CareService | null>(null);
+  const [allOpen, setAllOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.listCareServices()
-      .then((r) => { setServices(r.services); setSelected((s) => s ?? r.services.find((x) => x.category !== 'PACKAGE')?.serviceType ?? null); })
-      .catch((e) => { setServices([]); setError(describeNetworkError(e)); });
+    api.listCareServices().then((r) => setServices(r.services)).catch((e) => { setServices([]); setError(describeNetworkError(e)); });
     api.getHomeFeed().then(setFeed).catch(() => undefined);
   }, []);
 
@@ -99,388 +98,302 @@ function BookHome() {
     api.getMyCareBookings().then((r) => setVisits(r.data || r.bookings || [])).catch(() => undefined);
   }, [session?.kind]));
 
-  // Stores near me (reload only after moving ~1 km) + online staff (every 20 s).
+  // Stores near me (reload only after moving ~1 km) + staff online (every 20 s).
   useEffect(() => {
     if (!point) return undefined;
     const key = `${point.lat.toFixed(2)},${point.lng.toFixed(2)}`;
     if (storesLoadedFor.current !== key) {
       storesLoadedFor.current = key;
       api.getNearbyVendors({ ...point, radiusKm: 10 }).then((r) => { setStores(r.vendors); setStoresChecked(true); }).catch(() => undefined);
-      // Clinics and labs near you, plus labelled sponsored pins (admin controls these in Ads & settings).
-      api.marketMap({ ...point, radiusKm: 8 }).then((r) => setMapShops({ shops: r.shops, sponsored: r.sponsored })).catch(() => undefined);
     }
-    const loadStaff = () => api.getNearbyStaff({ ...point, radiusKm: 10 }).then(setNearby).catch(() => undefined);
+    const loadStaff = () => api.getNearbyStaff({ ...point, radiusKm: 10 }).then((r) => setNearby({ count: r.count, nearestKm: r.nearestKm })).catch(() => undefined);
     loadStaff();
     const tm = setInterval(loadStaff, 20_000);
     return () => clearInterval(tm);
   }, [point]);
 
-  // Every service has its own pin (nurse, physio, caregiver, lab, pharmacy); live professionals pulse.
-  const pins = useMemo<MapPin[]>(() => [
-    ...stores.map((s) => ({
-      id: `store:${s._id}`, kind: 'pharmacy' as const, label: s.name,
-      lat: s.location?.coordinates?.[1] ?? 0, lng: s.location?.coordinates?.[0] ?? 0
-    })),
-    ...mapShops.shops.map((sh) => ({ id: `shop:${sh._id}`, kind: SHOP_PIN[sh.kind], label: sh.name, lat: sh.lat, lng: sh.lng })),
-    ...mapShops.sponsored.map((sh) => ({ id: `ad:${sh.store}`, kind: SHOP_PIN[sh.kind], label: `${sh.name} · Ad`, lat: sh.lat, lng: sh.lng, sponsored: true })),
-    ...nearby.staff.map((s, i) => {
-      const kind = pinKindForRole(s.role);
-      return { id: `staff:${i}`, kind, live: true, label: `${PIN_LOOK[kind === 'store' ? 'pharmacy' : kind].label} online nearby`, lat: s.lat, lng: s.lng };
-    })
-  ], [stores, nearby, mapShops]);
-  const legend = useMemo(() => Array.from(new Set(pins.map((p) => (p.kind === 'store' ? 'pharmacy' : p.kind)))).slice(0, 5) as Array<keyof typeof PIN_LOOK>, [pins]);
-
-  const onPin = (pin: MapPin) => {
-    const [type, ref] = pin.id.split(':');
-    if (type === 'ad') {
-      const ad = mapShops.sponsored.find((a) => String(a.store) === ref);
-      if (ad) api.adClick(ad.token).catch(() => undefined);
-      router.push(`/care/shop/${ref}`);
-    } else if (type === 'shop') {
-      if (pin.kind === 'lab') router.push('/labs'); else router.push(`/care/shop/${ref}`);
-    } else if (type === 'store') {
-      router.push('/pharmacy');
-    } else {
-      appAlert(pin.label, 'Exact positions are hidden for their safety. Book a visit and we send the nearest free professional.');
-    }
-  };
-
-  const nursing = (services || []).filter((s) => s.category !== 'PACKAGE');
+  const nursing = useMemo(() => (services || []).filter((s) => s.category !== 'PACKAGE'), [services]);
+  const packages = useMemo(() => (services || []).filter((s) => s.category === 'PACKAGE'), [services]);
   const q = query.trim().toLowerCase();
-  const shown = q ? nursing.filter((s) => `${s.displayName} ${s.name} ${s.shortDescription || ''}`.toLowerCase().includes(q)) : nursing;
-  const service = nursing.find((s) => s.serviceType === selected) || null;
+  const matches = q ? nursing.filter((s) => `${s.displayName} ${s.name} ${s.shortDescription || ''}`.toLowerCase().includes(q)) : nursing;
+  // Two rows of four: seven services + "See all" when there are more.
+  const hasMore = !q && matches.length > GRID_MAX;
+  const gridItems = hasMore ? matches.slice(0, GRID_MAX - 1) : matches;
   const upcoming = visits.find((v) => ACTIVE.includes(v.status));
   const again = useMemo(() => {
     const seen = new Set<string>();
     return visits.filter((v) => v.status === 'COMPLETED' && !seen.has(v.serviceType) && seen.add(v.serviceType))
-      .map((v) => nursing.find((s) => s.serviceType === v.serviceType)).filter(Boolean).slice(0, 4) as CareService[];
+      .map((v) => nursing.find((s) => s.serviceType === v.serviceType)).filter(Boolean).slice(0, 3) as CareService[];
   }, [visits, nursing]);
-  // Book now only makes sense when someone is online.
-  const effectiveMode: Mode = nearby.count ? mode : 'SCHEDULED';
 
-  function book(s: CareService | null = service, m: Mode = effectiveMode) {
-    if (!s || !point) return;
+  function book(s: CareService, m: Mode) {
+    if (!point) return;
+    setPicked(null);
+    setAllOpen(false);
     router.push({ pathname: '/book', params: { serviceType: s.serviceType, lat: String(point.lat), lng: String(point.lng), area, mode: s.category === 'PACKAGE' ? 'SCHEDULED' : m } });
   }
+  // Packages are always planned ahead; single services ask "now or later?" first.
+  const pick = (s: CareService) => { setAllOpen(false); if (s.category === 'PACKAGE') book(s, 'SCHEDULED'); else setPicked(s); };
+  const openMap = () => { if (point) router.push({ pathname: '/map', params: { lat: String(point.lat), lng: String(point.lng), area } }); };
 
   function onBanner(b: HomeBanner) {
     if (b.action === 'plus') router.push('/account');
     else if (b.action === 'pharmacy') router.push('/pharmacy');
-    else if (b.action === 'book') book();
+    else if (b.action === 'book' && nursing[0]) pick(nursing[0]);
   }
 
   const first = session?.name?.split(' ')[0];
+  const liveLine = nearby.count
+    ? `${t('home.online', { n: nearby.count })}${nearby.nearestKm !== null ? ` · nearest ${nearby.nearestKm} km` : ''}`
+    : t('home.offline');
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <View style={[styles.mapWrap, { height: MAP_H + 40 }]}>
-        <LiveMap center={point} pins={pins} dark={IS_DARK} onPinPress={onPin} />
-        {legend.length > 1 ? (
-          <View style={styles.legend} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            {legend.map((k) => (
-              <View key={k} style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: PIN_LOOK[k].color }]} /><Text style={styles.legendText}>{PIN_LOOK[k].label}</Text></View>
-            ))}
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 18, paddingBottom: tabSpace }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* Where: the address first, like every delivery app; the map is one tap away */}
+        <View style={styles.header}>
+          <Pressable onPress={chooseArea} style={styles.where} accessibilityRole="button" accessibilityLabel={`Care at ${area}. Change location`}>
+            <View style={styles.dot} />
+            <View style={{ flex: 1 }}>
+              <Text style={ui.muted} numberOfLines={1}>{first ? `${t('home.hi', { name: first })} · ` : ''}{source === 'live' ? t('home.live') : t('home.careAt')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={[ui.h3, { flexShrink: 1 }]} numberOfLines={1}>{area}</Text>
+                {DEMO_AREA_ENABLED ? <ChevronDown size={16} color={C.ink} /> : null}
+              </View>
+            </View>
+            {demoArea ? <View style={styles.demoPill}><Text style={styles.demoPillText}>DEMO</Text></View> : null}
+          </Pressable>
+          <PressScale onPress={openMap} style={styles.mapBtn} accessibilityRole="button" accessibilityLabel="See professionals, clinics and pharmacies on the map">
+            <MapIcon size={22} color={C.brand} />
+          </PressScale>
+        </View>
+
+        <View style={styles.searchBox}>
+          <Search size={18} color={C.muted} />
+          <TextInput value={query} onChangeText={setQuery} placeholder={t('home.search')} placeholderTextColor={C.muted} style={styles.searchInput} accessibilityLabel="Search services" returnKeyType="search" />
+          {query ? <Pressable hitSlop={10} onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search"><X size={16} color={C.muted} /></Pressable> : null}
+        </View>
+
+        <Pressable onPress={openMap} style={[styles.live, nearby.count ? { backgroundColor: C.mintSoft } : null]} accessibilityRole="button" accessibilityLabel={`${liveLine}. Open the map`}>
+          <Radio size={14} color={nearby.count ? C.mint : C.muted} />
+          <Text style={[styles.liveText, nearby.count ? { color: C.mint } : null]} numberOfLines={2}>{liveLine}</Text>
+          <Text style={[styles.liveLink, nearby.count ? { color: C.mint } : null]}>Map</Text>
+          <ChevronRight size={14} color={nearby.count ? C.mint : C.muted} />
+        </Pressable>
+
+        {easySuggest && (
+          <Rise delay={40}>
+            <View style={styles.easyOffer}>
+              <Text style={ui.h3}>Prefer bigger buttons and fewer choices?</Text>
+              <Text style={ui.muted}>Easy mode shows a simple home with large text. You can switch back any time in Account.</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                <PressScale style={[ui.btn, { flex: 1, paddingVertical: 12 }]} onPress={() => setEasy(true)}><Text style={ui.btnText}>Turn On Easy Mode</Text></PressScale>
+                <PressScale style={[ui.btnOutline, { paddingHorizontal: 18, paddingVertical: 12 }]} onPress={dismissSuggestion}><Text style={ui.btnOutlineText}>No Thanks</Text></PressScale>
+              </View>
+            </View>
+          </Rise>
+        )}
+
+        {upcoming && (
+          <Rise delay={60}>
+            <PressScale style={styles.upcoming} onPress={() => router.push({ pathname: '/track', params: { id: upcoming._id } })}>
+              <IconTile icon={serviceIcon(upcoming.serviceType)} bg="rgba(255,255,255,0.1)" color={C.onNight} size={46} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.upLabel}>{t('home.upcoming').toUpperCase()} · {STATUS_LINE[upcoming.status] || upcoming.status}</Text>
+                <Text style={styles.upTitle}>{upcoming.serviceType.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}</Text>
+                {typeof upcoming.serviceProvider === 'object' && upcoming.serviceProvider?.name ? <Text style={styles.upSub}>{upcoming.serviceProvider.name} is coming</Text> : null}
+                <Text style={styles.upSub}>{upcoming.dispatch?.mode === 'ASAP' ? 'Now' : `${String(upcoming.scheduledDate).slice(0, 10)} · ${upcoming.scheduledTime}`}</Text>
+              </View>
+              <View style={styles.upBtn}><Text style={styles.upBtnText}>{t('home.track')}</Text></View>
+            </PressScale>
+          </Rise>
+        )}
+
+        {error && <Text style={[ui.error, { marginTop: 12 }]}>{error}</Text>}
+
+        {!demoArea && live.source !== 'fallback' && storesChecked && stores.length === 0 && (
+          <PressScale style={styles.outside} onPress={chooseArea} disabled={!DEMO_AREA_ENABLED}>
+            <MapPinIcon size={20} color={C.amber} />
+            <View style={{ flex: 1 }}>
+              <Text style={ui.h3}>Nabz isn’t in your area yet</Text>
+              <Text style={ui.muted}>{DEMO_AREA_ENABLED ? 'We’re live in Jaipur. Tap to try the app in the Jaipur demo area.' : 'We’re live in Jaipur and coming to more cities soon.'}</Text>
+            </View>
+          </PressScale>
+        )}
+
+        {/* Home nursing: everything visible at once, two rows of four */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle} numberOfLines={1}>{q ? `Results for “${query.trim()}”` : 'Nurse at home'}</Text>
+          {!q && nursing.length > 0 ? <Pressable onPress={() => setAllOpen(true)} hitSlop={10} accessibilityRole="button"><Text style={styles.sectionLink}>See all</Text></Pressable> : null}
+        </View>
+        {services === null ? (
+          <View style={styles.grid}>
+            {Array.from({ length: GRID_MAX }).map((_, i) => <View key={i} style={styles.cell}><Skeleton width={64} height={64} radius={20} /><Skeleton width={54} height={10} radius={5} /></View>)}
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {gridItems.map((s) => <ServiceTile key={s.serviceType} service={s} onPress={() => pick(s)} />)}
+            {hasMore ? (
+              <Pressable onPress={() => setAllOpen(true)} style={styles.cell} accessibilityRole="button" accessibilityLabel={`See all ${nursing.length} services`}>
+                <View style={[styles.tile, { backgroundColor: C.cardAlt }]}><LayoutGrid size={26} color={C.inkSoft} /></View>
+                <Text style={styles.tileText}>See all</Text>
+              </Pressable>
+            ) : null}
+            {q && matches.length === 0 ? <Text style={[ui.muted, { padding: 8 }]}>No service matches “{query.trim()}”.</Text> : null}
+          </View>
+        )}
+
+        {/* The rest of Nabz: one big tile each (like Instamart / Dineout) */}
+        <View style={styles.more}>
+          <MoreTile icon={Pill} title="Pharmacy" sub="Medicines in 30 min" tone={C.mintSoft} fg={C.mint} onPress={() => router.push('/pharmacy')} />
+          <MoreTile icon={FlaskConical} title="Lab tests" sub="Sample from home" tone={C.skySoft} fg={C.sky} onPress={() => router.push('/labs')} />
+          <MoreTile icon={Activity} title="Physio & care" sub="Compare near you" tone={C.violetSoft} fg={C.violet} onPress={() => router.push('/care')} />
+        </View>
+
+        {/* Offers (server sends only offers that are actually live) */}
+        {feed?.banners?.length ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={292} decelerationRate="fast" style={{ marginHorizontal: -18 }} contentContainerStyle={{ gap: 12, paddingTop: 22, paddingHorizontal: 18 }}>
+            {feed.banners.map((b) => {
+              const look = BANNER_LOOK[b.kind] || BANNER_LOOK.TRUST;
+              return (
+                <PressScale key={b.id} style={[styles.banner, { backgroundColor: look.bg }]} onPress={() => onBanner(b)}>
+                  <look.icon size={22} color={look.fg} />
+                  <Text style={[styles.bannerTitle, { color: look.ink }]}>{b.title}</Text>
+                  <Text style={[styles.bannerSub, { color: look.ink, opacity: 0.75 }]} numberOfLines={2}>{b.subtitle}</Text>
+                  <View style={styles.bannerCta}>
+                    <Text style={[styles.bannerCtaText, { color: look.ink }]}>{b.cta}</Text>
+                    <ChevronRight size={14} color={look.ink} />
+                  </View>
+                </PressScale>
+              );
+            })}
+          </ScrollView>
+        ) : null}
+
+        {session?.kind === 'patient' && <UpdatesFeed audience="customer" />}
+
+        {again.length > 0 && (
+          <>
+            <Text style={[styles.sectionTitle, { marginTop: 22, marginBottom: 10 }]}>{t('home.bookAgain')}</Text>
+            <View style={{ gap: 8 }}>
+              {again.map((s) => (
+                <PressScale key={s.serviceType} style={styles.row} onPress={() => pick(s)}>
+                  <IconTile icon={serviceIcon(s.serviceType)} size={40} />
+                  <Text style={[ui.h3, { flex: 1 }]}>{s.displayName || s.name}</Text>
+                  <RotateCcw size={16} color={C.muted} />
+                </PressScale>
+              ))}
+            </View>
+          </>
+        )}
+        <View style={{ height: 16 }} />
+      </ScrollView>
+
+      {/* Step 1 of booking: now or later? */}
+      <BottomSheet visible={!!picked} onClose={() => setPicked(null)} title={picked ? (picked.displayName || picked.name) : ''}>
+        {picked ? (
+          <View style={{ gap: 10 }}>
+            <Text style={ui.muted}>
+              {picked.serviceDetails?.duration ? `${picked.serviceDetails.duration} min · ` : ''}
+              {money(picked.pricingPreview?.regular.totalAmount ?? picked.pricing.basePrice)} incl. fee & GST
+            </Text>
+            <WhenOption icon={Zap} title={t('home.bookNow')} disabled={!nearby.count}
+              sub={nearby.count ? `Nearest professional${nearby.nearestKm !== null ? ` is ${nearby.nearestKm} km away` : ' is online'}` : 'No one is online nearby right now'}
+              onPress={() => book(picked, 'ASAP')} />
+            <WhenOption icon={CalendarClock} title="Pick a time" sub="Choose a day and time that suits you" onPress={() => book(picked, 'SCHEDULED')} />
           </View>
         ) : null}
-      </View>
+      </BottomSheet>
 
-      <Pressable onPress={chooseArea} style={[styles.where, { top: insets.top + 10 }]} accessibilityRole="button" accessibilityLabel="Change location">
-        <View style={styles.dot} />
-        <View style={{ flex: 1 }}>
-          <Text style={ui.muted} numberOfLines={1}>
-            {first ? `${t('home.hi', { name: first })} · ` : ''}{source === 'live' ? t('home.live') : t('home.careAt')}
-          </Text>
-          <Text style={ui.h3} numberOfLines={1}>{area}</Text>
-        </View>
-        {demoArea ? <View style={styles.demoPill}><Text style={styles.demoPillText}>DEMO</Text></View> : <Navigation size={18} color={C.brand} fill={C.brand} />}
-      </Pressable>
-
-      <ScrollView style={StyleSheet.absoluteFill} contentContainerStyle={{ paddingTop: MAP_H, paddingBottom: tabSpace }} showsVerticalScrollIndicator={false}>
-        <View style={styles.sheet}>
-          <View style={styles.grabber} />
-          <Rise>
-            <Text style={styles.title}>{upcoming ? 'Care, on its way.' : 'Care, in minutes.'}</Text>
-            <View style={styles.searchBox}>
-              <Search size={18} color={C.muted} />
-              <TextInput value={query} onChangeText={setQuery} placeholder={t('home.search')} placeholderTextColor={C.muted} style={styles.searchInput} />
-              {query ? <Pressable hitSlop={10} onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search"><X size={16} color={C.muted} /></Pressable> : null}
-            </View>
-            <View style={[styles.chip, nearby.count ? { backgroundColor: C.mintSoft } : null]}>
-              <Radio size={13} color={nearby.count ? C.mint : C.muted} />
-              <Text style={[styles.chipText, nearby.count ? { color: C.mint } : null]} numberOfLines={2}>
-                {nearby.count
-                  ? `${t('home.online', { n: nearby.count })}${nearby.nearestKm !== null ? ` · nearest ${nearby.nearestKm} km` : ''}`
-                  : t('home.offline')}
-              </Text>
-            </View>
-          </Rise>
-
-          {easySuggest && (
-            <Rise delay={40}>
-              <View style={styles.easyOffer}>
-                <Text style={ui.h3}>Prefer bigger buttons and fewer choices?</Text>
-                <Text style={ui.muted}>Easy mode shows a simple home with large text. You can switch back any time in Account.</Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
-                  <PressScale style={[ui.btn, { flex: 1, paddingVertical: 12 }]} onPress={() => setEasy(true)}><Text style={ui.btnText}>Turn On Easy Mode</Text></PressScale>
-                  <PressScale style={[ui.btnOutline, { paddingHorizontal: 18, paddingVertical: 12 }]} onPress={dismissSuggestion}><Text style={ui.btnOutlineText}>No Thanks</Text></PressScale>
-                </View>
-              </View>
-            </Rise>
-          )}
-
-          {upcoming && (
-            <Rise delay={60}>
-              <PressScale style={styles.upcoming} onPress={() => router.push({ pathname: '/track', params: { id: upcoming._id } })}>
-                <IconTile icon={serviceIcon(upcoming.serviceType)} bg="rgba(255,255,255,0.1)" color={C.onNight} size={46} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.upLabel}>{t('home.upcoming').toUpperCase()} · {STATUS_LINE[upcoming.status] || upcoming.status}</Text>
-                  <Text style={styles.upTitle}>{upcoming.serviceType.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}</Text>
-                  {typeof upcoming.serviceProvider === 'object' && upcoming.serviceProvider?.name ? <Text style={styles.upSub}>{upcoming.serviceProvider.name} is coming</Text> : null}
-                  <Text style={styles.upSub}>{upcoming.dispatch?.mode === 'ASAP' ? 'Now' : `${String(upcoming.scheduledDate).slice(0, 10)} · ${upcoming.scheduledTime}`}</Text>
-                </View>
-                <View style={styles.upBtn}><Text style={styles.upBtnText}>{t('home.track')}</Text></View>
-              </PressScale>
-            </Rise>
-          )}
-
-          {error && <Text style={[ui.error, { marginTop: 12 }]}>{error}</Text>}
-
-
-          {!demoArea && live.source !== 'fallback' && storesChecked && stores.length === 0 && (
-            <PressScale style={styles.outside} onPress={chooseArea} disabled={!DEMO_AREA_ENABLED}>
-              <MapPinIcon size={20} color={C.amber} />
-              <View style={{ flex: 1 }}>
-                <Text style={ui.h3}>Nabz isn’t in your area yet</Text>
-                <Text style={ui.muted}>{DEMO_AREA_ENABLED ? 'We’re live in Jaipur. Tap to try the app in the Jaipur demo area.' : 'We’re live in Jaipur and coming to more cities soon.'}</Text>
-              </View>
-            </PressScale>
-          )}
-
-          {/* Book a professional: one grouped card (when, what, price, action) */}
-          <View style={styles.bookCard}>
-            <View style={styles.segment}>
-              {(['ASAP', 'SCHEDULED'] as Mode[]).map((m) => {
-                const disabled = m === 'ASAP' && !nearby.count;
-                const on = effectiveMode === m;
-                return (
-                  <Pressable key={m} disabled={disabled} onPress={() => setMode(m)} style={[styles.segBtn, on && styles.segOn, disabled && { opacity: 0.45 }]}
-                    accessibilityRole="radio" accessibilityState={{ checked: on, disabled }}>
-                    <Text style={[styles.segText, on && { color: '#ffffff' }]}>{m === 'ASAP' ? t('home.bookNow') : t('home.schedule')}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {services === null ? (
-              <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 14 }}>
-                {[0, 1, 2, 3].map((i) => <Skeleton key={i} width={64} height={84} radius={20} />)}
-              </View>
-            ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 14, paddingHorizontal: 14 }} style={{ marginHorizontal: -14 }}>
-                {shown.map((s) => {
-                  const on = s.serviceType === selected;
-                  const Icon = serviceIcon(s.serviceType);
-                  return (
-                    <Pressable key={s.serviceType} onPress={() => setSelected(s.serviceType)} style={styles.cat} accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={shortName(s)}>
-                      <View style={[styles.catTile, on && styles.catTileOn]}>
-                        <Icon size={24} color={on ? '#ffffff' : C.brand} strokeWidth={on ? 2.2 : 1.9} />
-                      </View>
-                      <Text style={[styles.catText, on && { color: C.ink }]} numberOfLines={2}>{shortName(s)}</Text>
-                    </Pressable>
-                  );
-                })}
-                {shown.length === 0 && <Text style={ui.muted}>No service matches {query}.</Text>}
-              </ScrollView>
-            )}
-
-            {service && (
-              <View style={styles.summary}>
-                <View style={{ flex: 1 }}>
-                  <Text style={ui.h3}>{service.displayName || service.name}</Text>
-                  <Text style={ui.muted}>
-                    {service.serviceDetails?.duration ? `${service.serviceDetails.duration} min · ` : ''}
-                    {service.supplies?.length ? 'Supplies can be brought' : 'Brings own kit'}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.price}>{money(service.pricingPreview?.regular.totalAmount ?? service.pricing.basePrice)}</Text>
-                  <Text style={styles.priceNote}>incl. fee & GST</Text>
-                </View>
-              </View>
-            )}
-
-            <PressScale style={[ui.btn, { marginTop: 12 }, (!service || !point) && { opacity: 0.5 }]} disabled={!service || !point} onPress={() => book()}>
-              <Text style={ui.btnText}>
-                {service ? (effectiveMode === 'ASAP' ? `${t('home.bookNow')} · ${shortName(service)}` : `${t('home.schedule')} · ${shortName(service)}`) : 'Book'}
-              </Text>
-            </PressScale>
-          </View>
-
-          {/* Care marketplace: physio, home care and labs, compared */}
-          <Rise delay={90}>
-            <PressScale style={styles.carePromo} onPress={() => router.push('/care')} accessibilityRole="button" accessibilityLabel="Physio, home care and lab tests">
-              <WineGradient radius={24} />
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={styles.careEyebrow}>NEW · NABZ CARE</Text>
-                <Text style={styles.careTitle}>Physio, home care and lab tests</Text>
-                <Text style={styles.careSub}>Compare prices near you. Book one visit or a full plan.</Text>
-              </View>
-              <CareArt kind="heart" size={96} style={{ marginRight: -8, marginVertical: -10 }} />
-            </PressScale>
-          </Rise>
-
-          {session?.kind === 'patient' && <UpdatesFeed audience="customer" />}
-
-          {/* Care at home: photo cards that open the matching service */}
-          <Text style={ui.section}>Care at home</Text>
-          <CareMoments
-            available={(type) => !!services?.some((x) => x.serviceType === type)}
-            onPick={(type) => {
-              const s = services?.find((x) => x.serviceType === type);
-              if (!s) return;
-              setSelected(type);
-              book(s, effectiveMode);
-            }}
-          />
-
-          {/* Offers (server sends only offers that are actually live) */}
-          {feed?.banners?.length ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={292} decelerationRate="fast" contentContainerStyle={{ gap: 12, paddingTop: 22 }}>
-              {feed.banners.map((b) => {
-                const look = BANNER_LOOK[b.kind] || BANNER_LOOK.TRUST;
-                return (
-                  <PressScale key={b.id} style={[styles.banner, { backgroundColor: look.bg }]} onPress={() => onBanner(b)}>
-                    <look.icon size={22} color={look.fg} />
-                    <Text style={[styles.bannerTitle, { color: look.ink }]}>{b.title}</Text>
-                    <Text style={[styles.bannerSub, { color: look.ink, opacity: 0.75 }]} numberOfLines={2}>{b.subtitle}</Text>
-                    <View style={styles.bannerCta}>
-                      <Text style={[styles.bannerCtaText, { color: look.ink }]}>{b.cta}</Text>
-                      <ChevronRight size={14} color={look.ink} />
-                    </View>
-                  </PressScale>
-                );
-              })}
-            </ScrollView>
-          ) : null}
-
-          {again.length > 0 && (
+      {/* Every service, grouped */}
+      <BottomSheet visible={allOpen} onClose={() => setAllOpen(false)} title="All services">
+        <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.62 }} contentContainerStyle={{ gap: 6 }}>
+          <Text style={styles.sheetGroup}>Nurse at home</Text>
+          <View style={styles.grid}>{nursing.map((s) => <ServiceTile key={s.serviceType} service={s} onPress={() => pick(s)} />)}</View>
+          {packages.length ? (
             <>
-              <Text style={ui.section}>{t('home.bookAgain')}</Text>
-              <View style={{ gap: 8 }}>
-                {again.map((s) => (
-                  <PressScale key={s.serviceType} style={styles.row} onPress={() => book(s, effectiveMode)}>
-                    <IconTile icon={serviceIcon(s.serviceType)} size={40} />
-                    <Text style={[ui.h3, { flex: 1 }]}>{s.displayName || s.name}</Text>
-                    <RotateCcw size={16} color={C.muted} />
-                  </PressScale>
-                ))}
-              </View>
-            </>
-          )}
-
-          {feed?.packages?.length ? (
-            <>
-              <Text style={ui.section}>{t('home.packages')}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-                {feed.packages.map((p) => (
-                  <PressScale key={p.serviceType} style={styles.pack} onPress={() => book(p, 'SCHEDULED')}>
-                    <IconTile icon={serviceIcon(p.serviceType)} size={42} />
-                    <Text style={ui.h3} numberOfLines={2}>{p.displayName || p.name}</Text>
-                    {p.shortDescription ? <Text style={ui.muted} numberOfLines={2}>{p.shortDescription}</Text> : null}
-                    <Text style={styles.price}>{money(p.pricing.basePrice)}</Text>
-                  </PressScale>
-                ))}
-              </ScrollView>
+              <Text style={styles.sheetGroup}>{t('home.packages')}</Text>
+              <View style={styles.grid}>{packages.map((s) => <ServiceTile key={s.serviceType} service={s} onPress={() => pick(s)} />)}</View>
             </>
           ) : null}
-
-          {feed?.popular?.length ? (
-            <>
-              <Text style={ui.section}>{t('home.popular')}</Text>
-              <View style={{ gap: 8 }}>
-                {feed.popular.slice(0, 5).map((s) => (
-                  <PressScale key={s.serviceType} style={styles.row} onPress={() => { setSelected(s.serviceType); book(s, effectiveMode); }}>
-                    <IconTile icon={serviceIcon(s.serviceType)} size={40} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={ui.h3}>{s.displayName || s.name}</Text>
-                      {s.serviceDetails?.duration ? <Text style={ui.muted}>{s.serviceDetails.duration} min</Text> : null}
-                    </View>
-                    <Text style={styles.priceSmall}>{money(s.pricing.basePrice)}</Text>
-                  </PressScale>
-                ))}
-              </View>
-            </>
-          ) : null}
-
-          {stores.length > 0 && (
-            <View style={[styles.row, { marginTop: 18 }]}>
-              <IconTile icon={Store} bg={C.mintSoft} color={C.mint} size={40} />
-              <Text style={[ui.muted, { flex: 1 }]}>{stores.length} partner pharmacies near you supply your nurse.</Text>
-            </View>
-          )}
-          <View style={{ height: 24 }} />
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </BottomSheet>
     </View>
   );
 }
 
+function ServiceTile({ service, onPress }: { service: CareService; onPress: () => void }) {
+  const Icon = serviceIcon(service.serviceType);
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.cell, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]} accessibilityRole="button" accessibilityLabel={service.displayName || service.name}>
+      <View style={styles.tile}><Icon size={28} color={C.brand} strokeWidth={1.9} /></View>
+      <Text style={styles.tileText} numberOfLines={2}>{shortName(service)}</Text>
+    </Pressable>
+  );
+}
+
+function MoreTile({ icon: Icon, title, sub, tone, fg, onPress }: { icon: LucideIcon; title: string; sub: string; tone: string; fg: string; onPress: () => void }) {
+  return (
+    <PressScale style={[styles.moreTile, { backgroundColor: tone }]} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${title}. ${sub}`}>
+      <Icon size={26} color={fg} />
+      <Text style={styles.moreTitle} numberOfLines={2}>{title}</Text>
+      <Text style={styles.moreSub} numberOfLines={2}>{sub}</Text>
+    </PressScale>
+  );
+}
+
+function WhenOption({ icon: Icon, title, sub, onPress, disabled }: { icon: LucideIcon; title: string; sub: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }} accessibilityLabel={`${title}. ${sub}`}
+      style={({ pressed }) => [styles.when, disabled && { opacity: 0.5 }, pressed && { transform: [{ scale: 0.99 }], borderColor: C.brand }]}>
+      <View style={styles.whenIcon}><Icon size={22} color={C.brand} /></View>
+      <View style={{ flex: 1 }}>
+        <Text style={ui.h3}>{title}</Text>
+        <Text style={ui.muted}>{sub}</Text>
+      </View>
+      <ChevronRight size={20} color={C.muted} />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  legend: { position: 'absolute', left: 12, bottom: 52, flexDirection: 'row', flexWrap: 'wrap', gap: 6, maxWidth: '92%' },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.card, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5, ...shadow },
-  legendDot: { width: 9, height: 9, borderRadius: 5 },
-  legendText: { fontFamily: F.bold, fontSize: 11, color: C.ink },
-  easyOffer: { backgroundColor: C.card, borderRadius: 22, padding: 16, gap: 4, marginTop: 14, borderWidth: 1.5, borderColor: C.brandSoft },
-  carePromo: { marginTop: 16, borderRadius: 24, padding: 16, paddingRight: 8, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', backgroundColor: C.night },
-  careEyebrow: { color: '#ffd3da', fontFamily: F.heavy, fontSize: 10, letterSpacing: 1.2 },
-  careTitle: { color: '#ffffff', fontFamily: F.display, fontSize: 18, lineHeight: 22 },
-  careSub: { color: '#ffd3da', fontFamily: F.medium, fontSize: 12, lineHeight: 17 },
-  mapWrap: { position: 'absolute', top: 0, left: 0, right: 0 },
-  where: {
-    position: 'absolute', left: 16, right: 16, zIndex: 5, flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: C.card, borderRadius: 18, padding: 14, ...shadow, elevation: 8
-  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  where: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
+  mapBtn: { width: 50, height: 50, borderRadius: 16, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...clay },
   dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: C.brand, borderWidth: 3, borderColor: C.brandSoft },
   demoPill: { backgroundColor: C.amberSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   demoPillText: { color: C.amber, fontFamily: F.heavy, fontSize: 10, letterSpacing: 1 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: 16, paddingHorizontal: 14, marginTop: 12, minHeight: 50, borderWidth: 1, borderColor: C.border },
+  searchInput: { flex: 1, paddingVertical: 12, fontFamily: F.medium, fontSize: 15, color: C.ink },
+  live: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, backgroundColor: C.cardAlt, minHeight: 44 },
+  liveText: { flex: 1, fontFamily: F.semi, fontSize: 13, color: C.muted },
+  liveLink: { fontFamily: F.bold, fontSize: 13, color: C.muted },
+  easyOffer: { backgroundColor: C.card, borderRadius: 22, padding: 16, gap: 4, marginTop: 14, borderWidth: 1.5, borderColor: C.brandSoft },
   outside: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.amberSoft, borderRadius: 18, padding: 14, marginTop: 14 },
-  sheet: {
-    backgroundColor: C.bg, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 18, paddingTop: 10,
-    minHeight: Dimensions.get('window').height - MAP_H, ...shadow, elevation: 20
-  },
-  grabber: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: C.border, marginBottom: 12 },
-  title: { fontFamily: F.display, fontSize: 30, color: C.ink, letterSpacing: -0.8 },
-  searchBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: 16, paddingHorizontal: 14,
-    marginTop: 12, borderWidth: 1, borderColor: C.border
-  },
-  searchInput: { flex: 1, paddingVertical: 12, fontFamily: F.medium, fontSize: 14, color: C.ink },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingHorizontal: 4, maxWidth: '100%' },
-  chipText: { fontFamily: F.semi, fontSize: 12, color: C.muted, flexShrink: 1 },
   upcoming: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.night, borderRadius: 22, padding: 14, marginTop: 14 },
   upLabel: { color: C.gold, fontFamily: F.heavy, fontSize: 10, letterSpacing: 1 },
   upTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 15, marginTop: 2 },
   upSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 12 },
   upBtn: { backgroundColor: C.onNight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
   upBtnText: { color: '#2a2523', fontFamily: F.heavy, fontSize: 12 },
-  bookCard: { backgroundColor: C.card, borderRadius: 24, padding: 14, marginTop: 16, ...clay },
-  segment: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 999, padding: 4 },
-  segBtn: { flex: 1, paddingVertical: 11, borderRadius: 999, alignItems: 'center' },
-  segOn: { backgroundColor: C.brand },
-  segText: { fontFamily: F.bold, color: C.muted, fontSize: 13 },
-  cat: { width: 72, alignItems: 'center', gap: 6 },
-  catTile: { width: 58, height: 58, borderRadius: 20, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
-  catTileOn: { backgroundColor: C.brand, boxShadow: '0 8px 16px -8px rgba(194,31,61,0.6)' },
-  catText: { fontSize: 11, lineHeight: 14, fontFamily: F.bold, color: C.muted, textAlign: 'center' },
-  summary: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.cardAlt, borderRadius: 18, padding: 14 },
-  price: { fontFamily: F.display, color: C.ink, fontSize: 19 },
-  priceSmall: { fontFamily: F.bold, color: C.ink, fontSize: 14 },
-  priceNote: { fontFamily: F.medium, color: C.muted, fontSize: 10 },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 22, marginBottom: 6 },
+  sectionTitle: { flexShrink: 1, fontFamily: F.display, fontSize: 20, color: C.ink, letterSpacing: -0.3 },
+  sectionLink: { fontFamily: F.bold, fontSize: 14, color: C.brand },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
+  cell: { width: '25%', alignItems: 'center', gap: 7, paddingVertical: 8, paddingHorizontal: 4, minHeight: 112 },
+  tile: { width: 64, height: 64, borderRadius: 20, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
+  tileText: { fontSize: 12.5, lineHeight: 16, fontFamily: F.bold, color: C.ink, textAlign: 'center' },
+  more: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  moreTile: { flex: 1, borderRadius: 20, padding: 12, gap: 4, minHeight: 112 },
+  moreTitle: { fontFamily: F.display, fontSize: 15, lineHeight: 19, color: C.ink, marginTop: 4 },
+  moreSub: { fontFamily: F.medium, fontSize: 12, lineHeight: 16, color: C.inkSoft },
+  when: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 18, padding: 14, minHeight: 72, borderWidth: 1.5, borderColor: C.border },
+  whenIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
+  sheetGroup: { fontFamily: F.bold, fontSize: 14, color: C.inkSoft, marginTop: 6 },
   banner: { width: 280, borderRadius: 22, padding: 16, gap: 6, minHeight: 150 },
   bannerTitle: { fontFamily: F.display, fontSize: 24, lineHeight: 27, marginTop: 4 },
   bannerSub: { fontFamily: F.medium, fontSize: 12, lineHeight: 17 },
   bannerCta: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 'auto' },
   bannerCtaText: { fontFamily: F.heavy, fontSize: 12 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: C.border },
-  pack: { width: 190, backgroundColor: C.card, borderRadius: 20, padding: 14, gap: 6, borderWidth: 1, borderColor: C.border }
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: C.border }
 });

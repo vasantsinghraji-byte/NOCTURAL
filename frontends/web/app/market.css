@@ -221,3 +221,22 @@
   .mk-art .ecg { stroke-dashoffset: 0; }
   .mk-btn, .mk-card-link, .mk-icon-btn { transition: none; }
 }
+
+/* ── Home service grid (same layout as the app: 4 across, 8 on wide screens) ── */
+.svc-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 8px; }
+@media (min-width: 760px) { .svc-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+.svc-tile {
+  display: grid; justify-items: center; align-content: start; gap: 8px; padding: 8px 4px; min-height: 108px; border: 0; background: none; cursor: pointer;
+  text-decoration: none; color: var(--ink); font: 700 13px/1.25 var(--font-sans); text-align: center; border-radius: 18px; transition: transform .15s ease;
+}
+.svc-tile .ic { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; background: var(--accent-soft); color: var(--night); transition: transform .15s ease; }
+.svc-tile:hover .ic { transform: translateY(-2px); }
+.svc-tile:active { transform: scale(.97); }
+.svc-tile:focus-visible { outline: 3px solid #ff8da0; outline-offset: 2px; }
+.svc-more { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.svc-more-tile { display: grid; gap: 4px; align-content: start; padding: 14px; min-height: 112px; border-radius: 20px; text-decoration: none; color: var(--ink); transition: transform .15s ease; }
+.svc-more-tile b { font-family: var(--font-display); font-size: 16px; margin-top: 4px; }
+.svc-more-tile span { font-size: 12.5px; color: var(--ink-soft); }
+.svc-more-tile:hover { transform: translateY(-2px); }
+.svc-more-tile:focus-visible { outline: 3px solid #ff8da0; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .svc-tile, .svc-tile .ic, .svc-more-tile { transition: none; } }
