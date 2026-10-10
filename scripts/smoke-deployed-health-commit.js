@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-const DEFAULT_BASE_URL = 'https://nocturnal-api.onrender.com';
-
-const baseUrl = (process.env.DEPLOYED_BASE_URL ||
-  process.env.RENDER_SMOKE_BASE_URL ||
-  DEFAULT_BASE_URL).replace(/\/+$/, '');
+if (!process.env.DEPLOYED_BASE_URL) {
+  console.error('Set DEPLOYED_BASE_URL (e.g. https://<api host>) to smoke-test a deployment.');
+  process.exit(2);
+}
+const baseUrl = process.env.DEPLOYED_BASE_URL.replace(/\/+$/, '');
 const expectedCommit = (process.env.EXPECTED_DEPLOYMENT_COMMIT || process.argv[2] || '').trim();
 
 const sleep = (ms) => new Promise((resolve) => {

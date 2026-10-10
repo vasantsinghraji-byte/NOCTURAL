@@ -3,6 +3,7 @@ const path = require('path');
 const Patient = require('../models/patient');
 const User = require('../models/user');
 const InvestigationReport = require('../models/investigationReport');
+const PharmacyOrder = require('../models/pharmacyOrder');
 const storageConfig = require('../config/storage');
 
 const walk = async directory => {
@@ -16,10 +17,11 @@ const walk = async directory => {
 };
 
 async function findOrphanedUploads() {
-  const [users, patients, reports] = await Promise.all([
+  const [users, patients, reports, pharmacyOrders] = await Promise.all([
     User.find({}).select('profilePhoto documents').lean(),
     Patient.find({}).select('profilePhoto').lean(),
-    InvestigationReport.find({}).select('files').lean()
+    InvestigationReport.find({}).select('files').lean(),
+    PharmacyOrder.find({ 'prescription.key': { $exists: true } }).select('prescription.key').lean()
   ]);
   const referenced = new Set();
   const add = value => { if (value) referenced.add(String(value).replace(/\\/g, '/')); };
@@ -32,10 +34,11 @@ async function findOrphanedUploads() {
   });
   patients.forEach(patient => add(patient.profilePhoto?.publicId));
   reports.forEach(report => (report.files || []).forEach(file => add(file.publicId)));
+  pharmacyOrders.forEach(order => add(order.prescription?.key));
 
-  if (storageConfig.USE_GCS && storageConfig.gcsBucket) {
-    const [files] = await storageConfig.gcsBucket.getFiles();
-    return files.map(file => file.name).filter(key => !referenced.has(key));
+  const cloudKeys = await storageConfig.listObjectKeys();
+  if (cloudKeys) {
+    return cloudKeys.filter(key => !referenced.has(key));
   }
   const root = path.resolve(__dirname, '../uploads');
   const keys = (await walk(root)).map(file => path.relative(root, file).replace(/\\/g, '/'));

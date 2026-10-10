@@ -10,6 +10,7 @@ const { SUCCESS_MESSAGE } = require('../constants');
 const responseHelper = require('../utils/responseHelper');
 const { setAuthCookies, clearAuthCookies } = require('../utils/authCookies');
 const refreshSessionService = require('../services/refreshSessionService');
+const accountDeletionService = require('../services/accountDeletionService');
 const { addMobileTokens } = require('../utils/mobileAuth');
 const securityAuditService = require('../services/securityAuditService');
 const { getRequestSecurityMetadata } = require('../utils/requestSecurityMetadata');
@@ -287,6 +288,21 @@ exports.revokeSession = async (req, res, next) => {
       req
     });
     responseHelper.sendSuccess(res, {}, 'Session revoked');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+/**
+ * @desc    Delete my account (anonymise personal data, keep legal records)
+ * @route   DELETE /api/v1/patients/me   body: { confirm: 'DELETE' }
+ */
+exports.deleteMe = async (req, res, next) => {
+  try {
+    await accountDeletionService.deletePatientAccount(req.user.id);
+    clearAuthCookies(res);
+    await securityAuditService.record({ event: 'account_deleted', actorId: req.user.id, actorType: 'patient', outcome: 'success', req });
+    responseHelper.sendSuccess(res, {}, 'Your account has been deleted');
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
   }

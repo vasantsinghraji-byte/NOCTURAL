@@ -242,6 +242,17 @@ function validateEnvironment(options = {}) {
     }
   }
 
+  // Staging-only switches must never reach real users. Staging also runs with
+  // NODE_ENV=production, so the real environment is named by DEPLOYMENT_ENV.
+  if (process.env.DEPLOYMENT_ENV === 'production') {
+    for (const flag of ['SERVICEABILITY_TEST_RADIUS_KM', 'EXPO_PUBLIC_DEMO_AREA', 'WEB_REDIRECT_URL']) {
+      if (process.env[flag]) errors.push(`${flag} is a staging-only setting and must not be set in production`);
+    }
+  }
+  if (process.env.CRON_SECRET && process.env.CRON_SECRET.length < 32) {
+    errors.push('CRON_SECRET must be at least 32 characters');
+  }
+
   // Check for sensitive data exposure
   if (process.env.JWT_SECRET === process.env.ENCRYPTION_KEY) {
     errors.push('JWT_SECRET and ENCRYPTION_KEY must be different values');

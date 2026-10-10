@@ -103,6 +103,9 @@ if (process.env.NODE_ENV !== 'production') {
   }));
 }
 
+// Recent redacted lines for the admin panel's Live logs view (utils/logBuffer.js).
+logger.add(new (require('./logBuffer').BufferTransport)({ level: process.env.LOG_LEVEL || 'info' }));
+
 // Add Logstash transport if enabled
 if (process.env.ENABLE_LOGSTASH === 'true' && LogstashTransport) {
   logger.add(new LogstashTransport({

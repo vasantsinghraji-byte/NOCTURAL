@@ -3,7 +3,6 @@
 .github/pull_request_template.md @vasantsinghraji-byte
 .github/workflows/ci.yml @vasantsinghraji-byte
 .github/workflows/codeql.yml @vasantsinghraji-byte
-.github/workflows/render-smoke.yml @vasantsinghraji-byte
 .github/workflows/security-governance-audit.yml @vasantsinghraji-byte
 .github/workflows/security-governance-drift-audit.yml @vasantsinghraji-byte
 .github/workflows/security-governance-key-rotation-reminder.yml @vasantsinghraji-byte

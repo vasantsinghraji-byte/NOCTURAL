@@ -1,0 +1,168 @@
+/**
+ * Nabz revenue policy: every commission, fee and plan price in one place.
+ *
+ * Defaults are the launch numbers in docs/NABZ_REVENUE_MODEL.md. Each can be
+ * overridden per environment (REVENUE_* env vars, e.g. in Secrets Manager /
+ * ECS task env) without a code change. Rates are fractions (0.2 = 20%).
+ */
+
+/**
+ * Monthly commission tiers for home-care visits: "10:0.20,30:0.15,0:0.12" =
+ * jobs 1–10 of the month at 20%, 11–30 at 15%, 31+ at 12% (0 = no upper bound).
+ */
+function parseTiers(raw) {
+  const tiers = String(raw).split(',').map((part) => {
+    const [upTo, rate] = part.split(':').map(Number);
+    if (!Number.isFinite(upTo) || !Number.isFinite(rate) || rate < 0 || rate > 1) {
+      throw new Error('REVENUE_CARE_COMMISSION_TIERS must look like "10:0.20,30:0.15,0:0.12"');
+    }
+    return Object.freeze({ upTo: upTo > 0 ? upTo : Infinity, rate });
+  });
+  return Object.freeze(tiers.sort((a, b) => a.upTo - b.upTo));
+}
+
+const num = (name, fallback, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) => {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return fallback;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < min || value > max) {
+    throw new Error(`${name} must be a number between ${min} and ${max}`);
+  }
+  return value;
+};
+
+function loadRevenuePolicy() {
+  return Object.freeze({
+    currency: 'INR',
+    gstRate: num('REVENUE_GST_RATE', 0.18, { max: 1 }),
+
+    // Home-care visits (nurse / physio). Customer pays base + platform fee (+GST on
+    // the fee component, as today); the provider keeps base minus commission.
+    care: Object.freeze({
+      customerFeeRate: num('REVENUE_CARE_CUSTOMER_FEE_RATE', 0.15, { max: 1 }),
+      providerCommissionRate: num('REVENUE_CARE_PROVIDER_COMMISSION_RATE', 0.20, { max: 1 }),
+      // Monthly volume tiers (reset each calendar month, IST). See docs/NABZ_REVENUE_MODEL.md.
+      commissionTiers: parseTiers(process.env.REVENUE_CARE_COMMISSION_TIERS || '10:0.20,30:0.15,0:0.12'),
+      memberFeeWaived: process.env.REVENUE_CARE_MEMBER_FEE_WAIVED !== 'false',
+      // Marketplace home visits (docs/product/PROVIDER_MARKETPLACE_PLAN.md): each
+      // provider picks a ₹/km inside the band; Nabz measures the distance.
+      travel: Object.freeze({
+        minRatePerKm: num('REVENUE_TRAVEL_MIN_RATE_PER_KM', 10),
+        maxRatePerKm: num('REVENUE_TRAVEL_MAX_RATE_PER_KM', 15),
+        minFee: num('REVENUE_TRAVEL_MIN_FEE', 30),
+        // Straight line × this ≈ road distance until a maps service is connected.
+        roadFactor: num('REVENUE_TRAVEL_ROAD_FACTOR', 1.3, { min: 1, max: 3 }),
+        maxRadiusKm: num('REVENUE_TRAVEL_MAX_RADIUS_KM', 25, { min: 1, max: 100 })
+      }),
+      // Path labs: Nabz commission on the tests (collection fee goes to the lab),
+      // an optional customer fee, and the credit for a report later than promised.
+      lab: Object.freeze({
+        commissionRate: num('REVENUE_LAB_COMMISSION_RATE', 0.2, { max: 1 }),
+        customerFeeRate: num('REVENUE_LAB_CUSTOMER_FEE_RATE', 0, { max: 1 }),
+        lateReportCreditRate: num('REVENUE_LAB_LATE_CREDIT_RATE', 0.1, { max: 1 }),
+        lateReportCreditMin: num('REVENUE_LAB_LATE_CREDIT_MIN', 50),
+        lateReportCreditMax: num('REVENUE_LAB_LATE_CREDIT_MAX', 200)
+      }),
+      // A professional who doesn't turn up: credit to the customer.
+      noShowCredit: num('REVENUE_NO_SHOW_CREDIT', 100),
+      plan: Object.freeze({
+        maxSessions: num('REVENUE_PLAN_MAX_SESSIONS', 30, { min: 1, max: 100 }),
+        // A plan must be used within sessions × this many weeks (at least minWeeks).
+        weeksPerSession: num('REVENUE_PLAN_WEEKS_PER_SESSION', 2, { min: 1, max: 8 }),
+        minWeeks: num('REVENUE_PLAN_MIN_WEEKS', 4, { min: 1, max: 52 }),
+        quoteMinutes: num('REVENUE_QUOTE_MINUTES', 15, { min: 1, max: 120 }),
+        // Prepaid plans not paid within this long free their slots.
+        paymentHoldMinutes: num('REVENUE_PLAN_PAYMENT_HOLD_MINUTES', 20, { min: 5, max: 240 })
+      })
+    }),
+
+    // Health care by physios and labs is usually GST-exempt (notification
+    // 12/2017, entry 74): then only the Nabz fee is taxed. Off until the CA
+    // confirms; while off, GST applies to the whole bill as before.
+    gstHealthcareExempt: process.env.REVENUE_GST_HEALTHCARE_EXEMPT === 'true',
+
+    // Pharmacy orders. The store keeps items minus commission; the delivery fee
+    // (with surge / night surcharge) is platform revenue that funds riders.
+    pharmacy: Object.freeze({
+      commissionRate: num('REVENUE_PHARMACY_COMMISSION_RATE', 0.10, { max: 1 }),
+      defaultDeliveryFee: num('REVENUE_DELIVERY_FEE_DEFAULT', 25),
+      freeDeliveryAbove: num('REVENUE_FREE_DELIVERY_ABOVE', 499), // 0 disables
+      surgeMultiplier: Object.freeze({
+        NORMAL: 1,
+        HIGH: num('REVENUE_SURGE_HIGH', 1.5, { min: 1, max: 5 }),
+        SEVERE: num('REVENUE_SURGE_SEVERE', 2, { min: 1, max: 5 })
+      }),
+      nightSurcharge: num('REVENUE_NIGHT_SURCHARGE', 20),
+      // Rider pay per delivered drop: a base + per road km from the store, and a
+      // bonus for each extra drop carried on the same trip (batching).
+      rider: Object.freeze({
+        perDrop: num('REVENUE_RIDER_PER_DROP', 20),
+        perKm: num('REVENUE_RIDER_PER_KM', 5),
+        batchBonus: num('REVENUE_RIDER_BATCH_BONUS', 10),
+        maxBatch: num('REVENUE_RIDER_MAX_BATCH', 3, { min: 1, max: 6 }),
+        batchRadiusKm: num('REVENUE_RIDER_BATCH_RADIUS_KM', 3, { min: 0.5, max: 10 }),
+        searchRadiusKm: num('REVENUE_RIDER_SEARCH_RADIUS_KM', 6, { min: 1, max: 25 })
+      }),
+      nightStartHour: num('REVENUE_NIGHT_START_HOUR', 22, { max: 23 }),
+      nightEndHour: num('REVENUE_NIGHT_END_HOUR', 6, { max: 23 }),
+      timezone: process.env.REVENUE_TIMEZONE || 'Asia/Kolkata',
+      memberFreeDelivery: process.env.REVENUE_MEMBER_FREE_DELIVERY !== 'false'
+    }),
+
+    // Nabz Plus membership (Swiggy One-style).
+    membership: Object.freeze({
+      plans: Object.freeze({
+        PLUS_MONTHLY: Object.freeze({
+          code: 'PLUS_MONTHLY',
+          name: 'Nabz Plus',
+          price: num('REVENUE_PLUS_MONTHLY_PRICE', 149),
+          days: 30
+        })
+      }),
+      trialDays: num('REVENUE_PLUS_TRIAL_DAYS', 7, { max: 90 })
+    })
+  });
+}
+
+let cached = null;
+// Values the admin panel changed (services/settingsService.js), by path:
+// { 'care.customerFeeRate': 0.12 }. Only existing numeric/boolean fields of the
+// same type are replaced; anything else is ignored.
+let overrides = {};
+
+function deepFreeze(obj) {
+  Object.values(obj).forEach((v) => { if (v && typeof v === 'object' && !Object.isFrozen(v)) deepFreeze(v); });
+  return Object.freeze(obj);
+}
+
+function applyOverrides(base) {
+  const keys = Object.keys(overrides);
+  if (!keys.length) return base;
+  const copy = structuredClone(base);
+  for (const path of keys) {
+    const parts = path.split('.');
+    const leaf = parts.pop();
+    const parent = parts.reduce((o, k) => (o && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined), copy);
+    const value = overrides[path];
+    if (parent && Object.prototype.hasOwnProperty.call(parent, leaf) && typeof parent[leaf] === typeof value) parent[leaf] = value;
+  }
+  return deepFreeze(copy);
+}
+
+/** Current policy (read once; call resetRevenuePolicy() in tests after changing env). */
+function getRevenuePolicy() {
+  if (!cached) cached = applyOverrides(loadRevenuePolicy());
+  return cached;
+}
+
+function resetRevenuePolicy() {
+  cached = null;
+}
+
+/** Admin-panel overrides (settingsService); takes effect for new bookings at once. */
+function setRevenueOverrides(next) {
+  overrides = next && typeof next === 'object' ? { ...next } : {};
+  cached = null;
+}
+
+module.exports = { getRevenuePolicy, resetRevenuePolicy, setRevenueOverrides };

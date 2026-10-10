@@ -98,3 +98,22 @@ mongodb-credentials.json
 **/mongodb-credentials.json
 mongod.key
 *.keyfile
+
+# MedRush frontends (Next.js / Expo) — build & tooling artifacts
+frontends/**/node_modules/
+frontends/**/.next/
+frontends/**/out/
+frontends/**/.expo/
+frontends/**/.expo-shared/
+frontends/**/dist/
+frontends/**/*.tsbuildinfo
+frontends/**/.turbo/
+
+# Terraform (state, provider cache, real per-env values)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+terraform/environments/*.tfvars
+!terraform/environments/*.tfvars.example
