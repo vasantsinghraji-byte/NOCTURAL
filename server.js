@@ -157,6 +157,8 @@ async function startServer(options = {}) {
       });
       console.log(`Server running on port ${config.port} - Logs: ./logs/`);
       console.log(`Process ID: ${process.pid}`);
+      // Chat: fetch AWS credentials now so the first live message isn't slow.
+      require('./services/realtimeService').warm().catch(() => undefined);
 
       if (process.send) {
         process.send('ready');

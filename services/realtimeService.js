@@ -122,6 +122,23 @@ async function publish(channel, events) {
 }
 
 /**
+ * Load the API's AWS credentials once at startup (a signature on a dummy
+ * request), so the first chat message isn't delayed by the credential fetch.
+ */
+async function warm() {
+  if (!isEnabled()) return false;
+  try {
+    const { HttpRequest } = require('@smithy/protocol-http');
+    const host = config().httpDomain;
+    await getSigner().sign(new HttpRequest({ method: 'POST', protocol: 'https:', hostname: host, path: '/event', headers: { host }, body: '{}' }));
+    return true;
+  } catch (err) {
+    logger.warn('Realtime warm-up failed', { error: err.message });
+    return false;
+  }
+}
+
+/**
  * Short-lived TURN credentials (coturn "use-auth-secret"): the relay checks
  * HMAC-SHA1(secret, "<expiry>:<tag>") without any account database.
  */
@@ -136,4 +153,4 @@ function iceServers(tag, now = Date.now()) {
   ];
 }
 
-module.exports = { isEnabled, channels, accountTag, issueToken, verifyToken, connectionInfo, publish, iceServers, NAMESPACE };
+module.exports = { isEnabled, channels, accountTag, issueToken, verifyToken, connectionInfo, publish, iceServers, warm, NAMESPACE };

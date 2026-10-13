@@ -38,7 +38,7 @@ const SECURITY_HEADERS = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(), microphone=(), payment=(self "https://checkout.razorpay.com"), usb=(), interest-cohort=()' },
+  { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(), microphone=(self), payment=(self "https://checkout.razorpay.com"), usb=(), interest-cohort=()' },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' }
 ];
 
