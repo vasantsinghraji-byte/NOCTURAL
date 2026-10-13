@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { payForLabOrder, PaymentDismissedError } from '@/lib/razorpay';
 import { confirmDialog, alertDialog, Modal } from '../../../_components/Dialog';
 import CareArt from '../../../_components/care/CareArt';
+import ChatButton from '../../../_components/chat/ChatButton';
 
 const STEPS: Array<[LabOrderView['status'], string]> = [
   ['SCHEDULED', 'Collection booked'],
@@ -70,6 +71,7 @@ function LabOrderDetail() {
               </div>
               <span className={`mk-badge ${order.status === 'REPORT_READY' ? 'green' : order.status === 'SAMPLE_REJECTED' ? 'red' : ''}`}>{LAB_STATUS_LABEL[order.status]}</span>
             </div>
+            {['SCHEDULED', 'COLLECTED', 'AT_LAB', 'PROCESSING', 'REPORT_READY'].includes(order.status) && <div><ChatButton kind="LAB" refId={order._id} label="Chat or Call the Lab" /></div>}
 
             {order.payment.mode === 'PREPAID' && order.payment.status === 'PENDING' && order.status === 'SCHEDULED' && (
               <div className="mk-card red" style={{ display: 'grid', gap: 10 }}>

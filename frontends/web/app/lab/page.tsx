@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { addDays, fmtDay, fmtTime, inr, problem, todayIst, LAB_STATUS_LABEL } from '@/lib/care';
 import { Modal, promptDialog } from '../_components/Dialog';
 import CareArt from '../_components/care/CareArt';
+import ChatButton from '../_components/chat/ChatButton';
 
 /** Path-lab partner: the day's collections, sample steps and report upload. */
 export default function LabDashboard() {
@@ -83,6 +84,7 @@ export default function LabDashboard() {
             {o.items.some((i) => (i.fastingHours || 0) > 0) && o.status === 'SCHEDULED' && <p className="mk-help" style={{ margin: 0 }}>Fasting sample: confirm the patient hasn’t eaten.</p>}
             {o.reportDueAt && !['REPORT_READY', 'CANCELLED'].includes(o.status) && <p className={new Date(o.reportDueAt) < new Date() ? 'mk-error' : 'mk-help'} style={{ margin: 0 }}>Report due {new Date(o.reportDueAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })}</p>}
             <div className="mk-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+              {['SCHEDULED', 'COLLECTED', 'AT_LAB', 'PROCESSING', 'REPORT_READY'].includes(o.status) && <ChatButton kind="LAB" refId={o._id} label="Chat or Call" />}
               {o.status === 'SCHEDULED' && <button type="button" className="mk-btn small" onClick={() => setCollecting(o)}><FlaskConical size={14} aria-hidden="true" /> Collect Sample</button>}
               {o.status === 'COLLECTED' && <button type="button" className="mk-btn soft small" disabled={busy === o._id} onClick={() => act(o._id, () => api.labAdvance(o._id, 'AT_LAB'))}><Truck size={14} aria-hidden="true" /> Reached Lab</button>}
               {['COLLECTED', 'AT_LAB'].includes(o.status) && <button type="button" className="mk-btn soft small" disabled={busy === o._id} onClick={() => act(o._id, () => api.labAdvance(o._id, 'PROCESSING'))}><Microscope size={14} aria-hidden="true" /> Testing</button>}

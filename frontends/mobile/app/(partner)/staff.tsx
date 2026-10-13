@@ -24,6 +24,7 @@ import { appAlert } from '@/lib/dialog';
 import { ProposalSheet } from '@/lib/ProposalSheet';
 import { ShopOverview } from '@/lib/ShopOverview';
 import { useTabBarSpace } from '@/lib/PillTabBar';
+import { ChatButton } from '@/lib/ChatButton';
 
 type StoreInfo = { name?: string; address?: { line1?: string } };
 type Visit = Omit<CareBooking, 'supplies'> & {
@@ -408,6 +409,7 @@ export default function StaffHome() {
                     <PressScale style={styles.sosBtn} onPress={() => sos(v)}><ShieldAlert size={18} color="#ffffff" /></PressScale>
                   )}
                 </View>
+                {['ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'].includes(v.status) ? <ChatButton kind="CARE" refId={v._id} label="Chat or Call Patient" /> : null}
                 {['IN_PROGRESS', 'COMPLETED'].includes(v.status) && (
                   <PressScale style={[ui.btnOutline, { flexDirection: 'row', justifyContent: 'center', gap: 8 }]} onPress={() => router.push({ pathname: '/care-log/staff/[id]', params: { id: v._id } })} accessibilityRole="button">
                     <ClipboardList size={16} color={C.brand} /><Text style={ui.btnOutlineText}>{v.status === 'IN_PROGRESS' ? 'Care Log: Meals, Medicines, Readings' : 'Care Log'}</Text>

@@ -315,6 +315,20 @@ resource "aws_iam_role_policy_attachment" "apprunner_access" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess"
 }
 
+# Real-time chat and calls (terraform/realtime-staging): AppSync Events + TURN.
+data "terraform_remote_state" "realtime" {
+  backend = "s3"
+  config = {
+    bucket = "nabz-tfstate-${local.account}"
+    key    = "staging/realtime.tfstate"
+    region = var.region
+  }
+}
+
+locals {
+  realtime = data.terraform_remote_state.realtime.outputs
+}
+
 resource "aws_iam_role" "api_instance" {
   name = "${local.name}-api-instance"
   assume_role_policy = jsonencode({
@@ -333,7 +347,7 @@ resource "aws_iam_role_policy" "api_instance" {
       {
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
-        Resource = concat([for s in aws_secretsmanager_secret.generated : s.arn], [data.aws_secretsmanager_secret.mongodb_uri.arn])
+        Resource = concat([for s in aws_secretsmanager_secret.generated : s.arn], [data.aws_secretsmanager_secret.mongodb_uri.arn, local.realtime.realtime_token_secret_arn, local.realtime.turn_secret_arn])
       },
       { Effect = "Allow", Action = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"], Resource = "${aws_s3_bucket.uploads.arn}/*" },
       { Effect = "Allow", Action = ["s3:ListBucket"], Resource = aws_s3_bucket.uploads.arn }
@@ -390,10 +404,18 @@ resource "aws_apprunner_service" "api" {
           # Google sign-in (empty = the Google button stays hidden).
           GOOGLE_OAUTH_CLIENT_IDS = var.google_oauth_client_ids
           GOOGLE_WEB_CLIENT_ID    = var.google_web_client_id
+          # Chat and calls (AppSync Events + TURN relay)
+          REALTIME_HTTP_DOMAIN = local.realtime.realtime_http_domain
+          REALTIME_WS_DOMAIN   = local.realtime.realtime_ws_domain
+          TURN_HOST            = local.realtime.turn_host
         }
         runtime_environment_secrets = merge(
           { for k in local.generated : k => aws_secretsmanager_secret.generated[k].arn },
-          { MONGODB_URI = data.aws_secretsmanager_secret.mongodb_uri.arn }
+          {
+            MONGODB_URI           = data.aws_secretsmanager_secret.mongodb_uri.arn
+            REALTIME_TOKEN_SECRET = local.realtime.realtime_token_secret_arn
+            TURN_SECRET           = local.realtime.turn_secret_arn
+          }
         )
       }
     }
@@ -415,7 +437,7 @@ resource "aws_apprunner_service" "api" {
   }
 
   auto_scaling_configuration_arn = aws_apprunner_auto_scaling_configuration_version.small.arn
-  depends_on                     = [aws_iam_role_policy_attachment.apprunner_access, aws_secretsmanager_secret_version.generated]
+  depends_on                     = [aws_iam_role_policy_attachment.apprunner_access, aws_secretsmanager_secret_version.generated, aws_iam_role_policy.api_instance]
 }
 
 resource "aws_apprunner_service" "web" {

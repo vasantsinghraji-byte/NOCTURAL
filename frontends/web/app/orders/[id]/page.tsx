@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { payForOrder, PaymentDismissedError } from '@/lib/razorpay';
 import type { PharmacyOrder } from '@medrush/shared';
 import SubstituteCard from '../../_components/SubstituteCard';
+import ChatButton from '../../_components/chat/ChatButton';
 
 const STEPS = ['PLACED', 'ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 const CANCELLABLE = ['PLACED', 'ACCEPTED'];
@@ -98,6 +99,9 @@ export default function OrderDetailPage() {
         <div className="section-title" style={{ margin: 0 }}>Order #{order.orderNumber}</div>
         <span className="pill status-badge">{order.status}</span>
       </div>
+      {['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status) && (
+        <div style={{ marginTop: 10 }}><ChatButton kind="PHARMACY" refId={order._id} label="Chat or Call the Pharmacy" /></div>
+      )}
 
       {order.deliveryOtp?.code && !order.deliveryOtp.verifiedAt && !['DELIVERED', 'CANCELLED', 'REJECTED'].includes(order.status) && (
         <div className="notice" style={{ marginTop: 10 }}>

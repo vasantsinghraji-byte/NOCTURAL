@@ -13,6 +13,7 @@ import { LAB_STATUS_LABEL, fmtDay, fmtStamp, fmtTime, inr, problem, todayIst } f
 import { Badge, BottomSheet, Btn, Card, DateStrip, Empty, Meta, MkHero, Note, Seg, Title, mk } from '@/lib/marketUI';
 import { PressScale, Skeleton, success } from '@/lib/motion';
 import { C, F, ui } from '@/lib/theme';
+import { ChatButton } from '@/lib/ChatButton';
 
 const week = (): SlotDay[] => [-1, 0, 1, 2, 3, 4, 5].map((n) => ({ date: new Date(new Date(`${todayIst()}T00:00:00Z`).getTime() + n * 86400000).toISOString().slice(0, 10), times: ['x'] }));
 
@@ -91,6 +92,7 @@ export default function LabDesk() {
             {o.reportDueAt && !['REPORT_READY', 'CANCELLED'].includes(o.status)
               ? <Meta style={new Date(o.reportDueAt) < new Date() ? { color: C.brand, fontFamily: F.bold } : undefined}>Report due {fmtStamp(o.reportDueAt)}</Meta> : null}
             <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              {['SCHEDULED', 'COLLECTED', 'AT_LAB', 'PROCESSING', 'REPORT_READY'].includes(o.status) ? <ChatButton kind="LAB" refId={o._id} compact /> : null}
               {o.status === 'SCHEDULED' ? <Btn small icon={FlaskConical} label="Collect Sample" onPress={() => setCollecting(o)} /> : null}
               {o.status === 'COLLECTED' ? <Btn small variant="soft" icon={Truck} label="Reached Lab" disabled={busy === o._id} onPress={() => act(o._id, () => api.labAdvance(o._id, 'AT_LAB'))} /> : null}
               {['COLLECTED', 'AT_LAB'].includes(o.status) ? <Btn small variant="soft" icon={Microscope} label="Testing" disabled={busy === o._id} onPress={() => act(o._id, () => api.labAdvance(o._id, 'PROCESSING'))} /> : null}

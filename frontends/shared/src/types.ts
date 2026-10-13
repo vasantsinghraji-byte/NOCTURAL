@@ -218,6 +218,44 @@ export interface StoreEarnings {
   orders: StoreEarningsOrder[];
 }
 
+// ── Chat and voice calls between a customer and their provider ──
+export type ChatKind = 'CARE' | 'PHARMACY' | 'LAB';
+export type CallStatus = 'RINGING' | 'ACTIVE' | 'ENDED' | 'MISSED' | 'DECLINED' | 'CANCELLED';
+
+export interface ChatThreadView {
+  _id: string;
+  kind: ChatKind;
+  ref: string;
+  title?: string;
+  /** Which side I am in this conversation. */
+  me: 'patient' | 'provider';
+  with: { name: string; photoUrl?: string; role?: string };
+  lastMessage: { text: string; at: string; by: 'patient' | 'provider' | 'system' } | null;
+  unread: number;
+  /** Messages and calls are possible only while the booking connects us. */
+  open: boolean;
+  updatedAt: string;
+}
+
+export interface ChatMessageView {
+  _id: string;
+  thread: string;
+  from: 'patient' | 'provider' | 'system';
+  type: 'TEXT' | 'CALL' | 'SYSTEM';
+  text: string;
+  call?: { status: CallStatus; answeredAt?: string; endedAt?: string; endedBy?: string; seconds?: number };
+  readAt?: string;
+  createdAt: string;
+}
+
+export interface IncomingCall {
+  _id: string;
+  thread: string;
+  title?: string;
+  from: { name: string; photoUrl?: string; role?: string };
+  ringSeconds: number;
+}
+
 // ── Partner posts (photos and short videos on a partner's profile / shop) ──
 export interface PartnerPost {
   _id: string;

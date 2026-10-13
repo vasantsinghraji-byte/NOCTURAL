@@ -9,6 +9,7 @@ import { loadDeliveryCoords, saveDeliveryCoords, type Coords } from '@/lib/locat
 import { CircleCheck, MapPin, Store } from 'lucide-react';
 import { IconTile, serviceIcon, TONES } from '../_components/icons';
 import { Modal, confirmDialog } from '../_components/Dialog';
+import ChatButton from '../_components/chat/ChatButton';
 
 const DEMO_COORDS: Coords = { lat: 26.9110, lng: 75.8010 }; // launch city demo area (C-Scheme, Jaipur)
 
@@ -331,6 +332,7 @@ export default function NursingPage() {
               <div key={b._id} className="card">
                 <div className="row"><b style={{ display: 'flex', alignItems: 'center', gap: 8 }}><IconTile icon={serviceIcon(b.serviceType)} size={32} /> {b.serviceType.replace(/_/g, ' ').toLowerCase()}</b><span className="pill">{b.status}</span></div>
                 <div className="muted">{String(b.scheduledDate).slice(0, 10)} · {b.scheduledTime}</div>
+                {b.serviceProvider && ['ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'].includes(b.status) && <div style={{ margin: '6px 0' }}><ChatButton kind="CARE" refId={b._id} label="Chat or Call" /></div>}
                 {b.supplies?.status === 'ORDERED' && <div className="muted">Supplies ordered · {inr(b.supplies.amount || 0)}</div>}
                 {b.status === 'REQUESTED' && b.dispatch?.status === 'NO_STAFF' && (
                   <div className="row" style={{ justifyContent: 'flex-start', gap: 12 }}>

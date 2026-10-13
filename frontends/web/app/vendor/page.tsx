@@ -7,6 +7,7 @@ import type { AuthUser, PharmacyOrder, PharmacyOrderStatus, PharmacyRejectionRea
 import { VendorNav } from './VendorShell';
 import UpdatesFeed from '../_components/UpdatesFeed';
 import { Modal, confirmDialog, promptDialog } from '../_components/Dialog';
+import ChatButton from '../_components/chat/ChatButton';
 
 // Vendor-driven next-status options, matching the backend transition map.
 const NEXT_STATUS: Partial<Record<PharmacyOrderStatus, PharmacyOrderStatus[]>> = {
@@ -239,6 +240,7 @@ export default function VendorDashboard() {
                 <h3>#{o.orderNumber}</h3>
                 <span className="pill">{o.status.replace(/_/g, ' ')}</span>
               </div>
+              {['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(o.status) && <div style={{ margin: '4px 0' }}><ChatButton kind="PHARMACY" refId={o._id} label="Chat or Call Customer" /></div>}
               {o.status === 'PLACED' && <div style={{ margin: '4px 0' }}><Countdown acceptBy={o.acceptBy} /></div>}
               {o.riskFlags && o.riskFlags.length > 0 && (
                 <div className="notice" style={{ margin: '6px 0' }}>Check before dispensing: {o.riskFlags.map((f) => f.detail || f.code).join(' · ')}</div>

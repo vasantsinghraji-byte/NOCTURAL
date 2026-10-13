@@ -10,6 +10,8 @@ import { notifyLocal, registerForServerPush, requestNotificationPermission } fro
 import { appAlert, appPrompt } from '@/lib/dialog';
 import { UpdatesFeed } from '@/lib/updatesFeed';
 import { useTabBarSpace } from '@/lib/PillTabBar';
+import { ChatButton } from '@/lib/ChatButton';
+import { MessagesIcon } from '@/lib/MessagesIcon';
 
 const POLL_MS = 10_000;
 
@@ -229,7 +231,10 @@ export default function VendorOrders() {
   return (
     <View style={styles.screen}>
       <View style={[styles.head, { paddingTop: insets.top + 10 }]}>
-        <Text style={styles.title}>Orders</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={styles.title}>Orders</Text>
+          <MessagesIcon />
+        </View>
         <Text style={styles.headSub}>{orders.filter((o) => o.status === 'PLACED').length} new · {orders.filter((o) => ['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY'].includes(o.status)).length} in progress</Text>
       </View>
       <View style={styles.banner}>
@@ -260,6 +265,7 @@ export default function VendorOrders() {
                   <Text style={styles.status}>{o.status.replace(/_/g, ' ')}</Text>
                 </View>
                 {o.status === 'PLACED' && <Countdown acceptBy={o.acceptBy} />}
+                {['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(o.status) ? <ChatButton kind="PHARMACY" refId={o._id} label="Chat or Call Customer" compact /> : null}
                 {o.riskFlags && o.riskFlags.length > 0 && (
                   <Text style={styles.risk}>Check before dispensing: {o.riskFlags.map((f) => f.detail || f.code).join(' · ')}</Text>
                 )}

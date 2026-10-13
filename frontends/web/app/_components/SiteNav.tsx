@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ShoppingCart } from 'lucide-react';
+import { MessageCircle, ShoppingCart } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { Wordmark } from './Brand';
 import { Avatar } from './ProfilePhoto';
+import { useLive } from './chat/RealtimeProvider';
 
 const APP_LINKS = [
   { href: '/care', label: 'Care' },
@@ -30,6 +31,7 @@ const PUBLIC_LINKS = [
 export default function SiteNav() {
   const { patient, loading, logout } = useAuth();
   const { count } = useCart();
+  const { unread } = useLive();
   const path = usePathname() || '/';
   const links = patient ? APP_LINKS : PUBLIC_LINKS;
 
@@ -47,6 +49,9 @@ export default function SiteNav() {
         )}
         {loading ? null : patient ? (
           <>
+            <Link href="/chat" className="navchat" aria-label={unread ? `Messages, ${unread} unread` : 'Messages'}>
+              <MessageCircle size={18} aria-hidden="true" />{unread > 0 && <span className="chat-badge small">{unread > 9 ? '9+' : unread}</span>}
+            </Link>
             <Link href="/account" className="navuser" aria-label="My account"><Avatar name={patient.name} url={patient.profilePhoto?.url} size={30} /><span className="hide-sm">{patient.name.split(' ')[0]}</span></Link>
             <button className="linkbtn" onClick={() => logout()}>Sign out</button>
           </>

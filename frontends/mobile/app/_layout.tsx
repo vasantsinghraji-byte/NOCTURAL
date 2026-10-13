@@ -13,6 +13,7 @@ import { DialogHost } from '@/lib/dialog';
 import { LangProvider } from '@/lib/i18n';
 import { LoadingScreen } from '@/lib/LoadingScreen';
 import { EasyModeProvider } from '@/lib/easyMode';
+import { LiveProvider } from '@/lib/live';
 import { C, F, IS_DARK } from '@/lib/theme';
 
 export default function RootLayout() {
@@ -28,6 +29,7 @@ export default function RootLayout() {
       <LangProvider>
         <AuthProvider>
           <EasyModeProvider>
+          <LiveProvider>
           <StatusBar style={IS_DARK ? 'light' : 'dark'} />
           <Stack
             screenOptions={{
@@ -60,6 +62,9 @@ export default function RootLayout() {
             <Stack.Screen name="labs/order/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="addresses" options={{ headerShown: false }} />
             <Stack.Screen name="map" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
+            <Stack.Screen name="chat/index" options={{ headerShown: false }} />
+            <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="call" options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="family/index" options={{ headerShown: false }} />
             <Stack.Screen name="refills" options={{ headerShown: false }} />
             <Stack.Screen name="family/[id]" options={{ headerShown: false }} />
@@ -74,6 +79,7 @@ export default function RootLayout() {
             <Stack.Screen name="verification" options={{ headerShown: false }} />
           </Stack>
           <DialogHost />
+          </LiveProvider>
           </EasyModeProvider>
         </AuthProvider>
       </LangProvider>

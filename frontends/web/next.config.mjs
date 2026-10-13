@@ -22,7 +22,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com https://accounts.google.com/gsi/ https://*.s3.ap-south-1.amazonaws.com",
+  "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com https://accounts.google.com/gsi/ https://*.s3.ap-south-1.amazonaws.com wss://*.appsync-realtime-api.ap-south-1.amazonaws.com",
   "media-src 'self' blob: https://*.s3.ap-south-1.amazonaws.com",
   "frame-src https://www.openstreetmap.org https://api.razorpay.com https://checkout.razorpay.com https://accounts.google.com/gsi/",
   "object-src 'none'",

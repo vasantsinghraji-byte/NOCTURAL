@@ -73,6 +73,7 @@ async function runTick(now = new Date()) {
   await step('riders', () => require('./riderService').sweep(), results);
   await step('refills', () => require('./refillService').sweep(now), results);
   await step('substitutions', () => require('./pharmacySubstitutionService').sweep(now), results);
+  await step('calls', () => require('./chatService').sweep(now), results);
   await step('settings', () => require('./settingsService').loadRevenueOverrides().then((o) => Object.keys(o).length), results);
   const failed = Object.values(results).filter((r) => !r.ok).length;
   await JobLease.updateOne({ name: LEASE_NAME, owner: OWNER }, {

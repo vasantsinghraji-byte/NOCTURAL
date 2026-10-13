@@ -7,6 +7,9 @@
  */
 
 import type {
+  ChatKind,
+  ChatMessageView,
+  ChatThreadView,
   PartnerPost,
   PartnerPostUpload,
   StoreProfile,
@@ -774,6 +777,50 @@ export class MedRushApi {
 
   removeProfilePhoto() {
     return this.request<{ success: true }>('DELETE', '/profile-photo');
+  }
+
+  // ── Chat and voice calls (customer ↔ provider on a booking) ──
+
+  chatThreads() {
+    return this.request<{ success: true; threads: ChatThreadView[] }>('GET', '/chat/threads');
+  }
+
+  /** Open (or reopen) the conversation for a booking. */
+  openChat(kind: ChatKind, ref: string) {
+    return this.request<{ success: true; thread: ChatThreadView }>('POST', '/chat/threads', { body: { kind, ref } });
+  }
+
+  chatThread(id: string, before?: string) {
+    return this.request<{ success: true; thread: ChatThreadView; messages: ChatMessageView[] }>('GET', `/chat/threads/${id}`, { query: before ? { before } : {} });
+  }
+
+  sendChatMessage(id: string, text: string) {
+    return this.request<{ success: true; message: ChatMessageView }>('POST', `/chat/threads/${id}/messages`, { body: { text } });
+  }
+
+  markChatRead(id: string) {
+    return this.request<{ success: true }>('POST', `/chat/threads/${id}/read`, { body: {} });
+  }
+
+  chatUnread() {
+    return this.request<{ success: true; unread: number }>('GET', '/chat/unread');
+  }
+
+  /** Token and address for the live connection (optionally including one conversation). */
+  chatRealtime(threadId?: string) {
+    return this.request<{ success: true; realtime: import('./realtime').RealtimeAccess }>('GET', '/chat/realtime', { query: threadId ? { thread: threadId } : {} });
+  }
+
+  startCall(threadId: string) {
+    return this.request<{ success: true } & import('./realtime').CallBundle>('POST', `/chat/threads/${threadId}/calls`, { body: {} });
+  }
+
+  acceptCall(callId: string) {
+    return this.request<{ success: true } & import('./realtime').CallBundle>('POST', `/chat/calls/${callId}/accept`, { body: {} });
+  }
+
+  endCall(callId: string, reason?: 'timeout' | 'hangup' | 'decline' | 'failed') {
+    return this.request<{ success: true; call: ChatMessageView }>('POST', `/chat/calls/${callId}/end`, { body: reason ? { reason } : {} });
   }
 
   // ── Partner posts (photos and short videos; partners post, everyone views) ──

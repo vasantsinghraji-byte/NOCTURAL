@@ -44,6 +44,8 @@ module.exports = {
     newArchEnabled: true,
     plugins: [
       'expo-router',
+      // In-app voice calls (WebRTC): microphone permission and native setup.
+      ['@config-plugins/react-native-webrtc', { microphonePermission: 'Nabz uses the microphone for voice calls with your nurse, pharmacy or lab.', cameraPermission: 'Nabz uses the camera to take photos you choose to share.' }],
       // Lets Razorpay open UPI apps directly (Android 11+ package visibility).
       './plugins/withUpiQueries',
       // Embed the brand fonts natively (android assets/fonts) so they render even

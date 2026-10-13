@@ -8,6 +8,7 @@ import type { CareBooking, StaffDashboard, VisitOffer } from '@medrush/shared';
 import { api } from '@/lib/api';
 import UpdatesFeed from '../_components/UpdatesFeed';
 import { Modal, alertDialog, confirmDialog, promptDialog } from '../_components/Dialog';
+import ChatButton from '../_components/chat/ChatButton';
 
 /**
  * Website version of the Partner app's staff screen (nurse / physio): go online,
@@ -341,6 +342,7 @@ function VisitCard({ v, onStep, onSos, onPropose }: { v: Visit; onStep?: () => v
       <div className="row"><b>{nice(v.serviceType)}</b><span className="pill violet">{v.status.replace(/_/g, ' ')}</span></div>
       <div className="muted">{v.dispatch?.mode === 'ASAP' ? 'Now' : `${String(v.scheduledDate).slice(0, 10)} · ${v.scheduledTime}`}{v.series ? ` · session ${v.series.index} of ${v.series.total}` : ''}</div>
       <div className="muted"><MapPin size={13} aria-hidden="true" /> {v.serviceLocation?.address?.street}, {v.serviceLocation?.address?.pincode}</div>
+      {['ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'].includes(v.status) && <div><ChatButton kind="CARE" refId={v._id} label="Chat or Call" /></div>}
       {v.patientDetails?.name && <div className="muted">For {v.patientDetails.name}{v.patientDetails.age ? `, ${v.patientDetails.age}` : ''}</div>}
       {v.serviceLocation?.contactPhone && (
         <a className="link" href={`tel:${v.serviceLocation.contactPhone}`}><Phone size={13} aria-hidden="true" /> Call {v.serviceLocation.contactPerson || 'contact at the address'}</a>

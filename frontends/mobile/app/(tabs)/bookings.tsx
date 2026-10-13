@@ -16,6 +16,8 @@ import { PaymentSheet } from '@/lib/paymentSheet';
 import { SubstituteCard } from '@/lib/SubstituteCard';
 import { ProviderPicker } from '@/lib/providerPicker';
 import { PaymentDismissedError, awaitingPayment, payOrderOnline } from '@/lib/payments';
+import { ChatButton } from '@/lib/ChatButton';
+import { MessagesIcon } from '@/lib/MessagesIcon';
 
 type Tab = 'visits' | 'orders';
 
@@ -83,7 +85,10 @@ export default function Bookings() {
   return (
     <ScrollView style={ui.screen} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: tabSpace, gap: 12 }}
       refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
-      <Text style={styles.title}>Bookings</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={styles.title}>Bookings</Text>
+        <MessagesIcon />
+      </View>
       <View style={styles.segment}>
         {(['visits', 'orders'] as Tab[]).map((t) => (
           <Pressable key={t} onPress={() => setTab(t)} style={[styles.segBtn, tab === t && styles.segOn]}>
@@ -147,6 +152,7 @@ export default function Bookings() {
                     <Text style={styles.trackText}>{b.status === 'REQUESTED' ? 'Matching' : 'Track live'}</Text>
                   </Pressable>
                 )}
+                {b.serviceProvider && ['ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'].includes(b.status) ? <ChatButton kind="CARE" refId={b._id} compact /> : null}
                 {b.status === 'COMPLETED' && !b.rating?.ratedAt && (
                   <Pressable style={styles.track} onPress={() => router.push({ pathname: '/track', params: { id: b._id } })}>
                     <Star size={14} color={C.gold} /><Text style={styles.trackText}>Rate visit</Text>
@@ -190,6 +196,7 @@ export default function Bookings() {
               </View>
               <View style={styles.status}><Text style={styles.statusText}>{o.status.replace(/_/g, ' ')}</Text></View>
             </View>
+            {['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(o.status) ? <ChatButton kind="PHARMACY" refId={o._id} label="Chat or Call the Pharmacy" compact /> : null}
             {o.items.filter((it) => it.substitution?.status === 'PENDING').map((it) => (
               <SubstituteCard key={String(it.medicine)} orderId={o._id} item={it} paymentMode={o.paymentMode} onAnswered={load} />
             ))}

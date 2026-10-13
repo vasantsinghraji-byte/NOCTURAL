@@ -12,6 +12,7 @@ import { PaymentDismissedError, payLabOrder } from '@/lib/payments';
 import { CallMeBack } from '@/lib/CallMeBack';
 import { Skeleton } from '@/lib/motion';
 import { C, F, ui } from '@/lib/theme';
+import { ChatButton } from '@/lib/ChatButton';
 
 const STEPS: Array<[LabOrderView['status'], string]> = [
   ['SCHEDULED', 'Collection booked'],
@@ -78,6 +79,7 @@ export default function LabOrderDetail() {
           </View>
           <Badge tone={order.status === 'REPORT_READY' ? 'green' : order.status === 'SAMPLE_REJECTED' ? 'red' : 'neutral'} label={LAB_STATUS_LABEL[order.status]} />
         </View>
+        {['SCHEDULED', 'COLLECTED', 'AT_LAB', 'PROCESSING', 'REPORT_READY'].includes(order.status) ? <ChatButton kind="LAB" refId={order._id} label="Chat or Call the Lab" /> : null}
 
         {payable ? (
           <Card tone="red" style={{ gap: 10 }}>
