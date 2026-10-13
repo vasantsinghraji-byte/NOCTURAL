@@ -17,7 +17,8 @@ const TABS: Array<{ href: string; label: string; icon: LucideIcon }> = [
 export default function AppTabBar() {
   const { patient } = useAuth();
   const path = usePathname() || '/';
-  if (!patient || path.startsWith('/track/')) return null;
+  // Full-screen pages: live tracking and a conversation (its message box sits at the bottom).
+  if (!patient || path.startsWith('/track/') || path.startsWith('/chat/')) return null;
   return (
     <nav className="tabbar" aria-label="App">
       {TABS.map(({ href, label, icon: Icon }) => {
