@@ -106,10 +106,13 @@
 .cta-band p { margin: 0 auto 22px; max-width: 520px; opacity: .9; }
 
 /* ── Auth pages (split layout) ───────────────────────────────────────────── */
-.auth-wrap { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 140px); margin-top: -16px; }
+/* The brand panel stays put under the sticky header (56 px) while the form
+   column scrolls with the page. */
+.auth-wrap { display: grid; grid-template-columns: 1fr 1fr; align-items: start; min-height: calc(100vh - 140px); margin-top: -16px; }
 @media (max-width: 900px) { .auth-wrap { grid-template-columns: 1fr; } .auth-side { display: none !important; } }
 .auth-side {
-  position: relative; overflow: hidden; color: var(--on-night); padding: 56px 48px; display: flex; flex-direction: column; justify-content: space-between;
+  position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; overscroll-behavior: contain;
+  color: var(--on-night); padding: 56px 48px; display: flex; flex-direction: column; justify-content: space-between;
   background:
     var(--night);
   border-radius: 0 32px 32px 0;
