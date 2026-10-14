@@ -19,6 +19,7 @@ const {
 const { addMobileTokens, isMobileRequest } = require('../utils/mobileAuth');
 const { PORTAL_LABELS, isRoleAllowedInPortal, portalForRole } = require('../constants/portals');
 const adminMfa = require('../services/adminMfaService');
+const onboardingTeam = require('../services/onboardingTeamService');
 const securityAuditService = require('../services/securityAuditService');
 const { getRequestSecurityMetadata } = require('../utils/requestSecurityMetadata');
 
@@ -93,6 +94,19 @@ exports.login = async (req, res, next) => {
       return responseHelper.sendForbidden(res, home
         ? `This is a ${PORTAL_LABELS[portal]} login. Please sign in from the ${PORTAL_LABELS[home]} login.`
         : `This account can't sign in to the ${PORTAL_LABELS[portal]} portal.`);
+    }
+
+    // Onboarding team IDs sign in only to the onboarding panel, and only from
+    // the Nabz domain once ONBOARDING_LOGIN_DOMAINS is set.
+    if (role === onboardingTeam.ROLE) {
+      if (portal !== 'onboarding') {
+        logger.logSecurity('login_wrong_portal', { email: req.body.email, portal: portal || null, role });
+        return responseHelper.sendForbidden(res, 'Onboarding team accounts sign in from the onboarding panel.');
+      }
+      if (!onboardingTeam.isAllowedLoginId(result.user.email)) {
+        logger.logSecurity('login_domain_blocked', { email: req.body.email, role });
+        return responseHelper.sendForbidden(res, 'This login ID is not on the Nabz domain. Ask an admin for a Nabz login ID.');
+      }
     }
 
     // Admin roles: password alone never creates a session. Hand back a short-lived

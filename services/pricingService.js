@@ -1,8 +1,9 @@
 /**
  * Pricing & revenue split: pure functions over config/revenue.js.
  *
- * Customer side:  delivery fee (base × zone surge + night surcharge, waived for
- *                 Nabz Plus or big baskets) and the care platform fee.
+ * Customer side:  delivery fee ((base + distance charge) × zone surge + night
+ *                 surcharge, waived for Nabz Plus or baskets at or above the
+ *                 free-delivery threshold) and the care platform fee.
  * Partner side:   commission taken from the store's item value / the provider's
  *                 visit price → payout.
  * Everything is rounded to paise.
@@ -26,32 +27,60 @@ function isNight(now, { nightStartHour, nightEndHour, timezone }) {
 }
 
 /**
- * Delivery fee for a pharmacy order.
- * @returns {{ deliveryFee, breakdown: { base, surgeMultiplier, surgeAmount, nightSurcharge, waiver } }}
+ * Delivery fee for a pharmacy order. `distanceKm` is the straight-line
+ * distance from the store to the delivery point.
+ * @returns {{ deliveryFee, breakdown: { base, distanceKm, chargedKm, distanceCharge, surgeMultiplier,
+ *   surgeAmount, nightSurcharge, freeDeliveryAbove, amountToFreeDelivery, waiver } }}
  */
-function quoteDeliveryFee({ vendor, zone, itemsSubtotal = 0, isMember = false, fulfilment = 'DELIVERY', now = new Date() }) {
-  const policy = getRevenuePolicy().pharmacy;
-  const empty = { base: 0, surgeMultiplier: 1, surgeAmount: 0, nightSurcharge: 0 };
+function quoteDeliveryFee({ vendor, zone, itemsSubtotal = 0, distanceKm, isMember = false, fulfilment = 'DELIVERY', now = new Date() }) {
+  const revenue = getRevenuePolicy();
+  const policy = revenue.pharmacy;
+  const freeAbove = policy.freeDeliveryAbove;
+  const empty = { base: 0, distanceKm: null, chargedKm: 0, distanceCharge: 0, surgeMultiplier: 1, surgeAmount: 0, nightSurcharge: 0, freeDeliveryAbove: freeAbove, amountToFreeDelivery: 0 };
 
   if (fulfilment === 'STAFF_PICKUP') {
     return { deliveryFee: 0, breakdown: { ...empty, waiver: 'STAFF_PICKUP' } };
   }
 
-  const base = vendor && Number.isFinite(Number(vendor.deliveryFee)) ? Number(vendor.deliveryFee) : policy.defaultDeliveryFee;
+  // A store fee of 0 is the schema default, not a promise of free delivery.
+  const storeFee = vendor ? Number(vendor.deliveryFee) : NaN;
+  const base = Number.isFinite(storeFee) && storeFee > 0 ? storeFee : policy.defaultDeliveryFee;
+
+  // Distance part: road km (straight line × road factor, as for care travel),
+  // rounded up; the base covers the first deliveryIncludedKm. Unknown distance
+  // (no delivery point sent) charges the base only.
+  const straightKm = Number(distanceKm);
+  const known = distanceKm !== undefined && distanceKm !== null && Number.isFinite(straightKm) && straightKm >= 0;
+  const chargedKm = known ? Math.ceil(Math.round(straightKm * revenue.care.travel.roadFactor * 10) / 10 - 1e-9) : 0;
+  const extraKm = Math.max(0, chargedKm - policy.deliveryIncludedKm);
+  const distanceCharge = round2(Math.min(extraKm * policy.deliveryPerKm, Math.max(0, policy.deliveryMaxFee - base)));
+  const fee = round2(base + distanceCharge);
+
   const stressLevel = zone && zone.stress && typeof zone.currentRadiusMultiplier === 'function' && zone.currentRadiusMultiplier(now) < 1
     ? zone.stress.level
     : 'NORMAL';
   const surgeMultiplier = policy.surgeMultiplier[stressLevel] || 1;
-  const surgeAmount = round2(base * (surgeMultiplier - 1));
+  const surgeAmount = round2(fee * (surgeMultiplier - 1));
   const nightSurcharge = isNight(now, policy) ? policy.nightSurcharge : 0;
-  const breakdown = { base: round2(base), surgeMultiplier, surgeAmount, nightSurcharge };
+  const breakdown = {
+    base: round2(base),
+    distanceKm: known ? round2(straightKm) : null,
+    chargedKm,
+    distanceCharge,
+    surgeMultiplier,
+    surgeAmount,
+    nightSurcharge,
+    freeDeliveryAbove: freeAbove,
+    amountToFreeDelivery: 0
+  };
 
   if (isMember && policy.memberFreeDelivery) return { deliveryFee: 0, breakdown: { ...breakdown, waiver: 'MEMBER' } };
-  if (policy.freeDeliveryAbove > 0 && itemsSubtotal >= policy.freeDeliveryAbove) {
-    // Big baskets ride free at normal times; surge and night still apply (riders cost more then).
+  if (freeAbove > 0 && itemsSubtotal >= freeAbove) {
+    // Baskets at or above the threshold ride free at normal times; surge and night still apply (riders cost more then).
     return { deliveryFee: round2(surgeAmount + nightSurcharge), breakdown: { ...breakdown, waiver: 'FREE_ABOVE' } };
   }
-  return { deliveryFee: round2(base + surgeAmount + nightSurcharge), breakdown: { ...breakdown, waiver: null } };
+  const amountToFreeDelivery = freeAbove > 0 ? round2(freeAbove - itemsSubtotal) : 0;
+  return { deliveryFee: round2(fee + surgeAmount + nightSurcharge), breakdown: { ...breakdown, amountToFreeDelivery, waiver: null } };
 }
 
 /**

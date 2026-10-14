@@ -18,7 +18,9 @@ const ROLES = {
   DELIVERY_PARTNER: 'delivery_partner', // rider fulfilling pharmacy orders
   MEDICAL_STAFF: 'medical_staff', // paramedic / general home-visit staff
   PHLEBOTOMIST: 'phlebotomist', // lab sample collection
-  LAB_PARTNER: 'lab_partner' // path-lab staff, scoped to a partner lab
+  LAB_PARTNER: 'lab_partner', // path-lab staff, scoped to a partner lab
+  // Nabz onboarding team: reviews partner applications and documents only.
+  ONBOARDING_REVIEWER: 'onboarding_reviewer'
 };
 
 // Array of all valid roles for validation

@@ -16,7 +16,9 @@
 // medical_staff (paramedic/home-visit) and phlebotomist (lab sample collection).
 const STAFF_ROLES = [
   'doctor', 'nurse', 'physiotherapist', 'admin', 'platform_admin',
-  'pharmacy_vendor', 'delivery_partner', 'medical_staff', 'phlebotomist', 'lab_partner'
+  'pharmacy_vendor', 'delivery_partner', 'medical_staff', 'phlebotomist', 'lab_partner',
+  // Onboarding team (created by a platform admin, never self-registered).
+  'onboarding_reviewer'
 ];
 
 /** Staff roles allowed during /auth/register self-registration (no admin). Patients use /patients/register. */

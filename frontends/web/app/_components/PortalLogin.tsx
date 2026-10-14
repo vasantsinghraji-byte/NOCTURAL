@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { LoginPortal } from '@medrush/shared';
 import { api } from '@/lib/api';
-import { Bike, FlaskConical, Stethoscope, Store, UserRound, Wrench, type LucideIcon } from 'lucide-react';
+import { Bike, ClipboardCheck, FlaskConical, Stethoscope, Store, UserRound, Wrench, type LucideIcon } from 'lucide-react';
 import { IconTile } from './icons';
 import AdminMfa from './AdminMfa';
 
@@ -15,7 +15,8 @@ const PORTALS: Record<LoginPortal, { icon: LucideIcon; fg: string; title: string
   pharmacy: { icon: Store, fg: '#2f7d5b', title: 'Pharmacy partner login', tagline: 'Orders, stock and payouts for your store', tone: 'var(--brand-soft)', next: '/vendor/today' },
   lab: { icon: FlaskConical, fg: '#b7791f', title: 'Path lab partner login', tagline: 'Sample pickups, reports and lab orders', tone: 'var(--sky-soft)', next: '/lab' },
   rider: { icon: Bike, fg: '#b7791f', title: 'Delivery partner login', tagline: 'Pickups and drops near you', tone: 'var(--amber-soft)', next: '/' },
-  admin: { icon: Wrench, fg: '#d9485f', title: 'Admin login', tagline: 'Partners, zones and catalog', tone: 'var(--rose-soft)', next: '/admin' }
+  admin: { icon: Wrench, fg: 'var(--brand)', title: 'Admin login', tagline: 'Partners, zones and catalog', tone: 'var(--brand-soft)', next: '/admin' },
+  onboarding: { icon: ClipboardCheck, fg: 'var(--brand)', title: 'Onboarding panel', tagline: 'Partner requests and document checks', tone: 'var(--brand-soft)', next: '/onboarding' }
 };
 
 const SWITCH: Array<{ href: string; label: string; icon: LucideIcon }> = [
@@ -85,8 +86,8 @@ export default function PortalLogin({ portal }: { portal: LoginPortal }) {
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
         <p className="muted" style={{ marginTop: 14, marginBottom: 0 }}>
-          {portal === 'admin'
-            ? 'Admin sign-in needs a code from your authenticator app after your password.'
+          {portal === 'admin' || portal === 'onboarding'
+            ? 'Sign-in needs a code from your authenticator app after your password. You set it up the first time you sign in.'
             : 'Partner accounts are created by Nabz after verification.'}
         </p>
       </form>

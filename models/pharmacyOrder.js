@@ -278,6 +278,11 @@ const PharmacyOrderSchema = new mongoose.Schema({
   // How the delivery fee was built (config/revenue.js): shown on the receipt.
   feeBreakdown: {
     base: Number,
+    distanceKm: Number,
+    chargedKm: Number,
+    distanceCharge: Number,
+    freeDeliveryAbove: Number,
+    amountToFreeDelivery: Number,
     surgeMultiplier: Number,
     surgeAmount: Number,
     nightSurcharge: Number,

@@ -53,7 +53,7 @@ async function getHome() {
     policy.pharmacy.freeDeliveryAbove > 0 ? {
       id: 'free-delivery',
       kind: 'PHARMACY',
-      title: `Free delivery above ₹${policy.pharmacy.freeDeliveryAbove}`,
+      title: `Free delivery from ₹${policy.pharmacy.freeDeliveryAbove}`,
       subtitle: 'Medicines from licensed pharmacies near you',
       cta: 'Order medicines',
       action: 'pharmacy'

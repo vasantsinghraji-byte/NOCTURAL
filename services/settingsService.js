@@ -39,8 +39,11 @@ const REVENUE_FIELDS = Object.freeze({
   'care.lab.lateReportCreditMax': num(0, 5000, 'Labs: late report credit, maximum (₹)'),
   'care.noShowCredit': num(0, 2000, 'Credit when a professional doesn’t come (₹)'),
   'pharmacy.commissionRate': num(0, 0.4, 'Pharmacy commission (fraction)'),
-  'pharmacy.defaultDeliveryFee': num(0, 500, 'Delivery fee (₹)'),
-  'pharmacy.freeDeliveryAbove': num(0, 100000, 'Free delivery above (₹, 0 = never)'),
+  'pharmacy.defaultDeliveryFee': num(0, 500, 'Delivery fee: base for the first km (₹)'),
+  'pharmacy.deliveryIncludedKm': num(0, 50, 'Delivery fee: km covered by the base'),
+  'pharmacy.deliveryPerKm': num(0, 100, 'Delivery fee: per km after that (₹)'),
+  'pharmacy.deliveryMaxFee': num(0, 1000, 'Delivery fee: most it can be (₹, before surge and night)'),
+  'pharmacy.freeDeliveryAbove': num(0, 100000, 'Free delivery from basket (₹, 0 = never)'),
   'pharmacy.nightSurcharge': num(0, 500, 'Night delivery surcharge (₹)'),
   gstHealthcareExempt: bool('GST only on the Nabz fee (health care exempt) — only after the CA confirms')
 });

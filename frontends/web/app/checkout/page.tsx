@@ -8,7 +8,9 @@ import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { payForOrder } from '@/lib/razorpay';
 import { loadDeliveryCoords } from '@/lib/location';
-import type { PaymentOptions } from '@medrush/shared';
+import type { DeliveryQuote, PaymentOptions } from '@medrush/shared';
+
+const rupees = (n: number) => `₹${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
 type PayMode = 'upi' | 'card' | 'netbanking' | 'cod';
 const ONLINE_MODES: Array<{ mode: Exclude<PayMode, 'cod'>; label: string; hint: string }> = [
@@ -56,6 +58,19 @@ export default function CheckoutPage() {
       setAddr((prev) => ({ ...prev, contactPhone: patient.phone || '' }));
     }
   }, [patient]);
+
+  // Delivery fee for this basket (distance-based below the free-delivery amount).
+  const [quote, setQuote] = useState<DeliveryQuote | null>(null);
+  useEffect(() => {
+    if (!patient || !cart.vendorId || cart.subtotal <= 0) { setQuote(null); return undefined; }
+    let live = true;
+    const c = loadDeliveryCoords();
+    api.quoteDelivery({ vendorId: cart.vendorId, itemsSubtotal: cart.subtotal, ...(c ? { lat: c.lat, lng: c.lng } : {}) })
+      .then((q) => { if (live) setQuote(q); })
+      .catch(() => { if (live) setQuote(null); });
+    return () => { live = false; };
+  }, [patient, cart.vendorId, cart.subtotal]);
+  const payable = quote ? quote.total : cart.subtotal;
 
   const lines = useMemo(() => Object.values(cart.lines), [cart.lines]);
   const set = (k: keyof typeof addr) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -151,7 +166,30 @@ export default function CheckoutPage() {
           </div>
         ))}
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '10px 0' }} />
-        <div className="row"><b>Subtotal</b><b>₹{cart.subtotal}</b></div>
+        <div className="row" style={{ padding: '3px 0' }}><span className="muted">Item total</span><span>{rupees(cart.subtotal)}</span></div>
+        <div className="row" style={{ padding: '3px 0' }}>
+          <span className="muted">
+            Delivery fee{quote && quote.deliveryFee > 0 && quote.breakdown.distanceKm !== null ? ` · ${quote.breakdown.chargedKm} km` : ''}
+          </span>
+          <span style={quote?.deliveryFee === 0 ? { color: 'var(--mint)', fontWeight: 700 } : undefined}>
+            {!quote ? '…' : quote.deliveryFee === 0 ? 'FREE' : rupees(quote.deliveryFee)}
+          </span>
+        </div>
+        {quote && (quote.breakdown.surgeAmount > 0 || quote.breakdown.nightSurcharge > 0) && (
+          <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>
+            Includes {[quote.breakdown.surgeAmount > 0 ? `${rupees(quote.breakdown.surgeAmount)} busy-hours fee` : '', quote.breakdown.nightSurcharge > 0 ? `${rupees(quote.breakdown.nightSurcharge)} late-night fee` : ''].filter(Boolean).join(' and ')}.
+          </p>
+        )}
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '10px 0' }} />
+        <div className="row"><b>To pay</b><b>{rupees(payable)}</b></div>
+        {quote && quote.deliveryFee > 0 && quote.breakdown.amountToFreeDelivery > 0 && (
+          <div className="notice good" style={{ marginTop: 10 }}>
+            Add {rupees(quote.breakdown.amountToFreeDelivery)} more for free delivery. <Link href="/pharmacy" style={{ fontWeight: 700, textDecoration: 'underline' }}>Add items</Link>
+          </div>
+        )}
+        {quote?.belowMinimum && (
+          <div className="notice bad" style={{ marginTop: 10 }}>{cart.vendorName} takes orders from {rupees(quote.minOrderValue)}.</div>
+        )}
       </div>
 
       <form className="card" onSubmit={placeOrder}>
@@ -197,7 +235,7 @@ export default function CheckoutPage() {
         {error && <div className="error">{error}</div>}
         <button className="btn" type="submit" disabled={busy} style={{ marginTop: 14, width: '100%' }}>
           {busy ? (mode !== 'cod' ? 'Processing payment…' : 'Placing order…')
-            : mode !== 'cod' ? `Continue to payment · ₹${cart.subtotal}` : `Place order · ₹${cart.subtotal}`}
+            : mode !== 'cod' ? `Continue to payment · ${rupees(payable)}` : `Place order · ${rupees(payable)}`}
         </button>
       </form>
     </>

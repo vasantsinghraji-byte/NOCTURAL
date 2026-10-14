@@ -61,12 +61,26 @@ Nabz keeps      = commission + delivery fee (funds riders)
 
 1. **Nurse pickup** (visit supplies): ₹0.
 2. **Plus member:** ₹0, always, including surge and night.
-3. **Basket ≥ ₹499:** base fee waived. Surge and the night surcharge still apply, because riders cost more in rain and late at night.
-4. **Otherwise:** store base fee (or the ₹25 platform default) × zone surge, plus ₹20 between 22:00 and 06:00 IST.
+3. **Basket ≥ ₹249:** the distance fee is waived. Surge and the night surcharge still apply, because riders cost more in rain and late at night.
+4. **Otherwise (basket under ₹249), by distance from the store:**
+   - road km = straight-line km × 1.3, rounded up;
+   - fee = ₹20 for the first 2 km + ₹8 per km after that, at most ₹80;
+   - then × zone surge, plus ₹20 between 22:00 and 06:00 IST.
+
+   A store's own delivery fee (when above ₹0) replaces the ₹20 base. A store fee of ₹0 is the default for new stores and no longer means free delivery.
 
 **Surge** follows the ops "stress" lever on each service zone: raise a zone to HIGH or SEVERE in heavy rain or during a rider shortage, set an expiry, and it reverts automatically.
 
-**Example (₹350 basket, store fee ₹25, normal time):** customer pays ₹375, the pharmacy earns ₹315, Nabz keeps ₹35 + ₹25 = **₹60**.
+**Before ordering**, the apps and website show the fee and "Add ₹X more for free delivery" (`POST /pharmacy/delivery-quote`, same rules as checkout).
+
+| Basket | Distance | Delivery fee (normal time) |
+|---|---|---|
+| ₹180 | 1 km (1.3 road km → 2) | ₹20 |
+| ₹180 | 3 km (3.9 road km → 4) | ₹20 + 2 × ₹8 = ₹36 |
+| ₹180 | 8 km (10.4 road km → 11) | ₹20 + 9 × ₹8 = ₹92 → capped at ₹80 |
+| ₹249 or more | any | ₹0 |
+
+**Example (₹350 basket, normal time):** free delivery; the pharmacy earns ₹315 and Nabz keeps the ₹35 commission. **Example (₹200 basket, 3 km):** customer pays ₹236; the pharmacy earns ₹180; Nabz keeps ₹20 commission + ₹36 delivery = **₹56**.
 
 ### 2.3 Nabz Plus (₹149 / 30 days)
 
@@ -142,8 +156,9 @@ Set the env var. No code change or deploy is needed beyond a task restart. On AW
 | `REVENUE_CARE_CUSTOMER_FEE_RATE` | `0.15` |
 | `REVENUE_CARE_MEMBER_FEE_WAIVED` | `true` |
 | `REVENUE_PHARMACY_COMMISSION_RATE` | `0.10` |
-| `REVENUE_DELIVERY_FEE_DEFAULT` | `25` |
-| `REVENUE_FREE_DELIVERY_ABOVE` | `499` (0 = off) |
+| `REVENUE_DELIVERY_FEE_DEFAULT` | `20` (base, covers the first km) |
+| `REVENUE_DELIVERY_INCLUDED_KM` / `REVENUE_DELIVERY_PER_KM` / `REVENUE_DELIVERY_MAX_FEE` | `2` / `8` / `80` |
+| `REVENUE_FREE_DELIVERY_ABOVE` | `249` (free from this basket; 0 = off) |
 | `REVENUE_SURGE_HIGH` / `REVENUE_SURGE_SEVERE` | `1.5` / `2` |
 | `REVENUE_NIGHT_SURCHARGE`, `REVENUE_NIGHT_START_HOUR`, `REVENUE_NIGHT_END_HOUR` | `20`, `22`, `6` |
 | `REVENUE_MEMBER_FREE_DELIVERY` | `true` |

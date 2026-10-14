@@ -193,8 +193,7 @@ export default function PharmacyPage() {
                 <h3>{v.name}</h3>
                 <span className="muted">
                   {v.distanceKm !== undefined ? `${v.distanceKm} km · ` : ''}
-                  {v.eta ? `~${Math.max(1, Math.round((new Date(v.eta.promisedAt).getTime() - Date.now()) / 60000))} min · ` : ''}
-                  delivery ₹{v.deliveryFee ?? 0}
+                  {v.eta ? `~${Math.max(1, Math.round((new Date(v.eta.promisedAt).getTime() - Date.now()) / 60000))} min delivery` : 'Delivery by distance'}
                 </span>
               </button>
             ))}

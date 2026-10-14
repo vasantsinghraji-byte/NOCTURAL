@@ -111,7 +111,10 @@ export default function AdminConsole() {
     <>
       <div className="admin-head">
         <h1 className="section-title" style={{ margin: 0 }}>Admin panel</h1>
-        <span className="muted">Signed in as {user?.name}</span>
+        <div className="row" style={{ gap: 10 }}>
+          <span className="muted">Signed in as {user?.name}</span>
+          {user?.role === 'platform_admin' && <Link href="/onboarding" className="btn secondary">Onboarding panel</Link>}
+        </div>
       </div>
       <nav className="admin-tabs" role="tablist" aria-label="Admin sections">
         {TABS.filter((t) => !t.platformOnly || user?.role === 'platform_admin').map((t) => (

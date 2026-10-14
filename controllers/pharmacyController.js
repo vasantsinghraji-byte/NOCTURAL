@@ -96,6 +96,15 @@ exports.getVendorStorefront = async (req, res, next) => {
   }
 };
 
+exports.quoteDelivery = async (req, res, next) => {
+  try {
+    const quote = await pharmacyService.quoteDelivery(req.user.id, req.body);
+    responseHelper.sendSuccess(res, quote, 'Delivery fee quoted');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
 exports.createOrder = async (req, res, next) => {
   try {
     const order = await pharmacyService.createOrder(req.user.id, req.body);

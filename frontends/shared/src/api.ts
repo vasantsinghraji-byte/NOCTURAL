@@ -28,6 +28,7 @@ import type {
   AuthUser,
   RegisterPatientInput,
   PaymentOptions,
+  DeliveryQuote,
   PaymentCheckout,
   RazorpayHandlerResponse,
   Serviceability,
@@ -79,6 +80,8 @@ import type {
   FeedUpdate,
   AdminDocumentRow,
   PartnerDocument,
+  PartnerKind,
+  OnboardingReviewer,
   PartnerDocumentKind,
   VerificationStatus,
   SubstituteOption
@@ -438,6 +441,11 @@ export class MedRushApi {
   }
 
   // ── Pharmacy: patient orders ─────────────────────────────────────────────
+  /** Delivery fee for a basket before ordering: distance-based below the free-delivery threshold. */
+  quoteDelivery(body: { vendorId: string; itemsSubtotal: number; lat?: number; lng?: number }) {
+    return this.request<{ success: true } & DeliveryQuote>('POST', '/pharmacy/delivery-quote', { body });
+  }
+
   createOrder(input: CreateOrderInput) {
     return this.request<{ success: true; order: PharmacyOrder }>('POST', '/pharmacy/orders', { body: input });
   }
@@ -993,6 +1001,48 @@ export class MedRushApi {
 
   markPartnerUpdateOpened(id: string) {
     return this.request<{ success: true }>('POST', `/partners/me/updates/${id}/open`);
+  }
+
+  // ── Onboarding panel (onboarding team + platform admins) ────────────────
+  onboardingCounts() {
+    return this.request<{ success: true; counts: Record<PartnerKind, number>; createsLogin: PartnerKind[] }>('GET', '/onboarding/applications/counts');
+  }
+
+  onboardingApplications(status: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING', kind?: PartnerKind) {
+    return this.request<{ success: true; applications: PartnerApplication[] }>('GET', '/onboarding/applications', { query: { status, ...(kind ? { kind } : {}) } });
+  }
+
+  onboardingReviewApplication(id: string, body: { status: 'APPROVED' | 'REJECTED'; note?: string; email?: string }) {
+    return this.request<{ success: true; application: PartnerApplication }>('PATCH', `/onboarding/applications/${id}`, { body });
+  }
+
+  onboardingDocuments(status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'ALL' = 'PENDING') {
+    return this.request<{ success: true; documents: AdminDocumentRow[] }>('GET', '/onboarding/documents', { query: { status } });
+  }
+
+  onboardingViewDocument(id: string) {
+    return this.request<{ success: true; url: string; mimeType: string; expiresInSeconds: number }>('POST', `/onboarding/documents/${id}/view`);
+  }
+
+  onboardingReviewDocument(id: string, input: { decision: 'APPROVED' | 'REJECTED'; note?: string; expiresAt?: string }) {
+    return this.request<{ success: true; document: PartnerDocument; awaitingSecondApproval?: boolean }>('PATCH', `/onboarding/documents/${id}`, { body: input });
+  }
+
+  onboardingTeam() {
+    return this.request<{ success: true; reviewers: OnboardingReviewer[]; allowedDomains: string[] }>('GET', '/onboarding/team');
+  }
+
+  /** The reviewer sets their own password through the emailed one-time link. */
+  onboardingAddReviewer(body: { name: string; email: string }) {
+    return this.request<{ success: true; reviewer: OnboardingReviewer; invite: { sent: boolean; link?: string } }>('POST', '/onboarding/team', { body });
+  }
+
+  onboardingSetReviewerActive(id: string, active: boolean) {
+    return this.request<{ success: true; active: boolean }>('PATCH', `/onboarding/team/${id}`, { body: { active } });
+  }
+
+  onboardingResendInvite(id: string) {
+    return this.request<{ success: true; invite: { sent: boolean; link?: string } }>('POST', `/onboarding/team/${id}/invite`);
   }
 
   adminStaffMix() {

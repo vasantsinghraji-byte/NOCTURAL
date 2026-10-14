@@ -131,8 +131,25 @@ async function submitDocument(userId, { kind, number, expiresAt }, file, now = n
 }
 
 /** Recompute trust badges from documents, only for badges that have documents. */
+/**
+ * Riders, labs and phlebotomists have no badges: their account is verified
+ * (`isVerified`) once every required document is valid, and loses it when one
+ * lapses. A rider who loses it is taken offline.
+ */
+async function syncAccountVerified(user, now) {
+  const docs = await currentDocs(user._id);
+  const required = requirementsFor(user.role).filter((k) => !KINDS[k].optional);
+  const ok = required.length > 0 && required.every((k) => docs.some((d) => d.kind === k && isValid(d, now)));
+  if (ok === !!user.isVerified) return { changed: false };
+  await User.updateOne({ _id: user._id }, { $set: { isVerified: ok, ...(ok ? {} : { isOnline: false }) } });
+  logger.info('Partner account verification changed', { userId: String(user._id), role: user.role, verified: ok });
+  return { changed: true, verified: ok };
+}
+const ACCOUNT_VERIFIED_ROLES = ['delivery_partner', 'lab_partner', 'phlebotomist'];
+
 async function syncFlags(userId, actorId = null, now = new Date()) {
-  const user = await User.findById(userId).select('role careProfile.verification').lean();
+  const user = await User.findById(userId).select('role isVerified careProfile.verification').lean();
+  if (user && ACCOUNT_VERIFIED_ROLES.includes(user.role)) return syncAccountVerified(user, now);
   if (!user || !STAFF_ROLES.includes(user.role)) return { changed: false };
   const docs = await currentDocs(userId);
   const kinds = requirementsFor(user.role);
@@ -212,6 +229,22 @@ async function fileFor(docId) {
   return doc;
 }
 
+/**
+ * A short-lived way to open a document file (admin console and onboarding
+ * panel; the routes check access and audit the view). Cloud: a 2-minute signed
+ * URL. Local development only: the file as a data URL (resolveLocalFile keeps
+ * the path inside the uploads folder).
+ */
+async function fileLink(doc) {
+  const storageConfig = require('../config/storage');
+  if (storageConfig.USE_CLOUD) {
+    const url = await storageConfig.getSignedUrl(doc.file.key, 120);
+    return url ? { url, mimeType: doc.file.mimeType, expiresInSeconds: 120 } : null;
+  }
+  const data = await require('fs').promises.readFile(storageConfig.resolveLocalFile(doc.file.key));
+  return { url: `data:${doc.file.mimeType};base64,${data.toString('base64')}`, mimeType: doc.file.mimeType, expiresInSeconds: 0 };
+}
+
 /** Tick step: expire documents, then reminders before expiry. */
 async function sweepExpiry(now = new Date()) {
   const expired = await PartnerDocument.find({ status: 'APPROVED', superseded: false, expiresAt: { $lte: now } }).select('_id user kind').lean();
@@ -284,6 +317,7 @@ module.exports = {
   review,
   reviewQueue,
   fileFor,
+  fileLink,
   syncFlags,
   sweepExpiry,
   recordDigilockerAadhaar,

@@ -369,6 +369,29 @@ export interface CartPlan {
   unavailable: Array<{ medicineId: string; name: string; substitutes: MedicineSubstitute[] }>;
 }
 
+/** POST /pharmacy/delivery-quote: the bill before the order is placed. */
+export interface DeliveryQuote {
+  itemsSubtotal: number;
+  deliveryFee: number;
+  total: number;
+  breakdown: {
+    base: number;
+    distanceKm: number | null;
+    chargedKm: number;
+    distanceCharge: number;
+    surgeMultiplier: number;
+    surgeAmount: number;
+    nightSurcharge: number;
+    freeDeliveryAbove: number;
+    /** Add this much more for free delivery (0 when already free). */
+    amountToFreeDelivery: number;
+    waiver: 'MEMBER' | 'FREE_ABOVE' | 'STAFF_PICKUP' | null;
+  };
+  serviceable: boolean;
+  minOrderValue: number;
+  belowMinimum: boolean;
+}
+
 export interface OrderAmounts {
   itemsSubtotal: number;
   deliveryFee: number;
@@ -640,7 +663,19 @@ export interface CareCancelQuote { allowed: boolean; fee: number; reason: string
 export interface AdminMfaChallenge { success: true; mfaRequired: true; mfaToken: string; enrolled: boolean }
 
 /** Separate login per partner type (server enforces the role). */
-export type LoginPortal = 'staff' | 'pharmacy' | 'lab' | 'rider' | 'admin';
+export type LoginPortal = 'staff' | 'pharmacy' | 'lab' | 'rider' | 'admin' | 'onboarding';
+
+/** A member of the onboarding team (GET /onboarding/team). */
+export interface OnboardingReviewer {
+  _id: string;
+  name: string;
+  email: string;
+  isActive: boolean;
+  /** Has set up their authenticator app (they can't sign in until they do). */
+  mfaEnrolled: boolean;
+  createdAt: string;
+  lastActive: string | null;
+}
 
 // ── Nabz Plus membership ───────────────────────────────────────────────────
 

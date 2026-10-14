@@ -85,8 +85,15 @@ function loadRevenuePolicy() {
     // (with surge / night surcharge) is platform revenue that funds riders.
     pharmacy: Object.freeze({
       commissionRate: num('REVENUE_PHARMACY_COMMISSION_RATE', 0.10, { max: 1 }),
-      defaultDeliveryFee: num('REVENUE_DELIVERY_FEE_DEFAULT', 25),
-      freeDeliveryAbove: num('REVENUE_FREE_DELIVERY_ABOVE', 499), // 0 disables
+      // Below the free-delivery basket, the fee follows the distance from the
+      // store: the base covers the first `deliveryIncludedKm` road km, then
+      // `deliveryPerKm` for each further km (rounded up), capped at `deliveryMaxFee`.
+      // A store's own fee (> 0) replaces the base.
+      defaultDeliveryFee: num('REVENUE_DELIVERY_FEE_DEFAULT', 20),
+      deliveryIncludedKm: num('REVENUE_DELIVERY_INCLUDED_KM', 2, { max: 50 }),
+      deliveryPerKm: num('REVENUE_DELIVERY_PER_KM', 8, { max: 100 }),
+      deliveryMaxFee: num('REVENUE_DELIVERY_MAX_FEE', 80, { max: 1000 }),
+      freeDeliveryAbove: num('REVENUE_FREE_DELIVERY_ABOVE', 249), // 0 disables
       surgeMultiplier: Object.freeze({
         NORMAL: 1,
         HIGH: num('REVENUE_SURGE_HIGH', 1.5, { min: 1, max: 5 }),

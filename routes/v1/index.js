@@ -43,6 +43,7 @@ const adminOpsRoutes = require('../adminOps');
 const profilePhotoRoutes = require('../profilePhoto');
 const passwordResetRoutes = require('../passwordReset');
 const partnerRoutes = require('../partners');
+const onboardingRoutes = require('../onboarding');
 const partnerPostRoutes = require('../partnerPosts');
 const chatRoutes = require('../chat');
 const internalRoutes = require('../internal');
@@ -119,6 +120,7 @@ router.use('/auth/social', socialAuthRoutes);
 router.use('/auth/admin-mfa', adminMfaRoutes);
 router.use('/auth/password', passwordResetRoutes);
 router.use('/partners', partnerRoutes);
+router.use('/onboarding', onboardingRoutes);
 router.use('/partner-posts', partnerPostRoutes);
 router.use('/chat', chatRoutes);
 // Scheduler-only (EventBridge): background sweeps. 404 unless CRON_SECRET is set.

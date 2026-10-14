@@ -367,12 +367,14 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
 
     const itemsSubtotal = Math.round(orderItems.reduce((sum, i) => sum + i.lineTotal, 0) * 100) / 100;
     const isStaffPickup = fulfilment === 'STAFF_PICKUP';
-    // Delivery fee = store base × zone surge + night surcharge; free for Nabz Plus,
-    // big baskets and nurse pickups (config/revenue.js). No basket minimum for pickups.
+    // Delivery fee = (base + distance charge) × zone surge + night surcharge; free
+    // for Nabz Plus, baskets at or above the free-delivery threshold (surge and
+    // night still apply) and nurse pickups (config/revenue.js). No basket minimum for pickups.
     const fee = pricingService.quoteDeliveryFee({
       vendor,
       zone: delivery.zone,
       itemsSubtotal,
+      distanceKm: delivery.distanceKm,
       isMember: await membershipService.isMember(patientId),
       fulfilment: isStaffPickup ? 'STAFF_PICKUP' : 'DELIVERY'
     });
@@ -792,11 +794,47 @@ async function updateVendorProfile(vendorId, updates = {}) {
   return vendor;
 }
 
+/**
+ * The delivery fee the customer will pay for a basket from this store, before
+ * they place the order (same rules as createOrder), plus how much more to add
+ * for free delivery. Without a delivery point the distance part is left out.
+ */
+async function quoteDelivery(patientId, { vendorId, itemsSubtotal, lat, lng } = {}) {
+  if (!mongoose.isValidObjectId(vendorId)) throw new ValidationError('A valid vendorId is required');
+  const subtotal = toNumber(itemsSubtotal, 0);
+  if (subtotal < 0) throw new ValidationError('itemsSubtotal must be zero or more');
+  const vendor = await PharmacyVendor.findOne({ _id: vendorId, status: 'APPROVED', isActive: true });
+  if (!vendor) throw new NotFoundError('Pharmacy vendor', vendorId);
+
+  let delivery = { zone: null, distanceKm: undefined, serviceable: true };
+  if (lat !== undefined && lat !== null && lng !== undefined && lng !== null) {
+    delivery = await serviceability.assessDelivery(vendor, serviceability.toPoint(lat, lng));
+  }
+  const fee = pricingService.quoteDeliveryFee({
+    vendor,
+    zone: delivery.zone,
+    itemsSubtotal: subtotal,
+    distanceKm: delivery.distanceKm,
+    isMember: await membershipService.isMember(patientId)
+  });
+  const minOrderValue = toNumber(vendor.minOrderValue, 0);
+  return {
+    itemsSubtotal: subtotal,
+    deliveryFee: fee.deliveryFee,
+    total: Math.round((subtotal + fee.deliveryFee) * 100) / 100,
+    breakdown: fee.breakdown,
+    serviceable: delivery.serviceable !== false,
+    minOrderValue,
+    belowMinimum: minOrderValue > 0 && subtotal < minOrderValue
+  };
+}
+
 module.exports = {
   getNearbyVendors,
   searchMedicines,
   getVendorStorefront,
   createOrder,
+  quoteDelivery,
   getOrderById,
   getPatientOrders,
   cancelOrderByPatient,

@@ -16,7 +16,16 @@ const fmt = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numer
  * approving and rejecting need a fresh 2FA code and are audited. Approving a
  * document that expires needs its expiry date (prefilled from the upload).
  */
-export default function DocumentsPanel({ sensitive }: { sensitive: Sensitive }) {
+export default function DocumentsPanel({ sensitive, scope = 'admin', roles, onChanged }: {
+  sensitive: Sensitive;
+  /** "onboarding": use the onboarding panel's endpoints. */
+  scope?: 'admin' | 'onboarding';
+  /** Only documents from partners with these roles (one onboarding tab per partner kind). */
+  roles?: string[];
+  onChanged?: () => void;
+}) {
+  const onboarding = scope === 'onboarding';
+  const rolesKey = (roles || []).join(',');
   const [status, setStatus] = useState<Status>('PENDING');
   const [rows, setRows] = useState<AdminDocumentRow[] | null>(null);
   const [expiry, setExpiry] = useState<Record<string, string>>({});
@@ -25,17 +34,21 @@ export default function DocumentsPanel({ sensitive }: { sensitive: Sensitive }) 
 
   const load = useCallback(() => {
     setError(null);
-    api.adminDocuments(status).then((r) => setRows(r.documents)).catch((e) => setError(e.message));
-  }, [status]);
+    (onboarding ? api.onboardingDocuments(status) : api.adminDocuments(status))
+      .then((r) => setRows(rolesKey ? r.documents.filter((d) => rolesKey.split(',').includes(d.user?.role || '')) : r.documents))
+      .catch((e) => setError(e.message));
+  }, [status, onboarding, rolesKey]);
   useEffect(load, [load]);
 
   const view = (d: AdminDocumentRow) => sensitive(async () => {
-    const r = await api.adminViewDocument(d._id);
+    const r = onboarding ? await api.onboardingViewDocument(d._id) : await api.adminViewDocument(d._id);
     window.open(r.url, '_blank', 'noopener,noreferrer');
   });
 
   const approve = (d: AdminDocumentRow) => sensitive(async () => {
-    const r = await api.adminReviewDocument(d._id, { decision: 'APPROVED', expiresAt: expiry[d._id] || d.expiresAt?.slice(0, 10) || undefined });
+    const input = { decision: 'APPROVED' as const, expiresAt: expiry[d._id] || d.expiresAt?.slice(0, 10) || undefined };
+    const r = onboarding ? await api.onboardingReviewDocument(d._id, input) : await api.adminReviewDocument(d._id, input);
+    onChanged?.();
     setNotice(r.awaitingSecondApproval ? `${d.label} for ${d.user?.name}: first approval saved. A second admin must approve it.` : `${d.label} for ${d.user?.name} approved.`);
     load();
   });
@@ -52,7 +65,9 @@ export default function DocumentsPanel({ sensitive }: { sensitive: Sensitive }) 
     });
     if (!note) return;
     await sensitive(async () => {
-      await api.adminReviewDocument(d._id, { decision: 'REJECTED', note });
+      if (onboarding) await api.onboardingReviewDocument(d._id, { decision: 'REJECTED', note });
+      else await api.adminReviewDocument(d._id, { decision: 'REJECTED', note });
+      onChanged?.();
       setNotice(`${d.label} for ${d.user?.name} rejected.`);
       load();
     });

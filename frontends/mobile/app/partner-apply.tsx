@@ -7,17 +7,19 @@ import { api, describeNetworkError } from '@/lib/api';
 import { TermsCheckbox } from '@/lib/fields';
 import { IconTile } from '@/lib/icons';
 import { PressScale, Rise, success } from '@/lib/motion';
-import { C, F, shadow, ui } from '@/lib/theme';
+import { C, F, ui } from '@/lib/theme';
 
-const KINDS: Array<{ kind: PartnerKind; icon: LucideIcon; title: string; tone: string; fg: string }> = [
-  { kind: 'MEDICAL_STAFF', icon: Stethoscope, title: 'Nurse / physio', tone: C.violetSoft, fg: C.violet },
-  { kind: 'PHARMACY', icon: Store, title: 'Pharmacy', tone: C.mintSoft, fg: C.mint },
-  { kind: 'PATH_LAB', icon: FlaskConical, title: 'Path lab', tone: C.amberSoft, fg: C.amber },
-  { kind: 'DELIVERY', icon: Bike, title: 'Delivery', tone: C.skySoft, fg: C.sky },
-  { kind: 'PHLEBOTOMIST', icon: Droplets, title: 'Phlebotomist', tone: C.roseSoft, fg: C.rose },
-  { kind: 'PRP_TECHNICIAN', icon: Syringe, title: 'PRP technician', tone: C.violetSoft, fg: C.violet },
-  { kind: 'HOSPITAL', icon: Hospital, title: 'Hospital / nursing home', tone: C.mintSoft, fg: C.mint }
+// `waitlist`: no partner flow yet, so approving doesn't create a login.
+const KINDS: Array<{ kind: PartnerKind; icon: LucideIcon; title: string; waitlist?: boolean }> = [
+  { kind: 'MEDICAL_STAFF', icon: Stethoscope, title: 'Nurse / physio' },
+  { kind: 'PHARMACY', icon: Store, title: 'Pharmacy' },
+  { kind: 'DELIVERY', icon: Bike, title: 'Delivery rider' },
+  { kind: 'PATH_LAB', icon: FlaskConical, title: 'Path lab' },
+  { kind: 'PHLEBOTOMIST', icon: Droplets, title: 'Phlebotomist' },
+  { kind: 'PRP_TECHNICIAN', icon: Syringe, title: 'PRP technician', waitlist: true },
+  { kind: 'HOSPITAL', icon: Hospital, title: 'Hospital / nursing home', waitlist: true }
 ];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type Field = { key: keyof PartnerApplicationInput; label: string; keyboard?: 'number-pad' | 'email-address' | 'phone-pad'; max?: number };
 const EXTRA: Record<PartnerKind, Field[]> = {
@@ -65,11 +67,14 @@ export default function PartnerApply() {
   const [error, setError] = useState<string | null>(null);
 
   const set = (k: string) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const waitlisted = !!KINDS.find((k) => k.kind === kind)?.waitlist;
 
   async function submit() {
     setError(null);
     if ((form.name || '').trim().length < 2) { setError('Enter your full name.'); return; }
     if (!/^[6-9]\d{9}$/.test(form.phone || '')) { setError('Enter a valid 10-digit mobile number.'); return; }
+    // The sign-in invite (set your password) is emailed once ops approve.
+    if (!waitlisted && !EMAIL_RE.test((form.email || '').trim())) { setError('Enter your email: we send your partner sign-in link there.'); return; }
     setBusy(true);
     try {
       if (form.agree !== 'yes') { setError('Please accept the partner terms to apply.'); setBusy(false); return; }
@@ -103,7 +108,9 @@ export default function PartnerApply() {
           <IconTile icon={CircleCheck} bg={C.mintSoft} color={C.mint} size={84} radius={42} />
           <Text style={[ui.display, { textAlign: 'center' }]}>Application received</Text>
           <Text style={[ui.body, { textAlign: 'center' }]}>
-            Our Jaipur team will call you within 2 working days to verify documents. Once approved, you’ll get your Nabz Partner login by SMS.
+            {waitlisted
+              ? 'You’re on the waitlist. Our Jaipur team will call you when this partnership opens.'
+              : 'Our Jaipur team will call you within 2 working days. Once approved, we’ll email you a link to set your password. Then sign in to Nabz Partner, upload your documents, and start as soon as they’re verified.'}
           </Text>
         </Rise>
         <PressScale style={ui.btnDark} onPress={() => router.back()}>
@@ -119,9 +126,11 @@ export default function PartnerApply() {
         <Text style={ui.display}>How will you partner?</Text>
         <View style={styles.grid}>
           {KINDS.map((k) => (
-            <Pressable key={k.kind} onPress={() => setKind(k.kind)} style={[styles.kind, kind === k.kind && styles.kindOn]}>
-              <IconTile icon={k.icon} bg={k.tone} color={k.fg} size={40} />
+            <Pressable key={k.kind} onPress={() => setKind(k.kind)} style={[styles.kind, kind === k.kind && styles.kindOn]}
+              accessibilityRole="radio" accessibilityState={{ checked: kind === k.kind }}>
+              <IconTile icon={k.icon} bg={kind === k.kind ? C.brandSoft : C.cardAlt} color={kind === k.kind ? C.brand : C.inkSoft} size={40} />
               <Text style={ui.h3}>{k.title}</Text>
+              {k.waitlist ? <Text style={styles.waitlist}>Waitlist</Text> : null}
             </Pressable>
           ))}
         </View>
@@ -130,7 +139,7 @@ export default function PartnerApply() {
           <TextInput style={ui.input} placeholder="Full name" placeholderTextColor={C.faint} value={form.name || ''} onChangeText={set('name')} autoComplete="name" />
           <TextInput style={ui.input} placeholder="Mobile (10 digits)" placeholderTextColor={C.faint} keyboardType="phone-pad" maxLength={10}
             value={form.phone || ''} onChangeText={(v) => set('phone')(v.replace(/\D/g, ''))} />
-          <TextInput style={ui.input} placeholder="Email (optional)" placeholderTextColor={C.faint} keyboardType="email-address" autoCapitalize="none"
+          <TextInput style={ui.input} placeholder={waitlisted ? 'Email (optional)' : 'Email (your sign-in link is sent here)'} placeholderTextColor={C.faint} keyboardType="email-address" autoCapitalize="none" autoComplete="email"
             value={form.email || ''} onChangeText={set('email')} />
           <TextInput style={ui.input} placeholder="City" placeholderTextColor={C.faint} value={form.city || ''} onChangeText={set('city')} />
           <TextInput style={ui.input} placeholder="Referral code from a Nabz partner (optional)" placeholderTextColor={C.faint} autoCapitalize="characters"
@@ -165,8 +174,9 @@ export default function PartnerApply() {
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  kind: { width: '48%', flexGrow: 1, borderRadius: 18, padding: 14, gap: 8, borderWidth: 2, borderColor: C.border, backgroundColor: C.card },
-  kindOn: { borderColor: C.ink, ...shadow },
+  kind: { width: '48%', flexGrow: 1, borderRadius: 12, padding: 14, gap: 8, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
+  kindOn: { borderColor: C.brand, borderWidth: 1.5 },
+  waitlist: { alignSelf: 'flex-start', fontFamily: F.semi, fontSize: 11, color: C.amber, backgroundColor: C.amberSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
   label: { fontFamily: F.bold },
   gender: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card },
   genderOn: { backgroundColor: C.night, borderColor: C.night }

@@ -1,8 +1,11 @@
 /**
  * Partner onboarding: apply → platform admin reviews → approve/reject.
- * Approving a nurse/physio or pharmacy creates their login (role from the
- * application, never self-assigned) with verification pending, and emails a
- * set-password invite. Lab and delivery partners stay a waitlist for now.
+ * Approving a nurse/physio, pharmacy, delivery rider, path lab or
+ * phlebotomist creates their login (role from the application, never
+ * self-assigned) with verification pending, and emails a set-password invite.
+ * They then upload documents in the partner app; nobody goes online or takes
+ * orders until an admin has verified them. PRP technicians and hospitals stay
+ * a waitlist (no partner flow yet).
  */
 
 const crypto = require('crypto');
@@ -55,11 +58,33 @@ async function list({ status = 'PENDING', kind, limit = 50 } = {}) {
   return PartnerApplication.find(q).sort({ createdAt: -1 }).limit(Math.min(Number(limit) || 50, 200)).lean();
 }
 
-const PROVISIONED_KINDS = ['MEDICAL_STAFF', 'PHARMACY'];
+/** Pending applications per partner kind (tab badges in the onboarding panel). */
+async function pendingCounts() {
+  const rows = await PartnerApplication.aggregate([
+    { $match: { status: 'PENDING' } },
+    { $group: { _id: '$kind', count: { $sum: 1 } } }
+  ]);
+  const counts = Object.fromEntries(PartnerApplication.PARTNER_KINDS.map((k) => [k, 0]));
+  for (const r of rows) if (r._id in counts) counts[r._id] = r.count;
+  return counts;
+}
+
+const PROVISIONED_KINDS =['MEDICAL_STAFF', 'PHARMACY', 'DELIVERY', 'PATH_LAB', 'PHLEBOTOMIST'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function staffRole(details = {}) {
   return /\b(bpt|mpt|physio)/i.test(details.qualification || '') ? 'physiotherapist' : 'nurse';
+}
+
+/** The login role an approved application gets. */
+function roleFor(app) {
+  switch (app.kind) {
+    case 'PHARMACY': return 'pharmacy_vendor';
+    case 'DELIVERY': return 'delivery_partner';
+    case 'PATH_LAB': return 'lab_partner';
+    case 'PHLEBOTOMIST': return 'phlebotomist';
+    default: return staffRole(app.details);
+  }
 }
 
 /** Create the partner's login (and a pending store for pharmacies). Returns ids + invite outcome. */
@@ -87,7 +112,7 @@ async function provision(app, email, adminId) {
       phone: app.phone,
       // Unusable until the partner sets their own through the invite link.
       password: `${crypto.randomBytes(24).toString('base64url')}Aa1!`,
-      role: app.kind === 'PHARMACY' ? 'pharmacy_vendor' : staffRole(app.details),
+      role: roleFor(app),
       isVerified: false,
       ...(vendor ? { pharmacyVendor: vendor._id } : {}),
       ...(app.kind === 'MEDICAL_STAFF' ? {
@@ -161,4 +186,4 @@ async function staffMix() {
   return mix;
 }
 
-module.exports = { apply, list, review, staffMix };
+module.exports = { apply, list, pendingCounts, review, staffMix, PROVISIONED_KINDS };

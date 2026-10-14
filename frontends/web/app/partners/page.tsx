@@ -8,12 +8,15 @@ import { api } from '@/lib/api';
 import AuthShell from '../_components/AuthShell';
 
 // Lab and delivery partners join a waitlist: their dashboards aren't built yet (audit M7).
+// Waitlist kinds have no partner flow yet, so approving them creates no login.
+const WAITLIST: PartnerKind[] = ['PRP_TECHNICIAN', 'HOSPITAL'];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const KINDS: Array<{ kind: PartnerKind; icon: LucideIcon; title: string; login: string | null }> = [
   { kind: 'MEDICAL_STAFF', icon: Stethoscope, title: 'Nurse / physio', login: '/staff/login' },
   { kind: 'PHARMACY', icon: Store, title: 'Pharmacy', login: '/vendor/login' },
-  { kind: 'PATH_LAB', icon: FlaskConical, title: 'Path lab', login: null },
-  { kind: 'DELIVERY', icon: Bike, title: 'Delivery', login: null },
-  { kind: 'PHLEBOTOMIST', icon: Droplets, title: 'Phlebotomist', login: null },
+  { kind: 'PATH_LAB', icon: FlaskConical, title: 'Path lab', login: '/lab/login' },
+  { kind: 'DELIVERY', icon: Bike, title: 'Delivery rider', login: null },
+  { kind: 'PHLEBOTOMIST', icon: Droplets, title: 'Phlebotomist', login: '/lab/login' },
   { kind: 'PRP_TECHNICIAN', icon: Syringe, title: 'PRP technician', login: null },
   { kind: 'HOSPITAL', icon: Hospital, title: 'Hospital / nursing home', login: null }
 ];
@@ -66,6 +69,8 @@ export default function PartnersPage() {
     setError(null);
     if ((form.name || '').trim().length < 2) { setError('Enter your full name.'); return; }
     if (!/^[6-9]\d{9}$/.test(form.phone || '')) { setError('Enter a valid 10-digit mobile number.'); return; }
+    // The sign-in invite (set your password) is emailed once ops approve.
+    if (!WAITLIST.includes(kind) && !EMAIL_RE.test((form.email || '').trim())) { setError('Enter your email: we send your partner sign-in link there.'); return; }
     if (form.agree !== 'yes') { setError('Please accept the partner terms to apply.'); return; }
     setBusy(true);
     try {
@@ -98,7 +103,11 @@ export default function PartnersPage() {
       <AuthShell title="Application received" sideTitle="Welcome aboard, almost.">
         <div className="check-mail">
           <div className="icon"><CircleCheck size={34} /></div>
-          <p className="sub">Our Jaipur team will call you within 2 working days to verify your documents. Once approved, you’ll get your Nabz Partner login.</p>
+          <p className="sub">
+            {WAITLIST.includes(kind)
+              ? 'You’re on the waitlist. Our Jaipur team will call you when this partnership opens.'
+              : `Our Jaipur team will call you within 2 working days. Once approved, we’ll email you a link to set your password. Then sign in ${active.login ? 'here or in' : 'to'} the Nabz Partner app, upload your documents, and start as soon as they’re verified.`}
+          </p>
           <Link href="/" className="btn block lg" style={{ marginTop: 12 }}>Back to Nabz</Link>
         </div>
       </AuthShell>
@@ -126,7 +135,7 @@ export default function PartnersPage() {
         <label htmlFor="p-phone">Mobile number</label>
         <input id="p-phone" name="tel" type="tel" autoComplete="tel-national" className="input" inputMode="numeric" maxLength={10} value={form.phone || ''}
           onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, '') }))} />
-        <label htmlFor="p-email">Email (optional)</label>
+        <label htmlFor="p-email">{WAITLIST.includes(kind) ? 'Email (optional)' : 'Email (your sign-in link is sent here)'}</label>
         <input id="p-email" className="input" type="email" autoComplete="email" value={form.email || ''} onChange={set('email')} />
         <label htmlFor="p-city">City</label>
         <input id="p-city" name="city" autoComplete="address-level2" className="input" value={form.city || ''} onChange={set('city')} />

@@ -37,8 +37,31 @@ describe('pricingService', () => {
       expect(severeNight.deliveryFee).toBe(60); // 20 × 2 + 20 night
     });
 
-    it('falls back to the platform default when the store sets none', () => {
-      expect(pricing.quoteDeliveryFee({ vendor: {}, itemsSubtotal: 100, now: DAY }).deliveryFee).toBe(25);
+    it('falls back to the platform default when the store sets none, or 0 (the schema default)', () => {
+      expect(pricing.quoteDeliveryFee({ vendor: {}, itemsSubtotal: 100, now: DAY }).deliveryFee).toBe(20);
+      expect(pricing.quoteDeliveryFee({ vendor: { deliveryFee: 0 }, itemsSubtotal: 100, now: DAY }).deliveryFee).toBe(20);
+    });
+
+    it('adds a per-km charge after the included distance, capped', () => {
+      // 1 km straight → 1.3 road km → 2 charged km: inside the base.
+      const near = pricing.quoteDeliveryFee({ vendor: {}, itemsSubtotal: 100, distanceKm: 1, now: DAY });
+      expect(near.deliveryFee).toBe(20);
+      expect(near.breakdown).toMatchObject({ chargedKm: 2, distanceCharge: 0, amountToFreeDelivery: 149 });
+      // 3 km straight → 3.9 road km → 4 charged km: 2 extra × ₹8.
+      const mid = pricing.quoteDeliveryFee({ vendor: {}, itemsSubtotal: 100, distanceKm: 3, now: DAY });
+      expect(mid.deliveryFee).toBe(36);
+      expect(mid.breakdown).toMatchObject({ distanceKm: 3, chargedKm: 4, distanceCharge: 16 });
+      // Far away: never more than the cap (₹80) before surge and night.
+      expect(pricing.quoteDeliveryFee({ vendor: {}, itemsSubtotal: 100, distanceKm: 20, now: DAY }).deliveryFee).toBe(80);
+      // Surge multiplies the distance fee too.
+      expect(pricing.quoteDeliveryFee({ vendor: {}, zone: zone('HIGH'), itemsSubtotal: 100, distanceKm: 3, now: DAY }).deliveryFee).toBe(54);
+    });
+
+    it('is free from ₹249 and charged just below it', () => {
+      expect(pricing.quoteDeliveryFee({ vendor: {}, itemsSubtotal: 249, distanceKm: 3, now: DAY }).deliveryFee).toBe(0);
+      const below = pricing.quoteDeliveryFee({ vendor: {}, itemsSubtotal: 248.5, distanceKm: 3, now: DAY });
+      expect(below.deliveryFee).toBe(36);
+      expect(below.breakdown.amountToFreeDelivery).toBe(0.5);
     });
 
     it('is free for Nabz Plus members, even at night', () => {

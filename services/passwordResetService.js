@@ -98,29 +98,31 @@ async function request(email, { ip } = {}) {
 
 const INVITE_TTL_HOURS = 72;
 
-function inviteBody(name, link) {
+function inviteBody(name, link, team = false) {
   const first = String(name || '').split(' ')[0] || 'there';
   const safeFirst = first.replace(/[<>&"]/g, '');
   const text = [
     `Hi ${first},`,
     '',
-    'Your Nabz Partner application is approved. Open this link to set your password and sign in:',
+    team
+      ? 'You have been added to the Nabz onboarding team. Open this link to set your password, then sign in to the onboarding panel and set up your authenticator app:'
+      : 'Your Nabz Partner application is approved. Open this link to set your password and sign in:',
     link,
     '',
     `The link works once and expires in ${INVITE_TTL_HOURS} hours.`,
-    'Our team will finish your verification before you can go live.',
+    team ? 'Sign-in always needs a code from your authenticator app.' : 'Our team will finish your verification before you can go live.',
     '',
     'Nabz'
   ].join('\n');
   const html = `<!doctype html><html><body style="margin:0;background:#f6f7fb;font-family:Arial,Helvetica,sans-serif;color:#0a0f24">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
   <table role="presentation" width="100%" style="max-width:520px;background:#ffffff;border-radius:20px;padding:32px">
-    <tr><td style="font-size:22px;font-weight:800;letter-spacing:-0.5px">nabz partner</td></tr>
+    <tr><td style="font-size:22px;font-weight:800;letter-spacing:-0.5px">${team ? 'nabz onboarding' : 'nabz partner'}</td></tr>
     <tr><td style="padding-top:20px;font-size:16px;line-height:24px">Hi ${safeFirst},<br><br>
-      Your Nabz Partner application is approved. Set your password to sign in.</td></tr>
+      ${team ? 'You have been added to the Nabz onboarding team. Set your password, then set up your authenticator app at first sign-in.' : 'Your Nabz Partner application is approved. Set your password to sign in.'}</td></tr>
     <tr><td style="padding:24px 0"><a href="${link}" style="display:inline-block;background:#0a0f24;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:14px">Set my password</a></td></tr>
     <tr><td style="font-size:13px;line-height:20px;color:#7a8299">The link works once and expires in ${INVITE_TTL_HOURS} hours.
-      Our team will finish your verification before you can go live.</td></tr>
+      ${team ? 'Sign-in always needs a code from your authenticator app.' : 'Our team will finish your verification before you can go live.'}</td></tr>
   </table></td></tr></table></body></html>`;
   return { text, html };
 }
@@ -131,7 +133,7 @@ function inviteBody(name, link) {
  * @returns {Promise<{ sent: boolean, link?: string }>} `link` only outside
  *   production when email isn't configured, so staging ops can hand it over.
  */
-async function invite(user) {
+async function invite(user, { team = false } = {}) {
   const token = crypto.randomBytes(32).toString('base64url');
   await PasswordResetToken.create({
     accountType: 'user',
@@ -140,10 +142,10 @@ async function invite(user) {
     expiresAt: new Date(Date.now() + INVITE_TTL_HOURS * 3600 * 1000)
   });
   const link = `${webBase()}/reset-password?token=${encodeURIComponent(token)}`;
-  const { text, html } = inviteBody(user.name, link);
+  const { text, html } = inviteBody(user.name, link, team);
   let sent = false;
   try {
-    sent = (await mailer.sendMail({ to: user.email, subject: 'Welcome to Nabz Partner: set your password', text, html })).sent === true;
+    sent = (await mailer.sendMail({ to: user.email, subject: team ? 'Nabz onboarding team: set your password' : 'Welcome to Nabz Partner: set your password', text, html })).sent === true;
   } catch (error) {
     logger.error('Partner invite email failed', { accountId: String(user._id), error: error.message });
   }

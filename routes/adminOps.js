@@ -29,7 +29,6 @@ const campaignService = require('../services/campaignService');
 const securityAuditService = require('../services/securityAuditService');
 const logBuffer = require('../utils/logBuffer');
 const partnerVerificationService = require('../services/partnerVerificationService');
-const storageConfig = require('../config/storage');
 
 const router = express.Router();
 const admin = [protect, authorize('platform_admin')];
@@ -112,14 +111,9 @@ router.get('/documents/partner/:userId', admin, [param('userId').isMongoId()], v
 router.post('/documents/:id/view', adminSensitive, [param('id').isMongoId()], validate, wrap(async (req, res) => {
   const doc = await partnerVerificationService.fileFor(req.params.id);
   await securityAuditService.record({ event: 'admin_partner_document_viewed', actorId: req.user._id, actorType: 'user', targetType: 'user', targetId: doc.user, req, metadata: { documentId: req.params.id, kind: doc.kind } });
-  if (storageConfig.USE_CLOUD) {
-    const url = await storageConfig.getSignedUrl(doc.file.key, 120);
-    if (!url) return res.status(404).json({ success: false, message: 'File not found' });
-    return res.json({ success: true, url, mimeType: doc.file.mimeType, expiresInSeconds: 120 });
-  }
-  // Local development only: stream the file back as a data URL.
-  const data = await require('fs').promises.readFile(storageConfig.resolveLocalFile(doc.file.key));
-  return res.json({ success: true, url: `data:${doc.file.mimeType};base64,${data.toString('base64')}`, mimeType: doc.file.mimeType, expiresInSeconds: 0 });
+  const link = await partnerVerificationService.fileLink(doc);
+  if (!link) return res.status(404).json({ success: false, message: 'File not found' });
+  return res.json({ success: true, ...link });
 }));
 
 router.patch(

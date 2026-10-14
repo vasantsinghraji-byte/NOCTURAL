@@ -277,6 +277,12 @@ router.get('/admin/register/h1', protect, authorize('admin', 'platform_admin'), 
 // ══ Patient orders (role: patient) ════════════════════════════════════════
 
 router.post('/prescriptions', protectPatient, uploadPrescription, ctrl.uploadPrescription);
+router.post('/delivery-quote', protectPatient, [
+  body('vendorId').isMongoId().withMessage('Valid vendorId is required'),
+  body('itemsSubtotal').isFloat({ min: 0, max: 1000000 }).withMessage('itemsSubtotal must be the items total in rupees'),
+  body('lat').optional({ values: 'null' }).isFloat({ min: -90, max: 90 }),
+  body('lng').optional({ values: 'null' }).isFloat({ min: -180, max: 180 })
+], validate, ctrl.quoteDelivery);
 router.post('/orders', protectPatient, createOrderValidation, validate, idempotency({ route: 'pharmacy/orders/create' }), ctrl.createOrder);
 router.post('/checkouts', protectPatient, splitCheckoutValidation, validate, idempotency({ route: 'pharmacy/checkouts/create' }), ctrl.createSplitCheckout);
 router.get('/checkouts/:id', protectPatient, mongoIdParam('id'), validate, ctrl.getCheckout);

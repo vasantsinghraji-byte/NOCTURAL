@@ -9,7 +9,8 @@ const LOGIN_PORTALS = Object.freeze({
   pharmacy: Object.freeze(['pharmacy_vendor']),
   lab: Object.freeze(['lab_partner', 'phlebotomist']),
   rider: Object.freeze(['delivery_partner']),
-  admin: Object.freeze(['admin', 'platform_admin'])
+  admin: Object.freeze(['admin', 'platform_admin']),
+  onboarding: Object.freeze(['onboarding_reviewer'])
 });
 
 const PORTAL_LABELS = Object.freeze({
@@ -17,7 +18,8 @@ const PORTAL_LABELS = Object.freeze({
   pharmacy: 'Pharmacy partner',
   lab: 'Path lab partner',
   rider: 'Delivery partner',
-  admin: 'Admin'
+  admin: 'Admin',
+  onboarding: 'Onboarding team'
 });
 
 const isRoleAllowedInPortal = (portal, role) =>
