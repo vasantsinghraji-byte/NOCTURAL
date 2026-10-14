@@ -52,7 +52,7 @@ export function CareMoments({ available, onPick }: { available: (serviceType: st
 }
 
 const styles = StyleSheet.create({
-  card: { width: 240, borderRadius: 24, backgroundColor: C.card, overflow: 'hidden', ...clay },
+  card: { width: 240, borderRadius: 16, backgroundColor: C.card, overflow: 'hidden', ...clay },
   photo: { width: '100%', height: 140 },
   body: { padding: 14, gap: 4 },
   title: { fontFamily: F.heavy, fontSize: 15, color: C.ink },

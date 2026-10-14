@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   segBtn: { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center' },
   segOn: { backgroundColor: C.night },
   segText: { fontFamily: F.bold, color: C.muted, fontSize: 13 },
-  item: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 22, padding: 16, ...shadow, elevation: 0 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 16, padding: 16, ...shadow, elevation: 0 },
   status: { backgroundColor: C.card, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start' },
   statusText: { fontSize: 10, fontFamily: F.heavy, color: C.ink },
   cancel: { color: C.rose, fontFamily: F.bold, marginTop: 6 },

@@ -71,8 +71,8 @@ export function CallMeBack({ topic = 'OTHER', context, big = false, label }: { t
 }
 
 const s = StyleSheet.create({
-  box: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 20, backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border, minHeight: 64 },
-  big: { padding: 18, minHeight: 84, borderRadius: 24 },
+  box: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border, minHeight: 64 },
+  big: { padding: 18, minHeight: 84, borderRadius: 16 },
   done: { backgroundColor: C.mintSoft, borderColor: C.mintSoft },
   icon: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: F.bold, fontSize: 16, color: C.ink },

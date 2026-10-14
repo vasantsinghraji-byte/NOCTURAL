@@ -123,7 +123,7 @@ function Action({ icon: Icon, label, onPress }: { icon: LucideIcon; label: strin
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: C.card, borderRadius: 24, padding: 16, gap: 14, ...clay },
+  card: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 14, ...clay },
   kicker: { color: '#ffd3da', fontFamily: F.heavy, fontSize: 10, letterSpacing: 1.2 },
   emptyTitle: { color: '#ffffff', fontFamily: F.display, fontSize: 20, lineHeight: 25, marginTop: 6 },
   emptySub: { color: '#ffd3da', fontFamily: F.medium, fontSize: 13, lineHeight: 19, marginTop: 6 },
@@ -134,7 +134,7 @@ const s = StyleSheet.create({
   status: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
   statusText: { fontFamily: F.heavy, fontSize: 11 },
   meta: { fontFamily: F.medium, fontSize: 12, color: C.muted },
-  stats: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 18, paddingVertical: 12 },
+  stats: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 16, paddingVertical: 12 },
   stat: { flex: 1, alignItems: 'center', gap: 2, paddingHorizontal: 4 },
   statValue: { fontFamily: F.display, fontSize: 20, color: C.ink },
   statLabel: { fontFamily: F.medium, fontSize: 11, color: C.muted },

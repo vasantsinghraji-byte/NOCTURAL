@@ -148,7 +148,7 @@ function DetailsSheet({ visible, onClose, onSaved }: { visible: boolean; onClose
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: C.card, borderRadius: 22, padding: 16, ...clay },
+  card: { backgroundColor: C.card, borderRadius: 16, padding: 16, ...clay },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   balance: { fontFamily: F.heavy, fontSize: 30, color: C.ink },
   dest: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: C.border, borderRadius: 14, padding: 12 },

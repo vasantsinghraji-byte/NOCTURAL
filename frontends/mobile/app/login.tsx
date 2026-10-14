@@ -189,7 +189,7 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  portal: { width: '48%', flexGrow: 1, borderRadius: 18, padding: 12, gap: 4, borderWidth: 2, borderColor: C.border, backgroundColor: C.card },
+  portal: { width: '48%', flexGrow: 1, borderRadius: 16, padding: 12, gap: 4, borderWidth: 2, borderColor: C.border, backgroundColor: C.card },
   stepDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   stepNum: { color: C.onNight, fontFamily: F.heavy, fontSize: 12 },
   portalOn: { borderColor: C.ink, ...shadow },

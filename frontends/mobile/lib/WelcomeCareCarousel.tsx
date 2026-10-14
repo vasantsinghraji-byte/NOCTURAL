@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   card: {
     width: CAROUSEL_WIDTH,
     height: 236,
-    borderRadius: 24,
+    borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1.5,

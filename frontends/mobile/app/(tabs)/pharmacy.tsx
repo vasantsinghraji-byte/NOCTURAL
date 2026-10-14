@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Pill } from 'lucide-react-native';
+import { ChevronRight, Clock, Minus, Pill, Plus, Truck } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,8 +8,10 @@ import { useTabBarSpace } from '@/lib/PillTabBar';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { pickAndUploadPrescription } from '@/lib/prescription';
-import type { PayMethod, PharmacyVendor, StorefrontItem } from '@medrush/shared';
-import { C, F } from '@/lib/theme';
+import type { DeliveryQuote, PayMethod, PharmacyVendor, StorefrontItem } from '@medrush/shared';
+import { C, F, R } from '@/lib/theme';
+import { BottomSheet } from '@/lib/marketUI';
+import { inr } from '@/lib/market';
 import { appAlert } from '@/lib/dialog';
 import { PaymentSheet } from '@/lib/paymentSheet';
 import { RecipientPicker, rememberRecipient } from '@/lib/recipients';
@@ -85,6 +87,11 @@ export default function Pharmacy() {
   }
 
   const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
+  const remove = (id: string) => setCart((c) => {
+    const next = { ...c };
+    if ((next[id] || 0) <= 1) delete next[id]; else next[id] -= 1;
+    return next;
+  });
 
   // "Order again" from a refill reminder: same store, same medicines, ready to check out.
   useEffect(() => {
@@ -159,6 +166,25 @@ export default function Pharmacy() {
   const cartItems = items.filter((it) => cart[it.medicine._id]);
   const cartTotal = cartItems.reduce((sum, it) => sum + it.sellingPrice * cart[it.medicine._id], 0);
   const needsRx = cartItems.some((it) => it.medicine.requiresPrescription);
+  const subtotal = Math.round(cartTotal * 100) / 100;
+  const etaMinutes = active?.eta ? Math.max(active.eta.prepMinutes, active.eta.assignmentMinutes) + active.eta.lastMileMinutes : null;
+  const [cartOpen, setCartOpen] = useState(false);
+
+  // The delivery fee for this basket from this store (distance-based below the
+  // free-delivery amount), refreshed as the cart changes. Signed-in customers only.
+  const [quote, setQuote] = useState<DeliveryQuote | null>(null);
+  const isPatient = session?.kind === 'patient';
+  useEffect(() => {
+    if (!active || !isPatient || subtotal <= 0) { setQuote(null); return undefined; }
+    let live = true;
+    const tm = setTimeout(() => {
+      api.quoteDelivery({ vendorId: active._id, itemsSubtotal: subtotal, ...(coords || {}) })
+        .then((q) => { if (live) setQuote(q); })
+        .catch(() => { if (live) setQuote(null); });
+    }, 350);
+    return () => { live = false; clearTimeout(tm); };
+  }, [active, isPatient, subtotal, coords]);
+  useEffect(() => { if (cartCount === 0) setCartOpen(false); }, [cartCount]);
 
   async function attachPrescription() {
     const up = await pickAndUploadPrescription();
@@ -187,7 +213,13 @@ export default function Pharmacy() {
       appAlert('Who receives it?', 'Add the name and 10-digit mobile number of the person receiving the order.');
       return;
     }
-    setPaySheet(true);
+    if (quote?.belowMinimum) {
+      appAlert('Add a little more', `${active.name} takes orders from ${inr(quote.minOrderValue)}.`);
+      return;
+    }
+    // One sheet at a time: close the cart before the payment sheet slides up.
+    setCartOpen(false);
+    setTimeout(() => setPaySheet(true), 300);
   }
 
   async function submitOrder(method: PayMethod) {
@@ -240,22 +272,31 @@ export default function Pharmacy() {
   }
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color={C.brand} /><Text style={styles.muted}>Finding pharmacies…</Text></View>;
+    return <View style={styles.center}><ActivityIndicator color={C.brand} /><Text style={styles.muted}>Finding pharmacies near you…</Text></View>;
   }
+
+  const fee = quote?.deliveryFee;
+  const toFree = quote && quote.deliveryFee > 0 ? quote.breakdown.amountToFreeDelivery : 0;
+  const freeAt = quote?.breakdown.freeDeliveryAbove || 0;
+  const payable = quote ? quote.total : subtotal;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={{ paddingHorizontal: 16 }}>
+      <View style={styles.header}>
         <Text style={styles.title}>Pharmacy</Text>
-        <Text style={styles.muted}>Medicines from stores near you · ~30 min</Text>
+        <View style={styles.promise}>
+          <Clock size={14} color={C.ink} />
+          <Text style={styles.promiseText}>{etaMinutes ? `Delivery in ${etaMinutes} min` : 'Delivery in ~30 min'}</Text>
+        </View>
       </View>
       {error && <Text style={styles.error}>{error}</Text>}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vendorBar} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 8, alignItems: 'center' }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vendorBar} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' }}>
         {vendors.map((v) => (
-          <Pressable key={v._id} onPress={() => selectVendor(v)}
+          <Pressable key={v._id} onPress={() => selectVendor(v)} accessibilityRole="button" accessibilityState={{ selected: active?._id === v._id }}
             style={[styles.chip, active?._id === v._id && styles.chipActive]}>
             <Text style={[styles.chipText, active?._id === v._id && styles.chipTextActive]} numberOfLines={1} maxFontSizeMultiplier={1.3}>{v.name}</Text>
+            {typeof v.distanceKm === 'number' ? <Text style={[styles.chipMeta, active?._id === v._id && styles.chipTextActive]}>{v.distanceKm.toFixed(1)} km</Text> : null}
           </Pressable>
         ))}
       </ScrollView>
@@ -266,27 +307,35 @@ export default function Pharmacy() {
         keyExtractor={(it) => it.inventoryId}
         numColumns={3}
         columnWrapperStyle={{ gap: 8 }}
-        contentContainerStyle={{ padding: 12, gap: 8, paddingBottom: cartCount > 0 ? 16 : tabSpace }}
-        ListEmptyComponent={<Text style={styles.muted}>No items. Seed demo data: npm run db:seed:pharmacy</Text>}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 4, gap: 8, paddingBottom: tabSpace + (cartCount > 0 ? 72 : 0) }}
+        ListEmptyComponent={<Text style={[styles.muted, { padding: 16 }]}>{active ? 'This pharmacy has no medicines listed yet.' : 'No pharmacy delivers here yet.'}</Text>}
         renderItem={({ item: it }) => {
           const off = it.mrp > it.sellingPrice ? Math.round(((it.mrp - it.sellingPrice) / it.mrp) * 100) : 0;
-          const qty = cart[it.medicine._id];
+          const qty = cart[it.medicine._id] || 0;
           return (
             <View style={styles.tile}>
-              <View style={styles.tileIcon}><Pill size={22} color={C.brand} /></View>
-              {off >= 5 ? <Text style={styles.off}>{off}% off</Text> : null}
-              <Text style={styles.tileName} numberOfLines={3}>{it.medicine.name}</Text>
+              <View style={styles.tileImage}>
+                <Pill size={26} color={C.faint} strokeWidth={1.6} />
+                {off >= 5 ? <Text style={styles.off}>{off}% OFF</Text> : null}
+                {it.medicine.requiresPrescription ? <Text style={styles.rxTag}>Rx</Text> : null}
+              </View>
+              <Text style={styles.tileName} numberOfLines={2}>{it.medicine.name}</Text>
               <Text style={styles.tileMeta} numberOfLines={1}>{it.medicine.packSize || it.medicine.form}</Text>
               <View style={{ marginTop: 'auto', gap: 6 }}>
-                <Text style={styles.tilePrice}>₹{it.sellingPrice}{it.mrp > it.sellingPrice ? <Text style={styles.strike}> ₹{it.mrp}</Text> : null}</Text>
-                {it.inStock ? (
-                  <Pressable style={[styles.tileBtn, qty ? styles.tileBtnOn : null]} onPress={() => add(it.medicine._id)}
-                    accessibilityRole="button" accessibilityLabel={qty ? `${it.medicine.name}, ${qty} in cart. Add one more` : `Add ${it.medicine.name}`}>
-                    <Text style={[styles.addBtnText, qty ? { color: C.brand } : null]}>{qty ? `${qty} in cart` : 'Add'}</Text>
+                <View>
+                  <Text style={styles.tilePrice}>{inr(it.sellingPrice)}</Text>
+                  {it.mrp > it.sellingPrice ? <Text style={styles.strike}>MRP {inr(it.mrp)}</Text> : null}
+                </View>
+                {!it.inStock ? (
+                  <Pressable style={styles.findBtn} onPress={() => findElsewhere(it.medicine._id, it.medicine.name)} accessibilityRole="button" accessibilityLabel={`${it.medicine.name} is out of stock. Find it nearby`}>
+                    <Text style={styles.findBtnText}>Find nearby</Text>
                   </Pressable>
+                ) : qty ? (
+                  <Stepper qty={qty} name={it.medicine.name} onAdd={() => add(it.medicine._id)} onRemove={() => remove(it.medicine._id)} />
                 ) : (
-                  <Pressable style={styles.tileFind} onPress={() => findElsewhere(it.medicine._id, it.medicine.name)} accessibilityRole="button" accessibilityLabel={`${it.medicine.name} is out of stock. Find it nearby`}>
-                    <Text style={styles.findBtnText}>Find</Text>
+                  <Pressable style={({ pressed }) => [styles.addBtn, pressed && { backgroundColor: C.brandSoft }]} onPress={() => add(it.medicine._id)}
+                    accessibilityRole="button" accessibilityLabel={`Add ${it.medicine.name}`}>
+                    <Text style={styles.addBtnText}>ADD</Text>
                   </Pressable>
                 )}
               </View>
@@ -295,44 +344,144 @@ export default function Pharmacy() {
         }}
       />
 
+      {/* Cart bar: what's in the bag and what it costs, one tap to the bill */}
       {cartCount > 0 && (
-        <View style={[styles.checkout, { paddingBottom: tabSpace }]}>
-          <Text style={styles.cartText}>{cartCount} item(s) · ₹{Math.round(cartTotal * 100) / 100}</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {[{ v: false, t: 'For me' }, { v: true, t: 'For someone else' }].map((o) => (
-              <Pressable key={o.t} onPress={() => setForOther(o.v)} style={[styles.chip, forOther === o.v && styles.chipActive]}
-                accessibilityRole="radio" accessibilityState={{ checked: forOther === o.v }}>
-                <Text style={[styles.chipText, forOther === o.v && styles.chipTextActive]}>{o.t}</Text>
-              </Pressable>
-            ))}
-          </View>
-          {forOther && (
-            <>
-              <RecipientPicker onPick={(r) => setRecipient({ name: r.name, phone: r.phone })} />
-              <TextInput style={styles.input} placeholder="Receiver’s name" placeholderTextColor={C.muted}
-                value={recipient.name} onChangeText={(name) => setRecipient((r) => ({ ...r, name }))} />
-              <TextInput style={styles.input} placeholder="Receiver’s mobile (10 digits)" placeholderTextColor={C.muted} keyboardType="phone-pad" maxLength={10}
-                value={recipient.phone} onChangeText={(v) => setRecipient((r) => ({ ...r, phone: v.replace(/\D/g, '') }))} />
-            </>
-          )}
-          <TextInput style={styles.input} placeholder={forOther ? 'Their delivery address' : 'Delivery address'} placeholderTextColor={C.muted}
-            value={address.line1} onChangeText={(line1) => setAddress((a) => ({ ...a, line1 }))} />
-          <TextInput style={styles.input} placeholder="Pincode" placeholderTextColor={C.muted} keyboardType="number-pad" maxLength={6}
-            value={address.pincode} onChangeText={(pincode) => setAddress((a) => ({ ...a, pincode }))} />
-          {needsRx && (
-            <View style={styles.rxRow}>
-              <Text style={styles.rxText}>{rx?.key ? 'Prescription attached' : 'Prescription required'}</Text>
-              <Pressable onPress={attachPrescription}><Text style={styles.rxLink}>{rx?.key ? 'Change' : 'Attach'}</Text></Pressable>
+        <View style={[styles.cartDock, { bottom: tabSpace - 4 }]}>
+          {toFree > 0 ? (
+            <View style={styles.nudge}>
+              <Truck size={14} color={C.mint} />
+              <Text style={styles.nudgeText} numberOfLines={1}>Add {inr(toFree)} more for free delivery</Text>
             </View>
-          )}
-          <Pressable style={[styles.placeBtn, placing && { opacity: 0.6 }]} disabled={placing} onPress={placeOrder}>
-            {placing ? <ActivityIndicator color={C.onBrand} /> : (
-              <Text style={styles.addBtnText}>{session?.kind === 'patient' ? 'Choose payment & place order' : 'Log in as a customer to order'}</Text>
-            )}
+          ) : quote && quote.deliveryFee === 0 ? (
+            <View style={styles.nudge}>
+              <Truck size={14} color={C.mint} />
+              <Text style={styles.nudgeText} numberOfLines={1}>{quote.breakdown.waiver === 'MEMBER' ? 'Free delivery with Nabz Plus' : 'Free delivery on this order'}</Text>
+            </View>
+          ) : null}
+          <Pressable style={({ pressed }) => [styles.cartBar, pressed && { opacity: 0.92 }]} onPress={() => setCartOpen(true)} accessibilityRole="button"
+            accessibilityLabel={`${cartCount} items, ${inr(payable)}. View cart`}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cartCount}>{cartCount} item{cartCount === 1 ? '' : 's'}</Text>
+              <Text style={styles.cartTotal}>{inr(payable)}{quote ? '' : ' + delivery'}</Text>
+            </View>
+            <Text style={styles.cartCta}>View cart</Text>
+            <ChevronRight size={18} color={C.onBrand} />
           </Pressable>
         </View>
       )}
+
+      <BottomSheet visible={cartOpen} onClose={() => setCartOpen(false)} title={active ? `Your cart · ${active.name}` : 'Your cart'}>
+        <ScrollView style={{ maxHeight: 520 }} contentContainerStyle={{ gap: 12 }} keyboardShouldPersistTaps="handled">
+          <View style={styles.group}>
+            {cartItems.map((it) => (
+              <View key={it.inventoryId} style={styles.line}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.lineName} numberOfLines={2}>{it.medicine.name}</Text>
+                  <Text style={styles.tileMeta}>{it.medicine.packSize || it.medicine.form}</Text>
+                </View>
+                <View style={{ width: 96 }}>
+                  <Stepper qty={cart[it.medicine._id]} name={it.medicine.name} onAdd={() => add(it.medicine._id)} onRemove={() => remove(it.medicine._id)} />
+                </View>
+                <Text style={styles.linePrice}>{inr(it.sellingPrice * cart[it.medicine._id])}</Text>
+              </View>
+            ))}
+          </View>
+
+          {toFree > 0 && freeAt > 0 ? (
+            <View style={styles.progressWrap}>
+              <Text style={styles.nudgeText}>Add {inr(toFree)} more for free delivery</Text>
+              <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.min(100, (subtotal / freeAt) * 100)}%` }]} /></View>
+            </View>
+          ) : null}
+
+          {/* Bill */}
+          <View style={styles.group}>
+            <Text style={styles.groupTitle}>Bill details</Text>
+            <BillRow label="Item total" value={inr(subtotal)} />
+            <BillRow
+              label={quote && quote.breakdown.distanceKm !== null && quote.deliveryFee > 0 ? `Delivery fee · ${quote.breakdown.chargedKm} km` : 'Delivery fee'}
+              value={!isPatient ? 'At checkout' : fee === undefined ? '…' : fee === 0 ? 'FREE' : inr(fee)}
+              good={fee === 0}
+            />
+            {quote && (quote.breakdown.surgeAmount > 0 || quote.breakdown.nightSurcharge > 0) ? (
+              <Text style={styles.billNote}>
+                Includes {[quote.breakdown.surgeAmount > 0 ? `${inr(quote.breakdown.surgeAmount)} busy-hours fee` : '', quote.breakdown.nightSurcharge > 0 ? `${inr(quote.breakdown.nightSurcharge)} late-night fee` : ''].filter(Boolean).join(' and ')}.
+              </Text>
+            ) : null}
+            <View style={styles.billDivider} />
+            <BillRow label="To pay" value={inr(payable)} strong />
+          </View>
+
+          <View style={styles.group}>
+            <Text style={styles.groupTitle}>Deliver to</Text>
+            <View style={styles.seg}>
+              {[{ v: false, t: 'Me' }, { v: true, t: 'Someone else' }].map((o) => (
+                <Pressable key={o.t} onPress={() => setForOther(o.v)} style={[styles.segBtn, forOther === o.v && styles.segOn]}
+                  accessibilityRole="radio" accessibilityState={{ checked: forOther === o.v }}>
+                  <Text style={[styles.segText, forOther === o.v && styles.segTextOn]}>{o.t}</Text>
+                </Pressable>
+              ))}
+            </View>
+            {forOther && (
+              <>
+                <RecipientPicker onPick={(r) => setRecipient({ name: r.name, phone: r.phone })} />
+                <TextInput style={styles.input} placeholder="Receiver’s name" placeholderTextColor={C.muted}
+                  value={recipient.name} onChangeText={(name) => setRecipient((r) => ({ ...r, name }))} />
+                <TextInput style={styles.input} placeholder="Receiver’s mobile (10 digits)" placeholderTextColor={C.muted} keyboardType="phone-pad" maxLength={10}
+                  value={recipient.phone} onChangeText={(v) => setRecipient((r) => ({ ...r, phone: v.replace(/\D/g, '') }))} />
+              </>
+            )}
+            <TextInput style={styles.input} placeholder={forOther ? 'Their address: house, street, area' : 'House, street, area'} placeholderTextColor={C.muted}
+              value={address.line1} onChangeText={(line1) => setAddress((a) => ({ ...a, line1 }))} />
+            <TextInput style={styles.input} placeholder="Pincode" placeholderTextColor={C.muted} keyboardType="number-pad" maxLength={6}
+              value={address.pincode} onChangeText={(pincode) => setAddress((a) => ({ ...a, pincode }))} />
+          </View>
+
+          {needsRx && (
+            <Pressable style={styles.rxRow} onPress={attachPrescription} accessibilityRole="button">
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lineName}>{rx?.key ? 'Prescription attached' : 'Prescription required'}</Text>
+                <Text style={styles.tileMeta}>A pharmacist checks it before packing</Text>
+              </View>
+              <Text style={styles.rxLink}>{rx?.key ? 'Change' : 'Attach'}</Text>
+            </Pressable>
+          )}
+        </ScrollView>
+
+        <Pressable style={({ pressed }) => [styles.placeBtn, (placing || pressed) && { opacity: 0.85 }]} disabled={placing} onPress={placeOrder} accessibilityRole="button">
+          {placing ? <ActivityIndicator color={C.onBrand} /> : (
+            <>
+              <Text style={styles.placeTotal}>{inr(payable)}</Text>
+              <Text style={styles.placeText}>{isPatient ? 'Choose payment' : 'Log in to order'}</Text>
+              <ChevronRight size={18} color={C.onBrand} />
+            </>
+          )}
+        </Pressable>
+      </BottomSheet>
       <PaymentSheet visible={paySheet} online={onlinePay} onPick={submitOrder} onClose={() => setPaySheet(false)} />
+    </View>
+  );
+}
+
+function Stepper({ qty, name, onAdd, onRemove }: { qty: number; name: string; onAdd: () => void; onRemove: () => void }) {
+  return (
+    <View style={styles.stepper} accessibilityLabel={`${name}, ${qty} in cart`}>
+      <Pressable onPress={onRemove} hitSlop={6} style={styles.stepBtn} accessibilityRole="button" accessibilityLabel={`Remove one ${name}`}>
+        <Minus size={16} color={C.onBrand} strokeWidth={2.4} />
+      </Pressable>
+      <Text style={styles.stepQty}>{qty}</Text>
+      <Pressable onPress={onAdd} hitSlop={6} style={styles.stepBtn} accessibilityRole="button" accessibilityLabel={`Add one more ${name}`}>
+        <Plus size={16} color={C.onBrand} strokeWidth={2.4} />
+      </Pressable>
+    </View>
+  );
+}
+
+function BillRow({ label, value, strong, good }: { label: string; value: string; strong?: boolean; good?: boolean }) {
+  return (
+    <View style={styles.billRow}>
+      <Text style={strong ? styles.billStrong : styles.billLabel}>{label}</Text>
+      <Text style={[strong ? styles.billStrong : styles.billValue, good && { color: C.mint }]}>{value}</Text>
     </View>
   );
 }
@@ -340,37 +489,64 @@ export default function Pharmacy() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.bg },
-  title: { fontFamily: F.display, fontSize: 34, color: C.ink },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16 },
+  title: { fontFamily: F.display, fontSize: 26, color: C.ink, letterSpacing: -0.4 },
+  promise: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: R.full, paddingHorizontal: 10, paddingVertical: 6 },
+  promiseText: { fontFamily: F.bold, fontSize: 12.5, color: C.ink },
   // No fixed height: large phone font sizes must not clip the store names.
   vendorBar: { flexGrow: 0, flexShrink: 0 },
-  chip: { minHeight: 40, maxWidth: 260, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.border },
-  chipActive: { backgroundColor: C.brand, borderColor: C.brand },
-  chipText: { color: C.ink, fontFamily: F.semi, fontSize: 14, lineHeight: 20 },
-  chipTextActive: { color: C.onBrand },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
-  name: { fontSize: 15, fontFamily: F.bold, color: C.ink },
+  chip: { minHeight: 40, maxWidth: 260, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: C.card, borderRadius: R.full, borderWidth: 1, borderColor: C.border },
+  chipActive: { backgroundColor: C.night, borderColor: C.night },
+  chipText: { color: C.ink, fontFamily: F.semi, fontSize: 14, lineHeight: 20, flexShrink: 1 },
+  chipMeta: { color: C.muted, fontFamily: F.medium, fontSize: 12 },
+  chipTextActive: { color: C.onNight },
   muted: { color: C.muted, fontSize: 13, fontFamily: F.medium },
-  price: { marginTop: 6, fontFamily: F.heavy, color: C.ink },
-  strike: { color: C.muted, textDecorationLine: 'line-through', fontFamily: F.regular, fontSize: 12 },
-  addBtn: { backgroundColor: C.brand, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 12 },
-  findBtn: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: C.brand },
-  findBtnText: { color: C.brand, fontFamily: F.bold, fontSize: 13 },
-  addBtnText: { color: C.onBrand, fontFamily: F.bold },
-  tile: { flexGrow: 1, flexBasis: 0, maxWidth: '32.2%', minHeight: 196, backgroundColor: C.card, borderRadius: 16, padding: 10, gap: 3, borderWidth: 1, borderColor: C.border },
-  tileIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  off: { position: 'absolute', top: 8, right: 8, backgroundColor: C.mintSoft, color: C.mint, fontFamily: F.heavy, fontSize: 10, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
-  tileName: { fontSize: 13, lineHeight: 17, fontFamily: F.bold, color: C.ink },
+  error: { backgroundColor: C.roseSoft, color: C.roseInk, padding: 10, marginHorizontal: 16, marginTop: 10, borderRadius: R.md, fontFamily: F.semi },
+  tile: { flexGrow: 1, flexBasis: 0, maxWidth: '32.4%', minHeight: 232, backgroundColor: C.card, borderRadius: R.md, padding: 8, gap: 3, borderWidth: 1, borderColor: C.border },
+  tileImage: { height: 76, borderRadius: R.sm, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  off: { position: 'absolute', top: 0, left: 0, backgroundColor: C.sky, color: '#ffffff', fontFamily: F.bold, fontSize: 9.5, paddingHorizontal: 5, paddingVertical: 2, borderTopLeftRadius: R.sm, borderBottomRightRadius: 6, overflow: 'hidden' },
+  rxTag: { position: 'absolute', top: 4, right: 4, backgroundColor: C.card, color: C.roseInk, fontFamily: F.bold, fontSize: 9.5, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: C.border },
+  tileName: { fontSize: 12.5, lineHeight: 16, fontFamily: F.semi, color: C.ink },
   tileMeta: { color: C.muted, fontSize: 11.5, fontFamily: F.medium },
-  tilePrice: { fontFamily: F.heavy, fontSize: 15, color: C.ink },
-  tileBtn: { backgroundColor: C.brand, borderRadius: 10, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.brand },
-  tileBtnOn: { backgroundColor: C.brandSoft },
-  tileFind: { borderRadius: 10, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.brand },
-  error: { backgroundColor: C.roseSoft, color: C.roseInk, padding: 10, margin: 12, borderRadius: 10, fontFamily: F.semi },
-  checkout: { backgroundColor: C.night, padding: 16, gap: 8, borderTopLeftRadius: 22, borderTopRightRadius: 22 },
-  cartText: { color: C.onNight, fontFamily: F.bold },
-  input: { backgroundColor: C.card, borderRadius: 12, paddingLeft: 16, paddingRight: 16, paddingVertical: 11, color: C.ink, fontFamily: F.medium },
-  rxRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  rxText: { color: C.onNight, flex: 1, fontFamily: F.medium },
-  rxLink: { color: C.gold, fontFamily: F.bold },
-  placeBtn: { backgroundColor: C.brand, paddingVertical: 13, borderRadius: 12, alignItems: 'center' }
+  tilePrice: { fontFamily: F.bold, fontSize: 14, color: C.ink },
+  strike: { color: C.muted, textDecorationLine: 'line-through', fontFamily: F.regular, fontSize: 11 },
+  addBtn: { borderRadius: R.sm, minHeight: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.brand, backgroundColor: C.card },
+  addBtnText: { color: C.brand, fontFamily: F.bold, fontSize: 13, letterSpacing: 0.4 },
+  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36, borderRadius: R.sm, backgroundColor: C.brand },
+  stepBtn: { width: 32, minHeight: 36, alignItems: 'center', justifyContent: 'center' },
+  stepQty: { color: C.onBrand, fontFamily: F.bold, fontSize: 14 },
+  findBtn: { borderRadius: R.sm, minHeight: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardAlt },
+  findBtnText: { color: C.inkSoft, fontFamily: F.semi, fontSize: 12 },
+  cartDock: { position: 'absolute', left: 12, right: 12 },
+  nudge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.mintSoft, paddingHorizontal: 12, paddingVertical: 7, borderTopLeftRadius: R.md, borderTopRightRadius: R.md },
+  nudgeText: { color: C.mint, fontFamily: F.semi, fontSize: 12.5, flexShrink: 1 },
+  cartBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.brand, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 10, minHeight: 56 },
+  cartCount: { color: C.onBrand, fontFamily: F.semi, fontSize: 12, opacity: 0.9 },
+  cartTotal: { color: C.onBrand, fontFamily: F.bold, fontSize: 16 },
+  cartCta: { color: C.onBrand, fontFamily: F.bold, fontSize: 15 },
+  group: { backgroundColor: C.card, borderRadius: R.md, padding: 14, gap: 10, borderWidth: 1, borderColor: C.border },
+  groupTitle: { fontFamily: F.bold, fontSize: 15, color: C.ink },
+  line: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  lineName: { fontFamily: F.semi, fontSize: 14, color: C.ink },
+  linePrice: { fontFamily: F.bold, fontSize: 14, color: C.ink, minWidth: 64, textAlign: 'right' },
+  progressWrap: { gap: 8, backgroundColor: C.mintSoft, borderRadius: R.md, padding: 12 },
+  progressTrack: { height: 6, borderRadius: 3, backgroundColor: C.card, overflow: 'hidden' },
+  progressFill: { height: 6, borderRadius: 3, backgroundColor: C.mint },
+  billRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  billLabel: { fontFamily: F.medium, fontSize: 14, color: C.inkSoft },
+  billValue: { fontFamily: F.semi, fontSize: 14, color: C.ink },
+  billStrong: { fontFamily: F.bold, fontSize: 16, color: C.ink },
+  billNote: { fontFamily: F.medium, fontSize: 12, color: C.muted },
+  billDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border },
+  seg: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: R.md, padding: 3, gap: 3 },
+  segBtn: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
+  segOn: { backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
+  segText: { fontFamily: F.semi, fontSize: 14, color: C.muted },
+  segTextOn: { color: C.ink, fontFamily: F.bold },
+  input: { backgroundColor: C.card, borderRadius: R.md, borderWidth: 1, borderColor: C.border, paddingLeft: 14, paddingRight: 14, paddingVertical: 12, color: C.ink, fontFamily: F.medium, fontSize: 15 },
+  rxRow: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.card, borderRadius: R.md, padding: 14, borderWidth: 1, borderColor: C.border },
+  rxLink: { color: C.brand, fontFamily: F.bold },
+  placeBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.brand, paddingVertical: 14, paddingHorizontal: 16, borderRadius: R.md, minHeight: 54, justifyContent: 'center' },
+  placeTotal: { color: C.onBrand, fontFamily: F.bold, fontSize: 16, flex: 1 },
+  placeText: { color: C.onBrand, fontFamily: F.bold, fontSize: 15 }
 });

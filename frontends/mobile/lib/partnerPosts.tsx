@@ -166,7 +166,7 @@ const s = StyleSheet.create({
   caption: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: 'rgba(0,0,0,0.55)', gap: 6 },
   captionText: { color: '#ffffff', fontFamily: F.medium, fontSize: 15, lineHeight: 21 },
   hiddenNote: { color: '#ffd3da', fontFamily: F.bold, fontSize: 13 },
-  card: { backgroundColor: C.card, borderRadius: 24, padding: 16, gap: 12, ...clay },
+  card: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 12, ...clay },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   title: { fontFamily: F.display, fontSize: 19, color: C.ink },
   meta: { fontFamily: F.medium, fontSize: 13, color: C.muted, lineHeight: 18, marginTop: 2 },

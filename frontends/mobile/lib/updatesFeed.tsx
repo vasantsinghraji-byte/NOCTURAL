@@ -62,7 +62,7 @@ export function UpdatesFeed({ audience, title = 'Offers & updates' }: { audience
 }
 
 const styles = StyleSheet.create({
-  card: { width: 280, backgroundColor: C.night, borderRadius: 22, padding: 16, gap: 6, ...shadow },
+  card: { width: 280, backgroundColor: C.night, borderRadius: 16, padding: 16, gap: 6, ...shadow },
   title: { fontFamily: F.heavy, fontSize: 16, color: C.onNight },
   body: { fontFamily: F.regular, fontSize: 14, lineHeight: 20, color: C.onNightMuted },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6, flexWrap: 'wrap' },

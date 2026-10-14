@@ -20,7 +20,7 @@ export function BookingForBanner() {
 }
 
 const s = StyleSheet.create({
-  box: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.brandSoft, borderRadius: 18, paddingVertical: 8, paddingLeft: 14, paddingRight: 6 },
+  box: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.brandSoft, borderRadius: 16, paddingVertical: 8, paddingLeft: 14, paddingRight: 6 },
   text: { flex: 1, fontFamily: F.semi, fontSize: 15, color: C.brandDark },
   close: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }
 });

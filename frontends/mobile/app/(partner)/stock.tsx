@@ -391,7 +391,7 @@ const s = StyleSheet.create({
   search: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: 16, paddingHorizontal: 14, minHeight: 52, borderWidth: 1, borderColor: C.border },
   searchInput: { flex: 1, fontFamily: F.medium, fontSize: 16, color: C.ink, paddingVertical: 12 },
   count: { fontFamily: F.semi, fontSize: 13, color: C.muted },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 20, padding: 14, ...clay },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, ...clay },
   name: { fontFamily: F.bold, fontSize: 16, color: C.ink },
   meta: { fontFamily: F.medium, fontSize: 13, color: C.muted },
   price: { fontFamily: F.bold, fontSize: 15, color: C.ink },

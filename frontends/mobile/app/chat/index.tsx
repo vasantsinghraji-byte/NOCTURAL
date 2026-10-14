@@ -62,7 +62,7 @@ export default function ChatInbox() {
 }
 
 const s = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 20, padding: 12, borderWidth: 1, borderColor: C.border, minHeight: 76 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: C.border, minHeight: 76 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   name: { flex: 1, fontFamily: F.bold, fontSize: 16, color: C.ink },
   time: { fontFamily: F.medium, fontSize: 12, color: C.muted },

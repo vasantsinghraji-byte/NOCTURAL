@@ -228,7 +228,7 @@ function BookHome() {
         </View>
         {services === null ? (
           <View style={styles.grid}>
-            {Array.from({ length: GRID_MAX }).map((_, i) => <View key={i} style={styles.cell}><Skeleton width={64} height={64} radius={20} /><Skeleton width={54} height={10} radius={5} /></View>)}
+            {Array.from({ length: GRID_MAX }).map((_, i) => <View key={i} style={styles.cell}><Skeleton width={64} height={64} radius={16} /><Skeleton width={54} height={10} radius={5} /></View>)}
           </View>
         ) : (
           <View style={styles.grid}>
@@ -245,9 +245,9 @@ function BookHome() {
 
         {/* The rest of Nabz: one big tile each (like Instamart / Dineout) */}
         <View style={styles.more}>
-          <MoreTile icon={Pill} title="Pharmacy" sub="Medicines in 30 min" tone={C.mintSoft} fg={C.mint} onPress={() => router.push('/pharmacy')} />
-          <MoreTile icon={FlaskConical} title="Lab tests" sub="Sample from home" tone={C.skySoft} fg={C.sky} onPress={() => router.push('/labs')} />
-          <MoreTile icon={Activity} title="Physio & care" sub="Compare near you" tone={C.violetSoft} fg={C.violet} onPress={() => router.push('/care')} />
+          <MoreTile icon={Pill} title="Pharmacy" sub="Medicines in 30 min" onPress={() => router.push('/pharmacy')} />
+          <MoreTile icon={FlaskConical} title="Lab tests" sub="Sample from home" onPress={() => router.push('/labs')} />
+          <MoreTile icon={Activity} title="Physio & care" sub="Compare near you" onPress={() => router.push('/care')} />
         </View>
 
         {/* Offers (server sends only offers that are actually live) */}
@@ -332,10 +332,10 @@ function ServiceTile({ service, onPress }: { service: CareService; onPress: () =
   );
 }
 
-function MoreTile({ icon: Icon, title, sub, tone, fg, onPress }: { icon: LucideIcon; title: string; sub: string; tone: string; fg: string; onPress: () => void }) {
+function MoreTile({ icon: Icon, title, sub, onPress }: { icon: LucideIcon; title: string; sub: string; onPress: () => void }) {
   return (
-    <PressScale style={[styles.moreTile, { backgroundColor: tone }]} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${title}. ${sub}`}>
-      <Icon size={26} color={fg} />
+    <PressScale style={styles.moreTile} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${title}. ${sub}`}>
+      <View style={styles.moreIcon}><Icon size={22} color={C.brand} strokeWidth={1.9} /></View>
       <Text style={styles.moreTitle} numberOfLines={2}>{title}</Text>
       <Text style={styles.moreSub} numberOfLines={2}>{sub}</Text>
     </PressScale>
@@ -368,9 +368,9 @@ const styles = StyleSheet.create({
   live: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, backgroundColor: C.cardAlt, minHeight: 44 },
   liveText: { flex: 1, fontFamily: F.semi, fontSize: 13, color: C.muted },
   liveLink: { fontFamily: F.bold, fontSize: 13, color: C.muted },
-  easyOffer: { backgroundColor: C.card, borderRadius: 22, padding: 16, gap: 4, marginTop: 14, borderWidth: 1.5, borderColor: C.brandSoft },
-  outside: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.amberSoft, borderRadius: 18, padding: 14, marginTop: 14 },
-  upcoming: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.night, borderRadius: 22, padding: 14, marginTop: 14 },
+  easyOffer: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 4, marginTop: 14, borderWidth: 1.5, borderColor: C.brandSoft },
+  outside: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.amberSoft, borderRadius: 16, padding: 14, marginTop: 14 },
+  upcoming: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.night, borderRadius: 16, padding: 14, marginTop: 14 },
   upLabel: { color: C.gold, fontFamily: F.heavy, fontSize: 10, letterSpacing: 1 },
   upTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 15, marginTop: 2 },
   upSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 12 },
@@ -381,16 +381,17 @@ const styles = StyleSheet.create({
   sectionLink: { fontFamily: F.bold, fontSize: 14, color: C.brand },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
   cell: { width: '25%', alignItems: 'center', gap: 7, paddingVertical: 8, paddingHorizontal: 4, minHeight: 112 },
-  tile: { width: 64, height: 64, borderRadius: 20, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
-  tileText: { fontSize: 12.5, lineHeight: 16, fontFamily: F.bold, color: C.ink, textAlign: 'center' },
+  tile: { width: 64, height: 64, borderRadius: 16, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center' },
+  tileText: { fontSize: 12.5, lineHeight: 16, fontFamily: F.semi, color: C.ink, textAlign: 'center' },
   more: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  moreTile: { flex: 1, borderRadius: 20, padding: 12, gap: 4, minHeight: 112 },
-  moreTitle: { fontFamily: F.display, fontSize: 15, lineHeight: 19, color: C.ink, marginTop: 4 },
+  moreTile: { flex: 1, borderRadius: 16, padding: 12, gap: 4, minHeight: 112, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
+  moreIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
+  moreTitle: { fontFamily: F.bold, fontSize: 14, lineHeight: 19, color: C.ink, marginTop: 4 },
   moreSub: { fontFamily: F.medium, fontSize: 12, lineHeight: 16, color: C.inkSoft },
-  when: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 18, padding: 14, minHeight: 72, borderWidth: 1.5, borderColor: C.border },
+  when: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, minHeight: 72, borderWidth: 1.5, borderColor: C.border },
   whenIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
   sheetGroup: { fontFamily: F.bold, fontSize: 14, color: C.inkSoft, marginTop: 6 },
-  banner: { width: 280, borderRadius: 22, padding: 16, gap: 6, minHeight: 150 },
+  banner: { width: 280, borderRadius: 16, padding: 16, gap: 6, minHeight: 150 },
   bannerTitle: { fontFamily: F.display, fontSize: 24, lineHeight: 27, marginTop: 4 },
   bannerSub: { fontFamily: F.medium, fontSize: 12, lineHeight: 17 },
   bannerCta: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 'auto' },

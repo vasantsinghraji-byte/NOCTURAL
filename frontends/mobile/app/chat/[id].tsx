@@ -181,7 +181,7 @@ const s = StyleSheet.create({
   callBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.mint, alignItems: 'center', justifyContent: 'center' },
   safety: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', backgroundColor: C.cardAlt, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 8, maxWidth: '92%' },
   safetyText: { fontFamily: F.medium, fontSize: 12, color: C.muted, flexShrink: 1 },
-  bubble: { maxWidth: '80%', paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6, borderRadius: 18 },
+  bubble: { maxWidth: '80%', paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6, borderRadius: 16 },
   mine: { alignSelf: 'flex-end', backgroundColor: C.brand, borderBottomRightRadius: 6 },
   theirs: { alignSelf: 'flex-start', backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderBottomLeftRadius: 6 },
   text: { fontFamily: F.medium, fontSize: 16, lineHeight: 22, color: C.ink },
@@ -190,7 +190,7 @@ const s = StyleSheet.create({
   callRow: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.cardAlt, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
   callText: { fontFamily: F.semi, fontSize: 13, color: C.inkSoft },
   compose: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 10, backgroundColor: C.card, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border },
-  input: { flex: 1, minHeight: 48, maxHeight: 130, backgroundColor: C.cardAlt, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 12, fontFamily: F.medium, fontSize: 16, color: C.ink },
+  input: { flex: 1, minHeight: 48, maxHeight: 130, backgroundColor: C.cardAlt, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, fontFamily: F.medium, fontSize: 16, color: C.ink },
   send: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center' },
   closed: { textAlign: 'center', fontFamily: F.medium, fontSize: 14, color: C.muted, paddingHorizontal: 24, paddingTop: 10 },
   error: { color: C.roseInk, fontFamily: F.semi, fontSize: 15, textAlign: 'center' }

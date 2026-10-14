@@ -19,7 +19,7 @@ export function Hero({ eyebrow, title, subtitle, children, tone = C.night }: {
 }
 
 const styles = StyleSheet.create({
-  hero: { borderRadius: 26, padding: 22, overflow: 'hidden', marginBottom: 6, ...shadow },
+  hero: { borderRadius: 16, padding: 22, overflow: 'hidden', marginBottom: 6, ...shadow },
   orb: { position: 'absolute', width: 190, height: 190, borderRadius: 999 },
   eyebrow: {
     alignSelf: 'flex-start', color: C.onNight, fontFamily: F.heavy, fontSize: 11, letterSpacing: 1.4,

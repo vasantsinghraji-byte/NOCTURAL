@@ -54,7 +54,7 @@ export function FamilyInvites({ big = false }: { big?: boolean }) {
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: C.card, borderRadius: 24, padding: 16, gap: 12, borderWidth: 2, borderColor: C.brand, ...clay },
+  card: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 12, borderWidth: 2, borderColor: C.brand, ...clay },
   icon: { width: 48, height: 48, borderRadius: 16, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, fontFamily: F.display, fontSize: 17, color: C.ink, lineHeight: 23 },
   sub: { fontFamily: F.medium, fontSize: 14, color: C.inkSoft, lineHeight: 20 }

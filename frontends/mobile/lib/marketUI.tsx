@@ -77,7 +77,7 @@ export function Btn({ label, onPress, variant = 'primary', small, disabled, load
 }) {
   const look: Record<BtnVariant, { bg: string; fg: string; border?: string }> = {
     primary: { bg: C.brand, fg: '#ffffff' },
-    dark: { bg: C.tabBar, fg: '#ffffff' },
+    dark: { bg: C.night, fg: C.onNight },
     ghost: { bg: 'transparent', fg: C.ink, border: C.border },
     soft: { bg: C.brandSoft, fg: C.brandDark },
     light: { bg: '#ffffff', fg: '#9a1832' }
@@ -365,7 +365,7 @@ export function BottomSheet({ visible, onClose, title, children }: { visible: bo
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={{ flex: 1, backgroundColor: C.overlay }} onPress={onClose} accessibilityLabel="Close" />
-      <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 20 + insets.bottom, gap: 12 }}>
+      <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 20 + insets.bottom, gap: 12 }}>
         <View style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: C.faint }} />
         <Title size={20}>{title}</Title>
         {children}
@@ -384,17 +384,17 @@ const s = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8, gap: 10, backgroundColor: C.bg },
   topTitle: { flex: 1, textAlign: 'center', fontFamily: F.display, fontSize: 18, color: C.ink },
   iconBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...clay },
-  hero: { borderRadius: 28, padding: 20, overflow: 'hidden', backgroundColor: C.night },
+  hero: { borderRadius: 16, padding: 20, overflow: 'hidden', backgroundColor: C.night },
   eyebrow: { alignSelf: 'flex-start', color: '#ffffff', fontFamily: F.heavy, fontSize: 11, letterSpacing: 1.2, backgroundColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, overflow: 'hidden', marginBottom: 8 },
   heroTitle: { color: '#ffffff', fontFamily: F.display, fontSize: 26, lineHeight: 31, letterSpacing: -0.6 },
-  heroSub: { color: '#ffd3da', fontFamily: F.medium, fontSize: 13, lineHeight: 19, marginTop: 6 },
+  heroSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 13, lineHeight: 19, marginTop: 6 },
   seg: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 999, padding: 4, gap: 4 },
   segBtn: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 10, borderRadius: 999, minHeight: 48 },
   segOn: { backgroundColor: C.brand },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.cardAlt, borderRadius: 999, padding: 4, alignSelf: 'flex-start', height: 52 },
   stepBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   stepValue: { minWidth: 44, textAlign: 'center', fontFamily: F.display, fontSize: 22, color: C.ink },
-  date: { width: 72, paddingVertical: 10, borderRadius: 20, alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
+  date: { width: 72, paddingVertical: 10, borderRadius: 16, alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
   dateDay: { fontFamily: F.bold, fontSize: 13, color: C.muted },
   dateNum: { fontFamily: F.display, fontSize: 22, color: C.ink, marginVertical: 1 },
   dateFree: { fontFamily: F.semi, fontSize: 11, color: C.muted },
@@ -405,7 +405,7 @@ const s = StyleSheet.create({
   billLabel: { flex: 1, fontFamily: F.medium, fontSize: 15, color: C.inkSoft },
   billAmt: { fontFamily: F.bold, fontSize: 15, color: C.ink },
   tile: { width: 40, height: 40, borderRadius: 14, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
-  sheet: { backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, gap: 10 },
+  sheet: { backgroundColor: C.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, gap: 10 },
   grabber: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: C.faint, marginBottom: 6 },
-  addrRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 18, backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border }
+  addrRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 16, backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border }
 });

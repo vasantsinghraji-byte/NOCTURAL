@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   sub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 14, lineHeight: 20 },
   bar: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.22)', overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 4, backgroundColor: C.gold },
-  card: { backgroundColor: C.card, borderRadius: 22, padding: 16, ...clay },
+  card: { backgroundColor: C.card, borderRadius: 16, padding: 16, ...clay },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   pillText: { fontFamily: F.heavy, fontSize: 11 },

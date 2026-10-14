@@ -157,18 +157,18 @@ export default function ShopScreen() {
 const IS_HL = C.brandSoft;
 
 const s = StyleSheet.create({
-  hero: { borderRadius: 28, padding: 18, overflow: 'hidden', backgroundColor: C.night, gap: 12 },
+  hero: { borderRadius: 16, padding: 18, overflow: 'hidden', backgroundColor: C.night, gap: 12 },
   heroName: { fontFamily: F.display, fontSize: 24, color: '#ffffff', letterSpacing: -0.5 },
   heroSub: { fontFamily: F.medium, fontSize: 13, color: '#ffd3da' },
   heroBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   paused: { backgroundColor: C.amberSoft, borderRadius: 16, padding: 12 },
   pausedText: { color: C.amber, fontFamily: F.semi, fontSize: 13 },
-  proposal: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.mintSoft, borderRadius: 20, padding: 14 },
+  proposal: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.mintSoft, borderRadius: 16, padding: 14 },
   proposalIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   info: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4 },
   infoText: { flex: 1, fontFamily: F.semi, fontSize: 13, color: C.inkSoft, lineHeight: 18 },
   menuTitle: { fontFamily: F.display, fontSize: 19, color: C.ink, letterSpacing: -0.3 },
-  menu: { backgroundColor: C.card, borderRadius: 22, overflow: 'hidden', ...clay },
+  menu: { backgroundColor: C.card, borderRadius: 16, overflow: 'hidden', ...clay },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
   hairline: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
   rowName: { fontFamily: F.bold, fontSize: 15, color: C.ink },

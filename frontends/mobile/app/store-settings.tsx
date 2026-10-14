@@ -158,7 +158,7 @@ export default function StoreSettings() {
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: C.card, borderRadius: 22, padding: 14, gap: 4, ...clay },
+  card: { backgroundColor: C.card, borderRadius: 16, padding: 14, gap: 4, ...clay },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   big: { fontFamily: F.display, fontSize: 19, color: C.ink },
   label: { fontFamily: F.bold, fontSize: 15, color: C.ink },

@@ -77,7 +77,7 @@ export function ProviderPicker({ serviceType, value, onChange, allowSubstitute, 
 }
 
 const styles = StyleSheet.create({
-  card: { width: 150, backgroundColor: C.card, borderRadius: 18, padding: 12, gap: 4, borderWidth: 1.5, borderColor: C.border, ...clay },
+  card: { width: 150, backgroundColor: C.card, borderRadius: 16, padding: 12, gap: 4, borderWidth: 1.5, borderColor: C.border, ...clay },
   cardOn: { backgroundColor: C.night, borderColor: C.night },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   initial: { fontFamily: F.heavy, fontSize: 16, color: C.ink },

@@ -68,11 +68,11 @@ export function SubstituteCard({ orderId, item, paymentMode, onAnswered }: {
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: C.card, borderRadius: 24, padding: 16, gap: 12, borderWidth: 2, borderColor: C.brand, ...clay },
+  card: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 12, borderWidth: 2, borderColor: C.brand, ...clay },
   kicker: { fontFamily: F.heavy, fontSize: 11, color: C.brand, letterSpacing: 1 },
   lead: { fontFamily: F.semi, fontSize: 16, color: C.ink, lineHeight: 22 },
   compare: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  col: { flex: 1, backgroundColor: C.cardAlt, borderRadius: 18, padding: 12, gap: 3 },
+  col: { flex: 1, backgroundColor: C.cardAlt, borderRadius: 16, padding: 12, gap: 3 },
   colNew: { backgroundColor: C.brandSoft },
   colLabel: { fontFamily: F.heavy, fontSize: 11, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.6 },
   name: { fontFamily: F.bold, fontSize: 16, color: C.ink },

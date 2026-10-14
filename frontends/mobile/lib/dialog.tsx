@@ -125,7 +125,7 @@ export function DialogHost() {
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: IS_DARK ? 'rgba(0,0,0,0.6)' : 'rgba(42,37,35,0.45)', alignItems: 'center', justifyContent: 'center', padding: 22 },
-  card: { width: '100%', maxWidth: 420, backgroundColor: C.card, borderRadius: 28, padding: 22, gap: 10, ...clay },
+  card: { width: '100%', maxWidth: 420, backgroundColor: C.card, borderRadius: 16, padding: 22, gap: 10, ...clay },
   title: { fontFamily: F.display, fontSize: 26, lineHeight: 30, color: C.ink },
   message: { fontFamily: F.medium, fontSize: 15, lineHeight: 22, color: C.inkSoft },
   input: {

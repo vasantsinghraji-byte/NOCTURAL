@@ -115,7 +115,7 @@ const fromRanges = (r: Week): DayHours[] => DAYS.flatMap((d) => r[d].filter((x) 
 function HoursEditor({ label, value, onChange }: { label: string; value: Week; onChange: (v: Week) => void }) {
   const set = (d: DayHours['day'], i: number, k: 'open' | 'close', v: string) => onChange({ ...value, [d]: value[d].map((r, j) => (j === i ? { ...r, [k]: k === 'close' && v === '00:00' ? '23:59' : v } : r)) });
   return (
-    <View style={{ backgroundColor: C.cardAlt, borderRadius: 20, padding: 12, gap: 10 }}>
+    <View style={{ backgroundColor: C.cardAlt, borderRadius: 16, padding: 12, gap: 10 }}>
       <Title size={15}>{label}</Title>
       {DAYS.map((d) => (
         <View key={d} style={{ gap: 6 }}>
@@ -236,7 +236,7 @@ function ProfileForm({ kind, shop, onSaved }: { kind: ShopKind; shop: MyShop | n
         </>
       ) : null}
 
-      <View style={{ backgroundColor: C.cardAlt, borderRadius: 20, padding: 12, gap: 10 }}>
+      <View style={{ backgroundColor: C.cardAlt, borderRadius: 16, padding: 12, gap: 10 }}>
         <Title size={15}>Where you are</Title>
         <Input value={f.line1} onChangeText={(v) => set('line1', v)} placeholder="Address" autoComplete="street-address" />
         <View style={{ flexDirection: 'row', gap: 8 }}>

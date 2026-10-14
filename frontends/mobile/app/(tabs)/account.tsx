@@ -171,13 +171,13 @@ export default function Account() {
 }
 
 const styles = StyleSheet.create({
-  profile: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.night, borderRadius: 26, padding: 20, ...shadow },
+  profile: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.night, borderRadius: 16, padding: 20, ...shadow },
   avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   name: { color: C.onNight, fontSize: 26, fontFamily: F.display },
   email: { color: C.onNightMuted, marginTop: 2, fontFamily: F.medium },
   initial: { color: C.onNight, fontSize: 30, fontFamily: F.display },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: C.border },
-  plus: { backgroundColor: C.night, borderRadius: 24, padding: 18, gap: 8, borderWidth: 1, borderColor: 'rgba(255,232,196,0.45)', ...shadow },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
+  plus: { backgroundColor: C.night, borderRadius: 16, padding: 18, gap: 8, borderWidth: 1, borderColor: 'rgba(255,232,196,0.45)', ...shadow },
   plusTitle: { color: C.onNight, fontSize: 24, fontFamily: F.display },
   plusText: { color: C.onNightMuted, fontSize: 13, lineHeight: 19, fontFamily: F.medium },
   plusSub: { color: C.gold, fontFamily: F.bold },

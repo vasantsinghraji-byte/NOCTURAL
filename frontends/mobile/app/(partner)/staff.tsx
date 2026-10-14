@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
   hello: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 14 },
   name: { color: C.onNight, fontFamily: F.display, fontSize: 38, lineHeight: 42 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  online: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, padding: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  online: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   onlineOn: { borderColor: 'rgba(61,214,140,0.5)', backgroundColor: 'rgba(61,214,140,0.10)' },
   onlineTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 15 },
   onlineSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 12 },
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
   demandBar: { height: 8, borderRadius: 4, backgroundColor: C.accent },
   demandCount: { fontFamily: F.bold, color: C.ink, width: 24, textAlign: 'right' },
   sosBtn: { width: 48, borderRadius: 16, backgroundColor: '#e5484d', alignItems: 'center', justifyContent: 'center' },
-  offer: { backgroundColor: C.night, borderRadius: 24, padding: 18, gap: 8, borderWidth: 1, borderColor: 'rgba(255,232,196,0.5)', ...shadow },
+  offer: { backgroundColor: C.night, borderRadius: 16, padding: 18, gap: 8, borderWidth: 1, borderColor: 'rgba(255,232,196,0.5)', ...shadow },
   offerKicker: { color: C.gold, fontFamily: F.heavy, fontSize: 11, letterSpacing: 1 },
   offerSecs: { color: C.onNight, fontFamily: F.heavy, fontSize: 14 },
   offerTrack: { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
@@ -630,6 +630,6 @@ const styles = StyleSheet.create({
   grabber: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: C.border },
   codeInput: {
     fontFamily: F.heavy, fontSize: 40, letterSpacing: 18, textAlign: 'center', color: C.ink, backgroundColor: C.card,
-    borderRadius: 18, borderWidth: 1.5, borderColor: C.border, paddingVertical: 14
+    borderRadius: 16, borderWidth: 1.5, borderColor: C.border, paddingVertical: 14
   }
 });
