@@ -92,7 +92,7 @@ exports.login = async (req, res, next) => {
       logger.logSecurity('login_wrong_portal', { email: req.body.email, portal, role });
       const home = portalForRole(role);
       return responseHelper.sendForbidden(res, home
-        ? `This is a ${PORTAL_LABELS[portal]} login. Please sign in from the ${PORTAL_LABELS[home]} login.`
+        ? `This is ${/^[aeiou]/i.test(PORTAL_LABELS[portal]) ? 'an' : 'a'} ${PORTAL_LABELS[portal]} login. Please sign in from the ${PORTAL_LABELS[home]} login.`
         : `This account can't sign in to the ${PORTAL_LABELS[portal]} portal.`);
     }
 

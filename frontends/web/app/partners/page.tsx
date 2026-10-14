@@ -170,7 +170,9 @@ export default function PartnersPage() {
       </form>
       {active.login
         ? <p className="switch">Already a partner? <Link href={active.login} className="link">Sign in</Link></p>
-        : <p className="switch">{active.title} partnerships open soon. Apply now and we&apos;ll call you when they do.</p>}
+        : WAITLIST.includes(kind)
+          ? <p className="switch">{active.title} partnerships open soon. Apply now and we&apos;ll call you when they do.</p>
+          : <p className="switch">Already a partner? Sign in to the Nabz Partner app.</p>}
     </AuthShell>
   );
 }
