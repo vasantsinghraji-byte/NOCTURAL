@@ -63,7 +63,6 @@ describe('Chat and calls (real MongoDB)', () => {
     process.env.TURN_SECRET = 'turn-secret-for-tests';
     process.env.TOKEN_SECRET_FOR_TESTS = SECRET;
     realtime = require('../../services/realtimeService');
-    jest.spyOn(realtime, 'publish').mockImplementation(async (channel, events) => { published.push({ channel, events }); return true; });
     authorizer = require('../../infra/realtime-authorizer');
 
     await Promise.all([Patient, User, NurseBooking, ChatThread, ChatMessage, PharmacyOrder, PharmacyVendor].map((M) => M.createIndexes()));
@@ -84,6 +83,12 @@ describe('Chat and calls (real MongoDB)', () => {
       amounts: { itemsSubtotal: 100, total: 100 }, paymentMode: 'COD', createdAt: new Date(), updatedAt: new Date()
     });
   }, 90000);
+
+  // jest.config resets and restores mocks after every test, so the publish spy
+  // has to be set up before each one (it was only set once in beforeAll).
+  beforeEach(() => {
+    if (realtime) jest.spyOn(realtime, 'publish').mockImplementation(async (channel, events) => { published.push({ channel, events }); return true; });
+  });
 
   afterAll(async () => {
     if (!db) return;
@@ -184,7 +189,8 @@ describe('Chat and calls (real MongoDB)', () => {
     const a = (await api('post', `/threads/${thread._id}/calls`, 'nurse')).body.call._id;
     expect((await api('post', `/calls/${a}/end`, 'kamla')).body.call.call.status).toBe('DECLINED');
     const b = (await api('post', `/threads/${thread._id}/calls`, 'nurse')).body.call._id;
-    await ChatMessage.updateOne({ _id: b }, { $set: { createdAt: new Date(Date.now() - 120000) } });
+    // createdAt is immutable through Mongoose (timestamps): backdate it with the driver.
+    await ChatMessage.collection.updateOne({ _id: new mongoose.Types.ObjectId(String(b)) }, { $set: { createdAt: new Date(Date.now() - 120000) } });
     expect(await require('../../services/chatService').sweep()).toBeGreaterThanOrEqual(1);
     expect((await ChatMessage.findById(b).lean()).call.status).toBe('MISSED');
     expect((await api('post', `/calls/${b}/accept`, 'kamla')).status).toBe(409);
