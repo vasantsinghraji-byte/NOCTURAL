@@ -19,7 +19,7 @@ const uploadDirs = [
 // Initialize upload directories asynchronously (only for local storage)
 const initializeUploadDirs = async () => {
   if (!storageConfig.USE_LOCAL) {
-    logger.info('Using Google Cloud Storage - skipping local directory initialization');
+    logger.info('Using cloud storage (S3/GCS) - skipping local directory initialization');
     return;
   }
 
@@ -86,7 +86,7 @@ const fileFilter = (req, file, cb) => {
         userId: req.user ? req.user._id : 'anonymous',
         reason: 'Invalid MIME type or extension for profile photo'
       });
-      cb(new Error('Profile photos must be JPG, JPEG, or PNG with valid MIME type'), false);
+      cb(Object.assign(new Error('Profile photos must be JPG, JPEG, or PNG with valid MIME type'), { statusCode: 400 }), false);
     }
   }
   // Documents - images or PDFs
@@ -101,7 +101,7 @@ const fileFilter = (req, file, cb) => {
         userId: req.user ? req.user._id : 'anonymous',
         reason: 'Invalid MIME type or extension for document'
       });
-      cb(new Error('Documents must be JPG, JPEG, PNG, or PDF with valid MIME type'), false);
+      cb(Object.assign(new Error('Documents must be JPG, JPEG, PNG, or PDF with valid MIME type'), { statusCode: 400 }), false);
     }
   }
 };
@@ -139,8 +139,8 @@ const validateFileType = async (req, res, next) => {
       return next();
     }
 
-    // Skip validation for GCS uploads (files are streamed directly)
-    if (storageConfig.USE_GCS) {
+    // Skip for cloud uploads: S3/GCS engines validate magic bytes while streaming
+    if (storageConfig.USE_CLOUD) {
       return next();
     }
 
@@ -236,8 +236,15 @@ const validateFileType = async (req, res, next) => {
 const createReportUpload = () => {
   let reportStorage;
 
-  // Use GCS storage in production
-  if (storageConfig.USE_GCS && storageConfig.gcsBucket) {
+  if (storageConfig.USE_S3) {
+    // S3 engine streams through the same magic-byte validator as GCS below
+    reportStorage = storageConfig.createS3StorageEngine((req, file) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = path.extname(file.originalname);
+      const dateFolder = new Date().toISOString().split('T')[0];
+      return `investigation-reports/${dateFolder}/report-${req.user._id}-${uniqueSuffix}${ext}`;
+    });
+  } else if (storageConfig.USE_GCS && storageConfig.gcsBucket) {
     // Custom GCS storage engine for investigation reports
     reportStorage = {
       _handleFile: function(req, file, cb) {
@@ -352,7 +359,7 @@ const createReportUpload = () => {
         extension: extname,
         userId: req.user ? req.user._id : 'anonymous'
       });
-      cb(new Error('Investigation reports must be JPG, PNG, or PDF files'), false);
+      cb(Object.assign(new Error('Investigation reports must be JPG, PNG, or PDF files'), { statusCode: 400 }), false);
     }
   };
 
@@ -374,6 +381,12 @@ module.exports = {
   uploadMBBSDegree: [upload.single('mbbsDegree'), validateFileType],
   uploadPhotoId: [upload.single('photoId'), validateFileType],
   uploadCertificate: [upload.single('certificate'), validateFileType],
+  // MedRush: patient prescription image/PDF for pharmacy orders
+  uploadPrescription: [upload.single('prescription'), validateFileType],
+  // Partner verification document (Aadhaar masked copy, licences, certificates)
+  uploadPartnerDocument: [upload.single('partnerDocument'), validateFileType],
+  // Path lab report (PDF / image) for a lab order
+  uploadLabReport: [upload.single('report'), validateFileType],
 
   // Multiple document uploads
   uploadDocuments: [

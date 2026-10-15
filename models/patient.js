@@ -5,7 +5,7 @@
  */
 
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const { hashPassword, comparePassword } = require('../utils/passwordHash');
 
 const PatientSchema = new mongoose.Schema({
   // Basic Information
@@ -131,12 +131,27 @@ const PatientSchema = new mongoose.Schema({
     }
   },
 
-  // Emergency Contact
+  // Emergency Contact (primary — retained for backward compatibility)
   emergencyContact: {
     name: String,
     relation: String,
     phone: String,
     email: String
+  },
+
+  // MedRush SOS: multiple contacts notified when an emergency booking is
+  // triggered (in addition to the primary contact above).
+  emergencyContacts: [{
+    name: String,
+    relation: String,
+    phone: String,
+    notifyOnSos: { type: Boolean, default: true }
+  }],
+
+  // Preferred UI / communication language.
+  preferredLanguage: {
+    type: String,
+    default: 'en'
   },
 
   // Insurance Details
@@ -176,6 +191,13 @@ const PatientSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+
+  // Password sign-in lockout (utils/attemptGuard.js): tries in the current
+  // window and when the lock ends. Never returned by default.
+  loginGuard: {
+    failed: { type: Number, default: 0, select: false },
+    lockUntil: { type: Date, select: false }
+  },
   isVerified: {
     type: Boolean,
     default: false
@@ -183,6 +205,12 @@ const PatientSchema = new mongoose.Schema({
   phoneVerified: {
     type: Boolean,
     default: false
+  },
+  // Linked Google account (Continue with Google). Sparse-unique: one Nabz
+  // account per Google identity.
+  googleId: {
+    type: String,
+    select: false
   },
   emailVerified: {
     type: Boolean,
@@ -197,6 +225,12 @@ const PatientSchema = new mongoose.Schema({
   totalSpent: {
     type: Number,
     default: 0
+  },
+  // Unpaid late-cancellation fees, added to the next visit's bill.
+  pendingDues: {
+    type: Number,
+    default: 0,
+    min: 0
   },
 
   // Health Intake Status (for Patient Analytics Dashboard)
@@ -240,6 +274,20 @@ const PatientSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Patient'
   },
+  // Saved booking preferences ("Use my saved preferences").
+  carePreferences: {
+    preferredGender: { type: String, enum: ['ANY', 'FEMALE', 'MALE'] },
+    preferredProvider: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    allowSubstitute: Boolean,
+    language: { type: String, maxlength: 30 },
+    street: { type: String, maxlength: 200 },
+    city: { type: String, maxlength: 80 },
+    pincode: { type: String, maxlength: 6 },
+    updatedAt: Date
+  },
+  // A Nabz partner's code used at sign-up; rewards them after the first order.
+  referredByPartner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  partnerReferralRewardedAt: Date,
 
   // Security
   passwordChangedAt: Date,
@@ -276,8 +324,7 @@ const PatientSchema = new mongoose.Schema({
 // Hash password before saving and track password change time
 PatientSchema.pre('save', async function() {
   if (this.isModified('password')) {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    this.password = await hashPassword(this.password);
     if (!this.isNew) {
       this.passwordChangedAt = new Date();
     }
@@ -287,7 +334,7 @@ PatientSchema.pre('save', async function() {
 // Compare password method
 PatientSchema.methods.comparePassword = async function(candidatePassword) {
   try {
-    return await bcrypt.compare(candidatePassword, this.password);
+    return comparePassword(candidatePassword, this.password);
   } catch (error) {
     throw new Error('Password comparison failed', { cause: error });
   }
@@ -303,6 +350,7 @@ PatientSchema.pre('save', function() {
 // Indexes
 // Note: email and phone already indexed via unique: true in schema
 PatientSchema.index({ referralCode: 1 });
+PatientSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 PatientSchema.index({ 'address.city': 1, 'address.pincode': 1 });
 PatientSchema.index({ isActive: 1, isVerified: 1 });
 PatientSchema.index({ createdAt: -1 });

@@ -5,6 +5,7 @@
  * Handles events, availability, and conflict detection
  */
 
+const { TRANSACTION_OPTIONS } = require('../utils/queryUpdateOptions');
 const mongoose = require('mongoose');
 const CalendarEvent = require('../models/calendarEvent');
 const Availability = require('../models/availability');
@@ -274,7 +275,7 @@ class CalendarService {
           },
           { session }
         );
-      });
+      }, TRANSACTION_OPTIONS);
     } catch (error) {
       const createdIds = created
         .map(slot => slot?._id)

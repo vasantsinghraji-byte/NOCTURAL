@@ -27,7 +27,8 @@ const {
   changePassword,
   listSessions,
   revokeSession,
-  revokeAllSessions
+  revokeAllSessions,
+  deleteMe
 } = require('../controllers/patientController');
 
 // Validation rules
@@ -154,10 +155,61 @@ router.use(protectPatient);
 // Profile routes
 router.route('/me')
   .get(getMe)
-  .put(updateMe);
+  .put(updateMe)
+  // Typed confirmation guards against one-tap deletes from a stolen session.
+  .delete(body('confirm').equals('DELETE').withMessage('Type DELETE to confirm'), validate, deleteMe);
 
 router.get('/me/stats', getBookingStats);
 router.post('/me/verify-password', verifyPasswordValidation, validate, verifyPassword);
+// Offers & updates from the admin panel (campaigns for customers).
+router.get('/me/offers', async (req, res, next) => {
+  try {
+    res.json({ success: true, offers: await require('../services/campaignService').feed('patient') });
+  } catch (error) {
+    require('../utils/responseHelper').handleServiceError(error, res, next);
+  }
+});
+router.post('/me/offers/:id/open', [param('id').isMongoId()], validate, async (req, res, next) => {
+  try {
+    await require('../services/campaignService').recordOpen(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    require('../utils/responseHelper').handleServiceError(error, res, next);
+  }
+});
+// Saved booking preferences ("Use my saved preferences" when booking).
+router.get('/me/care-preferences', async (req, res, next) => {
+  try {
+    res.json({ success: true, preferences: await require('../services/bookingService').getCarePreferences(req.user.id) });
+  } catch (error) {
+    require('../utils/responseHelper').handleServiceError(error, res, next);
+  }
+});
+router.put('/me/care-preferences', [
+  body('preferredGender').optional().isIn(['ANY', 'FEMALE', 'MALE']),
+  body('preferredProvider').optional({ values: 'null' }).isMongoId(),
+  body('allowSubstitute').optional().isBoolean(),
+  body('language').optional().isString().isLength({ max: 30 }),
+  body('street').optional().isString().isLength({ max: 200 }),
+  body('city').optional().isString().isLength({ max: 80 }),
+  body('pincode').optional({ values: 'falsy' }).matches(/^\d{6}$/)
+], validate, async (req, res, next) => {
+  try {
+    res.json({ success: true, preferences: await require('../services/bookingService').saveCarePreferences(req.user.id, req.body) });
+  } catch (error) {
+    require('../utils/responseHelper').handleServiceError(error, res, next);
+  }
+});
+
+// A Nabz partner's referral code (before the first order); rewards the partner.
+router.post('/me/referral', body('code').isString().trim().isLength({ min: 4, max: 20 }).withMessage('Enter a referral code'), validate, async (req, res, next) => {
+  try {
+    const result = await require('../services/partnerReferralService').attachPatient(req.user.id, req.body.code);
+    res.json({ success: true, message: `Referral applied: thanks to ${result.referredBy}`, ...result });
+  } catch (error) {
+    require('../utils/responseHelper').handleServiceError(error, res, next);
+  }
+});
 router.put('/me/change-password', changePasswordValidation, validate, idempotency({ route: 'patients/change-password', required: true }), changePassword);
 router.get('/me/sessions', listSessions);
 router.delete('/me/sessions/:sessionId', revokeSession);

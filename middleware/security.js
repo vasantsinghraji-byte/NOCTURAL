@@ -174,16 +174,10 @@ const corsConfig = () => {
     process.env.APP_URL,
     process.env.API_URL,
     process.env.PUBLIC_API_URL,
-    process.env.RENDER_EXTERNAL_URL,
-    process.env.RENDER_FRONTEND_URL,
     process.env.FRONTEND_URL,
     process.env.CLIENT_URL,
     'https://localhost',
-    'capacitor://localhost',
-    'https://noctural.onrender.com',
-    'https://nocturnal-api.onrender.com',
-    'https://nocturnal-frontend.onrender.com',
-    'https://nocturnal-frontend-208z.onrender.com'
+    'capacitor://localhost'
   ].forEach(addAllowedOrigin);
 
   // Log allowed origins on startup

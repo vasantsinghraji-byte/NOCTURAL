@@ -31,6 +31,22 @@ describe('mobile authentication contract', () => {
     });
   });
 
+  it('exposes tokens to the native Expo client (no browser headers)', () => {
+    const req = { headers: { 'x-nocturnal-mobile': 'expo' } };
+    expect(isMobileRequest(req)).toBe(true);
+    expect(addMobileTokens(req, {}, tokens).tokens.accessToken).toBe('access-token');
+  });
+
+  it('rejects the Expo header when a browser sent it', () => {
+    expect(isMobileRequest({
+      headers: { 'x-nocturnal-mobile': 'expo', origin: 'http://localhost:3000' }
+    })).toBe(false);
+    expect(isMobileRequest({
+      headers: { 'x-nocturnal-mobile': 'expo', 'sec-fetch-mode': 'cors', 'sec-fetch-site': 'same-origin' }
+    })).toBe(false);
+    expect(isMobileRequest({ headers: { 'x-nocturnal-mobile': 'expo', 'sec-fetch-site': 'none' } })).toBe(false);
+  });
+
   it('rejects the mobile header from a normal browser origin', () => {
     expect(isMobileRequest({
       headers: {

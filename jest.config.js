@@ -1,3 +1,5 @@
+const ESM_ONLY_DEPS = ['htmlparser2', 'domhandler', 'domutils', 'domelementtype', 'entities', 'dom-serializer'];
+
 /**
  * Jest Configuration for Nocturnal Platform
  * Comprehensive testing setup for unit, integration, and E2E tests
@@ -76,8 +78,17 @@ module.exports = {
   // Max workers (parallel test execution)
   maxWorkers: '50%',
 
-  // Transform (if using babel/typescript)
-  transform: {},
+  // Transform: our code runs as-is. sanitize-html's parser (htmlparser2 and
+  // its dom* helpers) ships ES modules only; Node 22 loads them natively, but
+  // Jest can't require() ES modules, so only those packages go through Babel.
+  transform: {
+    [String.raw`[/\\]node_modules[/\\](${ESM_ONLY_DEPS.join('|')})[/\\].+\.js$`]: ['babel-jest', {
+      babelrc: false,
+      configFile: false,
+      plugins: ['@babel/plugin-transform-export-namespace-from', '@babel/plugin-transform-modules-commonjs']
+    }]
+  },
+  transformIgnorePatterns: [String.raw`[/\\]node_modules[/\\](?!(${ESM_ONLY_DEPS.join('|')})[/\\])`],
 
   // Global teardown — close DB connections, clear timers
   globalTeardown: '<rootDir>/tests/global-teardown.js',

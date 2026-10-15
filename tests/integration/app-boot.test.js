@@ -38,19 +38,19 @@ describe('App Integration: GET /api/v1/health and core API mount', () => {
     expect(res.body).toHaveProperty('timestamp');
   });
 
-  test('GET /api/v1/health exposes the Render deployment commit when available', async () => {
-    const originalCommit = process.env.RENDER_GIT_COMMIT;
-    process.env.RENDER_GIT_COMMIT = 'a5c44c5d0477cf7a41b8fc46aafcd8ceb14b5cdc';
+  test('GET /api/v1/health exposes the deployment commit when available', async () => {
+    const originalCommit = process.env.DEPLOYMENT_COMMIT;
+    process.env.DEPLOYMENT_COMMIT = 'a5c44c5d0477cf7a41b8fc46aafcd8ceb14b5cdc';
 
     try {
       const versioned = await request(app).get('/api/v1/health');
 
-      expect(versioned.body).toHaveProperty('deploymentCommit', process.env.RENDER_GIT_COMMIT);
+      expect(versioned.body).toHaveProperty('deploymentCommit', process.env.DEPLOYMENT_COMMIT);
     } finally {
       if (originalCommit === undefined) {
-        delete process.env.RENDER_GIT_COMMIT;
+        delete process.env.DEPLOYMENT_COMMIT;
       } else {
-        process.env.RENDER_GIT_COMMIT = originalCommit;
+        process.env.DEPLOYMENT_COMMIT = originalCommit;
       }
     }
   });
@@ -103,18 +103,18 @@ describe('App Integration: GET /api/v1/health and core API mount', () => {
   test('CORS headers are set on non-preflight API POSTs with an allowed Origin', async () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
-      .set('Origin', 'https://nocturnal-api.onrender.com')
+      .set('Origin', 'https://localhost')
       .send({});
 
-    expect(res.headers['access-control-allow-origin']).toBe('https://nocturnal-api.onrender.com');
+    expect(res.headers['access-control-allow-origin']).toBe('https://localhost');
     expect(res.headers['access-control-allow-credentials']).toBe('true');
   });
 
   test('CORS headers are set on API GETs with an allowed Origin', async () => {
     const res = await request(app)
       .get('/api/v1/auth/me')
-      .set('Origin', 'https://nocturnal-api.onrender.com');
+      .set('Origin', 'https://localhost');
 
-    expect(res.headers['access-control-allow-origin']).toBe('https://nocturnal-api.onrender.com');
+    expect(res.headers['access-control-allow-origin']).toBe('https://localhost');
   });
 });

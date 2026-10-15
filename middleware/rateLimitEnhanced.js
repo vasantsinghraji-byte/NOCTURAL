@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = rateLimit;
 const rateLimitRedis = require('rate-limit-redis');
 const RedisStore = rateLimitRedis.RedisStore || rateLimitRedis.default || rateLimitRedis;
+const { MongoRateLimitStore } = require('./mongoRateLimitStore');
 const Redis = require('ioredis');
 const { scanKeys } = require('../config/redis');
 const logger = require('../utils/logger');
@@ -24,7 +25,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 // memory store. Render services without a provisioned Redis therefore need
 // REDIS_ENABLED=false in their environment or the process exits 1 at boot
 // (this crashed two production deploys on 2026-07-06; see PR #160 and
-// docs/ops/render-post-deploy-smoke.md).
+// terraform/apprunner-staging/README.md).
 if (isProduction && !isRateLimitingDisabled && !isRedisDisabled && !process.env.REDIS_URL) {
   throw new Error('REDIS_URL is required for production rate limiting');
 }
@@ -50,13 +51,53 @@ const getAuthenticatedUserId = (req) => {
   return typeof userId?.toString === 'function' ? userId.toString() : userId;
 };
 
-const scopedUserOrIpKey = (scope) => (req) => {
-  const userId = getAuthenticatedUserId(req);
-  if (userId) {
-    return `${scope}:user:${userId}`;
+/**
+ * The visitor's real IP. The website proxies /api/* through its own server,
+ * so every website visitor would otherwise look like one IP; the web server
+ * forwards the visitor's IP in x-nabz-client-ip, signed with a shared secret
+ * (see frontends/web/middleware.ts). Anything unsigned is ignored.
+ */
+const net = require('net');
+const crypto = require('crypto');
+function clientIp(req) {
+  if (req.nabzClientIp !== undefined) return req.nabzClientIp || req.ip;
+  let ip = null;
+  const secret = process.env.PROXY_SHARED_SECRET || '';
+  const given = req.get ? req.get('x-nabz-proxy-key') : undefined;
+  const forwarded = req.get ? req.get('x-nabz-client-ip') : undefined;
+  if (secret.length >= 32 && typeof given === 'string' && forwarded && net.isIP(forwarded.trim())) {
+    const a = crypto.createHash('sha256').update(given).digest();
+    const b = crypto.createHash('sha256').update(secret).digest();
+    if (crypto.timingSafeEqual(a, b)) ip = forwarded.trim();
   }
+  req.nabzClientIp = ip;
+  return ip || req.ip;
+}
 
-  return `${scope}:ip:${ipKeyGenerator(req.ip)}`;
+/**
+ * Signed-in callers are limited per account, not per IP: Indian mobile
+ * carriers put many subscribers behind one IP (CGNAT), and one phone runs
+ * both Nabz apps. The limiter runs before `protect`, so the token is
+ * verified here (cheap HMAC check; forged tokens fall back to the IP).
+ */
+function callerKey(req) {
+  const userId = getAuthenticatedUserId(req);
+  if (userId) return { kind: 'user', id: String(userId) };
+  try {
+    const token = require('./auth').getAccessTokenFromRequest(req);
+    if (token) {
+      const decoded = require('../utils/authTokens').verifyAccessToken(token);
+      if (decoded && decoded.id) return { kind: 'user', id: String(decoded.id) };
+    }
+  } catch {
+    // invalid / expired token: treat as anonymous
+  }
+  return { kind: 'ip', id: ipKeyGenerator(clientIp(req)) };
+}
+
+const scopedUserOrIpKey = (scope) => (req) => {
+  const caller = callerKey(req);
+  return `${scope}:${caller.kind}:${caller.id}`;
 };
 
 /**
@@ -71,7 +112,9 @@ const createRateLimiter = (options) => {
     skipFailedRequests = false,
     keyGenerator,
     handler = null,
-    onLimitReached = null
+    onLimitReached = null,
+    // Sign-in / recovery limiters: count across all instances even without Redis.
+    shared = false
   } = options;
 
   const config = {
@@ -114,9 +157,8 @@ const createRateLimiter = (options) => {
     })
   };
 
-  if (keyGenerator) {
-    config.keyGenerator = keyGenerator;
-  }
+  // Default key: the real visitor IP (not the website proxy's).
+  config.keyGenerator = keyGenerator || ((req) => ipKeyGenerator(clientIp(req)));
 
   // Use Redis store if available
   if (redisClient) {
@@ -125,6 +167,9 @@ const createRateLimiter = (options) => {
       prefix: 'rl:', // rate limit prefix
       sendCommand: (...args) => redisClient.call(...args)
     });
+  } else if (shared && process.env.NODE_ENV !== 'test') {
+    // Tests share one database across suites, so they keep per-process counts.
+    config.store = new MongoRateLimitStore({ prefix: `rl:${options.name || 'shared'}:` });
   }
 
   return rateLimit(config);
@@ -136,8 +181,10 @@ const createRateLimiter = (options) => {
  */
 const globalRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000,
-  message: 'Too many requests from this IP, please try again later'
+  // Per account when signed in, else per (real) IP. Generous: shared IPs.
+  max: (req) => (callerKey(req).kind === 'user' ? 4000 : 3000),
+  message: 'Too many requests, please try again in a few minutes',
+  keyGenerator: scopedUserOrIpKey('global')
 });
 
 /**
@@ -145,6 +192,8 @@ const globalRateLimiter = createRateLimiter({
  * 5 requests per 15 minutes per IP
  */
 const strictRateLimiter = createRateLimiter({
+  name: 'strict',
+  shared: true,
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: 'Too many attempts, please try again later',
@@ -156,6 +205,8 @@ const strictRateLimiter = createRateLimiter({
  * 5 attempts per 15 minutes per IP
  */
 const authRateLimiter = createRateLimiter({
+  name: 'auth',
+  shared: true,
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: 'Too many authentication attempts, please try again later',
@@ -186,19 +237,23 @@ const hospitalWaitlistRateLimiter = createRateLimiter({
  * 3 attempts per hour per IP
  */
 const passwordResetRateLimiter = createRateLimiter({
+  name: 'password-reset',
+  shared: true,
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 3,
   message: 'Too many password reset attempts, please try again later'
 });
 
 /**
- * API rate limiter - for general API endpoints
- * 100 requests per 15 minutes per user
+ * API rate limiter - for general API endpoints.
+ * The apps poll (partner offers every 5 s, tracking, store orders), so a
+ * normal signed-in session makes ~20 requests a minute; 100 per 15 minutes
+ * locked real users out. Now ~120/min per account, ~50/min per anonymous IP.
  */
 const apiRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'API rate limit exceeded',
+  max: (req) => (callerKey(req).kind === 'user' ? 1800 : 750),
+  message: 'Too many requests, please try again in a few minutes',
   keyGenerator: scopedUserOrIpKey('api')
 });
 
@@ -259,7 +314,7 @@ const adaptiveRateLimiter = (req, res, next) => {
     message: 'Rate limit exceeded for your account tier',
     keyGenerator: (req) => {
       const userId = getAuthenticatedUserId(req);
-      const actorKey = userId ? `user:${userId}` : `ip:${ipKeyGenerator(req.ip)}`;
+      const actorKey = userId ? `user:${userId}` : `ip:${ipKeyGenerator(clientIp(req))}`;
       return `${actorKey}:${req.user?.role || 'guest'}`;
     }
   });
@@ -430,6 +485,8 @@ const getRateLimitStats = async () => {
 };
 
 module.exports = {
+  clientIp,
+  callerKey,
   globalRateLimiter,
   strictRateLimiter,
   authRateLimiter,
