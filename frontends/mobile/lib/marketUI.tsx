@@ -60,10 +60,9 @@ export function MkHero({ title, accent, subtitle, art = 'heart', children, eyebr
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={{ flex: 1, paddingRight: 6 }}>
           {eyebrow ? <Text style={s.eyebrow}>{eyebrow}</Text> : null}
-          <Text style={s.heroTitle}>{title}{accent ? <Text style={{ color: '#ffd3da' }}> {accent}</Text> : null}</Text>
+          <Text style={s.heroTitle}>{title}{accent ? ` ${accent}` : null}</Text>
           {subtitle ? <Text style={s.heroSub}>{subtitle}</Text> : null}
         </View>
-        <CareArt kind={art} size={128} style={{ marginRight: -14, marginVertical: -8 }} />
       </View>
       {children ? <View style={{ marginTop: 14 }}>{children}</View> : null}
     </View>
@@ -80,7 +79,7 @@ export function Btn({ label, onPress, variant = 'primary', small, disabled, load
     dark: { bg: C.night, fg: C.onNight },
     ghost: { bg: 'transparent', fg: C.ink, border: C.border },
     soft: { bg: C.brandSoft, fg: C.brandDark },
-    light: { bg: '#ffffff', fg: '#9a1832' }
+    light: { bg: '#ffffff', fg: C.brand }
   };
   const l = look[variant];
   const off = disabled || loading;
@@ -142,7 +141,7 @@ export function Badge({ label, tone = 'neutral', icon: Icon }: { label: string; 
     green: { bg: C.mintSoft, fg: C.mint },
     amber: { bg: C.amberSoft, fg: C.amber },
     neutral: { bg: C.cardAlt, fg: C.inkSoft },
-    onDark: { bg: 'rgba(255,255,255,0.16)', fg: '#ffffff' }
+    onDark: { bg: C.card, fg: C.inkSoft }
   }[tone];
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: look.bg, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, alignSelf: 'flex-start' }}>
@@ -155,8 +154,8 @@ export function Badge({ label, tone = 'neutral', icon: Icon }: { label: string; 
 export function Chip({ label, on, onPress }: { label: string; on?: boolean; onPress?: () => void }) {
   return (
     <PressScale onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }}
-      style={{ paddingHorizontal: 16, minHeight: 44, justifyContent: 'center', borderRadius: 999, backgroundColor: on ? C.brand : C.card, borderWidth: on ? 0 : 1, borderColor: C.border }}>
-      <Text style={{ color: on ? '#ffffff' : C.inkSoft, fontFamily: F.bold, fontSize: 14 }}>{label}</Text>
+      style={{ paddingHorizontal: 16, minHeight: 44, justifyContent: 'center', borderRadius: 999, backgroundColor: on ? C.night : C.card, borderWidth: 1, borderColor: C.border }}>
+      <Text style={{ color: on ? C.brand : C.inkSoft, fontFamily: F.bold, fontSize: 14 }}>{label}</Text>
     </PressScale>
   );
 }
@@ -174,8 +173,8 @@ export function Seg<T extends string>({ options, value, onChange, disabled }: { 
         return (
           <Pressable key={o.value} onPress={() => !disabled && onChange(o.value)} accessibilityRole="radio" accessibilityState={{ checked: on, disabled }}
             style={[s.segBtn, on && s.segOn]}>
-            {Icon ? <Icon size={14} color={on ? '#ffffff' : C.inkSoft} /> : null}
-            <Text style={{ color: on ? '#ffffff' : C.inkSoft, fontFamily: F.bold, fontSize: 14 }} numberOfLines={1}>{o.label}</Text>
+            {Icon ? <Icon size={14} color={on ? C.brand : C.inkSoft} /> : null}
+            <Text style={{ color: on ? C.brand : C.inkSoft, fontFamily: F.bold, fontSize: 14 }} numberOfLines={1}>{o.label}</Text>
           </Pressable>
         );
       })}
@@ -213,10 +212,10 @@ export function DateStrip({ days, value, onChange, openLabel }: { days: SlotDay[
         return (
           <PressScale key={d.date} onPress={() => free && onChange(d.date)} disabled={!free} accessibilityRole="button" accessibilityState={{ selected: on, disabled: !free }}
             accessibilityLabel={`${dayShort(d.date)} ${Number(d.date.slice(8))}, ${free ? `${free} free` : 'full'}`}
-            style={[s.date, on && { backgroundColor: C.brand, borderColor: C.brand }, !free && { opacity: 0.45 }]}>
-            <Text style={[s.dateDay, on && { color: '#ffd3da' }]}>{dayShort(d.date)}</Text>
-            <Text style={[s.dateNum, on && { color: '#ffffff' }]}>{Number(d.date.slice(8))}</Text>
-            <Text style={[s.dateFree, on && { color: '#ffd3da' }]}>{free ? (openLabel ? openLabel(free) : `${free} free`) : 'Full'}</Text>
+            style={[s.date, on && { backgroundColor: C.night, borderColor: C.brand }, !free && { opacity: 0.45 }]}>
+            <Text style={[s.dateDay, on && { color: C.brand }]}>{dayShort(d.date)}</Text>
+            <Text style={[s.dateNum, on && { color: C.brand }]}>{Number(d.date.slice(8))}</Text>
+            <Text style={[s.dateFree, on && { color: C.brand }]}>{free ? (openLabel ? openLabel(free) : `${free} free`) : 'Full'}</Text>
           </PressScale>
         );
       })}
@@ -231,8 +230,8 @@ export function TimeGrid({ times, value, onChange }: { times: string[]; value: s
         const on = t === value;
         return (
           <PressScale key={t} onPress={() => onChange(t)} accessibilityRole="button" accessibilityState={{ selected: on }}
-            style={[s.slot, on && { backgroundColor: C.brand, borderColor: C.brand }]}>
-            <Text style={{ color: on ? '#ffffff' : C.ink, fontFamily: F.bold, fontSize: 14 }}>{fmtTime(t)}</Text>
+            style={[s.slot, on && { backgroundColor: C.night, borderColor: C.brand }]}>
+            <Text style={{ color: on ? C.brand : C.ink, fontFamily: F.bold, fontSize: 14 }}>{fmtTime(t)}</Text>
           </PressScale>
         );
       })}
@@ -385,12 +384,12 @@ const s = StyleSheet.create({
   topTitle: { flex: 1, textAlign: 'center', fontFamily: F.display, fontSize: 18, color: C.ink },
   iconBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...clay },
   hero: { borderRadius: 16, padding: 20, overflow: 'hidden', backgroundColor: C.night },
-  eyebrow: { alignSelf: 'flex-start', color: '#ffffff', fontFamily: F.heavy, fontSize: 11, letterSpacing: 1.2, backgroundColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, overflow: 'hidden', marginBottom: 8 },
-  heroTitle: { color: '#ffffff', fontFamily: F.display, fontSize: 26, lineHeight: 31, letterSpacing: -0.6 },
+  eyebrow: { alignSelf: 'flex-start', color: C.brand, fontFamily: F.semi, fontSize: 13, marginBottom: 6 },
+  heroTitle: { color: C.onNight, fontFamily: F.display, fontSize: 26, lineHeight: 31, letterSpacing: -0.6 },
   heroSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 13, lineHeight: 19, marginTop: 6 },
   seg: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 999, padding: 4, gap: 4 },
   segBtn: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 10, borderRadius: 999, minHeight: 48 },
-  segOn: { backgroundColor: C.brand },
+  segOn: { backgroundColor: C.card, borderWidth: 1, borderColor: C.brand },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.cardAlt, borderRadius: 999, padding: 4, alignSelf: 'flex-start', height: 52 },
   stepBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   stepValue: { minWidth: 44, textAlign: 'center', fontFamily: F.display, fontSize: 22, color: C.ink },

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BadgeCheck, Building2, Car, ChevronRight, Clock, Home, Languages, MapPin, ShieldCheck, Sparkles, Star, Tag } from 'lucide-react-native';
 import type { CareMode, PlanProposalView, RateCardLine, ShopPage } from '@medrush/shared';
 import { api } from '@/lib/api';
-import CareArt, { WineGradient } from '@/lib/CareArt';
+import { WineGradient } from '@/lib/CareArt';
 import { KINDS, hoursLabel, inr, problem, useMe, useVisitPlace } from '@/lib/market';
 import { Badge, Btn, Empty, Meta, Seg, TopBar } from '@/lib/marketUI';
 import { PressScale, Rise, Skeleton } from '@/lib/motion';
@@ -65,7 +65,6 @@ export default function ShopScreen() {
                 <Text style={s.heroName} numberOfLines={2}>{shop.name}</Text>
                 <Text style={s.heroSub} numberOfLines={2}>{[shop.qualification, shop.experienceYears ? `${shop.experienceYears} years` : ''].filter(Boolean).join(' · ') || meta.label}</Text>
               </View>
-              <CareArt kind={meta.art} size={104} style={{ marginRight: -10, marginVertical: -8 }} />
             </View>
             <View style={s.heroBadges}>
               {shop.rating.count > 0 ? <Badge tone="onDark" icon={Star} label={`${shop.rating.avg.toFixed(1)} · ${shop.rating.count} reviews`} /> : <Badge tone="onDark" label="New on Nabz" />}
@@ -158,8 +157,8 @@ const IS_HL = C.brandSoft;
 
 const s = StyleSheet.create({
   hero: { borderRadius: 16, padding: 18, overflow: 'hidden', backgroundColor: C.night, gap: 12 },
-  heroName: { fontFamily: F.display, fontSize: 24, color: '#ffffff', letterSpacing: -0.5 },
-  heroSub: { fontFamily: F.medium, fontSize: 13, color: '#ffd3da' },
+  heroName: { fontFamily: F.display, fontSize: 24, color: C.onNight, letterSpacing: -0.5 },
+  heroSub: { fontFamily: F.medium, fontSize: 13, color: C.onNightMuted },
   heroBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   paused: { backgroundColor: C.amberSoft, borderRadius: 16, padding: 12 },
   pausedText: { color: C.amber, fontFamily: F.semi, fontSize: 13 },

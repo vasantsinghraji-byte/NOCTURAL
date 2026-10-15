@@ -9,7 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/',
     display: 'standalone',
     background_color: '#fbf8f3',
-    theme_color: '#b83a50',
+    theme_color: '#c8102e',
     icons: [
       { src: '/brand/nabz-icon-192.png?v=2', sizes: '192x192', type: 'image/png' },
       { src: '/brand/nabz-icon-512.png?v=2', sizes: '512x512', type: 'image/png' },

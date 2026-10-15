@@ -8,7 +8,7 @@ import { FamilyInvites } from '@/lib/FamilyInvites';
 import type { CarePlanView, MarketService, PlanProposalView, SpotlightAd } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import CareArt, { WineGradient, type ArtKind } from '@/lib/CareArt';
+import { WineGradient, type ArtKind } from '@/lib/CareArt';
 import { fmtDay, fmtTime, inr, problem } from '@/lib/market';
 import { Badge, Btn, Card, MkHero, Meta, Note, Screen, Section, Title, mk } from '@/lib/marketUI';
 import { PressScale, Rise, Skeleton } from '@/lib/motion';
@@ -62,7 +62,7 @@ export default function CareHub() {
             <PressScale onPress={() => router.push(`/care/plan/${p._id}`)} style={[ui.card, { overflow: 'hidden' }]} accessibilityRole="button" accessibilityLabel={`${p.serviceName} plan`}>
               <WineGradient radius={24} />
               <View style={mk.row}>
-                <View style={[mk.tile, { backgroundColor: 'rgba(255,255,255,0.16)' }]}><CalendarHeart size={22} color="#ffffff" /></View>
+                <View style={[mk.tile, { backgroundColor: C.card }]}><CalendarHeart size={22} color={C.brand} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.onRedTitle}>{p.serviceName}</Text>
                   <Meta onDark>{p.store?.name} · {p.sessionsCompleted}/{p.sessionsTotal} done</Meta>
@@ -153,14 +153,11 @@ function KindCard({ title, text, icon: Icon, art, red, onPress, delay }: { title
       <PressScale onPress={onPress} style={[ui.card, { overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, paddingRight: 10 }]} accessibilityRole="button" accessibilityLabel={title}>
         {red ? <WineGradient radius={24} /> : null}
         <View style={{ flex: 1 }}>
-          <View style={[mk.tile, red && { backgroundColor: 'rgba(255,255,255,0.16)' }, { marginBottom: 10 }]}><Icon size={22} color={red ? '#ffffff' : C.brand} /></View>
-          <Text style={[s.kindTitle, red && { color: '#ffffff' }]}>{title}</Text>
+          <View style={[mk.tile, red && { backgroundColor: C.card }, { marginBottom: 10 }]}><Icon size={22} color={C.brand} /></View>
+          <Text style={[s.kindTitle, red && { color: C.onNight }]}>{title}</Text>
           <Meta onDark={red} style={{ marginTop: 4 }}>{text}</Meta>
         </View>
-        <View style={[s.artBox, red && { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
-          {!red ? <WineGradient radius={24} /> : null}
-          <CareArt kind={art} size={100} />
-        </View>
+        <View style={s.arrowBtn}><ArrowRight size={18} color={C.brand} /></View>
       </PressScale>
     </Rise>
   );
@@ -216,9 +213,8 @@ function Spotlight({ ad }: { ad: SpotlightAd }) {
 }
 
 const s = StyleSheet.create({
-  onRedTitle: { fontFamily: F.display, fontSize: 17, color: '#ffffff' },
-  arrowBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  onRedTitle: { fontFamily: F.display, fontSize: 17, color: C.onNight },
+  arrowBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, borderWidth: 1, borderColor: C.nightAlt, alignItems: 'center', justifyContent: 'center' },
   kindTitle: { fontFamily: F.display, fontSize: 19, color: C.ink, letterSpacing: -0.3 },
-  artBox: { width: 100, height: 100, borderRadius: 24, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   dot: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' }
 });

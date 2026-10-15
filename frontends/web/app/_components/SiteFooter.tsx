@@ -12,7 +12,7 @@ export default function SiteFooter() {
     <footer className="site-footer">
       <div className="container footer-grid">
         <div className="footer-brand">
-          <Wordmark onDark />
+          <Wordmark />
           <p>Verified nurses and physios at your door. Medicines from licensed pharmacies near you. Now in Jaipur.</p>
         </div>
         <div>

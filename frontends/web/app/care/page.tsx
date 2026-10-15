@@ -138,7 +138,7 @@ function KindCard({ href, title, text, icon, art, red }: { href: string; title: 
           <p className="mk-title" style={{ fontSize: 19 }}>{title}</p>
           <p className="mk-meta" style={{ margin: '6px 0 0' }}>{text}</p>
         </div>
-        <div style={{ width: 96, height: 96, borderRadius: 24, background: red ? 'rgba(255,255,255,.08)' : 'linear-gradient(150deg, var(--wine-2), var(--wine))', overflow: 'hidden' }}>
+        <div style={{ width: 96, height: 96, borderRadius: 24, background: red ? 'var(--card)' : 'var(--night)', overflow: 'hidden' }}>
           <CareArt kind={art} />
         </div>
       </div>

@@ -84,7 +84,7 @@ export default function StoreToday() {
               <Text style={s.openSub}>{statusLine}</Text>
             </View>
             {switching ? <ActivityIndicator color="#ffffff" /> : (
-              <Switch value={shop.isOpen} onValueChange={setOpen} trackColor={{ true: '#3dd68c', false: 'rgba(255,255,255,0.25)' }} thumbColor="#ffffff"
+              <Switch value={shop.isOpen} onValueChange={setOpen} trackColor={{ true: '#3dd68c', false: C.faint }} thumbColor="#ffffff"
                 accessibilityLabel={shop.isOpen ? 'Shop open. Double tap to close' : 'Shop closed. Double tap to open'} />
             )}
           </View>
@@ -152,13 +152,13 @@ function Action({ icon: Icon, label, onPress }: { icon: LucideIcon; label: strin
 const s = StyleSheet.create({
   head: { backgroundColor: C.night, paddingHorizontal: 18, paddingBottom: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, gap: 14 },
   hello: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 15 },
-  name: { color: '#ffffff', fontFamily: F.display, fontSize: 30, marginTop: -10 },
-  open: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  name: { color: C.onNight, fontFamily: F.display, fontSize: 30, marginTop: -10 },
+  open: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, backgroundColor: C.card, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   openOn: { borderColor: 'rgba(61,214,140,0.6)', backgroundColor: 'rgba(61,214,140,0.14)' },
-  openTitle: { color: '#ffffff', fontFamily: F.bold, fontSize: 17 },
+  openTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 17 },
   openSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 13 },
-  tile: { flex: 1, borderRadius: 16, padding: 12, gap: 3, backgroundColor: 'rgba(255,255,255,0.08)' },
-  tileValue: { color: '#ffffff', fontFamily: F.display, fontSize: 20 },
+  tile: { flex: 1, borderRadius: 16, padding: 12, gap: 3, backgroundColor: C.card },
+  tileValue: { color: C.onNight, fontFamily: F.display, fontSize: 20 },
   tileLabel: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 11 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, minHeight: 72, ...clay },
   rowIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

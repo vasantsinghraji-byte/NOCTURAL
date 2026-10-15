@@ -124,9 +124,9 @@ function Action({ icon: Icon, label, onPress }: { icon: LucideIcon; label: strin
 
 const s = StyleSheet.create({
   card: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 14, ...clay },
-  kicker: { color: '#ffd3da', fontFamily: F.heavy, fontSize: 10, letterSpacing: 1.2 },
-  emptyTitle: { color: '#ffffff', fontFamily: F.display, fontSize: 20, lineHeight: 25, marginTop: 6 },
-  emptySub: { color: '#ffd3da', fontFamily: F.medium, fontSize: 13, lineHeight: 19, marginTop: 6 },
+  kicker: { color: C.brand, fontFamily: F.semi, fontSize: 12 },
+  emptyTitle: { color: C.onNight, fontFamily: F.display, fontSize: 20, lineHeight: 25, marginTop: 6 },
+  emptySub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 13, lineHeight: 19, marginTop: 6 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   storeIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
   name: { fontFamily: F.display, fontSize: 18, color: C.ink },

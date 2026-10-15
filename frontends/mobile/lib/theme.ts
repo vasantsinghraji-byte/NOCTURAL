@@ -22,12 +22,15 @@ const LIGHT = {
   brandDark: '#9e0c24',
   brandSoft: '#fdecee',
   onBrand: '#ffffff',
-  night: '#16191e', // ink surfaces: cart bar, live visit card, dark buttons
-  nightAlt: '#262a31',
-  wine: '#0f1115', // deepest ink (illustration shading)
+  // Feature surfaces (screen headers, hero and highlight cards, selected
+  // states): a light rose tint with ink text. There are no dark or maroon
+  // surfaces; red is for actions only.
+  night: '#fdf0f2',
+  nightAlt: '#f9dde2',
+  wine: '#0f1115', // full-screen calls only
   wine2: '#22262d',
-  onNight: '#ffffff',
-  onNightMuted: '#b9bec7',
+  onNight: '#14171c',
+  onNightMuted: '#5f6670',
   tabBar: '#ffffff',
   accent: '#c8102e',
   accentSoft: '#fdecee',
@@ -42,7 +45,7 @@ const LIGHT = {
   violetSoft: '#f4f3ff',
   sky: '#175cd3',
   skySoft: '#eff8ff',
-  gold: '#f5b301',
+  gold: '#c8102e', // one accent: former gold labels use Nabz red
   overlay: 'rgba(16,24,40,0.5)',
   shadow: '#101828'
 };
@@ -60,11 +63,11 @@ const DARK: typeof LIGHT = {
   brandDark: '#ff8095',
   brandSoft: '#3a161d',
   onBrand: '#ffffff',
-  night: '#1f2329',
-  nightAlt: '#2a2f36',
+  night: '#26181c',
+  nightAlt: '#331f24',
   wine: '#0b0d10',
   wine2: '#1f2329',
-  onNight: '#ffffff',
+  onNight: '#f2f4f7',
   onNightMuted: '#b9bec7',
   tabBar: '#171a1f',
   accent: '#ff4d67',
@@ -80,7 +83,7 @@ const DARK: typeof LIGHT = {
   violetSoft: '#241f3d',
   sky: '#84caff',
   skySoft: '#102a43',
-  gold: '#fdb022',
+  gold: '#ff4d67',
   overlay: 'rgba(0,0,0,0.65)',
   shadow: '#000000'
 };
@@ -149,7 +152,8 @@ export const ui = StyleSheet.create({
   },
   btn: { backgroundColor: C.brand, minHeight: 50, paddingVertical: 14, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', borderRadius: R.md },
   btnText: { color: C.onBrand, fontFamily: F.bold, fontSize: 15 },
-  btnDark: { backgroundColor: C.night, minHeight: 50, borderRadius: R.md, paddingVertical: 14, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
+  // Kept for existing screens: the same red primary button as btn.
+  btnDark: { backgroundColor: C.brand, minHeight: 50, borderRadius: R.md, paddingVertical: 14, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
   btnOutline: { borderWidth: 1, borderColor: C.brand, borderRadius: R.md, minHeight: 46, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
   btnOutlineText: { color: C.brand, fontFamily: F.bold },
   pill: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: C.brandSoft },

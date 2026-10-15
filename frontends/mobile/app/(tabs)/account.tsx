@@ -109,7 +109,7 @@ export default function Account() {
       </View>
 
       {!session && (
-        <Pressable style={ui.btnDark} onPress={() => router.push('/welcome')}><Text style={[ui.btnText, { color: C.onNight }]}>Sign in / Create account</Text></Pressable>
+        <Pressable style={ui.btnDark} onPress={() => router.push('/welcome')}><Text style={ui.btnText}>Sign in / Create account</Text></Pressable>
       )}
 
       {session?.kind === 'patient' && plus && (
@@ -172,19 +172,19 @@ export default function Account() {
 
 const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.night, borderRadius: 16, padding: 20, ...shadow },
-  avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   name: { color: C.onNight, fontSize: 26, fontFamily: F.display },
   email: { color: C.onNightMuted, marginTop: 2, fontFamily: F.medium },
   initial: { color: C.onNight, fontSize: 30, fontFamily: F.display },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
-  plus: { backgroundColor: C.night, borderRadius: 16, padding: 18, gap: 8, borderWidth: 1, borderColor: 'rgba(255,232,196,0.45)', ...shadow },
+  plus: { backgroundColor: C.night, borderRadius: 16, padding: 18, gap: 8, borderWidth: 1, borderColor: C.nightAlt, ...shadow },
   plusTitle: { color: C.onNight, fontSize: 24, fontFamily: F.display },
   plusText: { color: C.onNightMuted, fontSize: 13, lineHeight: 19, fontFamily: F.medium },
   plusSub: { color: C.gold, fontFamily: F.bold },
   plusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.mintSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   plusBadgeText: { color: C.mint, fontSize: 10, fontFamily: F.heavy },
   plusBtn: { backgroundColor: C.gold, borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
-  plusBtnText: { color: '#2a2523', fontFamily: F.heavy },
+  plusBtnText: { color: '#14171c', fontFamily: F.heavy },
   rowIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center' },
   lang: { fontFamily: F.bold, color: C.brand }
 });

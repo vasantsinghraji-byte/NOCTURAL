@@ -83,7 +83,7 @@ export default function LabOrderDetail() {
 
         {payable ? (
           <Card tone="red" style={{ gap: 10 }}>
-            <Text style={{ fontFamily: F.display, fontSize: 18, color: '#ffffff' }}>Pay {inr(order.payment.amount)} to confirm</Text>
+            <Text style={{ fontFamily: F.display, fontSize: 18, color: C.onNight }}>Pay {inr(order.payment.amount)} to confirm</Text>
             <Meta onDark>Your collection time is held{order.payment.holdUntil ? ` until ${fmtClock(order.payment.holdUntil)}` : ''}.</Meta>
             <Btn variant="light" label={busy === 'pay' ? 'Opening Payment…' : 'Pay Now'} loading={busy === 'pay'} onPress={pay} />
           </Card>
@@ -91,11 +91,11 @@ export default function LabOrderDetail() {
 
         {order.collectionCode && order.status === 'SCHEDULED' ? (
           <Card tone="red" style={{ gap: 10 }}>
-            <Text style={{ fontFamily: F.display, fontSize: 17, color: '#ffffff' }}>Collection code</Text>
+            <Text style={{ fontFamily: F.display, fontSize: 17, color: C.onNight }}>Collection code</Text>
             <View style={{ flexDirection: 'row', gap: 8 }} accessibilityLabel={`Collection code ${order.collectionCode.split('').join(' ')}`}>
               {order.collectionCode.split('').map((c, i) => (
-                <View key={i} style={{ width: 48, height: 56, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: '#ffffff', fontFamily: F.display, fontSize: 26 }}>{c}</Text>
+                <View key={i} style={{ width: 48, height: 56, borderRadius: 16, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: C.ink, fontFamily: F.display, fontSize: 26 }}>{c}</Text>
                 </View>
               ))}
             </View>

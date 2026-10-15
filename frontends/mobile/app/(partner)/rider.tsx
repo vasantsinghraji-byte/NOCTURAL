@@ -117,7 +117,7 @@ export default function RiderHome() {
               <Text style={s.onlineTitle}>{online ? 'You’re online' : 'You’re offline'}</Text>
               <Text style={s.onlineSub}>{online ? 'Stores near you can send you orders' : 'Go online to get delivery orders'}</Text>
             </View>
-            {switching ? <ActivityIndicator color="#ffffff" /> : <Switch value={online} onValueChange={toggle} trackColor={{ true: '#3dd68c', false: 'rgba(255,255,255,0.25)' }} thumbColor="#ffffff" accessibilityLabel="Online" />}
+            {switching ? <ActivityIndicator color={C.brand} /> : <Switch value={online} onValueChange={toggle} trackColor={{ true: '#3dd68c', false: C.faint }} thumbColor="#ffffff" accessibilityLabel="Online" />}
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Tile icon={Wallet} label="Today" value={inr(earn?.today.earned ?? 0)} sub={`${earn?.today.drops ?? 0} drops`} />
@@ -211,13 +211,13 @@ function Tile({ icon: Icon, label, value, sub }: { icon: typeof Wallet; label: s
 const s = StyleSheet.create({
   head: { backgroundColor: C.night, paddingHorizontal: 18, paddingBottom: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, gap: 14 },
   hello: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 15 },
-  name: { color: '#ffffff', fontFamily: F.display, fontSize: 34, marginTop: -10 },
-  online: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  name: { color: C.onNight, fontFamily: F.display, fontSize: 34, marginTop: -10 },
+  online: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, backgroundColor: C.card, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   onlineOn: { borderColor: 'rgba(61,214,140,0.6)', backgroundColor: 'rgba(61,214,140,0.14)' },
-  onlineTitle: { color: '#ffffff', fontFamily: F.bold, fontSize: 16 },
+  onlineTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 16 },
   onlineSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 13 },
-  tile: { flex: 1, borderRadius: 16, padding: 12, gap: 3, backgroundColor: 'rgba(255,255,255,0.08)' },
-  tileValue: { color: '#ffffff', fontFamily: F.display, fontSize: 18 },
+  tile: { flex: 1, borderRadius: 16, padding: 12, gap: 3, backgroundColor: C.card },
+  tileValue: { color: C.onNight, fontFamily: F.display, fontSize: 18 },
   tileLabel: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 11 },
   trip: { backgroundColor: C.card, borderRadius: 16, padding: 14, gap: 12, ...clay },
   storeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

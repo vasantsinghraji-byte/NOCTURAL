@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { C } from './theme';
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 /**
@@ -291,24 +292,11 @@ function Gradients() {
 }
 
 /** Wine → crimson gradient fill for hero cards (no gradient native module needed). */
-export function WineGradient({ radius = 28 }: { radius?: number }) {
-  return (
-    <View style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]} pointerEvents="none">
-      <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
-        <Defs>
-          <LinearGradient id="wine" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0%" stopColor="#d02a4b" />
-            <Stop offset="55%" stopColor="#9a1832" />
-            <Stop offset="100%" stopColor="#5c0d22" />
-          </LinearGradient>
-          <RadialGradient id="shine" cx="85%" cy="10%" r="60%">
-            <Stop offset="0%" stopColor="#ffffff" stopOpacity={0.18} />
-            <Stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
-          </RadialGradient>
-        </Defs>
-        <Rect x={0} y={0} width={100} height={100} fill="url(#wine)" />
-        <Rect x={0} y={0} width={100} height={100} fill="url(#shine)" />
-      </Svg>
-    </View>
-  );
+/**
+ * Background for highlighted cards and heroes. It used to be a maroon
+ * gradient; it is now the flat rose tint every feature surface shares
+ * (theme C.night), so highlighted cards match the rest of the app.
+ */
+export function WineGradient({ radius = 16 }: { radius?: number }) {
+  return <View style={[StyleSheet.absoluteFill, { borderRadius: radius, backgroundColor: C.night }]} pointerEvents="none" />;
 }

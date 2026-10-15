@@ -18,7 +18,7 @@ export function TrustBadgeBar() {
 
       <div className="trust-seals">
         <span className="trust-pill"><ShieldCheck size={14} color="var(--mint)" /> Verified</span>
-        <span className="trust-pill"><KeyRound size={14} color="#f0c77e" /> Visit code</span>
+        <span className="trust-pill"><KeyRound size={14} color="#c8102e" /> Visit code</span>
         <span className="trust-pill"><Siren size={14} color="#ffc4cd" /> SOS</span>
       </div>
     </div>

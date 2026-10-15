@@ -71,7 +71,7 @@ export function PayoutsCard() {
       ) : null}
 
       <Pressable style={[ui.btnDark, (!data.canWithdraw || busy) && { opacity: 0.5 }]} disabled={!data.canWithdraw || busy} onPress={withdraw} accessibilityRole="button">
-        <Text style={[ui.btnText, { color: C.onNight }]}>{data.available >= data.minimum ? `Withdraw ${inr(data.available)}` : `Withdraw from ${inr(data.minimum)}`}</Text>
+        <Text style={ui.btnText}>{data.available >= data.minimum ? `Withdraw ${inr(data.available)}` : `Withdraw from ${inr(data.minimum)}`}</Text>
       </Pressable>
 
       {data.history.length > 0 && (
@@ -138,7 +138,7 @@ function DetailsSheet({ visible, onClose, onSaved }: { visible: boolean; onClose
           )}
           <Text style={ui.muted}>Your account number is stored encrypted. Only the last 4 digits are shown.</Text>
           <Pressable style={[ui.btnDark, busy && { opacity: 0.6 }]} disabled={busy} onPress={save} accessibilityRole="button">
-            {busy ? <ActivityIndicator color={C.onNight} /> : <Text style={[ui.btnText, { color: C.onNight }]}>Save payout details</Text>}
+            {busy ? <ActivityIndicator color={C.onBrand} /> : <Text style={ui.btnText}>Save payout details</Text>}
           </Pressable>
           <Pressable onPress={onClose} style={{ alignItems: 'center', padding: 8 }}><Text style={ui.muted}>Cancel</Text></Pressable>
         </Pressable>
@@ -160,6 +160,6 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: C.overlay, justifyContent: 'flex-end' },
   sheet: { backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 34, gap: 10 },
   choice: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card },
-  choiceOn: { backgroundColor: C.night, borderColor: C.night },
+  choiceOn: { backgroundColor: C.night, borderColor: C.brand },
   choiceText: { fontFamily: F.bold, color: C.ink }
 });

@@ -176,9 +176,9 @@ const styles = StyleSheet.create({
     height: 236,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: C.card,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: C.nightAlt,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.35,
@@ -207,10 +207,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)'
+    borderColor: C.nightAlt
   },
   tagText: {
-    color: '#fff',
+    color: C.onNight,
     fontSize: 11,
     fontFamily: F.bold,
     letterSpacing: 0.3
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: 'rgba(20, 16, 24, 0.82)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)'
+    borderColor: C.nightAlt
   },
   floatTop: {
     top: 12
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    backgroundColor: C.card,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     bottom: 12
   },
   slideTitle: {
-    color: '#ffffff',
+    color: C.onNight,
     fontFamily: F.display,
     fontSize: 22,
     lineHeight: 25,
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 3
   },
   slideSub: {
-    color: 'rgba(255, 255, 255, 0.88)',
+    color: C.onNightMuted,
     fontFamily: F.medium,
     fontSize: 12,
     lineHeight: 16,
@@ -290,6 +290,6 @@ const styles = StyleSheet.create({
   },
   dotInactive: {
     width: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)'
+    backgroundColor: C.nightAlt
   }
 });

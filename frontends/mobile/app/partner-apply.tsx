@@ -114,7 +114,7 @@ export default function PartnerApply() {
           </Text>
         </Rise>
         <PressScale style={ui.btnDark} onPress={() => router.back()}>
-          <Text style={[ui.btnText, { color: C.onNight }]}>Done</Text>
+          <Text style={ui.btnText}>Done</Text>
         </PressScale>
       </View>
     );
@@ -163,7 +163,7 @@ export default function PartnerApply() {
             label="I agree to the" linkText="Nabz partner terms" />
           {error && <Text style={ui.error}>{error}</Text>}
           <PressScale style={[ui.btnDark, busy && { opacity: 0.6 }]} disabled={busy} onPress={submit}>
-            {busy ? <ActivityIndicator color={C.onNight} /> : <Text style={[ui.btnText, { color: C.onNight }]}>Submit application</Text>}
+            {busy ? <ActivityIndicator color={C.onBrand} /> : <Text style={ui.btnText}>Submit application</Text>}
           </PressScale>
           <Text style={[ui.muted, { textAlign: 'center' }]}>We verify ID, registration and police clearance before you go live.</Text>
         </View>
@@ -179,5 +179,5 @@ const styles = StyleSheet.create({
   waitlist: { alignSelf: 'flex-start', fontFamily: F.semi, fontSize: 11, color: C.amber, backgroundColor: C.amberSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
   label: { fontFamily: F.bold },
   gender: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card },
-  genderOn: { backgroundColor: C.night, borderColor: C.night }
+  genderOn: { backgroundColor: C.night, borderColor: C.brand }
 });

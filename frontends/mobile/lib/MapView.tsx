@@ -22,13 +22,13 @@ export interface MapPin {
 }
 
 export const PIN_LOOK: Record<Exclude<PinKind, 'store'>, { color: string; label: string }> = {
-  nurse: { color: '#c21f3d', label: 'Nurse' },
+  nurse: { color: '#c8102e', label: 'Nurse' },
   physio: { color: '#6d4bc3', label: 'Physio' },
   caregiver: { color: '#d9731f', label: 'Caregiver' },
   lab: { color: '#1f7fb8', label: 'Lab' },
   pharmacy: { color: '#1a9960', label: 'Pharmacy' },
-  rider: { color: '#2a2523', label: 'Rider' },
-  staff: { color: '#c21f3d', label: 'Professional' }
+  rider: { color: '#14171c', label: 'Rider' },
+  staff: { color: '#c8102e', label: 'Professional' }
 };
 
 /** Map a staff role from the API to a pin kind. */
@@ -49,9 +49,9 @@ const html = `<!doctype html><html><head>
   .leaflet-tile-pane{filter:grayscale(.5) sepia(.18) saturate(.7) contrast(.96) brightness(1.04)}
   body.dark,body.dark #m{background:#131014}
   body.dark .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) grayscale(.7) brightness(.78) contrast(.92) sepia(.08)}
-  .route{stroke:#2a2523;stroke-width:5;stroke-linecap:round;fill:none}
+  .route{stroke:#14171c;stroke-width:5;stroke-linecap:round;fill:none}
   body.dark .route{stroke:#f3f5fb}
-  .me{width:18px;height:18px;border-radius:50%;background:#c21f3d;border:3px solid #fff;box-shadow:0 0 0 8px rgba(194,31,61,.22)}
+  .me{width:18px;height:18px;border-radius:50%;background:#c8102e;border:3px solid #fff;box-shadow:0 0 0 8px rgba(200,16,46,.22)}
   /* Teardrop pin: coloured per service, white icon, soft shadow. */
   .mp{position:relative;width:44px;height:54px}
   .mp .drop{position:absolute;left:4px;top:2px;width:36px;height:36px;border-radius:50% 50% 50% 6px;transform:rotate(-45deg);
@@ -77,7 +77,7 @@ const html = `<!doctype html><html><head>
     rider:'<circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>',
     staff:'<path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/>'
   };
-  var COLOR={nurse:'#c21f3d',physio:'#6d4bc3',caregiver:'#d9731f',lab:'#1f7fb8',pharmacy:'#1a9960',rider:'#2a2523',staff:'#c21f3d'};
+  var COLOR={nurse:'#c8102e',physio:'#6d4bc3',caregiver:'#d9731f',lab:'#1f7fb8',pharmacy:'#1a9960',rider:'#14171c',staff:'#c8102e'};
   function pinHtml(p){
     var k = p.kind==='store' ? 'pharmacy' : (ICON[p.kind] ? p.kind : 'staff');
     return '<div class="mp'+(p.sponsored?' sp':'')+'" style="--c:'+COLOR[k]+'">'+(p.live?'<div class="ring"></div>':'')+'<div class="drop"></div><svg viewBox="0 0 24 24">'+ICON[k]+'</svg>'+(p.sponsored?'<span class="ad">Ad</span>':'')+'</div>';

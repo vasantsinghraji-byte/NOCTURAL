@@ -48,8 +48,8 @@ export default function Welcome() {
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
-      <View style={[styles.orb, { top: -120, right: -90, backgroundColor: 'rgba(255,214,222,0.30)' }]} />
-      <View style={[styles.orb, { top: 260, left: -140, width: 300, height: 300, backgroundColor: 'rgba(255,232,196,0.12)' }]} />
+      <View style={[styles.orb, { top: -120, right: -90, backgroundColor: C.nightAlt }]} />
+      <View style={[styles.orb, { top: 260, left: -140, width: 300, height: 300, backgroundColor: C.nightAlt }]} />
 
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 20, paddingHorizontal: 22, flexGrow: 1 }}>
         <View style={styles.topRow}>
@@ -111,33 +111,33 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.night, overflow: 'hidden' },
   orb: { position: 'absolute', width: 360, height: 360, borderRadius: 999 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  lang: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 999, padding: 3 },
+  lang: { flexDirection: 'row', backgroundColor: C.card, borderRadius: 999, padding: 3 },
   langBtn: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999 },
   langOn: { backgroundColor: C.onNight },
   langText: { color: C.onNightMuted, fontFamily: F.bold, fontSize: 12 },
   stage: { height: 230, marginTop: 18, alignItems: 'center', justifyContent: 'center' },
   pinHalo: {
     width: 170, height: 170, borderRadius: 85, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,214,222,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)'
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.nightAlt
   },
   float: {
     position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 10, paddingHorizontal: 12,
-    borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)'
+    borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.nightAlt
   },
-  floatIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+  floatIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' },
   floatTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 12 },
   floatSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 11 },
   kicker: { color: C.gold, fontFamily: F.bold, fontSize: 12, letterSpacing: 1.6, textTransform: 'uppercase', marginTop: 14 },
   title: { color: C.onNight, fontFamily: F.display, fontSize: 50, lineHeight: 52, marginTop: 8, letterSpacing: -0.5 },
   sub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 15, lineHeight: 22, marginTop: 10, maxWidth: 330 },
   primary: { flexDirection: 'row', gap: 10, backgroundColor: C.onNight, borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: '#2a2523', fontFamily: F.heavy, fontSize: 15 },
+  primaryText: { color: '#14171c', fontFamily: F.heavy, fontSize: 15 },
   links: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, paddingVertical: 8 },
   link: { color: C.onNight, fontFamily: F.bold, fontSize: 14 },
   sep: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.onNightMuted },
   partner: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18, padding: 14, borderRadius: 16,
-    borderWidth: 1, borderColor: 'rgba(255,232,196,0.35)', backgroundColor: 'rgba(255,232,196,0.07)'
+    borderWidth: 1, borderColor: C.nightAlt, backgroundColor: C.card
   },
   partnerText: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 13, flex: 1 },
   terms: { color: C.onNightMuted, opacity: 0.7, fontFamily: F.medium, fontSize: 11, textAlign: 'center', marginTop: 12 },

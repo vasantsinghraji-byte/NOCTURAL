@@ -64,7 +64,7 @@ export default function ForgotPassword() {
           disabled={busy}
           onPress={sent ? () => router.back() : submit}
         >
-          {busy ? <ActivityIndicator color={C.onNight} /> : <Text style={[ui.btnText, { color: C.onNight }]}>{sent ? 'Back to sign in' : 'Send reset link'}</Text>}
+          {busy ? <ActivityIndicator color={C.onBrand} /> : <Text style={ui.btnText}>{sent ? 'Back to sign in' : 'Send reset link'}</Text>}
         </PressScale>
       </View>
     </KeyboardAvoidingView>

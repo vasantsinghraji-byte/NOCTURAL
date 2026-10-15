@@ -110,7 +110,7 @@ export default function Login() {
                 </View>
               ))}
               <PressScale style={ui.btnDark} onPress={() => router.push({ pathname: '/partner-apply', params: { kind: w.role } })}>
-                <Text style={[ui.btnText, { color: C.onNight }]}>Apply as {w.title.toLowerCase()}</Text>
+                <Text style={ui.btnText}>Apply as {w.title.toLowerCase()}</Text>
               </PressScale>
             </View>
           );
@@ -149,7 +149,7 @@ export default function Login() {
           {error && <Text style={ui.error} accessibilityLiveRegion="polite">{error}</Text>}
 
           <PressScale style={[ui.btnDark, styles.submit, busy && { opacity: 0.6 }]} onPress={submit} disabled={busy}>
-            {busy ? <ActivityIndicator color={C.onNight} /> : <Text style={[ui.btnText, { color: C.onNight }]}>{isRegister ? 'Create account' : 'Sign in'}</Text>}
+            {busy ? <ActivityIndicator color={C.onBrand} /> : <Text style={ui.btnText}>{isRegister ? 'Create account' : 'Sign in'}</Text>}
           </PressScale>
 
           {IS_PARTNER_APP ? (

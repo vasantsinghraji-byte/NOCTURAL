@@ -146,7 +146,7 @@ export function PartnerAccount({ embedded = false }: { embedded?: boolean }) {
               <Text style={[ui.muted, { flex: 1 }]}>{acct.referral.successful} successful referrals · {acct.referral.credits} low-commission jobs left</Text>
             </View>
             <Pressable style={ui.btnDark} onPress={shareCode} accessibilityRole="button">
-              <View style={styles.inline}><Share2 size={16} color={C.onNight} /><Text style={[ui.btnText, { color: C.onNight }]}>Share my code</Text></View>
+              <View style={styles.inline}><Share2 size={16} color={C.onNight} /><Text style={ui.btnText}>Share my code</Text></View>
             </Pressable>
           </View>
         )}
@@ -210,7 +210,7 @@ function Check({ ok, icon: Icon, label }: { ok: boolean; icon: typeof Wallet; la
 
 const styles = StyleSheet.create({
   head: { backgroundColor: C.night, paddingHorizontal: 18, paddingBottom: 22, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, gap: 4 },
-  back: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  back: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   eyebrow: { color: C.onNightMuted, fontFamily: F.heavy, fontSize: 12, letterSpacing: 1 },
   name: { color: C.onNight, fontFamily: F.display, fontSize: 34, lineHeight: 38 },
   sub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 14, textTransform: 'capitalize' },

@@ -95,13 +95,13 @@ export default function PlanDetail() {
             <View style={{ height: 6, borderRadius: 3, backgroundColor: C.cardAlt }} />
             <View style={{ position: 'absolute', left: 0, height: 6, borderRadius: 3, backgroundColor: C.brand, width: `${progress * 100}%` }} />
             <View style={{ position: 'absolute', left: `${Math.max(2, Math.min(90, progress * 100 - 4))}%`, width: 30, height: 30, borderRadius: 15, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: C.card }}>
-              <Heart size={13} color="#ffffff" fill="#ffffff" />
+              <Heart size={13} color={C.brand} fill={C.brand} />
             </View>
           </View>
         </View>
         {plan.status === 'PENDING_PAYMENT' ? (
           <Card tone="red" style={{ gap: 10 }}>
-            <Text style={{ fontFamily: F.display, fontSize: 18, color: '#ffffff' }}>Pay {inr(plan.payment.amount)} to confirm</Text>
+            <Text style={{ fontFamily: F.display, fontSize: 18, color: C.onNight }}>Pay {inr(plan.payment.amount)} to confirm</Text>
             <Meta onDark>Your times are held{plan.payment.holdUntil ? ` until ${fmtClock(plan.payment.holdUntil)}` : ''}.</Meta>
             <Btn variant="light" label={busy === 'pay' ? 'Opening Payment…' : 'Pay Now'} loading={busy === 'pay'} onPress={pay} />
           </Card>

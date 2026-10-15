@@ -468,7 +468,7 @@ const s = StyleSheet.create({
   footer: {
     position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 18, paddingTop: 12, backgroundColor: C.card, borderTopLeftRadius: 26, borderTopRightRadius: 26,
-    boxShadow: IS_DARK ? '0 -8px 24px rgba(0,0,0,0.5)' : '0 -10px 30px -12px rgba(92,13,34,0.22)'
+    boxShadow: IS_DARK ? '0 -8px 24px rgba(0,0,0,0.5)' : '0 -10px 30px -12px rgba(16,24,40,0.22)'
   },
   footerPrice: { fontFamily: F.display, fontSize: 22, color: C.ink },
   footerSub: { fontFamily: F.medium, fontSize: 12, color: C.muted }

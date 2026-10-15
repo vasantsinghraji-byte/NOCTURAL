@@ -43,7 +43,7 @@ export function ProviderPicker({ serviceType, value, onChange, allowSubstitute, 
             return (
               <Pressable key={p._id} onPress={() => onChange(p._id, p)} style={[styles.card, on && styles.cardOn]} accessibilityRole="radio" accessibilityState={{ checked: on }}
                 accessibilityLabel={`${p.name}, ${p.qualification || ''}, rating ${p.rating || 'new'}`}>
-                <View style={[styles.avatar, on && { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
+                <View style={[styles.avatar, on && { backgroundColor: C.card }]}>
                   <Text style={[styles.initial, on && { color: C.onNight }]}>{p.name.slice(0, 1)}</Text>
                 </View>
                 <Text style={[styles.name, on && { color: C.onNight }]} numberOfLines={1}>{p.name}</Text>
@@ -78,7 +78,7 @@ export function ProviderPicker({ serviceType, value, onChange, allowSubstitute, 
 
 const styles = StyleSheet.create({
   card: { width: 150, backgroundColor: C.card, borderRadius: 16, padding: 12, gap: 4, borderWidth: 1.5, borderColor: C.border, ...clay },
-  cardOn: { backgroundColor: C.night, borderColor: C.night },
+  cardOn: { backgroundColor: C.night, borderColor: C.brand },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   initial: { fontFamily: F.heavy, fontSize: 16, color: C.ink },
   name: { fontFamily: F.bold, fontSize: 14, color: C.ink },

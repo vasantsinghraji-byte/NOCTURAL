@@ -162,8 +162,8 @@ export default function PhoneSignIn() {
           disabled={busy}
           onPress={step === 'phone' ? sendCode : step === 'code' ? () => verify() : complete}
         >
-          {busy ? <ActivityIndicator color={C.onNight} /> : (
-            <Text style={[ui.btnText, { color: C.onNight }]}>
+          {busy ? <ActivityIndicator color={C.onBrand} /> : (
+            <Text style={ui.btnText}>
               {step === 'phone' ? t('phone.send') : step === 'code' ? t('phone.verify') : t('profile.done')}
             </Text>
           )}

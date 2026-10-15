@@ -496,7 +496,7 @@ const styles = StyleSheet.create({
   // No fixed height: large phone font sizes must not clip the store names.
   vendorBar: { flexGrow: 0, flexShrink: 0 },
   chip: { minHeight: 40, maxWidth: 260, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: C.card, borderRadius: R.full, borderWidth: 1, borderColor: C.border },
-  chipActive: { backgroundColor: C.night, borderColor: C.night },
+  chipActive: { backgroundColor: C.night, borderColor: C.brand },
   chipText: { color: C.ink, fontFamily: F.semi, fontSize: 14, lineHeight: 20, flexShrink: 1 },
   chipMeta: { color: C.muted, fontFamily: F.medium, fontSize: 12 },
   chipTextActive: { color: C.onNight },

@@ -421,7 +421,7 @@ export default function Book() {
           <Text style={ui.muted}>Visit {inr(fee)}{isMember ? ' (Plus: no fee)' : ''} + supplies {inr(suppliesTotal)}</Text>
         </View>
         <PressScale style={[ui.btnDark, { paddingHorizontal: 30 }]} onPress={next}>
-          <Text style={[ui.btnText, { color: C.onNight }]}>{step === 'details' ? (session?.kind === 'patient' ? 'Review' : 'Sign in') : 'Next'}</Text>
+          <Text style={ui.btnText}>{step === 'details' ? (session?.kind === 'patient' ? 'Review' : 'Sign in') : 'Next'}</Text>
         </PressScale>
       </View>
 
@@ -448,7 +448,7 @@ export default function Book() {
               {pref !== 'ANY' && <Text style={ui.muted}>Preference: {pref === 'FEMALE' ? 'female' : 'male'} professional (we’ll try, not guaranteed)</Text>}
             </View>
             <PressScale style={[ui.btnDark, busy && { opacity: 0.6 }]} disabled={busy} onPress={book}>
-              {busy ? <ActivityIndicator color={C.onNight} /> : <Text style={[ui.btnText, { color: C.onNight }]}>{mode === 'ASAP' ? 'Find my nurse' : 'Book visit'}</Text>}
+              {busy ? <ActivityIndicator color={C.onBrand} /> : <Text style={ui.btnText}>{mode === 'ASAP' ? 'Find my nurse' : 'Book visit'}</Text>}
             </PressScale>
             <Pressable onPress={() => setConfirming(false)}><Text style={[ui.muted, { textAlign: 'center', fontFamily: F.bold }]}>Edit details</Text></Pressable>
           </View>
@@ -492,15 +492,15 @@ const styles = StyleSheet.create({
   check: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, borderWidth: 1.5, borderColor: C.border },
   checkOn: { borderColor: C.ink, ...shadow },
   box: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: C.faint, alignItems: 'center', justifyContent: 'center' },
-  boxOn: { backgroundColor: C.night, borderColor: C.night },
+  boxOn: { backgroundColor: C.night, borderColor: C.brand },
   month: { fontSize: 30, fontFamily: F.display, color: C.ink, textAlign: 'center', marginVertical: 4 },
   day: { width: 58, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
-  dayOn: { backgroundColor: C.night, borderColor: C.night },
+  dayOn: { backgroundColor: C.night, borderColor: C.brand },
   dayName: { fontSize: 11, fontFamily: F.bold, color: C.muted },
   dayNum: { fontSize: 18, fontFamily: F.heavy, color: C.ink, marginTop: 2 },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   slot: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
-  slotOn: { backgroundColor: C.night, borderColor: C.night },
+  slotOn: { backgroundColor: C.night, borderColor: C.brand },
   slotText: { fontFamily: F.bold, color: C.ink, fontSize: 13 },
   footer: {
     position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card,
@@ -514,10 +514,10 @@ const styles = StyleSheet.create({
   billLine: { height: 1, backgroundColor: C.border, marginVertical: 2 },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   result: { flex: 1, backgroundColor: C.night, alignItems: 'center', paddingHorizontal: 28, gap: 14 },
-  art: { width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,214,222,0.14)', alignItems: 'center', justifyContent: 'center', marginVertical: 30 },
-  artInner: { width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,214,222,0.20)', alignItems: 'center', justifyContent: 'center' },
+  art: { width: 220, height: 220, borderRadius: 110, backgroundColor: C.nightAlt, alignItems: 'center', justifyContent: 'center', marginVertical: 30 },
+  artInner: { width: 150, height: 150, borderRadius: 75, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   resultTitle: { color: C.onNight, fontSize: 40, fontFamily: F.display },
   resultText: { color: C.onNightMuted, textAlign: 'center', fontSize: 15, lineHeight: 22, fontFamily: F.medium },
   resultBtn: { marginTop: 'auto', alignSelf: 'stretch', backgroundColor: C.onNight, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  resultBtnText: { color: '#2a2523', fontFamily: F.heavy, fontSize: 15 }
+  resultBtnText: { color: '#14171c', fontFamily: F.heavy, fontSize: 15 }
 });

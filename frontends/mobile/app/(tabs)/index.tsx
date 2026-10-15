@@ -32,7 +32,7 @@ const GRID_MAX = 8;
 const ACTIVE = ['REQUESTED', 'ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'];
 const BANNER_LOOK: Record<HomeBanner['kind'], { icon: LucideIcon; bg: string; fg: string; ink: string }> = {
   PLUS: { icon: Crown, bg: C.night, fg: C.gold, ink: C.onNight },
-  SUPPLIES: { icon: PackageCheck, bg: C.brand, fg: '#ffffff', ink: '#ffffff' },
+  SUPPLIES: { icon: PackageCheck, bg: C.night, fg: C.brand, ink: C.onNight },
   PHARMACY: { icon: Truck, bg: C.mintSoft, fg: C.mint, ink: C.ink },
   TRUST: { icon: ShieldCheck, bg: C.amberSoft, fg: C.amber, ink: C.ink }
 };
@@ -197,7 +197,7 @@ function BookHome() {
         {upcoming && (
           <Rise delay={60}>
             <PressScale style={styles.upcoming} onPress={() => router.push({ pathname: '/track', params: { id: upcoming._id } })}>
-              <IconTile icon={serviceIcon(upcoming.serviceType)} bg="rgba(255,255,255,0.1)" color={C.onNight} size={46} />
+              <IconTile icon={serviceIcon(upcoming.serviceType)} bg={C.card} color={C.brand} size={46} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.upLabel}>{t('home.upcoming').toUpperCase()} · {STATUS_LINE[upcoming.status] || upcoming.status}</Text>
                 <Text style={styles.upTitle}>{upcoming.serviceType.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}</Text>
@@ -374,8 +374,8 @@ const styles = StyleSheet.create({
   upLabel: { color: C.gold, fontFamily: F.heavy, fontSize: 10, letterSpacing: 1 },
   upTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 15, marginTop: 2 },
   upSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 12 },
-  upBtn: { backgroundColor: C.onNight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
-  upBtnText: { color: '#2a2523', fontFamily: F.heavy, fontSize: 12 },
+  upBtn: { backgroundColor: C.brand, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
+  upBtnText: { color: C.onBrand, fontFamily: F.heavy, fontSize: 12 },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 22, marginBottom: 6 },
   sectionTitle: { flexShrink: 1, fontFamily: F.display, fontSize: 20, color: C.ink, letterSpacing: -0.3 },
   sectionLink: { fontFamily: F.bold, fontSize: 14, color: C.brand },

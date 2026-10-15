@@ -107,7 +107,7 @@ const s = StyleSheet.create({
   title: { fontFamily: F.display, fontSize: 28, color: C.ink },
   hero: { backgroundColor: C.night, borderRadius: 16, padding: 18, gap: 2 },
   heroLabel: { fontFamily: F.semi, fontSize: 14, color: C.onNightMuted },
-  heroValue: { fontFamily: F.displayHeavy, fontSize: 36, color: '#ffffff' },
+  heroValue: { fontFamily: F.displayHeavy, fontSize: 36, color: C.onNight },
   heroSub: { fontFamily: F.medium, fontSize: 13, color: C.onNightMuted },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   stat: { flexBasis: '47%', flexGrow: 1, backgroundColor: C.card, borderRadius: 16, padding: 14, gap: 2, ...clay },

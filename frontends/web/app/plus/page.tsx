@@ -47,12 +47,12 @@ export default function PlusPage() {
 
   return (
     <>
-      <section className="hero" style={{ background: 'linear-gradient(135deg,#c9475d,#9e2f43)' }}>
+      <section className="hero">
         <span className="eyebrow"><Crown size={14} color="#f5b82e" /> Nabz Plus</span>
         <h1 style={{ fontSize: 'clamp(28px,4vw,44px)' }}>Care costs less with Plus.</h1>
         <p>Free medicine delivery and no platform fee on home visits, for ₹{plan.price} a month.</p>
         {!patient ? (
-          <Link href="/login?next=/plus" className="btn light">Sign in to join</Link>
+          <Link href="/login?next=/plus" className="btn">Sign in to join</Link>
         ) : status?.active ? (
           <span className="pill" style={{ background: 'var(--sky-soft)', color: 'var(--brand)', fontSize: 13 }}>
             <BadgeCheck size={14} /> Active till {status.validUntil ? new Date(status.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
@@ -60,7 +60,7 @@ export default function PlusPage() {
         ) : (
           <div className="hero-actions">
             {status?.trialAvailable && (
-              <button className="btn light" disabled={busy} onClick={() => run(() => api.startMembershipTrial(), 'Your free trial is on. Enjoy free delivery!')}>
+              <button className="btn" disabled={busy} onClick={() => run(() => api.startMembershipTrial(), 'Your free trial is on. Enjoy free delivery!')}>
                 Start {status.trialDays}-day free trial
               </button>
             )}

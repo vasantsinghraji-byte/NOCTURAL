@@ -56,14 +56,14 @@ export default function Landing() {
               pharmacy, you pay after the visit.
             </p>
             <div className="actions">
-              <Link href="/signup" className="btn light lg">Book a visit <ArrowRight size={18} /></Link>
+              <Link href="/signup" className="btn lg">Book a visit <ArrowRight size={18} /></Link>
               <Link href="/pharmacy" className="btn ghost lg">Order medicines</Link>
             </div>
             <TrustBadgeBar />
             <div className="meta">
-              <span><BadgeCheck size={16} color="#f0c77e" /> Verified professionals</span>
-              <span><Wallet size={16} color="#f0c77e" /> Pay after the visit</span>
-              <span><Clock3 size={16} color="#f0c77e" /> Book now or schedule</span>
+              <span><BadgeCheck size={16} color="#c8102e" /> Verified professionals</span>
+              <span><Wallet size={16} color="#c8102e" /> Pay after the visit</span>
+              <span><Clock3 size={16} color="#c8102e" /> Book now or schedule</span>
             </div>
           </div>
 
@@ -106,7 +106,7 @@ export default function Landing() {
                     <span className="pill mint">ID verified</span>
                     <span className="pill mint">Police verified</span>
                   </div>
-                  <div className="code"><span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.1em', color: '#f0c77e' }}>VISIT CODE</span><b>4 8 2 7</b></div>
+                  <div className="code"><span style={{ fontSize: 13, fontWeight: 600, color: '#c8102e' }}>Visit code</span><b>4 8 2 7</b></div>
                 </div>
               </div>
             </div>
@@ -177,7 +177,7 @@ export default function Landing() {
           <div className="safety-list">
             {SAFETY.map((s) => (
               <div key={s.title} className="safety-item">
-                <b><s.icon size={18} color="#f0c77e" /> {s.title}</b>
+                <b><s.icon size={18} color="#c8102e" /> {s.title}</b>
                 <span>{s.text}</span>
               </div>
             ))}
@@ -189,7 +189,7 @@ export default function Landing() {
       <section className="band tight">
         <div className="split">
           <div className="promo plus">
-            <Crown size={26} color="#f0c77e" />
+            <Crown size={26} color="#c8102e" />
             <h3>Nabz Plus</h3>
             <p>{plusBanner ? `${plusBanner.title}. ${plusBanner.subtitle}.` : 'No platform fee on visits and free medicine delivery.'}</p>
             <div className="actions">
@@ -214,7 +214,7 @@ export default function Landing() {
           <h2>Ready when you are.</h2>
           <p>Create your account in under a minute, then book your first visit.</p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/signup" className="btn light lg">Create account</Link>
+            <Link href="/signup" className="btn lg">Create account</Link>
             <Link href="/login" className="btn ghost lg">I already have one</Link>
           </div>
           <p style={{ marginTop: 18, marginBottom: 0, fontSize: 13, display: 'inline-flex', gap: 6, alignItems: 'center' }}><MapPin size={14} /> Serving Jaipur. More cities soon.</p>

@@ -98,11 +98,11 @@ export default function VerificationScreen() {
                 <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                   {item.digilocker && data.digilocker.available && (
                     <Pressable style={[ui.btnDark, styles.smallBtn]} onPress={digilocker} accessibilityRole="button">
-                      <View style={styles.row}><ShieldCheck size={16} color={C.onNight} /><Text style={[ui.btnText, { color: C.onNight }]}>DigiLocker</Text></View>
+                      <View style={styles.row}><ShieldCheck size={16} color={C.onNight} /><Text style={ui.btnText}>DigiLocker</Text></View>
                     </Pressable>
                   )}
                   <Pressable style={[item.digilocker && data.digilocker.available ? ui.btnOutline : ui.btnDark, styles.smallBtn]} onPress={() => setUploading(item)} accessibilityRole="button">
-                    <Text style={item.digilocker && data.digilocker.available ? ui.btnOutlineText : [ui.btnText, { color: C.onNight }]}>
+                    <Text style={item.digilocker && data.digilocker.available ? ui.btnOutlineText : ui.btnText}>
                       {item.state === 'MISSING' ? (item.kind === 'AADHAAR' ? 'Upload masked Aadhaar' : 'Upload') : item.state === 'EXPIRING' ? 'Upload renewal' : 'Upload again'}
                     </Text>
                   </Pressable>
@@ -208,7 +208,7 @@ function UploadSheet({ item, onClose, onDone }: { item: VerificationItem | null;
           )}
           {error && <Text style={ui.error}>{error}</Text>}
           <Pressable style={[ui.btnDark, busy && { opacity: 0.6 }]} disabled={busy} onPress={submit} accessibilityRole="button">
-            {busy ? <ActivityIndicator color={C.onNight} /> : <Text style={[ui.btnText, { color: C.onNight }]}>Upload document</Text>}
+            {busy ? <ActivityIndicator color={C.onBrand} /> : <Text style={ui.btnText}>Upload document</Text>}
           </Pressable>
           <Pressable onPress={onClose} style={{ alignItems: 'center', padding: 8 }} accessibilityRole="button"><Text style={ui.muted}>Cancel</Text></Pressable>
         </ScrollView>
@@ -219,10 +219,10 @@ function UploadSheet({ item, onClose, onDone }: { item: VerificationItem | null;
 
 const styles = StyleSheet.create({
   head: { backgroundColor: C.night, paddingHorizontal: 18, paddingBottom: 22, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, gap: 4 },
-  back: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  back: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   title: { color: C.onNight, fontFamily: F.display, fontSize: 34, lineHeight: 38 },
   sub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 14, lineHeight: 20 },
-  bar: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.22)', overflow: 'hidden' },
+  bar: { height: 8, borderRadius: 4, backgroundColor: C.nightAlt, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 4, backgroundColor: C.gold },
   card: { backgroundColor: C.card, borderRadius: 16, padding: 16, ...clay },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },

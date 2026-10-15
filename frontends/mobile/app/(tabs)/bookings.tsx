@@ -112,7 +112,7 @@ export default function Bookings() {
         <View style={[ui.card, { alignItems: 'center', gap: 10 }]}>
           <IconTile icon={Lock} size={60} />
           <Text style={ui.h3}>Sign in to see your bookings</Text>
-          <Pressable style={ui.btnDark} onPress={() => router.push('/welcome')}><Text style={[ui.btnText, { color: C.onNight }]}>Sign in</Text></Pressable>
+          <Pressable style={ui.btnDark} onPress={() => router.push('/welcome')}><Text style={ui.btnText}>Sign in</Text></Pressable>
         </View>
       ) : tab === 'visits' ? (
         visits.length === 0 ? <Empty text="No visits yet. Book a medical staff from Home." /> : visits.map((b, i) => (
@@ -226,7 +226,7 @@ export default function Bookings() {
                 allowSubstitute={false} onAllowSubstitute={() => undefined} isPackage />
             )}
             <Pressable style={[ui.btnDark, { marginTop: 8 }]} onPress={confirmChange} accessibilityRole="button">
-              <Text style={[ui.btnText, { color: C.onNight }]}>Move upcoming sessions</Text>
+              <Text style={ui.btnText}>Move upcoming sessions</Text>
             </Pressable>
             <Pressable onPress={() => setChanging(null)} style={{ alignItems: 'center', padding: 8 }}><Text style={ui.muted}>Cancel</Text></Pressable>
           </Pressable>

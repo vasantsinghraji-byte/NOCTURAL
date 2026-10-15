@@ -95,7 +95,7 @@ function ShopRow({ shop, mode, serviceId, unit }: { shop: Shop; mode: CareMode; 
       <View style={mk.row}>
         {shop.photos?.[0]
           ? <Image source={{ uri: shop.photos[0] }} style={{ width: 56, height: 56, borderRadius: 18 }} accessibilityIgnoresInvertColors />
-          : <View style={[mk.tile, { width: 56, height: 56, borderRadius: 18, backgroundColor: C.night }]}><Text style={{ color: '#ffffff', fontFamily: F.display, fontSize: 18 }}>{initials}</Text></View>}
+          : <View style={[mk.tile, { width: 56, height: 56, borderRadius: 18, backgroundColor: C.night }]}><Text style={{ color: C.brand, fontFamily: F.display, fontSize: 18 }}>{initials}</Text></View>}
         <View style={{ flex: 1, gap: 3 }}>
           <Text style={{ fontFamily: F.display, fontSize: 17, color: C.ink }} numberOfLines={1}>{shop.name}</Text>
           <Meta>{[shop.qualification, shop.experienceYears ? `${shop.experienceYears} yrs` : '', shop.languages?.slice(0, 2).join(', ')].filter(Boolean).join(' · ')}</Meta>

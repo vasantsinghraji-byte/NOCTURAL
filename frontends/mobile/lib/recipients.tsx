@@ -85,7 +85,7 @@ export function RecipientPicker({ onPick }: { onPick: (r: Recipient) => void }) 
 
 const styles = StyleSheet.create({
   chip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, maxWidth: 200 },
-  contacts: { backgroundColor: C.night, borderColor: C.night },
+  contacts: { backgroundColor: C.night, borderColor: C.brand },
   chipText: { fontFamily: F.bold, fontSize: 13, color: C.ink },
   chipSub: { fontFamily: F.medium, fontSize: 11, color: C.muted }
 });

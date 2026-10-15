@@ -79,7 +79,7 @@ export function EasyHome() {
           <Text style={s.visitStatus}>{STATUS[upcoming.status] || 'Your next visit'}</Text>
           <Text style={s.visitWhen}>{fmtDay(String(upcoming.scheduledDate).slice(0, 10))}, {fmtTime(upcoming.scheduledTime)}</Text>
           <View style={s.visitRow}>
-            <UserRound size={18} color="#ffd3da" />
+            <UserRound size={18} color={C.brand} />
             <Text style={s.visitPro}>{pro ? `${pro} is coming` : 'We will tell you who is coming'}</Text>
           </View>
           <View style={s.visitBtn}><Text style={s.visitBtnText}>See Details</Text><ChevronRight size={18} color={C.brand} /></View>
@@ -139,10 +139,10 @@ const s = StyleSheet.create({
   ask: { fontFamily: F.semi, fontSize: 18, color: C.inkSoft, marginTop: 4 },
   section: { fontFamily: F.display, fontSize: 21, color: C.ink, marginTop: 10 },
   visit: { borderRadius: 16, padding: 20, overflow: 'hidden', backgroundColor: C.night, gap: 6 },
-  visitStatus: { color: '#ffd3da', fontFamily: F.bold, fontSize: 16 },
-  visitWhen: { color: '#ffffff', fontFamily: F.display, fontSize: 26 },
+  visitStatus: { color: C.brand, fontFamily: F.bold, fontSize: 16 },
+  visitWhen: { color: C.onNight, fontFamily: F.display, fontSize: 26 },
   visitRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
-  visitPro: { color: '#ffffff', fontFamily: F.semi, fontSize: 16, flexShrink: 1 },
+  visitPro: { color: C.onNight, fontFamily: F.semi, fontSize: 16, flexShrink: 1 },
   visitBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: '#ffffff', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 12, marginTop: 10, minHeight: 48 },
   visitBtnText: { color: C.brand, fontFamily: F.heavy, fontSize: 16 },
   action: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 16, borderRadius: 16, backgroundColor: C.card, minHeight: 88, ...clay },

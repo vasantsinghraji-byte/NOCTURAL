@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6, flexWrap: 'wrap' },
   code: {
     fontFamily: F.heavy, fontSize: 13, letterSpacing: 1.2, color: C.onNight, paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.5)', backgroundColor: 'rgba(255,255,255,0.14)'
+    borderRadius: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: C.brand, backgroundColor: C.card
   },
   cta: { fontFamily: F.heavy, fontSize: 14, color: C.gold }
 });

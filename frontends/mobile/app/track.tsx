@@ -296,7 +296,7 @@ export default function Track() {
                 <TextArea minHeight={76} value={comment} onChangeText={setComment}
                   placeholder={stars <= 3 ? 'What went wrong? We read every report.' : 'Anything to add? (optional)'} />
                 <PressScale style={[ui.btnDark, busy && { opacity: 0.6 }]} disabled={busy} onPress={submitRating}>
-                  {busy ? <ActivityIndicator color={C.onNight} /> : <Text style={[ui.btnText, { color: C.onNight }]}>{t('rate.submit')}</Text>}
+                  {busy ? <ActivityIndicator color={C.onBrand} /> : <Text style={ui.btnText}>{t('rate.submit')}</Text>}
                 </PressScale>
               </>
             )}
@@ -314,7 +314,7 @@ export default function Track() {
               </View>
             </PressScale>
             <PressScale style={ui.btnDark} onPress={() => router.replace('/')}>
-              <Text style={[ui.btnText, { color: C.onNight }]}>Done</Text>
+              <Text style={ui.btnText}>Done</Text>
             </PressScale>
           </Rise>
         )}
@@ -325,13 +325,13 @@ export default function Track() {
 
 const styles = StyleSheet.create({
   findScreen: { flex: 1, backgroundColor: C.night },
-  backDark: { position: 'absolute', left: 16, zIndex: 3, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  pinHalo: { width: 140, height: 140, borderRadius: 70, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,214,222,0.14)' },
+  backDark: { position: 'absolute', left: 16, zIndex: 3, width: 44, height: 44, borderRadius: 22, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  pinHalo: { width: 140, height: 140, borderRadius: 70, alignItems: 'center', justifyContent: 'center', backgroundColor: C.nightAlt },
   findTitle: { color: C.onNight, fontFamily: F.display, fontSize: 36, textAlign: 'center', marginTop: 10 },
   findSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 8 },
   findMeta: { color: C.gold, fontFamily: F.bold, fontSize: 12, marginTop: 10, letterSpacing: 0.5 },
   lightBtn: { backgroundColor: C.onNight, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  lightBtnText: { color: '#2a2523', fontFamily: F.heavy, fontSize: 15 },
+  lightBtnText: { color: '#14171c', fontFamily: F.heavy, fontSize: 15 },
   cancelText: { color: C.onNightMuted, fontFamily: F.bold },
   back: { position: 'absolute', left: 16, zIndex: 3, width: 44, height: 44, borderRadius: 22, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...shadow },
   sos: { position: 'absolute', right: 16, zIndex: 3, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#e5484d', paddingHorizontal: 14, height: 44, borderRadius: 16, ...shadow },
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   codeLabel: { color: C.gold, fontFamily: F.heavy, fontSize: 11, letterSpacing: 1.2 },
   codeHint: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 12, marginTop: 4, lineHeight: 16 },
   codeDigits: { flexDirection: 'row', gap: 6 },
-  digit: { width: 36, height: 46, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+  digit: { width: 36, height: 46, borderRadius: 10, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   digitText: { color: C.onNight, fontFamily: F.heavy, fontSize: 22 },
   stats: { flexDirection: 'row', gap: 10 },
   stat: { flex: 1, backgroundColor: C.card, borderRadius: 16, padding: 12, gap: 2, borderWidth: 1, borderColor: C.border },
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, paddingVertical: 6 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
-  tagOn: { backgroundColor: C.night, borderColor: C.night },
+  tagOn: { backgroundColor: C.night, borderColor: C.brand },
   tagText: { fontFamily: F.bold, fontSize: 12, color: C.ink },
   plus: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.night, borderRadius: 16, padding: 16 },
   plusTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 15 },

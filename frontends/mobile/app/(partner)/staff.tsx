@@ -298,7 +298,7 @@ export default function StaffHome() {
                 value={online}
                 disabled={!online && !!ver && !(ver.id && ver.police && ver.council)}
                 onValueChange={toggleOnline}
-                trackColor={{ true: '#3dd68c', false: 'rgba(255,255,255,0.2)' }}
+                trackColor={{ true: '#3dd68c', false: C.faint }}
                 thumbColor="#ffffff"
               />
             )}
@@ -349,7 +349,7 @@ export default function StaffHome() {
                 </View>
               ))}
               <Text style={ui.muted}>Add your Aadhaar, registration and police certificate. Our team checks them within a working day.</Text>
-              <Pressable style={ui.btnDark} onPress={() => router.push('/verification')} accessibilityRole="button"><Text style={[ui.btnText, { color: C.onNight }]}>Add documents</Text></Pressable>
+              <Pressable style={ui.btnDark} onPress={() => router.push('/verification')} accessibilityRole="button"><Text style={ui.btnText}>Add documents</Text></Pressable>
             </View>
           )}
 
@@ -402,7 +402,7 @@ export default function StaffHome() {
                       else if (next.step === 'complete') setCompleteFor(v);
                       else step(v, next.step);
                     }}>
-                      <Text style={[ui.btnText, { color: C.onNight }]}>{next.label}</Text>
+                      <Text style={ui.btnText}>{next.label}</Text>
                     </PressScale>
                   )}
                   {LIVE_STATUSES.includes(v.status) && (
@@ -579,7 +579,7 @@ function CompleteSheet({ visit, onClose, onSubmit }: {
             </View>
           ) : visit ? <Text style={ui.muted}>Paid online. Nothing to collect.</Text> : null}
           <PressScale style={[ui.btnDark, (busy || cashInvalid) && { opacity: 0.6 }]} disabled={busy || cashInvalid} onPress={submit}>
-            {busy ? <ActivityIndicator color={C.onNight} /> : <Text style={[ui.btnText, { color: C.onNight }]}>Mark completed</Text>}
+            {busy ? <ActivityIndicator color={C.onBrand} /> : <Text style={ui.btnText}>Mark completed</Text>}
           </PressScale>
           <Pressable onPress={onClose}><Text style={[ui.muted, { textAlign: 'center', fontFamily: F.bold }]}>Cancel</Text></Pressable>
         </View>
@@ -594,13 +594,13 @@ const styles = StyleSheet.create({
   headRow: { flexDirection: 'row', alignItems: 'center' },
   hello: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 14 },
   name: { color: C.onNight, fontFamily: F.display, fontSize: 38, lineHeight: 42 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  online: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  online: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, backgroundColor: C.card, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   onlineOn: { borderColor: 'rgba(61,214,140,0.5)', backgroundColor: 'rgba(61,214,140,0.10)' },
   onlineTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 15 },
   onlineSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 12 },
   earnRow: { flexDirection: 'row', gap: 8 },
-  earn: { flex: 1, borderRadius: 16, padding: 12, gap: 3, backgroundColor: 'rgba(255,255,255,0.06)' },
+  earn: { flex: 1, borderRadius: 16, padding: 12, gap: 3, backgroundColor: C.card },
   earnValue: { color: C.onNight, fontFamily: F.heavy, fontSize: 17 },
   earnLabel: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 10 },
   payout: { color: C.gold, fontFamily: F.bold, fontSize: 12 },
@@ -611,17 +611,17 @@ const styles = StyleSheet.create({
   demandBar: { height: 8, borderRadius: 4, backgroundColor: C.accent },
   demandCount: { fontFamily: F.bold, color: C.ink, width: 24, textAlign: 'right' },
   sosBtn: { width: 48, borderRadius: 16, backgroundColor: '#e5484d', alignItems: 'center', justifyContent: 'center' },
-  offer: { backgroundColor: C.night, borderRadius: 16, padding: 18, gap: 8, borderWidth: 1, borderColor: 'rgba(255,232,196,0.5)', ...shadow },
+  offer: { backgroundColor: C.night, borderRadius: 16, padding: 18, gap: 8, borderWidth: 1, borderColor: C.brand, ...shadow },
   offerKicker: { color: C.gold, fontFamily: F.heavy, fontSize: 11, letterSpacing: 1 },
   offerSecs: { color: C.onNight, fontFamily: F.heavy, fontSize: 14 },
-  offerTrack: { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
+  offerTrack: { height: 4, borderRadius: 2, backgroundColor: C.nightAlt, overflow: 'hidden' },
   offerBar: { height: 4, backgroundColor: C.gold },
   offerEarn: { color: C.onNight, fontFamily: F.display, fontSize: 48, lineHeight: 52, marginTop: 4 },
   offerService: { color: C.onNight, fontFamily: F.bold, fontSize: 15 },
   offerMeta: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 13, flexShrink: 1 },
   // Decline (1 part) · Accept (2 parts): same height, one row, text centred.
   offerActions: { flexDirection: 'row', gap: 10, marginTop: 10, alignItems: 'stretch' },
-  decline: { flex: 1, minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)' },
+  decline: { flex: 1, minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.brand },
   declineText: { color: C.onNight, fontFamily: F.bold, fontSize: 15 },
   accept: { flex: 2, minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#3dd68c' },
   acceptText: { color: '#10251b', fontFamily: F.heavy, fontSize: 16 },

@@ -94,7 +94,7 @@ function BrowserGoogleButton({ label, onResult, onError }: Props) {
 function ButtonFace({ label, busy, disabled, onPress }: { label: string; busy: boolean; disabled: boolean; onPress: () => void }) {
   return (
     <PressScale style={styles.btn} disabled={disabled} onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ busy, disabled }}>
-      {busy ? <ActivityIndicator color={C.onNight} /> : (
+      {busy ? <ActivityIndicator color={C.brand} /> : (
         <View style={styles.row}>
           <Svg width={18} height={18} viewBox="0 0 48 48">
             <Path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
@@ -110,7 +110,8 @@ function ButtonFace({ label, busy, disabled, onPress }: { label: string; busy: b
 }
 
 const styles = StyleSheet.create({
-  btn: { borderRadius: 16, paddingVertical: 15, alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.22)' },
+  // Google's standard light button: white face, grey hairline, dark label.
+  btn: { borderRadius: 12, minHeight: 50, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#dadce0' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  text: { color: C.onNight, fontFamily: F.bold, fontSize: 15 }
+  text: { color: '#1f1f1f', fontFamily: F.semi, fontSize: 15 }
 });
