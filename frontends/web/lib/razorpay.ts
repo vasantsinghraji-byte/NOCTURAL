@@ -43,7 +43,7 @@ function loadCheckout(): Promise<RazorpayCtor> {
  * Resolves with the PAID order; rejects with PaymentDismissedError if the
  * modal is closed (the order stays payable until it expires).
  */
-export async function payForOrder(
+async function payForOrderOnce(
   orderId: string,
   prefill: { name?: string; email?: string; contact?: string } = {},
   method?: OnlinePayMethod
@@ -63,7 +63,7 @@ export async function payForOrder(
       description: `Order #${checkout.order.orderNumber}`,
       prefill,
       ...(method ? { config: razorpayCheckoutConfig(method, { intent }) } : {}),
-      theme: { color: '#2f7d5b' },
+      theme: { color: '#c8102e' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: {
         // Razorpay lets the patient retry inside the modal, so failures are
@@ -87,7 +87,7 @@ export async function payForOrder(
 }
 
 /** Nabz Plus: Razorpay modal for the plan price → server-side verification. */
-export async function payForMembership(prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
+async function payForMembershipOnce(prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
   const [Razorpay, checkout] = await Promise.all([loadCheckout(), api.membershipCheckout()]);
   const response = await new Promise<RazorpayHandlerResponse>((resolve, reject) => {
     const rzp = new Razorpay({
@@ -98,7 +98,7 @@ export async function payForMembership(prefill: { name?: string; email?: string;
       name: 'Nabz Plus',
       description: 'Membership · free delivery, no visit platform fee',
       prefill,
-      theme: { color: '#2f7d5b' },
+      theme: { color: '#c8102e' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: { ondismiss: () => reject(new PaymentDismissedError()) }
     });
@@ -108,7 +108,7 @@ export async function payForMembership(prefill: { name?: string; email?: string;
 }
 
 /** Care plan paid upfront: Razorpay modal for the plan total → server-side verification. */
-export async function payForCarePlan(planId: string, prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
+async function payForCarePlanOnce(planId: string, prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
   const [Razorpay, created] = await Promise.all([loadCheckout(), api.carePlanPaymentOrder(planId)]);
   const order = created.order;
   const response = await new Promise<RazorpayHandlerResponse>((resolve, reject) => {
@@ -120,7 +120,7 @@ export async function payForCarePlan(planId: string, prefill: { name?: string; e
       name: 'Nabz',
       description: 'Care plan',
       prefill,
-      theme: { color: '#b8243f' },
+      theme: { color: '#c8102e' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: { ondismiss: () => reject(new PaymentDismissedError()) }
     });
@@ -130,13 +130,13 @@ export async function payForCarePlan(planId: string, prefill: { name?: string; e
 }
 
 /** Lab tests paid online: Razorpay modal for the booking total → server-side verification. */
-export async function payForLabOrder(orderId: string, prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
+async function payForLabOrderOnce(orderId: string, prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
   const [Razorpay, created] = await Promise.all([loadCheckout(), api.labPaymentOrder(orderId)]);
   const order = created.order;
   const response = await new Promise<RazorpayHandlerResponse>((resolve, reject) => {
     const rzp = new Razorpay({
       key: order.keyId, order_id: order.orderId, amount: Math.round(order.amount * 100), currency: order.currency,
-      name: 'Nabz', description: 'Lab tests', prefill, theme: { color: '#b8243f' },
+      name: 'Nabz', description: 'Lab tests', prefill, theme: { color: '#c8102e' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: { ondismiss: () => reject(new PaymentDismissedError()) }
     });
@@ -146,17 +146,55 @@ export async function payForLabOrder(orderId: string, prefill: { name?: string; 
 }
 
 /** Partner ad wallet top-up: Razorpay modal → server-side verification. */
-export async function payForAdTopup(amount: number): Promise<void> {
+async function payForAdTopupOnce(amount: number): Promise<void> {
   const [Razorpay, created] = await Promise.all([loadCheckout(), api.adTopupOrder(amount)]);
   const order = created.order;
   const response = await new Promise<RazorpayHandlerResponse>((resolve, reject) => {
     const rzp = new Razorpay({
       key: order.keyId, order_id: order.orderId, amount: Math.round(order.amount * 100), currency: order.currency,
-      name: 'Nabz Ads', description: 'Ad wallet top-up', theme: { color: '#b8243f' },
+      name: 'Nabz Ads', description: 'Ad wallet top-up', theme: { color: '#c8102e' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: { ondismiss: () => reject(new PaymentDismissedError()) }
     });
     rzp.open();
   });
   await api.verifyAdTopup({ orderId: response.razorpay_order_id, paymentId: response.razorpay_payment_id, signature: response.razorpay_signature });
+}
+
+/**
+ * One payment window at a time. A second click on a Pay button while that
+ * payment is open gets the same result instead of opening another window
+ * (the server also refunds a second captured payment).
+ */
+let openPayment: { key: string; promise: Promise<unknown> } | null = null;
+function onePayment<T>(key: string, run: () => Promise<T>): Promise<T> {
+  if (openPayment) {
+    if (openPayment.key === key) return openPayment.promise as Promise<T>;
+    return Promise.reject(new Error('Another payment is already open. Finish or close it first.'));
+  }
+  const promise = run().finally(() => { openPayment = null; });
+  openPayment = { key, promise };
+  return promise;
+}
+
+export function payForOrder(orderId: string,
+  prefill: { name?: string; email?: string; contact?: string } = {},
+  method?: OnlinePayMethod): Promise<PharmacyOrder> {
+  return onePayment(`pharmacy:${orderId}`, () => payForOrderOnce(orderId, prefill, method));
+}
+
+export function payForMembership(prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
+  return onePayment(`membership`, () => payForMembershipOnce(prefill));
+}
+
+export function payForCarePlan(planId: string, prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
+  return onePayment(`plan:${planId}`, () => payForCarePlanOnce(planId, prefill));
+}
+
+export function payForLabOrder(orderId: string, prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
+  return onePayment(`lab:${orderId}`, () => payForLabOrderOnce(orderId, prefill));
+}
+
+export function payForAdTopup(amount: number): Promise<void> {
+  return onePayment(`ads:${amount}`, () => payForAdTopupOnce(amount));
 }

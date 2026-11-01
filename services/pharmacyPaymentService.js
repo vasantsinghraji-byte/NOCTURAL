@@ -168,6 +168,33 @@ async function createGatewayOrder(orderId, patientId) {
 }
 
 /**
+ * Refund in full a captured payment that duplicates an order's real payment.
+ * Safe to call more than once: it checks what is already refunded on the
+ * gateway first. Never throws (the order itself is fine); a failure alerts ops.
+ */
+async function refundDuplicatePayment(order, gatewayPayment) {
+  const razorpay = gateway.getClient();
+  try {
+    const current = await razorpay.payments.fetch(gatewayPayment.id);
+    const due = Number(current.amount || 0) - Number(current.amount_refunded || 0);
+    if (current.status !== 'captured' || due <= 0) return { refunded: 0 };
+    const refund = await razorpay.payments.refund(gatewayPayment.id, {
+      amount: due,
+      speed: 'optimum',
+      notes: { reason: 'Duplicate payment for an order that was already paid', pharmacyOrderId: String(order._id), keptPaymentId: String(order.razorpay.paymentId) }
+    });
+    logger.logSecurity('pharmacy_duplicate_payment_refunded', {
+      orderId: String(order._id), duplicatePaymentId: gatewayPayment.id, keptPaymentId: order.razorpay.paymentId, refundId: refund && refund.id, amountPaise: due
+    });
+    return { refunded: due, refundId: refund && refund.id };
+  } catch (err) {
+    logger.error('Duplicate payment refund failed', { orderId: String(order._id), paymentId: gatewayPayment.id, error: err.message });
+    monitoring.triggerAlert('pharmacy_duplicate_refund_failed', { orderId: String(order._id), paymentId: gatewayPayment.id });
+    return { refunded: 0, error: err.message };
+  }
+}
+
+/**
  * Mark an order PAID from a Razorpay payment we've already validated.
  * Idempotent; refunds automatically if the order was cancelled meanwhile.
  */
@@ -192,6 +219,12 @@ async function applyCapturedPayment(order, gatewayPayment) {
   if (!updated) {
     const fresh = await PharmacyOrder.findById(order._id);
     if (fresh && fresh.razorpay?.paymentId === gatewayPayment.id) return fresh; // already applied
+    // A second, different payment for an order that is already paid (e.g. the
+    // customer finished UPI in two apps). It has been captured, so give it back.
+    if (fresh && fresh.paymentStatus !== 'PENDING' && fresh.paymentStatus !== 'FAILED' && fresh.razorpay?.paymentId) {
+      await refundDuplicatePayment(fresh, gatewayPayment);
+      return fresh;
+    }
     logger.logSecurity('pharmacy_payment_unexpected_state', {
       orderId: String(order._id),
       paymentStatus: fresh?.paymentStatus,

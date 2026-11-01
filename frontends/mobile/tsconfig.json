@@ -10,5 +10,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "../shared/src/**/*.ts"],
-  "exclude": ["node_modules", "**/*.test.ts"]
+  "exclude": ["node_modules", "**/*.test.ts", "../shared/src/**/*.test.ts"]
 }

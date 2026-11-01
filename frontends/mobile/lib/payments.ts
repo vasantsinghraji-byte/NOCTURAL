@@ -11,6 +11,22 @@ export class PaymentDismissedError extends Error {
   }
 }
 
+/**
+ * One payment sheet at a time. A second tap on a Pay button while that
+ * payment is open gets the same result instead of opening another sheet
+ * (the server also refunds a second captured payment: see pharmacyPaymentService).
+ */
+let openPayment: { key: string; promise: Promise<unknown> } | null = null;
+function onePayment<T>(key: string, run: () => Promise<T>): Promise<T> {
+  if (openPayment) {
+    if (openPayment.key === key) return openPayment.promise as Promise<T>;
+    return Promise.reject(new Error('Another payment is already open. Finish or close it first.'));
+  }
+  const promise = run().finally(() => { openPayment = null; });
+  openPayment = { key, promise };
+  return promise;
+}
+
 type RazorpayError = { code?: number | string; description?: string; error?: { description?: string; reason?: string } };
 
 function isCancel(e: RazorpayError) {
@@ -28,6 +44,10 @@ export async function payOrderOnline(
   method: OnlinePayMethod,
   prefill: { name?: string; email?: string } = {}
 ): Promise<PharmacyOrder> {
+  return onePayment(`pharmacy:${orderId}`, () => payPharmacyOrder(orderId, method, prefill));
+}
+
+async function payPharmacyOrder(orderId: string, method: OnlinePayMethod, prefill: { name?: string; email?: string }): Promise<PharmacyOrder> {
   const checkout = await api.startPayment(orderId);
   let result: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string };
   try {
@@ -86,22 +106,28 @@ async function openCheckout(order: GatewayOrder, description: string, prefill: P
 }
 
 /** Care plan paid upfront. The server checks the signature before the plan becomes active. */
-export async function payCarePlan(planId: string, prefill?: Prefill) {
-  const { order } = await api.carePlanPaymentOrder(planId);
-  const signed = await openCheckout(order, 'Care plan', prefill);
-  return (await api.verifyCarePlanPayment(planId, signed)).plan;
+export function payCarePlan(planId: string, prefill?: Prefill) {
+  return onePayment(`plan:${planId}`, async () => {
+    const { order } = await api.carePlanPaymentOrder(planId);
+    const signed = await openCheckout(order, 'Care plan', prefill);
+    return (await api.verifyCarePlanPayment(planId, signed)).plan;
+  });
 }
 
 /** Lab tests paid online. */
-export async function payLabOrder(orderId: string, prefill?: Prefill) {
-  const { order } = await api.labPaymentOrder(orderId);
-  const signed = await openCheckout(order, 'Lab tests', prefill);
-  return (await api.verifyLabPayment(orderId, signed)).order;
+export function payLabOrder(orderId: string, prefill?: Prefill) {
+  return onePayment(`lab:${orderId}`, async () => {
+    const { order } = await api.labPaymentOrder(orderId);
+    const signed = await openCheckout(order, 'Lab tests', prefill);
+    return (await api.verifyLabPayment(orderId, signed)).order;
+  });
 }
 
 /** Partner ad wallet top-up. */
-export async function payAdTopup(amount: number, prefill?: Prefill) {
-  const { order } = await api.adTopupOrder(amount);
-  const signed = await openCheckout(order, 'Nabz Ads wallet', prefill);
-  return (await api.verifyAdTopup(signed)).wallet;
+export function payAdTopup(amount: number, prefill?: Prefill) {
+  return onePayment(`ads:${amount}`, async () => {
+    const { order } = await api.adTopupOrder(amount);
+    const signed = await openCheckout(order, 'Nabz Ads wallet', prefill);
+    return (await api.verifyAdTopup(signed)).wallet;
+  });
 }

@@ -221,6 +221,34 @@ describe('verifyPayment', () => {
     expect(mockRazorpay.payments.refund).toHaveBeenCalledWith('pay_1', expect.objectContaining({ amount: 24550 }));
     expect(result.paymentStatus).toBe('REFUNDED');
   });
+
+  it('refunds a second, different payment for an order that is already paid (no double charge)', async () => {
+    const paid = makeOrder({ paymentStatus: 'PAID', razorpay: { orderId: 'order_1', paymentId: 'pay_1' } });
+    PharmacyOrder.findById.mockResolvedValue(paid);
+    mockRazorpay.payments.fetch.mockResolvedValue({
+      id: 'pay_2', order_id: 'order_1', amount: 24550, amount_refunded: 0, currency: 'INR', status: 'captured'
+    });
+    PharmacyOrder.findOneAndUpdate.mockResolvedValue(null); // CAS: no longer unpaid
+    mockRazorpay.payments.refund.mockResolvedValue({ id: 'rfnd_dup' });
+
+    const result = await svc.verifyPayment(ORDER_ID, PATIENT_ID, body('pay_2'));
+    expect(mockRazorpay.payments.refund).toHaveBeenCalledWith('pay_2', expect.objectContaining({ amount: 24550 }));
+    expect(mockRazorpay.payments.refund).not.toHaveBeenCalledWith('pay_1', expect.anything());
+    expect(result.razorpay.paymentId).toBe('pay_1'); // the first payment stays the order's payment
+    expect(logger.logSecurity).toHaveBeenCalledWith('pharmacy_duplicate_payment_refunded', expect.objectContaining({ duplicatePaymentId: 'pay_2' }));
+  });
+
+  it('does not refund the duplicate twice when it was already refunded', async () => {
+    const paid = makeOrder({ paymentStatus: 'PAID', razorpay: { orderId: 'order_1', paymentId: 'pay_1' } });
+    PharmacyOrder.findById.mockResolvedValue(paid);
+    mockRazorpay.payments.fetch.mockResolvedValue({
+      id: 'pay_2', order_id: 'order_1', amount: 24550, amount_refunded: 24550, currency: 'INR', status: 'captured'
+    });
+    PharmacyOrder.findOneAndUpdate.mockResolvedValue(null);
+
+    await svc.verifyPayment(ORDER_ID, PATIENT_ID, body('pay_2'));
+    expect(mockRazorpay.payments.refund).not.toHaveBeenCalled();
+  });
 });
 
 describe('refundOrderPayment', () => {

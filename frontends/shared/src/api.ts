@@ -87,6 +87,7 @@ import type {
   SubstituteOption
 } from './types';
 import type * as M from './marketplace';
+import { RepeatGuard, isMoneyRequest } from './repeatGuard';
 
 export interface ApiClientOptions {
   /** e.g. "https://api.medrush.app" or "http://localhost:5000" */
@@ -141,6 +142,8 @@ export class MedRushApi {
   private fetchImpl: typeof fetch;
   private extraHeaders: Record<string, string>;
   private onUnauthorized?: () => Promise<boolean>;
+  /** One request per double tap; the same Idempotency-Key for repeats (see repeatGuard.ts). */
+  private repeatGuard = new RepeatGuard();
 
   constructor(opts: ApiClientOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/$/, '');
@@ -198,8 +201,17 @@ export class MedRushApi {
     return qs ? `${url}?${qs}` : url;
   }
 
-  private async request<T>(method: string, path: string, opts: { query?: Query; body?: unknown; rawBody?: string; contentType?: string } = {}): Promise<T> {
+  private request<T>(method: string, path: string, opts: { query?: Query; body?: unknown; rawBody?: string; contentType?: string } = {}): Promise<T> {
+    if (isMoneyRequest(method, path)) {
+      const fingerprint = RepeatGuard.fingerprint(method, path, opts.body ?? opts.rawBody);
+      return this.repeatGuard.run(fingerprint, (key) => this.sendRequest<T>(method, path, opts, key));
+    }
+    return this.sendRequest<T>(method, path, opts);
+  }
+
+  private async sendRequest<T>(method: string, path: string, opts: { query?: Query; body?: unknown; rawBody?: string; contentType?: string }, idempotencyKey?: string): Promise<T> {
     const headers: Record<string, string> = { Accept: 'application/json' };
+    if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
     if (opts.rawBody !== undefined) headers['Content-Type'] = opts.contentType || 'text/plain';
     else if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
 
