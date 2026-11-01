@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { LucideIcon } from 'lucide-react-native';
 import { tap } from './motion';
 import { C, F } from './theme';
+import { isHiddenTab } from './partnerTabs';
 
 /**
  * Bottom tab bar shared by the customer and partner apps, docked to the
@@ -21,8 +22,10 @@ export function useTabBarSpace() {
 
 export function PillTabBar({ state, descriptors, navigation, icons }: BottomTabBarProps & { icons: Record<string, LucideIcon> }) {
   const insets = useSafeAreaInsets();
-  // Tabs hidden with `href: null` aren't shown.
-  const routes = state.routes.filter((r) => (descriptors[r.key].options as { href?: unknown }).href !== null);
+  // Tabs hidden with `href: null` aren't shown. expo-router removes `href`
+  // from the options and marks hidden tabs with display: 'none' instead
+  // (checking `href` let every tab through: nurses saw the pharmacy tabs).
+  const routes = state.routes.filter((r) => !isHiddenTab(descriptors[r.key].options));
   return (
     <View style={[s.bar, { paddingBottom: insets.bottom, height: TAB_BAR_HEIGHT + insets.bottom }]} accessibilityRole="tablist">
       {routes.map((route) => {

@@ -64,6 +64,7 @@ lazyExport('refreshSessionService', () => require('../../../services/refreshSess
 lazyExport('securityAuditService', () => require('../../../services/securityAuditService'));
 lazyExport('passwordSecurityService', () => require('../../../services/passwordSecurityService'));
 lazyExport('compromisedPasswordService', () => require('../../../services/compromisedPasswordService'));
+lazyExport('partnerAccountGuard', () => require('../../../services/partnerAccountGuard'));
 // Home-care ↔ pharmacy supplies (used by the booking service in both the monolith and patient-health).
 lazyExport('careSuppliesService', () => require('../../../services/careSuppliesService'));
 lazyExport('careServices', () => require('../../../constants/careServices'));

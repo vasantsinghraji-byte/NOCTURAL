@@ -21,6 +21,7 @@ const OtpChallenge = require('../models/otpChallenge');
 const authTokens = require('../utils/authTokens');
 const logger = require('../utils/logger');
 const { ValidationError, AuthenticationError, ConflictError, ServiceError, RateLimitError } = require('../utils/errors');
+const partnerAccountGuard = require('./partnerAccountGuard');
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
@@ -89,6 +90,8 @@ function readSignupToken(token, kind) {
 const unusablePassword = () => `${crypto.randomBytes(24).toString('base64url')}Aa1!`;
 
 async function createPatient({ name, email, phone, googleId, phoneVerified, emailVerified }) {
+  // The other half of a new account (email after phone sign-in, or phone after Google).
+  await partnerAccountGuard.assertCustomerIdentity({ email, phone });
   const safeName = String(name || '').trim();
   if (safeName.length < 2) throw new ValidationError('Please tell us your name');
   const safeEmail = String(email || '').trim().toLowerCase();
@@ -148,6 +151,8 @@ async function verifyGoogleIdToken(idToken) {
 /** Existing account → session. New → { needsProfile, signupToken, profile }. */
 async function googleSignIn(idToken) {
   const g = await verifyGoogleIdToken(idToken);
+  // Google has verified this email: partners are sent to the Nabz Partner app.
+  await partnerAccountGuard.assertCustomerIdentity({ email: g.email });
   let patient = await Patient.findOne({ googleId: g.googleId }).select('+sessionVersion +googleId');
   if (!patient) {
     // Google verified this email, so linking it to the account with that email is safe.
@@ -244,6 +249,8 @@ async function verifyPhoneSignIn(rawPhone, rawCode) {
     { $set: { consumedAt: new Date() } }
   );
   if (!consumed) throw new AuthenticationError('Code already used. Request a new one.');
+  // The OTP proved the phone: partners are sent to the Nabz Partner app.
+  await partnerAccountGuard.assertCustomerIdentity({ phone });
 
   const patient = await Patient.findOne({ phone }).select('+sessionVersion');
   if (patient) {

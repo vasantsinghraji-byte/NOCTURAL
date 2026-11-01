@@ -13,6 +13,7 @@ const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('@nocturnal/shared').queryUpd
 const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
 const { AuthenticationError } = require('@nocturnal/shared').errors;
 const compromisedPasswordService = require('@nocturnal/shared').compromisedPasswordService;
+const partnerAccountGuard = require('@nocturnal/shared').partnerAccountGuard;
 const LOGIN_GUARD = { lockPath: 'loginGuard.lockUntil', lockMs: 15 * 60 * 1000 };
 const LOGIN_MAX_FAILURES = Number(process.env.LOGIN_MAX_FAILURES) || 10;
 
@@ -32,6 +33,8 @@ class PatientService {
     const email = normalizeEmail(patientData.email);
     const phone = normalizePhone(patientData.phone);
     await compromisedPasswordService.assertPasswordNotCompromised(password);
+    // Partners use the Nabz Partner app, not a customer account.
+    await partnerAccountGuard.assertCustomerIdentity({ email, phone });
 
     // Check if patient exists by email
     const existingPatientByEmail = await Patient.findOne({ email });
@@ -153,6 +156,8 @@ class PatientService {
     }
 
     await attemptGuard.resetAttempts(Patient, { _id: patient._id }, 'loginGuard.failed', LOGIN_GUARD);
+    // Partners sign in with the Nabz Partner app (checked only after the password is right).
+    await partnerAccountGuard.assertCustomerIdentity({ email: patient.email, phone: patient.phone });
 
     // Generate short-lived access token and refresh token for cookie-backed sessions.
     const token = generateAccessToken(patient._id, authTokens.IDENTITY_TYPES.PATIENT, patient.sessionVersion);
