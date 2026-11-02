@@ -14,6 +14,7 @@ import { PressScale, Rise } from '@/lib/motion';
 import { WelcomeCareCarousel } from '@/lib/WelcomeCareCarousel';
 import { GOOGLE_CONFIGURED } from '@/lib/variant';
 import { C, F } from '@/lib/theme';
+import { BrandGradient } from '@/lib/BrandHeader';
 import { TermsCheckbox } from '@/lib/fields';
 
 /** First screen of the customer app: phone / Google / email, or explore first. */
@@ -48,16 +49,17 @@ export default function Welcome() {
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
-      <View style={[styles.orb, { top: -120, right: -90, backgroundColor: C.nightAlt }]} />
-      <View style={[styles.orb, { top: 260, left: -140, width: 300, height: 300, backgroundColor: C.nightAlt }]} />
+      <BrandGradient />
+      <View style={[styles.orb, { top: -120, right: -90 }]} />
+      <View style={[styles.orb, { top: 260, left: -140, width: 300, height: 300 }]} />
 
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 20, paddingHorizontal: 22, flexGrow: 1 }}>
         <View style={styles.topRow}>
-          <Wordmark size={24} />
+          <Wordmark size={24} color={C.onHeader} />
           <View style={styles.lang}>
             {(['en', 'hi'] as const).map((l) => (
               <Pressable key={l} onPress={() => setLang(l)} style={[styles.langBtn, lang === l && styles.langOn]}>
-                <Text style={[styles.langText, lang === l && { color: C.night }]}>{l === 'en' ? 'EN' : 'हि'}</Text>
+                <Text style={[styles.langText, lang === l && { color: C.brand }]}>{l === 'en' ? 'EN' : 'हि'}</Text>
               </Pressable>
             ))}
           </View>
@@ -77,12 +79,12 @@ export default function Welcome() {
         <View style={{ flex: 1, minHeight: 20 }} />
 
         <Rise delay={260} style={{ gap: 10 }}>
-          <TermsCheckbox checked={agreed} onChange={(v) => { setAgreed(v); if (v) setError(null); }} tone="dark"
+          <TermsCheckbox checked={agreed} onChange={(v) => { setAgreed(v); if (v) setError(null); }} tone="brand"
             label="I agree to the" linkText="Terms and Conditions and Privacy Policy" />
           {error && <Text style={styles.error}>{error}</Text>}
           {methods.phone && (
             <PressScale style={[styles.primary, !agreed && { opacity: 0.6 }]} onPress={() => { if (!needTerms()) router.push('/phone'); }}>
-              <Phone size={18} color={C.night} />
+              <Phone size={18} color={C.brand} />
               <Text style={styles.primaryText}>{t('welcome.phone')}</Text>
             </PressScale>
           )}
@@ -99,8 +101,8 @@ export default function Welcome() {
         </Rise>
 
         <Pressable style={styles.partner} onPress={() => router.push('/partner-apply')}>
-          <BadgeCheck size={18} color={C.gold} />
-          <Text style={styles.partnerText}>{t('welcome.partner')} <Text style={{ color: C.gold, fontFamily: F.bold }}>{t('welcome.partnerCta')}</Text></Text>
+          <BadgeCheck size={18} color={C.onHeader} />
+          <Text style={styles.partnerText}>{t('welcome.partner')} <Text style={{ color: C.onHeader, fontFamily: F.bold, textDecorationLine: 'underline' }}>{t('welcome.partnerCta')}</Text></Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -108,13 +110,13 @@ export default function Welcome() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.night, overflow: 'hidden' },
-  orb: { position: 'absolute', width: 360, height: 360, borderRadius: 999 },
+  screen: { flex: 1, backgroundColor: C.brand, overflow: 'hidden' },
+  orb: { position: 'absolute', width: 360, height: 360, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)' },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  lang: { flexDirection: 'row', backgroundColor: C.card, borderRadius: 999, padding: 3 },
+  lang: { flexDirection: 'row', backgroundColor: C.headerGlass, borderWidth: 1, borderColor: C.headerGlassBorder, borderRadius: 999, padding: 3 },
   langBtn: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999 },
-  langOn: { backgroundColor: C.onNight },
-  langText: { color: C.onNightMuted, fontFamily: F.bold, fontSize: 12 },
+  langOn: { backgroundColor: '#ffffff' },
+  langText: { color: C.onHeader, fontFamily: F.bold, fontSize: 12 },
   stage: { height: 230, marginTop: 18, alignItems: 'center', justifyContent: 'center' },
   pinHalo: {
     width: 170, height: 170, borderRadius: 85, alignItems: 'center', justifyContent: 'center',
@@ -127,19 +129,19 @@ const styles = StyleSheet.create({
   floatIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' },
   floatTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 12 },
   floatSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 11 },
-  kicker: { color: C.gold, fontFamily: F.bold, fontSize: 12, letterSpacing: 1.6, textTransform: 'uppercase', marginTop: 14 },
-  title: { color: C.onNight, fontFamily: F.display, fontSize: 50, lineHeight: 52, marginTop: 8, letterSpacing: -0.5 },
-  sub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 15, lineHeight: 22, marginTop: 10, maxWidth: 330 },
-  primary: { flexDirection: 'row', gap: 10, backgroundColor: C.onNight, borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: '#14171c', fontFamily: F.heavy, fontSize: 15 },
+  kicker: { color: C.onHeaderMuted, fontFamily: F.bold, fontSize: 12, letterSpacing: 1.6, textTransform: 'uppercase', marginTop: 14 },
+  title: { color: C.onHeader, fontFamily: F.displayHeavy, fontSize: 48, lineHeight: 52, marginTop: 8, letterSpacing: -1 },
+  sub: { color: C.onHeaderMuted, fontFamily: F.medium, fontSize: 15, lineHeight: 22, marginTop: 10, maxWidth: 330 },
+  primary: { flexDirection: 'row', gap: 10, backgroundColor: '#ffffff', borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 -3px 0 rgba(0,0,0,0.08), 0 14px 26px -12px rgba(0,0,0,0.45)' },
+  primaryText: { color: C.brand, fontFamily: F.heavy, fontSize: 16 },
   links: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, paddingVertical: 8 },
-  link: { color: C.onNight, fontFamily: F.bold, fontSize: 14 },
-  sep: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.onNightMuted },
+  link: { color: C.onHeader, fontFamily: F.bold, fontSize: 14 },
+  sep: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.onHeaderMuted },
   partner: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18, padding: 14, borderRadius: 16,
-    borderWidth: 1, borderColor: C.nightAlt, backgroundColor: C.card
+    borderWidth: 1, borderColor: C.headerGlassBorder, backgroundColor: C.headerGlass
   },
-  partnerText: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 13, flex: 1 },
-  terms: { color: C.onNightMuted, opacity: 0.7, fontFamily: F.medium, fontSize: 11, textAlign: 'center', marginTop: 12 },
+  partnerText: { color: C.onHeaderMuted, fontFamily: F.medium, fontSize: 13, flex: 1 },
+  terms: { color: C.onHeaderMuted, opacity: 0.7, fontFamily: F.medium, fontSize: 11, textAlign: 'center', marginTop: 12 },
   error: { backgroundColor: 'rgba(229,72,77,0.18)', color: '#ffb3b0', padding: 12, borderRadius: 12, overflow: 'hidden', fontFamily: F.semi }
 });

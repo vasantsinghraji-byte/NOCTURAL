@@ -41,18 +41,19 @@ export function openTerms(section?: string) {
 
 /** "I agree to the Terms" checkbox; the link opens the terms page. */
 export function TermsCheckbox({ checked, onChange, section, label = 'I agree to the', linkText = 'Terms and Conditions', tone = 'light' }: {
-  checked: boolean; onChange: (v: boolean) => void; section?: string; label?: string; linkText?: string; tone?: 'light' | 'dark';
+  checked: boolean; onChange: (v: boolean) => void; section?: string; label?: string; linkText?: string; tone?: 'light' | 'dark' | 'brand';
 }) {
-  const ink = tone === 'dark' ? C.onNight : C.ink;
+  // brand: white on the logo gradient (welcome screen).
+  const ink = tone === 'brand' ? C.onHeader : tone === 'dark' ? C.onNight : C.ink;
   return (
     <View style={styles.termsRow}>
       <Pressable onPress={() => onChange(!checked)} hitSlop={10} accessibilityRole="checkbox" accessibilityState={{ checked }}
-        style={[styles.checkbox, { borderColor: tone === 'dark' ? C.onNightMuted : C.border }, checked && styles.checkboxOn]}>
-        {checked ? <Check size={14} color="#ffffff" /> : null}
+        style={[styles.checkbox, { borderColor: tone === 'brand' ? C.onHeader : tone === 'dark' ? C.onNightMuted : C.border }, checked && (tone === 'brand' ? styles.checkboxOnBrand : styles.checkboxOn)]}>
+        {checked ? <Check size={14} color={tone === 'brand' ? C.brand : '#ffffff'} /> : null}
       </Pressable>
       <Text style={[styles.termsText, { color: ink }]} onPress={() => onChange(!checked)}>
         {label}{' '}
-        <Text style={[styles.termsLink, { color: tone === 'dark' ? C.gold : C.brand }]} onPress={() => openTerms(section)} accessibilityRole="link">{linkText}</Text>
+        <Text style={[styles.termsLink, { color: tone === 'brand' ? C.onHeader : tone === 'dark' ? C.gold : C.brand }, tone === 'brand' ? { textDecorationLine: 'underline' } : null]} onPress={() => openTerms(section)} accessibilityRole="link">{linkText}</Text>
       </Text>
     </View>
   );
@@ -62,6 +63,7 @@ const styles = StyleSheet.create({
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   checkboxOn: { backgroundColor: C.brand, borderColor: C.brand },
+  checkboxOnBrand: { backgroundColor: '#ffffff', borderColor: '#ffffff' },
   termsText: { flex: 1, fontFamily: F.medium, fontSize: 13, lineHeight: 19 },
   termsLink: { fontFamily: F.bold, textDecorationLine: 'underline' },
   // Same look as ui.input, padding on the wrapper instead of the TextInput.

@@ -61,9 +61,9 @@ export default function Landing() {
             </div>
             <TrustBadgeBar />
             <div className="meta">
-              <span><BadgeCheck size={16} color="#c8102e" /> Verified professionals</span>
-              <span><Wallet size={16} color="#c8102e" /> Pay after the visit</span>
-              <span><Clock3 size={16} color="#c8102e" /> Book now or schedule</span>
+              <span><BadgeCheck size={16} color="#b83a50" /> Verified professionals</span>
+              <span><Wallet size={16} color="#b83a50" /> Pay after the visit</span>
+              <span><Clock3 size={16} color="#b83a50" /> Book now or schedule</span>
             </div>
           </div>
 
@@ -106,7 +106,7 @@ export default function Landing() {
                     <span className="pill mint">ID verified</span>
                     <span className="pill mint">Police verified</span>
                   </div>
-                  <div className="code"><span style={{ fontSize: 13, fontWeight: 600, color: '#c8102e' }}>Visit code</span><b>4 8 2 7</b></div>
+                  <div className="code"><span style={{ fontSize: 13, fontWeight: 600, color: '#b83a50' }}>Visit code</span><b>4 8 2 7</b></div>
                 </div>
               </div>
             </div>
@@ -177,7 +177,7 @@ export default function Landing() {
           <div className="safety-list">
             {SAFETY.map((s) => (
               <div key={s.title} className="safety-item">
-                <b><s.icon size={18} color="#c8102e" /> {s.title}</b>
+                <b><s.icon size={18} color="#b83a50" /> {s.title}</b>
                 <span>{s.text}</span>
               </div>
             ))}
@@ -189,7 +189,7 @@ export default function Landing() {
       <section className="band tight">
         <div className="split">
           <div className="promo plus">
-            <Crown size={26} color="#c8102e" />
+            <Crown size={26} color="#b83a50" />
             <h3>Nabz Plus</h3>
             <p>{plusBanner ? `${plusBanner.title}. ${plusBanner.subtitle}.` : 'No platform fee on visits and free medicine delivery.'}</p>
             <div className="actions">

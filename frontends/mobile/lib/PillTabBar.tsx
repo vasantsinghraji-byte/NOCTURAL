@@ -3,14 +3,14 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { LucideIcon } from 'lucide-react-native';
 import { tap } from './motion';
-import { C, F } from './theme';
+import { C, F, IS_DARK } from './theme';
 import { isHiddenTab } from './partnerTabs';
 
 /**
  * Bottom tab bar shared by the customer and partner apps, docked to the
  * bottom edge like delivery apps: a flat surface with a hairline on top, an
- * icon and a label per tab, the active tab in brand red with a short bar
- * above it. (The file keeps its old name so the layouts don't change.)
+ * icon and a label per tab, the active tab in the brand colour on a soft
+ * pill (raspberry in Nabz, green in Nabz Partner). (The file keeps its old name so the layouts don't change.)
  */
 export const TAB_BAR_HEIGHT = 60;
 
@@ -47,9 +47,10 @@ function TabButton({ icon: Icon, label, focused, onPress }: { icon?: LucideIcon;
   // Every tab keeps its word under the icon: icons alone are easy to misread.
   return (
     <Pressable onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected: focused }} accessibilityLabel={label}
-      style={({ pressed }) => [s.tab, pressed && { backgroundColor: C.cardAlt }]}>
-      <View style={[s.indicator, focused && { backgroundColor: C.brand }]} />
-      {Icon ? <Icon size={22} color={color} strokeWidth={focused ? 2.2 : 1.8} /> : null}
+      style={({ pressed }) => [s.tab, pressed && { opacity: 0.7 }]}>
+      <View style={[s.pill, focused && { backgroundColor: C.brandSoft }]}>
+        {Icon ? <Icon size={22} color={color} strokeWidth={focused ? 2.2 : 1.8} /> : null}
+      </View>
       <Text style={[s.label, { color }, focused && { fontFamily: F.bold }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>{label}</Text>
     </Pressable>
   );
@@ -58,9 +59,10 @@ function TabButton({ icon: Icon, label, focused, onPress }: { icon?: LucideIcon;
 const s = StyleSheet.create({
   bar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row',
-    backgroundColor: C.tabBar, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border
+    backgroundColor: C.tabBar, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border,
+    boxShadow: IS_DARK ? '0 -8px 20px rgba(0,0,0,0.5)' : `0 -8px 24px -10px rgba(${C.tint},0.18)`
   },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, height: TAB_BAR_HEIGHT },
-  indicator: { position: 'absolute', top: 0, width: 28, height: 3, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, backgroundColor: 'transparent' },
+  pill: { paddingHorizontal: 16, paddingVertical: 4, borderRadius: 999 },
   label: { fontFamily: F.semi, fontSize: 11 }
 });

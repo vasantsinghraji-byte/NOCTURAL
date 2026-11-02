@@ -8,7 +8,7 @@ import CareArt, { WineGradient, type ArtKind } from './CareArt';
 import { PressScale, Skeleton } from './motion';
 import { useTabBarSpace } from './PillTabBar';
 import { dayShort, fmtTime, fromSaved, inr, usableAddresses, type VisitPlace } from './market';
-import { C, F, IS_DARK, clay, ui } from './theme';
+import { C, F, IS_DARK, clay, depth, ui } from './theme';
 
 /**
  * Care marketplace UI kit for the apps (mirrors the website's market.css):
@@ -79,7 +79,7 @@ export function Btn({ label, onPress, variant = 'primary', small, disabled, load
     dark: { bg: C.night, fg: C.onNight },
     ghost: { bg: 'transparent', fg: C.ink, border: C.border },
     soft: { bg: C.brandSoft, fg: C.brandDark },
-    light: { bg: '#ffffff', fg: C.brand }
+    light: { bg: C.card, fg: C.brand }
   };
   const l = look[variant];
   const off = disabled || loading;
@@ -93,7 +93,8 @@ export function Btn({ label, onPress, variant = 'primary', small, disabled, load
         backgroundColor: l.bg, borderRadius: 999, paddingVertical: small ? 11 : 16, paddingHorizontal: small ? 16 : 22, minHeight: small ? 44 : 52,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: off ? 0.55 : 1,
         borderWidth: l.border ? 1.5 : 0, borderColor: l.border
-      }, variant === 'primary' && !off ? ui.btn : null, variant === 'primary' ? { paddingVertical: small ? 11 : 16, paddingHorizontal: small ? 16 : 22 } : null, style]}
+      }, variant === 'primary' && !off ? ui.btn : null, variant === 'primary' ? { paddingVertical: small ? 11 : 16, paddingHorizontal: small ? 16 : 22 } : null,
+      variant === 'light' || variant === 'ghost' ? depth.card : null, style]}
     >
       {loading ? <ActivityIndicator size="small" color={l.fg} /> : Icon ? <Icon size={small ? 15 : 17} color={l.fg} /> : null}
       <Text style={{ color: l.fg, fontFamily: F.heavy, fontSize: small ? 14 : 16 }} numberOfLines={1}>{label}</Text>
@@ -135,8 +136,9 @@ export function Section({ children, action }: { children: ReactNode; action?: Re
   );
 }
 
-export function Badge({ label, tone = 'neutral', icon: Icon }: { label: string; tone?: 'red' | 'green' | 'neutral' | 'onDark' | 'amber'; icon?: LucideIcon }) {
+export function Badge({ label, tone = 'neutral', icon: Icon }: { label: string; tone?: 'red' | 'green' | 'neutral' | 'onDark' | 'amber' | 'coral'; icon?: LucideIcon }) {
   const look = {
+    coral: { bg: C.coral, fg: C.ink }, // live and delivery-time badges
     red: { bg: C.brandSoft, fg: C.brandDark },
     green: { bg: C.mintSoft, fg: C.mint },
     amber: { bg: C.amberSoft, fg: C.amber },
@@ -154,7 +156,7 @@ export function Badge({ label, tone = 'neutral', icon: Icon }: { label: string; 
 export function Chip({ label, on, onPress }: { label: string; on?: boolean; onPress?: () => void }) {
   return (
     <PressScale onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }}
-      style={{ paddingHorizontal: 16, minHeight: 44, justifyContent: 'center', borderRadius: 999, backgroundColor: on ? C.night : C.card, borderWidth: 1, borderColor: C.border }}>
+      style={[{ paddingHorizontal: 16, minHeight: 44, justifyContent: 'center', borderRadius: 999, backgroundColor: on ? C.brandSoft : C.card, borderWidth: 1.5, borderColor: on ? C.brand : C.border }, on ? null : depth.card]}>
       <Text style={{ color: on ? C.brand : C.inkSoft, fontFamily: F.bold, fontSize: 14 }}>{label}</Text>
     </PressScale>
   );
@@ -194,7 +196,7 @@ export function Stepper({ value, min = 1, max = 30, onChange, disabled }: { valu
       </Pressable>
       <Text style={s.stepValue} accessibilityLiveRegion="polite">{value}</Text>
       <Pressable onPress={() => onChange(Math.min(max, value + 1))} disabled={highOff} accessibilityRole="button" accessibilityLabel="More"
-        style={({ pressed }) => [s.stepBtn, { backgroundColor: C.brand, opacity: highOff ? 0.4 : pressed ? 0.7 : 1 }]}>
+        style={({ pressed }) => [s.stepBtn, { backgroundColor: C.brand, opacity: highOff ? 0.4 : 1 }, highOff ? null : pressed ? depth.pressed : depth.button]}>
         <Plus size={18} color="#ffffff" />
       </Pressable>
     </View>

@@ -63,7 +63,7 @@ async function payForOrderOnce(
       description: `Order #${checkout.order.orderNumber}`,
       prefill,
       ...(method ? { config: razorpayCheckoutConfig(method, { intent }) } : {}),
-      theme: { color: '#c8102e' },
+      theme: { color: '#b83a50' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: {
         // Razorpay lets the patient retry inside the modal, so failures are
@@ -98,7 +98,7 @@ async function payForMembershipOnce(prefill: { name?: string; email?: string; co
       name: 'Nabz Plus',
       description: 'Membership · free delivery, no visit platform fee',
       prefill,
-      theme: { color: '#c8102e' },
+      theme: { color: '#b83a50' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: { ondismiss: () => reject(new PaymentDismissedError()) }
     });
@@ -120,7 +120,7 @@ async function payForCarePlanOnce(planId: string, prefill: { name?: string; emai
       name: 'Nabz',
       description: 'Care plan',
       prefill,
-      theme: { color: '#c8102e' },
+      theme: { color: '#b83a50' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: { ondismiss: () => reject(new PaymentDismissedError()) }
     });
@@ -136,7 +136,7 @@ async function payForLabOrderOnce(orderId: string, prefill: { name?: string; ema
   const response = await new Promise<RazorpayHandlerResponse>((resolve, reject) => {
     const rzp = new Razorpay({
       key: order.keyId, order_id: order.orderId, amount: Math.round(order.amount * 100), currency: order.currency,
-      name: 'Nabz', description: 'Lab tests', prefill, theme: { color: '#c8102e' },
+      name: 'Nabz', description: 'Lab tests', prefill, theme: { color: '#b83a50' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: { ondismiss: () => reject(new PaymentDismissedError()) }
     });
@@ -152,7 +152,7 @@ async function payForAdTopupOnce(amount: number): Promise<void> {
   const response = await new Promise<RazorpayHandlerResponse>((resolve, reject) => {
     const rzp = new Razorpay({
       key: order.keyId, order_id: order.orderId, amount: Math.round(order.amount * 100), currency: order.currency,
-      name: 'Nabz Ads', description: 'Ad wallet top-up', theme: { color: '#c8102e' },
+      name: 'Nabz Ads', description: 'Ad wallet top-up', theme: { color: '#b83a50' },
       handler: (resp: RazorpayHandlerResponse) => resolve(resp),
       modal: { ondismiss: () => reject(new PaymentDismissedError()) }
     });

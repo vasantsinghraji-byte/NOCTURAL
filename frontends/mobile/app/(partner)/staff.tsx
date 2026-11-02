@@ -19,7 +19,8 @@ import { LIVE_VISITS_KEY, PARTNER_DEMO_KEY, isBackgroundOnline, startBackgroundO
 import { startRinging, stopRinging } from '@/lib/ringer';
 import { DEMO_AREA_ENABLED } from '@/lib/variant';
 import { TextArea } from '@/lib/fields';
-import { C, F, shadow, ui } from '@/lib/theme';
+import { C, F, depth, shadow, ui } from '@/lib/theme';
+import { BrandGradient } from '@/lib/BrandHeader';
 import { appAlert } from '@/lib/dialog';
 import { ProposalSheet } from '@/lib/ProposalSheet';
 import { ShopOverview } from '@/lib/ShopOverview';
@@ -276,6 +277,7 @@ export default function StaffHome() {
       <ScrollView contentContainerStyle={{ paddingBottom: tabSpace }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
         {/* Midnight header: greeting + big online switch */}
         <View style={[styles.head, { paddingTop: insets.top + 14 }]}>
+          <BrandGradient />
           <View style={styles.headRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.hello}>{hello()},</Text>
@@ -285,7 +287,7 @@ export default function StaffHome() {
           </View>
 
           <View style={[styles.online, online && styles.onlineOn]}>
-            <Circle size={12} color={online ? C.mint : C.onNightMuted} fill={online ? C.mint : 'transparent'} />
+            <Circle size={12} color={online ? C.coral : C.onHeaderMuted} fill={online ? C.coral : 'transparent'} />
             <View style={{ flex: 1 }}>
               <Text style={styles.onlineTitle}>{online ? 'You’re online' : 'You’re offline'}</Text>
               <Text style={styles.onlineSub}>
@@ -294,12 +296,12 @@ export default function StaffHome() {
                   : 'Go online to get visit requests'}
               </Text>
             </View>
-            {switching ? <ActivityIndicator color={C.onNight} /> : (
+            {switching ? <ActivityIndicator color={C.onHeader} /> : (
               <Switch
                 value={online}
                 disabled={!online && !!ver && !(ver.id && ver.police && ver.council)}
                 onValueChange={toggleOnline}
-                trackColor={{ true: '#3dd68c', false: C.faint }}
+                trackColor={{ true: C.coral, false: 'rgba(255,255,255,0.35)' }}
                 thumbColor="#ffffff"
               />
             )}
@@ -593,20 +595,20 @@ function CompleteSheet({ visit, onClose, onSubmit }: {
 
 const styles = StyleSheet.create({
   bgHint: { backgroundColor: C.amberSoft, color: C.amber, padding: 10, borderRadius: 12, overflow: 'hidden', fontFamily: F.semi, fontSize: 13 },
-  head: { backgroundColor: C.night, paddingHorizontal: 18, paddingBottom: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, gap: 14 },
+  head: { backgroundColor: C.brand, paddingHorizontal: 18, paddingBottom: 20, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, gap: 14, overflow: 'hidden' },
   headRow: { flexDirection: 'row', alignItems: 'center' },
-  hello: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 14 },
-  name: { color: C.onNight, fontFamily: F.display, fontSize: 38, lineHeight: 42 },
+  hello: { color: C.onHeaderMuted, fontFamily: F.medium, fontSize: 14 },
+  name: { color: C.onHeader, fontFamily: F.displayHeavy, fontSize: 38, lineHeight: 42, letterSpacing: -0.6 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
-  online: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, backgroundColor: C.card, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
-  onlineOn: { borderColor: 'rgba(61,214,140,0.5)', backgroundColor: 'rgba(61,214,140,0.10)' },
-  onlineTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 15 },
-  onlineSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 12 },
+  online: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, backgroundColor: C.headerGlass, borderWidth: 1, borderColor: C.headerGlassBorder },
+  onlineOn: { backgroundColor: 'rgba(255,255,255,0.22)', borderColor: 'rgba(255,255,255,0.55)' },
+  onlineTitle: { color: C.onHeader, fontFamily: F.bold, fontSize: 15 },
+  onlineSub: { color: C.onHeaderMuted, fontFamily: F.medium, fontSize: 12 },
   earnRow: { flexDirection: 'row', gap: 8 },
-  earn: { flex: 1, borderRadius: 16, padding: 12, gap: 3, backgroundColor: C.card },
-  earnValue: { color: C.onNight, fontFamily: F.heavy, fontSize: 17 },
-  earnLabel: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 10 },
-  payout: { color: C.gold, fontFamily: F.bold, fontSize: 12 },
+  earn: { flex: 1, borderRadius: 16, padding: 12, gap: 3, backgroundColor: C.card, ...depth.card },
+  earnValue: { color: C.ink, fontFamily: F.heavy, fontSize: 17 },
+  earnLabel: { color: C.muted, fontFamily: F.medium, fontSize: 10 },
+  payout: { color: C.onHeader, fontFamily: F.bold, fontSize: 12 },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   demandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

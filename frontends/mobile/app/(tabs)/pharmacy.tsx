@@ -3,13 +3,13 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, T
 import { ChevronRight, Clock, Minus, Pill, Plus, Truck } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarSpace } from '@/lib/PillTabBar';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { pickAndUploadPrescription } from '@/lib/prescription';
 import type { DeliveryQuote, PayMethod, PharmacyVendor, StorefrontItem } from '@medrush/shared';
-import { C, F, R } from '@/lib/theme';
+import { C, F, R, depth } from '@/lib/theme';
+import { BrandHeader } from '@/lib/BrandHeader';
 import { BottomSheet } from '@/lib/marketUI';
 import { inr } from '@/lib/market';
 import { appAlert } from '@/lib/dialog';
@@ -22,7 +22,6 @@ const FALLBACK = { lat: 26.9110, lng: 75.8010 }; // launch city demo area (C-Sch
 export default function Pharmacy() {
   const params = useLocalSearchParams<{ refill?: string }>();
   const [refillId, setRefillId] = useState<string | null>(null);
-  const insets = useSafeAreaInsets();
   const tabSpace = useTabBarSpace();
   const { session } = useAuth();
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -281,14 +280,17 @@ export default function Pharmacy() {
   const payable = quote ? quote.total : subtotal;
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Pharmacy</Text>
-        <View style={styles.promise}>
-          <Clock size={14} color={C.ink} />
-          <Text style={styles.promiseText}>{etaMinutes ? `Delivery in ${etaMinutes} min` : 'Delivery in ~30 min'}</Text>
+    <View style={styles.screen}>
+      <BrandHeader style={{ paddingBottom: 16 }}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Pharmacy</Text>
+          <View style={styles.promise}>
+            <Clock size={14} color={C.ink} />
+            <Text style={styles.promiseText}>{etaMinutes ? `${etaMinutes} MIN` : '~30 MIN'}</Text>
+          </View>
         </View>
-      </View>
+        <Text style={styles.headerSub} numberOfLines={1}>Medicines from licensed pharmacies near you</Text>
+      </BrandHeader>
       {error && <Text style={styles.error}>{error}</Text>}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vendorBar} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' }}>
@@ -333,7 +335,7 @@ export default function Pharmacy() {
                 ) : qty ? (
                   <Stepper qty={qty} name={it.medicine.name} onAdd={() => add(it.medicine._id)} onRemove={() => remove(it.medicine._id)} />
                 ) : (
-                  <Pressable style={({ pressed }) => [styles.addBtn, pressed && { backgroundColor: C.brandSoft }]} onPress={() => add(it.medicine._id)}
+                  <Pressable style={({ pressed }) => [styles.addBtn, pressed ? { backgroundColor: C.brandSoft, boxShadow: 'none' } : null]} onPress={() => add(it.medicine._id)}
                     accessibilityRole="button" accessibilityLabel={`Add ${it.medicine.name}`}>
                     <Text style={styles.addBtnText}>ADD</Text>
                   </Pressable>
@@ -358,7 +360,7 @@ export default function Pharmacy() {
               <Text style={styles.nudgeText} numberOfLines={1}>{quote.breakdown.waiver === 'MEMBER' ? 'Free delivery with Nabz Plus' : 'Free delivery on this order'}</Text>
             </View>
           ) : null}
-          <Pressable style={({ pressed }) => [styles.cartBar, pressed && { opacity: 0.92 }]} onPress={() => setCartOpen(true)} accessibilityRole="button"
+          <Pressable style={({ pressed }) => [styles.cartBar, pressed ? depth.pressed : depth.button]} onPress={() => setCartOpen(true)} accessibilityRole="button"
             accessibilityLabel={`${cartCount} items, ${inr(payable)}. View cart`}>
             <View style={{ flex: 1 }}>
               <Text style={styles.cartCount}>{cartCount} item{cartCount === 1 ? '' : 's'}</Text>
@@ -489,30 +491,31 @@ function BillRow({ label, value, strong, good }: { label: string; value: string;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16 },
-  title: { fontFamily: F.display, fontSize: 26, color: C.ink, letterSpacing: -0.4 },
-  promise: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: R.full, paddingHorizontal: 10, paddingVertical: 6 },
-  promiseText: { fontFamily: F.bold, fontSize: 12.5, color: C.ink },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  title: { fontFamily: F.displayHeavy, fontSize: 28, color: C.onHeader, letterSpacing: -0.5 },
+  headerSub: { fontFamily: F.semi, fontSize: 13, color: C.onHeaderMuted, marginTop: 2 },
+  promise: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.coral, borderRadius: R.full, paddingHorizontal: 12, paddingVertical: 7, ...depth.button },
+  promiseText: { fontFamily: F.heavy, fontSize: 12.5, color: C.ink, letterSpacing: 0.4 },
   // No fixed height: large phone font sizes must not clip the store names.
   vendorBar: { flexGrow: 0, flexShrink: 0 },
-  chip: { minHeight: 40, maxWidth: 260, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: C.card, borderRadius: R.full, borderWidth: 1, borderColor: C.border },
-  chipActive: { backgroundColor: C.night, borderColor: C.brand },
+  chip: { minHeight: 40, maxWidth: 260, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: C.card, borderRadius: R.full, borderWidth: 1.5, borderColor: C.border, ...depth.card },
+  chipActive: { backgroundColor: C.brandSoft, borderColor: C.brand },
   chipText: { color: C.ink, fontFamily: F.semi, fontSize: 14, lineHeight: 20, flexShrink: 1 },
   chipMeta: { color: C.muted, fontFamily: F.medium, fontSize: 12 },
-  chipTextActive: { color: C.onNight },
+  chipTextActive: { color: C.brand },
   muted: { color: C.muted, fontSize: 13, fontFamily: F.medium },
   error: { backgroundColor: C.roseSoft, color: C.roseInk, padding: 10, marginHorizontal: 16, marginTop: 10, borderRadius: R.md, fontFamily: F.semi },
-  tile: { flexGrow: 1, flexBasis: 0, maxWidth: '32.4%', minHeight: 232, backgroundColor: C.card, borderRadius: R.md, padding: 8, gap: 3, borderWidth: 1, borderColor: C.border },
-  tileImage: { height: 76, borderRadius: R.sm, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  off: { position: 'absolute', top: 0, left: 0, backgroundColor: C.sky, color: '#ffffff', fontFamily: F.bold, fontSize: 9.5, paddingHorizontal: 5, paddingVertical: 2, borderTopLeftRadius: R.sm, borderBottomRightRadius: 6, overflow: 'hidden' },
-  rxTag: { position: 'absolute', top: 4, right: 4, backgroundColor: C.card, color: C.roseInk, fontFamily: F.bold, fontSize: 9.5, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: C.border },
+  tile: { flexGrow: 1, flexBasis: 0, maxWidth: '32.4%', minHeight: 232, backgroundColor: C.card, borderRadius: R.lg, padding: 8, gap: 3, ...depth.card },
+  tileImage: { height: 76, borderRadius: R.md, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 6, boxShadow: `inset 0 -6px 12px rgba(${C.tint},0.06)` },
+  off: { position: 'absolute', top: 0, left: 0, backgroundColor: C.mint, color: '#ffffff', fontFamily: F.bold, fontSize: 9.5, paddingHorizontal: 5, paddingVertical: 2, borderTopLeftRadius: R.sm, borderBottomRightRadius: 6, overflow: 'hidden' },
+  rxTag: { position: 'absolute', top: 4, right: 4, backgroundColor: C.card, color: C.brand, fontFamily: F.bold, fontSize: 9.5, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: C.border },
   tileName: { fontSize: 12.5, lineHeight: 16, fontFamily: F.semi, color: C.ink },
   tileMeta: { color: C.muted, fontSize: 11.5, fontFamily: F.medium },
   tilePrice: { fontFamily: F.bold, fontSize: 14, color: C.ink },
   strike: { color: C.muted, textDecorationLine: 'line-through', fontFamily: F.regular, fontSize: 11 },
-  addBtn: { borderRadius: R.sm, minHeight: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.brand, backgroundColor: C.card },
-  addBtnText: { color: C.brand, fontFamily: F.bold, fontSize: 13, letterSpacing: 0.4 },
-  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36, borderRadius: R.sm, backgroundColor: C.brand },
+  addBtn: { borderRadius: R.sm, minHeight: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.brand, backgroundColor: C.card, boxShadow: `inset 0 -2px 0 rgba(${C.tint},0.12), 0 4px 10px -6px rgba(${C.tint},0.5)` },
+  addBtnText: { color: C.brand, fontFamily: F.heavy, fontSize: 13, letterSpacing: 0.6 },
+  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36, borderRadius: R.sm, backgroundColor: C.brand, ...depth.button },
   stepBtn: { width: 32, minHeight: 36, alignItems: 'center', justifyContent: 'center' },
   stepQty: { color: C.onBrand, fontFamily: F.bold, fontSize: 14 },
   findBtn: { borderRadius: R.sm, minHeight: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardAlt },
@@ -520,11 +523,11 @@ const styles = StyleSheet.create({
   cartDock: { position: 'absolute', left: 12, right: 12 },
   nudge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.mintSoft, paddingHorizontal: 12, paddingVertical: 7, borderTopLeftRadius: R.md, borderTopRightRadius: R.md },
   nudgeText: { color: C.mint, fontFamily: F.semi, fontSize: 12.5, flexShrink: 1 },
-  cartBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.brand, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 10, minHeight: 56 },
+  cartBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.brand, borderRadius: R.lg, paddingHorizontal: 16, paddingVertical: 10, minHeight: 58 },
   cartCount: { color: C.onBrand, fontFamily: F.semi, fontSize: 12, opacity: 0.9 },
   cartTotal: { color: C.onBrand, fontFamily: F.bold, fontSize: 16 },
   cartCta: { color: C.onBrand, fontFamily: F.bold, fontSize: 15 },
-  group: { backgroundColor: C.card, borderRadius: R.md, padding: 14, gap: 10, borderWidth: 1, borderColor: C.border },
+  group: { backgroundColor: C.card, borderRadius: R.lg, padding: 14, gap: 10, ...depth.card },
   groupTitle: { fontFamily: F.bold, fontSize: 15, color: C.ink },
   line: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   lineName: { fontFamily: F.semi, fontSize: 14, color: C.ink },

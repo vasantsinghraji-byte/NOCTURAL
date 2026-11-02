@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarSpace } from '@/lib/PillTabBar';
 import { router, useFocusEffect } from 'expo-router';
 import {
@@ -19,7 +18,8 @@ import { IconTile, serviceIcon } from '@/lib/icons';
 import { inr as money } from '@/lib/market';
 import { BottomSheet } from '@/lib/marketUI';
 import { PressScale, Rise, Skeleton } from '@/lib/motion';
-import { C, F, clay, ui } from '@/lib/theme';
+import { C, F, R, depth, ui } from '@/lib/theme';
+import { BrandHeader } from '@/lib/BrandHeader';
 import { appAlert } from '@/lib/dialog';
 import { UpdatesFeed } from '@/lib/updatesFeed';
 import { EasyHome } from '@/lib/EasyHome';
@@ -56,7 +56,6 @@ export default function HomeTab() {
 
 function BookHome() {
   const { suggest: easySuggest, setEasy, dismissSuggestion } = useEasyMode();
-  const insets = useSafeAreaInsets();
   const tabSpace = useTabBarSpace();
   const { session } = useAuth();
   const { t } = useT();
@@ -149,22 +148,23 @@ function BookHome() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 18, paddingBottom: tabSpace }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Where: the address first, like every delivery app; the map is one tap away */}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: tabSpace }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* Brand header: where, search and who's online, on the logo gradient */}
+        <BrandHeader bleed={18} style={{ paddingHorizontal: 18 }}>
         <View style={styles.header}>
           <Pressable onPress={chooseArea} style={styles.where} accessibilityRole="button" accessibilityLabel={`Care at ${area}. Change location`}>
             <View style={styles.dot} />
             <View style={{ flex: 1 }}>
-              <Text style={ui.muted} numberOfLines={1}>{first ? `${t('home.hi', { name: first })} · ` : ''}{source === 'live' ? t('home.live') : t('home.careAt')}</Text>
+              <Text style={styles.whereLabel} numberOfLines={1}>{first ? `${t('home.hi', { name: first })} · ` : ''}{source === 'live' ? t('home.live') : t('home.careAt')}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={[ui.h3, { flexShrink: 1 }]} numberOfLines={1}>{area}</Text>
-                {DEMO_AREA_ENABLED ? <ChevronDown size={16} color={C.ink} /> : null}
+                <Text style={styles.whereArea} numberOfLines={1}>{area}</Text>
+                {DEMO_AREA_ENABLED ? <ChevronDown size={18} color={C.onHeader} /> : null}
               </View>
             </View>
             {demoArea ? <View style={styles.demoPill}><Text style={styles.demoPillText}>DEMO</Text></View> : null}
           </Pressable>
           <PressScale onPress={openMap} style={styles.mapBtn} accessibilityRole="button" accessibilityLabel="See professionals, clinics and pharmacies on the map">
-            <MapIcon size={22} color={C.brand} />
+            <MapIcon size={22} color={C.onHeader} />
           </PressScale>
         </View>
 
@@ -174,12 +174,13 @@ function BookHome() {
           {query ? <Pressable hitSlop={10} onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search"><X size={16} color={C.muted} /></Pressable> : null}
         </View>
 
-        <Pressable onPress={openMap} style={[styles.live, nearby.count ? { backgroundColor: C.mintSoft } : null]} accessibilityRole="button" accessibilityLabel={`${liveLine}. Open the map`}>
-          <Radio size={14} color={nearby.count ? C.mint : C.muted} />
-          <Text style={[styles.liveText, nearby.count ? { color: C.mint } : null]} numberOfLines={2}>{liveLine}</Text>
-          <Text style={[styles.liveLink, nearby.count ? { color: C.mint } : null]}>Map</Text>
-          <ChevronRight size={14} color={nearby.count ? C.mint : C.muted} />
+        <Pressable onPress={openMap} style={styles.live} accessibilityRole="button" accessibilityLabel={`${liveLine}. Open the map`}>
+          <View style={[styles.liveDot, nearby.count ? null : { backgroundColor: C.onHeaderMuted }]} />
+          <Text style={styles.liveText} numberOfLines={2}>{liveLine}</Text>
+          <Text style={styles.liveLink}>Map</Text>
+          <ChevronRight size={14} color={C.onHeader} />
         </Pressable>
+        </BrandHeader>
 
         {easySuggest && (
           <Rise delay={40}>
@@ -359,33 +360,36 @@ function WhenOption({ icon: Icon, title, sub, onPress, disabled }: { icon: Lucid
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   where: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
-  mapBtn: { width: 50, height: 50, borderRadius: 16, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...clay },
-  dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: C.brand, borderWidth: 3, borderColor: C.brandSoft },
+  mapBtn: { width: 50, height: 50, borderRadius: 16, backgroundColor: C.headerGlass, borderWidth: 1, borderColor: C.headerGlassBorder, alignItems: 'center', justifyContent: 'center' },
+  dot: { width: 14, height: 14, borderRadius: 7, backgroundColor: C.coral, borderWidth: 3, borderColor: '#ffffff' },
+  whereLabel: { fontFamily: F.semi, fontSize: 13, color: C.onHeaderMuted },
+  whereArea: { flexShrink: 1, fontFamily: F.displayHeavy, fontSize: 22, letterSpacing: -0.4, color: C.onHeader },
   demoPill: { backgroundColor: C.amberSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   demoPillText: { color: C.amber, fontFamily: F.heavy, fontSize: 10, letterSpacing: 1 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: 16, paddingHorizontal: 14, marginTop: 12, minHeight: 50, borderWidth: 1, borderColor: C.border },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: 14, marginTop: 14, minHeight: 50, ...depth.raised },
   searchInput: { flex: 1, paddingVertical: 12, fontFamily: F.medium, fontSize: 15, color: C.ink },
-  live: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, backgroundColor: C.cardAlt, minHeight: 44 },
-  liveText: { flex: 1, fontFamily: F.semi, fontSize: 13, color: C.muted },
-  liveLink: { fontFamily: F.bold, fontSize: 13, color: C.muted },
+  live: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, backgroundColor: C.headerGlass, borderWidth: 1, borderColor: C.headerGlassBorder, minHeight: 44 },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#5ee0a0' },
+  liveText: { flex: 1, fontFamily: F.semi, fontSize: 13, color: C.onHeader },
+  liveLink: { fontFamily: F.bold, fontSize: 13, color: C.onHeader },
   easyOffer: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 4, marginTop: 14, borderWidth: 1.5, borderColor: C.brandSoft },
   outside: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.amberSoft, borderRadius: 16, padding: 14, marginTop: 14 },
   upcoming: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.night, borderRadius: 16, padding: 14, marginTop: 14 },
   upLabel: { color: C.gold, fontFamily: F.heavy, fontSize: 10, letterSpacing: 1 },
   upTitle: { color: C.onNight, fontFamily: F.bold, fontSize: 15, marginTop: 2 },
   upSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 12 },
-  upBtn: { backgroundColor: C.brand, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
+  upBtn: { backgroundColor: C.brand, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, ...depth.button },
   upBtnText: { color: C.onBrand, fontFamily: F.heavy, fontSize: 12 },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 22, marginBottom: 6 },
   sectionTitle: { flexShrink: 1, fontFamily: F.display, fontSize: 20, color: C.ink, letterSpacing: -0.3 },
   sectionLink: { fontFamily: F.bold, fontSize: 14, color: C.brand },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
   cell: { width: '25%', alignItems: 'center', gap: 7, paddingVertical: 8, paddingHorizontal: 4, minHeight: 112 },
-  tile: { width: 64, height: 64, borderRadius: 16, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center' },
+  tile: { width: 66, height: 66, borderRadius: R.xl, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...depth.tile },
   tileText: { fontSize: 12.5, lineHeight: 16, fontFamily: F.semi, color: C.ink, textAlign: 'center' },
   more: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  moreTile: { flex: 1, borderRadius: 16, padding: 12, gap: 4, minHeight: 112, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
-  moreIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
+  moreTile: { flex: 1, borderRadius: R.lg, padding: 12, gap: 4, minHeight: 112, backgroundColor: C.card, ...depth.card },
+  moreIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center', ...depth.tile },
   moreTitle: { fontFamily: F.bold, fontSize: 14, lineHeight: 19, color: C.ink, marginTop: 4 },
   moreSub: { fontFamily: F.medium, fontSize: 12, lineHeight: 16, color: C.inkSoft },
   when: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, minHeight: 72, borderWidth: 1.5, borderColor: C.border },
@@ -396,5 +400,5 @@ const styles = StyleSheet.create({
   bannerSub: { fontFamily: F.medium, fontSize: 12, lineHeight: 17 },
   bannerCta: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 'auto' },
   bannerCtaText: { fontFamily: F.heavy, fontSize: 12 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: C.border }
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 12, ...depth.card }
 });
