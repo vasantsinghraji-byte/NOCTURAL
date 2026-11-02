@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: C.card,
     borderWidth: 1.5,
-    borderColor: C.nightAlt,
+    borderColor: 'rgba(255,255,255,0.35)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.35,
@@ -202,10 +202,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: C.nightAlt
+    borderColor: 'rgba(255,255,255,0.28)'
   },
   tagText: {
-    color: C.onNight,
+    color: '#ffffff',
     fontSize: 11,
     fontFamily: F.bold,
     letterSpacing: 0.3
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: 'rgba(20, 16, 24, 0.82)',
     borderWidth: 1,
-    borderColor: C.nightAlt
+    borderColor: 'rgba(255,255,255,0.28)'
   },
   floatTop: {
     top: 12
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   badgeText: {
-    color: C.onNight,
+    color: '#ffffff',
     fontFamily: F.bold,
     fontSize: 11
   },
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     bottom: 12
   },
   slideTitle: {
-    color: C.onNight,
+    color: '#ffffff',
     fontFamily: F.display,
     fontSize: 22,
     lineHeight: 25,
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 3
   },
   slideSub: {
-    color: C.onNightMuted,
+    color: 'rgba(255,255,255,0.9)',
     fontFamily: F.medium,
     fontSize: 12,
     lineHeight: 16,
@@ -281,10 +281,10 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     width: 22,
-    backgroundColor: C.gold
+    backgroundColor: '#ffffff'
   },
   dotInactive: {
     width: 6,
-    backgroundColor: C.nightAlt
+    backgroundColor: 'rgba(255,255,255,0.45)'
   }
 });
