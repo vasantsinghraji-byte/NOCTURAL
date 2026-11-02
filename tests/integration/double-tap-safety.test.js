@@ -160,10 +160,11 @@ describe('Double-tap and retry safety (real MongoDB)', () => {
 
   it(`book a nurse visit tapped ${TAPS} times at once -> exactly one booking`, async () => {
     if (!db) return;
-    const today = new Date().toISOString().slice(0, 10);
+    // Tomorrow in India time: "today 23:30" was already past whenever India was ahead of the UTC date.
+    const tomorrowIst = new Date(Date.now() + 330 * 60000 + 86400000).toISOString().slice(0, 10);
     const k = key();
     const body = {
-      serviceType: 'INJECTION', mode: 'SCHEDULED', scheduledDate: today, scheduledTime: '23:30',
+      serviceType: 'INJECTION', mode: 'SCHEDULED', scheduledDate: tomorrowIst, scheduledTime: '11:00',
       scheduledTimezone: 'Asia/Kolkata', scheduledTimezoneOffsetMinutes: 330,
       serviceLocation: { type: 'HOME', address: { street: 'Ashok Marg', city: 'Jaipur', pincode: '302001', coordinates: HOME } },
       patientDetails: { name: 'Meera Sharma', age: 34, gender: 'Female' }

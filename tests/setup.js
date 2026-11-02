@@ -15,7 +15,12 @@ process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/
 // Disable authentication for tests (or use test credentials)
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing-only-not-for-production';
 process.env.JWT_EXPIRE = process.env.JWT_EXPIRE || '1h';
-process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'test-encryption-key-32-characters!';
+// Field encryption needs exactly 64 hex characters (32 bytes); a SHA-256 hex digest always is.
+process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
+  || require('crypto').createHash('sha256').update('nabz-test-fixture-field-encryption').digest('hex');
+
+// A developer .env may send legacy pages to the Nabz website; tests check the pages themselves.
+process.env.WEB_REDIRECT_URL = '';
 
 // Disable rate limiting in tests
 process.env.RATE_LIMIT_ENABLED = process.env.RATE_LIMIT_ENABLED || 'false';
