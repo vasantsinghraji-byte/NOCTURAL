@@ -167,6 +167,7 @@ The 4 skipped suites and 7 skipped tests are opt-in: they need flags such as `RU
 | CI lint (red since Oct) | `apps/patient-health/services/bookingService.js` required `./carePlanService`, which isn't in the app copy | Routed through `@nocturnal/shared` like the other shared modules | Mirror drift |
 | CI security audit (red since Oct) | Root: 5 critical and 7 high advisories. Client: 1 critical and 9 high | `npm audit fix` (no breaking upgrades); `follow-redirects` pin 1.16.0 → 1.16.2; client `js-yaml` pin 4.2.0 → ^4.3.2. Both audits pass the high gate | **Dependencies** |
 | Git hooks | This worktree's hooks path pointed at the repo's old folder, so pre-commit secret scans never ran | Stale worktree override removed (repo setting `.githooks` applies) | Tooling |
+| Release | Staging and apps behind the branch | Staging deployed at `46540a0` (API and website). Staging smoke passed: health and commit, 7 website pages, stores near the demo area, the new routes require sign-in, CORS preflight, demo customer sign-in, a customer token refused on rider and admin routes. `Nabz.apk` and `Nabz-Partner.apk` rebuilt against staging, release-signed (SHA-1 `05:84:A4…6D:EA`), and the old copies removed | Release |
 | CodeQL | Alerts on PR #216 | 6 real issues fixed (settings allowlist, 2× email ReDoS, heat map lookup, timer clamp, unused code); 77 NoSQL alerts shown to be mitigated, with a regression test. Owner decision in `docs/SECURITY_CODEQL_TRIAGE.md` | **Security** |
 
 ## 9. How to read the inventory
