@@ -162,8 +162,9 @@ jobs:
       - name: App unit tests
         run: npm --prefix frontends/mobile test
 
+      # next/font downloads Google Fonts at build time; retry once if that download flakes.
       - name: Build website
-        run: npm --prefix frontends/web run build
+        run: npm --prefix frontends/web run build || (echo 'Build failed; retrying once (font download)'; sleep 15; npm --prefix frontends/web run build)
         env:
           NEXT_TELEMETRY_DISABLED: '1'
 
