@@ -143,10 +143,13 @@ function validateChanges(key, changes) {
   if (!fields) throw new ValidationError('Unknown settings group');
   const entries = Object.entries(changes || {});
   if (!entries.length) throw new ValidationError('Change at least one value');
+  const unknown = entries.map(([path]) => path).find((path) => !Object.hasOwn(fields, path));
+  if (unknown !== undefined) throw new ValidationError(`${unknown} can’t be changed here`);
+  // Walk the allowlist, so every key written comes from FIELDS, never from the request.
   const clean = {};
-  for (const [path, raw] of entries) {
-    const f = Object.hasOwn(fields, path) ? fields[path] : null;
-    if (!f) throw new ValidationError(`${path} can’t be changed here`);
+  for (const [path, f] of Object.entries(fields)) {
+    if (!Object.hasOwn(changes, path)) continue;
+    const raw = changes[path];
     if (f.type === 'boolean') {
       if (typeof raw !== 'boolean') throw new ValidationError(`${f.label}: on or off`);
       clean[path] = raw;

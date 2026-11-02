@@ -128,8 +128,9 @@ export class RealtimeClient {
     switch (msg.type) {
       case 'connection_ack':
         this.retry = 0;
-        // From the server; clamp so a bad value can't make a zero-delay or never-firing timer.
-        this.timeoutMs = Math.min(Math.max(Number(msg.connectionTimeoutMs) || 300000, 10000), 3600000);
+        // From the server; only accept a sane range (10 s to 60 min), else the default.
+        const timeout = Number(msg.connectionTimeoutMs);
+        this.timeoutMs = Number.isFinite(timeout) && timeout >= 10000 && timeout <= 3600000 ? timeout : 300000;
         this.setReady(true);
         this.armKeepAlive();
         this.subs.forEach((sub, id) => this.sendSubscribe(id, sub));
