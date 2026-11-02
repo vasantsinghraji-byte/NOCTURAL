@@ -144,8 +144,8 @@ These make the current results untrustworthy. Fix them before adding new tests.
 
 | | Before | After |
 |---|---|---|
-| Suites | 8 failed, 196 passed, 4 skipped | **205 passed, 4 skipped, 0 failed** |
-| Tests | 113 failed, 1578 passed, 7 skipped | **1694 passed, 7 skipped, 0 failed** |
+| Suites | 8 failed, 196 passed, 4 skipped | **207 passed, 4 skipped, 0 failed** (after the dependency and CodeQL fixes) |
+| Tests | 113 failed, 1578 passed, 7 skipped | **1704 passed, 7 skipped, 0 failed** |
 
 The 4 skipped suites and 7 skipped tests are opt-in: they need flags such as `RUN_LIVE_CONCURRENCY_TESTS` or a staging target. The website build, web and app type-checks, and app unit tests (15/15) also pass locally with the commands the new CI job runs.
 
@@ -163,7 +163,11 @@ The 4 skipped suites and 7 skipped tests are opt-in: they need flags such as `RU
 | Built-site smoke | Playwright browser not downloaded locally | `playwright install chromium` (CI already does this) | Environment |
 | **Customer sign-in** | `/patients/login` and `/patients/register` had only the general API limit (750 per 15 min per IP) | New `customerAuthRateLimiter`: 30 failed attempts per 15 min per IP. It is higher than staff (5) because carrier IPs are shared, and the per-account lock still applies | **Security fix** |
 | Monitoring | A counter-reset timer kept processes from exiting | `unref()` | Product bug (minor) |
-| CI | Single-node MongoDB; no checks on `frontends/` | Replica set from the repo's compose file; new "Website & App Checks" job | CI |
+| CI | Single-node MongoDB; no checks on `frontends/` | Replica set from the repo's compose file; new "Website & App Checks" job. Both **passed on GitHub** (PR #216 run, 2 Nov) | CI |
+| CI lint (red since Oct) | `apps/patient-health/services/bookingService.js` required `./carePlanService`, which isn't in the app copy | Routed through `@nocturnal/shared` like the other shared modules | Mirror drift |
+| CI security audit (red since Oct) | Root: 5 critical and 7 high advisories. Client: 1 critical and 9 high | `npm audit fix` (no breaking upgrades); `follow-redirects` pin 1.16.0 → 1.16.2; client `js-yaml` pin 4.2.0 → ^4.3.2. Both audits pass the high gate | **Dependencies** |
+| Git hooks | This worktree's hooks path pointed at the repo's old folder, so pre-commit secret scans never ran | Stale worktree override removed (repo setting `.githooks` applies) | Tooling |
+| CodeQL | Alerts on PR #216 | 6 real issues fixed (settings allowlist, 2× email ReDoS, heat map lookup, timer clamp, unused code); 77 NoSQL alerts shown to be mitigated, with a regression test. Owner decision in `docs/SECURITY_CODEQL_TRIAGE.md` | **Security** |
 
 ## 9. How to read the inventory
 
