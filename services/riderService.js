@@ -22,10 +22,15 @@ const Medicine = require('../models/medicine');
 const { getRevenuePolicy } = require('../config/revenue');
 const { ValidationError, NotFoundError, ConflictError, AuthorizationError } = require('../utils/errors');
 const logger = require('../utils/logger');
+const engine = require('./dispatchEngine');
+
+const RIDER_SPEED_KMPH = 18; // city two-wheeler average incl. stops (serviceabilityService uses the same)
 
 const ACTIVE = ['ASSIGNED', 'ACCEPTED', 'ARRIVED_AT_STORE', 'PICKED_UP', 'ARRIVED_AT_CUSTOMER'];
 const BEFORE_PICKUP = ['ASSIGNED', 'ACCEPTED', 'ARRIVED_AT_STORE'];
 const FRESH_MS = 3 * 60 * 1000;
+// Order statuses where a rider's job is still live (a cancelled order frees them).
+const LIVE_ORDER = ['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY'];
 const round2 = (n) => Math.round(n * 100) / 100;
 
 function km(a, b) {
@@ -69,24 +74,69 @@ async function isColdChain(order) {
   return ids.length ? Boolean(await Medicine.exists({ _id: { $in: ids }, coldChain: true })) : false;
 }
 
-/** Give a ready order to a rider (batch first, then nearest free). Never throws. */
-async function assign(orderId, { exclude = [] } = {}) {
+/** Orders a rider can be given: from the store accepting it until it leaves. */
+const ASSIGNABLE = ['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP'];
+
+/** Minutes of packing still left for an order (0 once ready). */
+function remainingPrepMinutes(order, vendor, now = Date.now()) {
+  if (order.status === 'READY_FOR_PICKUP') return 0;
+  const prep = Number((vendor && (vendor.learned && vendor.learned.prepMinutes)) || (vendor && vendor.avgPreparationMinutes) || 15);
+  const startedAt = new Date((order.milestones && order.milestones.acceptedAt) || order.updatedAt || now).getTime();
+  return Math.max(0, prep - (now - startedAt) / 60000);
+}
+
+/** Minutes since each rider's last delivery (riders new today get the full fairness credit). */
+async function idleMinutesFor(riderIds, now = Date.now()) {
+  const rows = await PharmacyOrder.aggregate([
+    { $match: { rider: { $in: riderIds }, status: 'DELIVERED' } },
+    { $group: { _id: '$rider', last: { $max: '$milestones.deliveredAt' } } }
+  ]);
+  const map = new Map(rows.map((r) => [String(r._id), r.last ? (now - new Date(r.last).getTime()) / 60000 : 30]));
+  return (id) => (map.has(String(id)) ? map.get(String(id)) : 30);
+}
+
+/** Jobs each rider released today (reliability). */
+async function releasesTodayFor(riderIds, now = Date.now()) {
+  const dayStart = new Date(new Date(now + 330 * 60000).toISOString().slice(0, 10) + 'T00:00:00+05:30');
+  const rows = await PharmacyOrder.aggregate([
+    { $match: { riderDeclined: { $in: riderIds.map(String) }, updatedAt: { $gte: dayStart } } },
+    { $unwind: '$riderDeclined' },
+    { $match: { riderDeclined: { $in: riderIds.map(String) } } },
+    { $group: { _id: '$riderDeclined', n: { $sum: 1 } } }
+  ]);
+  const map = new Map(rows.map((r) => [String(r._id), r.n]));
+  return (id) => map.get(String(id)) || 0;
+}
+
+/**
+ * Give an order to a rider (dispatchEngine.js has the rules). Never throws.
+ *   1. Batch: a rider not yet picked up at this same store, few drops, all
+ *      within the batch radius (cold chain never batches).
+ *   2. Otherwise score the free riders near the store: minutes to the store,
+ *      fairness for the longest idle, a cost for jobs released today.
+ *   3. Just in time: while the store is still packing, assign only once the
+ *      best rider's ride takes about as long as the packing left, so they
+ *      arrive as it's packed. The minute tick tries again until then.
+ * Returns { riderId, batched, coldChain }, { deferred: true }, or null.
+ */
+async function assign(orderId, { exclude = [], now = Date.now() } = {}) {
   try {
     const order = await PharmacyOrder.findById(orderId).lean();
-    if (!order || order.status !== 'READY_FOR_PICKUP' || order.fulfilment !== 'DELIVERY' || order.rider) return null;
+    if (!order || !ASSIGNABLE.includes(order.status) || order.fulfilment !== 'DELIVERY' || order.rider) return null;
+    if (order.paymentMode === 'PREPAID' && order.paymentStatus !== 'PAID') return null;
     const drop = pointOf(order.deliveryLocation);
-    const vendor = await PharmacyVendor.findById(order.vendor).select('name location').lean();
+    const vendor = await PharmacyVendor.findById(order.vendor).select('name location avgPreparationMinutes learned').lean();
     const store = vendor && pointOf(vendor.location);
     if (!drop || !store) return null;
     const p = policy();
     const cold = await isColdChain(order);
+    const ready = order.status === 'READY_FOR_PICKUP';
     const declined = [...exclude, ...((order.riderDeclined || []).map(String))];
 
-    // 1) Batch: a rider not yet picked up at this same store, few drops, all nearby.
     let riderId = null;
     let batched = false;
     if (!cold) {
-      const open = await PharmacyOrder.find({ vendor: order.vendor, rider: { $ne: null }, deliveryStatus: { $in: BEFORE_PICKUP }, status: 'READY_FOR_PICKUP' })
+      const open = await PharmacyOrder.find({ vendor: order.vendor, rider: { $ne: null }, deliveryStatus: { $in: BEFORE_PICKUP }, status: { $in: ASSIGNABLE } })
         .select('rider deliveryLocation coldChain').lean();
       const byRider = new Map();
       for (const o of open) {
@@ -100,10 +150,9 @@ async function assign(orderId, { exclude = [] } = {}) {
       }
     }
 
-    // 2) Nearest online rider with nothing on hand.
     if (!riderId) {
-      const busy = await PharmacyOrder.distinct('rider', { rider: { $ne: null }, deliveryStatus: { $in: ACTIVE } });
-      const [rider] = await User.aggregate([
+      const busy = await PharmacyOrder.distinct('rider', { rider: { $ne: null }, deliveryStatus: { $in: ACTIVE }, status: { $in: LIVE_ORDER } });
+      const near = await User.aggregate([
         {
           $geoNear: {
             near: { type: 'Point', coordinates: [store.lng, store.lat] },
@@ -113,27 +162,40 @@ async function assign(orderId, { exclude = [] } = {}) {
             spherical: true,
             query: {
               role: 'delivery_partner', isActive: { $ne: false }, isOnline: true, isVerified: true,
-              'currentLocation.updatedAt': { $gte: new Date(Date.now() - FRESH_MS) },
+              'currentLocation.updatedAt': { $gte: new Date(now - FRESH_MS) },
               _id: { $nin: [...busy, ...declined.filter((x) => mongoose.isValidObjectId(x)).map((x) => new mongoose.Types.ObjectId(x))] }
             }
           }
         },
-        { $limit: 1 },
-        { $project: { _id: 1 } }
+        { $limit: 8 },
+        { $project: { _id: 1, distanceMeters: 1 } }
       ]);
-      riderId = rider ? String(rider._id) : null;
+      if (!near.length) return null;
+      const ids = near.map((r) => r._id);
+      const [idle, releases] = await Promise.all([idleMinutesFor(ids, now), releasesTodayFor(ids, now)]);
+      const best = engine.pickRider(near.map((r) => ({
+        id: String(r._id),
+        travelMinutes: engine.rideMinutes(r.distanceMeters / 1000, RIDER_SPEED_KMPH, roadFactor()),
+        idleMinutes: idle(r._id),
+        releasesToday: releases(r._id)
+      })));
+      const remaining = remainingPrepMinutes(order, vendor, now);
+      if (!engine.shouldAssignNow({ remainingPrepMinutes: remaining, travelMinutes: best.travelMinutes, coldChain: cold, ready })) {
+        return { deferred: true, riderId: best.id, travelMinutes: best.travelMinutes, remainingPrepMinutes: Math.round(remaining) };
+      }
+      riderId = best.id;
     }
-    if (!riderId) return null;
 
-    const now = new Date();
+    const at = new Date(now);
     const updated = await PharmacyOrder.findOneAndUpdate(
-      { _id: order._id, rider: null, status: 'READY_FOR_PICKUP' },
-      { $set: { rider: riderId, deliveryStatus: 'ASSIGNED', coldChain: cold, 'milestones.riderAssignedAt': now }, $push: { timeline: { status: 'READY_FOR_PICKUP', at: now, note: batched ? 'Rider assigned (batched with another order)' : 'Rider assigned' } } },
+      { _id: order._id, rider: null, status: { $in: ASSIGNABLE } },
+      { $set: { rider: riderId, deliveryStatus: 'ASSIGNED', coldChain: cold, 'milestones.riderAssignedAt': at }, $push: { timeline: { status: order.status, at, note: batched ? 'Rider assigned (batched with another order)' : 'Rider assigned' } } },
       { new: true }
     ).lean();
     if (!updated) return null;
+    const packing = ready ? 'order ready for pickup' : `being packed, ready in about ${Math.max(1, Math.round(remainingPrepMinutes(order, vendor, now)))} min`;
     notify(riderId, cold ? 'Cold-chain pickup: go now' : batched ? 'Another drop added to your trip' : 'New pickup',
-      `${vendor.name}: ${cold ? 'keep it in the cooler bag, deliver within 60 minutes' : 'order ready for pickup'}.`, order._id);
+      `${vendor.name}: ${cold ? 'keep it in the cooler bag, deliver within 60 minutes' : packing}.`, order._id);
     return { riderId, batched, coldChain: cold };
   } catch (err) {
     logger.warn('Rider assignment failed', { orderId: String(orderId), error: err.message });
@@ -150,7 +212,7 @@ async function ownJob(riderId, orderId) {
 
 /** What I'm carrying: grouped by store (a batch), drops nearest-first. */
 async function myJobs(riderId) {
-  const orders = await PharmacyOrder.find({ rider: riderId, deliveryStatus: { $in: ACTIVE } })
+  const orders = await PharmacyOrder.find({ rider: riderId, deliveryStatus: { $in: ACTIVE }, status: { $in: LIVE_ORDER } })
     .populate('vendor', 'name location address phone').sort({ 'milestones.riderAssignedAt': 1 }).lean();
   const batches = new Map();
   for (const o of orders) {
@@ -164,6 +226,8 @@ async function myJobs(riderId) {
     const pay = payFor(o, o.vendor && pointOf(o.vendor.location), 0);
     batches.get(key).drops.push({
       orderId: o._id, orderNumber: o.orderNumber, deliveryStatus: o.deliveryStatus, coldChain: Boolean(o.coldChain),
+      // Assigned while the store packs: the app shows "being packed" until it's ready.
+      orderStatus: o.status, readyForPickup: o.status !== 'ACCEPTED' && o.status !== 'PREPARING',
       items: (o.items || []).reduce((n, i) => n + (i.quantity || 1), 0),
       collectCash: o.paymentMode === 'COD' ? round2(o.amounts.total) : 0,
       address: { line1: o.deliveryAddress && o.deliveryAddress.line1, line2: o.deliveryAddress && o.deliveryAddress.line2, city: o.deliveryAddress && o.deliveryAddress.city },
@@ -199,6 +263,8 @@ async function step(riderId, orderId, action, body = {}) {
   if (action === 'arrived-store') await set(['ASSIGNED', 'ACCEPTED'], 'ARRIVED_AT_STORE');
   else if (action === 'picked-up') {
     if (!BEFORE_PICKUP.includes(order.deliveryStatus)) throw new ConflictError('Already picked up');
+    // Riders are sent while the store packs, so they can arrive a little early.
+    if (order.status !== 'READY_FOR_PICKUP') throw new ConflictError('The store is still packing this order. Pick it up once they mark it ready.');
     // The order leaves the store: same transition the store would make.
     await pharmacy.updateOrderStatus(order._id, { vendorId: order.vendor, actorUserId: riderId, status: 'OUT_FOR_DELIVERY', note: 'Picked up by the Nabz rider' });
     await set(BEFORE_PICKUP, 'PICKED_UP', { 'milestones.pickedUpAt': now });
@@ -247,13 +313,33 @@ async function earnings(riderId) {
   };
 }
 
-/** Cron: ready orders still without a rider get another try. */
+/** Tick: orders being packed or ready, still without a rider, get another try (just in time). */
 async function sweep() {
-  const waiting = await PharmacyOrder.find({ status: 'READY_FOR_PICKUP', fulfilment: 'DELIVERY', rider: null, 'milestones.readyAt': { $lte: new Date(Date.now() - 30000) } })
-    .sort({ coldChain: -1, 'milestones.readyAt': 1 }).select('_id').limit(50).lean();
+  const waiting = await PharmacyOrder.find({ status: { $in: ASSIGNABLE }, fulfilment: 'DELIVERY', rider: null })
+    .sort({ coldChain: -1, 'milestones.acceptedAt': 1 }).select('_id').limit(50).lean();
+  let assigned = 0;
+  let waitingForTiming = 0;
+  for (const o of waiting) {
+    const r = await assign(o._id);
+    if (r && r.deferred) waitingForTiming += 1;
+    else if (r && r.riderId) assigned += 1;
+  }
+  return { assigned, waitingForTiming, freed: await freeCancelled() };
+}
+
+/** Orders cancelled while a rider was on the way to the store: tell them and free them. */
+async function freeCancelled() {
+  const gone = await PharmacyOrder.find({ rider: { $ne: null }, deliveryStatus: { $in: BEFORE_PICKUP }, status: { $in: ['CANCELLED', 'REJECTED'] } })
+    .select('_id rider orderNumber').limit(50).lean();
   let n = 0;
-  for (const o of waiting) if (await assign(o._id)) n += 1;
+  for (const o of gone) {
+    const r = await PharmacyOrder.updateOne({ _id: o._id, rider: o.rider, deliveryStatus: { $in: BEFORE_PICKUP } }, { $set: { deliveryStatus: 'CANCELLED' } });
+    if (r.modifiedCount) {
+      n += 1;
+      notify(o.rider, 'Pickup cancelled', `Order ${o.orderNumber || 'for this pickup'} was cancelled. You don't need to go to the store.`, o._id);
+    }
+  }
   return n;
 }
 
-module.exports = { setOnline, assign, myJobs, step, release, earnings, sweep, payFor, isColdChain };
+module.exports = { setOnline, assign, myJobs, step, release, earnings, sweep, payFor, isColdChain, remainingPrepMinutes, ASSIGNABLE };

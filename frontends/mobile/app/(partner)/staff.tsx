@@ -24,6 +24,7 @@ import { appAlert } from '@/lib/dialog';
 import { ProposalSheet } from '@/lib/ProposalSheet';
 import { ShopOverview } from '@/lib/ShopOverview';
 import { useTabBarSpace } from '@/lib/PillTabBar';
+import BusyAreas from '@/lib/BusyAreas';
 import { ChatButton } from '@/lib/ChatButton';
 
 type StoreInfo = { name?: string; address?: { line1?: string } };
@@ -318,12 +319,14 @@ export default function StaffHome() {
 
           {offer && <OfferCard offer={offer} onAccept={() => respond(true)} onDecline={() => respond(false)} />}
 
+          {!offer && <BusyAreas kind="staff" online={online} />}
+
           {/* The shop, up front: status, prices, bookings switch and shortcuts */}
           <ShopOverview />
 
           {online && !offer && dash?.demand?.length ? (
             <View style={ui.card}>
-              <View style={styles.inline}><Flame size={16} color={C.accent} /><Text style={ui.h3}>Busy near you (last 7 days)</Text></View>
+              <View style={styles.inline}><Flame size={16} color={C.accent} /><Text style={ui.h3}>Popular areas (last 7 days)</Text></View>
               <View style={{ gap: 8, marginTop: 10 }}>
                 {dash.demand.map((d, i) => (
                   <View key={`${d.lat},${d.lng}`} style={styles.demandRow}>

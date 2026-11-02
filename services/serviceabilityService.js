@@ -32,8 +32,11 @@ const testRadiusKm = () => {
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
-// ETA heuristics until a learned model exists (see docs/MEDRUSH_DATA_MODEL.md).
+// ETA: learned medians when there are enough real deliveries
+// (heatmapService.learnEta), otherwise these defaults.
 const RIDER_SPEED_KMPH = 18; // Indian city two-wheeler average incl. stops
+const MIN_PREP_SAMPLES = 5;
+const MIN_SPEED_SAMPLES = 10;
 const ASSIGNMENT_MINUTES = 3;
 const LAST_MILE_BUFFER_MINUTES = 4; // parking, stairs, handover
 
@@ -77,11 +80,15 @@ function effectiveRadiusKm(vendor, zone, now = new Date()) {
 }
 
 /** Promise-time estimate split into legs (Swiggy: O2A + FM vs prep, then LM). */
-function estimateEta(vendor, distanceKm, now = new Date()) {
-  const prepMinutes = toNumber(vendor && vendor.avgPreparationMinutes, 15);
+function estimateEta(vendor, distanceKm, now = new Date(), zone = null) {
+  const learnedPrep = vendor && vendor.learned && vendor.learned.prepSamples >= MIN_PREP_SAMPLES ? toNumber(vendor.learned.prepMinutes) : undefined;
+  const prepMinutes = Math.ceil(learnedPrep !== undefined ? learnedPrep : toNumber(vendor && vendor.avgPreparationMinutes, 15));
+  const learnedSpeed = zone && zone.learned && zone.learned.rideSamples >= MIN_SPEED_SAMPLES ? toNumber(zone.learned.rideKmph) : undefined;
+  const speed = learnedSpeed || RIDER_SPEED_KMPH;
+  // A learned speed already includes parking and the handover.
   const lastMileMinutes = distanceKm === undefined
     ? 20
-    : Math.ceil((distanceKm / RIDER_SPEED_KMPH) * 60) + LAST_MILE_BUFFER_MINUTES;
+    : Math.ceil((distanceKm / speed) * 60) + (learnedSpeed ? 0 : LAST_MILE_BUFFER_MINUTES);
   // The rider is assigned while the order is being prepared, so the first leg
   // is whichever of (assignment) and (prep) is longer.
   const totalMinutes = Math.max(ASSIGNMENT_MINUTES, prepMinutes) + lastMileMinutes;
@@ -203,7 +210,7 @@ async function findServiceableVendors({ lat, lng, radiusKm, limit = 30 }) {
     {
       $project: {
         name: 1, slug: 1, address: 1, location: 1, serviceRadiusKm: 1, rating: 1,
-        deliveryFee: 1, minOrderValue: 1, avgPreparationMinutes: 1, operatingHours: 1,
+        deliveryFee: 1, minOrderValue: 1, avgPreparationMinutes: 1, learned: 1, operatingHours: 1,
         distanceMeters: 1, hasColdStorage: 1, acceptsPrescriptionOrders: 1, reliability: 1
       }
     }
@@ -215,7 +222,7 @@ async function findServiceableVendors({ lat, lng, radiusKm, limit = 30 }) {
     const radius = effectiveRadiusKm(vendor, zone, now);
     const distanceKm = Math.round((vendor.distanceMeters / 1000) * 100) / 100;
     if (distanceKm > radius) continue;
-    const eta = estimateEta(vendor, distanceKm, now);
+    const eta = estimateEta(vendor, distanceKm, now, zone);
     delete vendor.distanceMeters; // internal; clients get distanceKm
     vendors.push({ ...vendor, distanceKm, effectiveRadiusKm: radius, eta });
     if (vendors.length >= cappedLimit) break;
@@ -252,7 +259,7 @@ async function assessDelivery(vendor, deliveryPoint) {
     distanceKm,
     effectiveRadiusKm: radius,
     serviceable: distanceKm !== undefined && distanceKm <= radius,
-    eta: estimateEta(vendor, distanceKm)
+    eta: estimateEta(vendor, distanceKm, new Date(), zone)
   };
 }
 

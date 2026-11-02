@@ -54,6 +54,12 @@ router.post(
   })
 );
 
+// Busy areas near me: where orders are coming in and riders are short (cells only, no customer details).
+router.get('/busy-areas', rider, wrap(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ success: true, ...(await require('../services/heatmapService').busyAreasFor(req.user)) });
+}));
+
 router.get('/earnings', rider, wrap(async (req, res) => {
   res.json({ success: true, ...(await riderService.earnings(me(req))) });
 }));

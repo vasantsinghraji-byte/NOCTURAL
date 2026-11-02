@@ -430,3 +430,17 @@ a.navuser { display: inline-flex; align-items: center; gap: 8px; color: inherit;
 .account-links .danger-link, .account-links .danger-link svg { color: var(--rose-ink); }
 /* Pending-count badge on a tab (onboarding panel). */
 .tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 6px; border-radius: 10px; background: var(--brand); color: var(--brand-ink); font-size: 11px; font-weight: 700; line-height: 1; }
+
+/* Control tower heat map: one hue (Nabz red) light to dark = how short of people an area is. */
+:root { --heat-0: #eef0f3; --heat-1: #fbdde2; --heat-2: #f19aa8; --heat-3: #dc4c63; --heat-4: #a50d26; }
+.heat-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 12px 0; }
+.heat-card { padding: 14px; }
+.heat-figure { position: relative; }
+.heat-figure svg { display: block; width: 100%; height: auto; max-height: 460px; }
+.heat-figure rect { cursor: pointer; }
+.heat-figure rect:focus-visible { outline: none; stroke: var(--ink); }
+.heat-tip { position: absolute; transform: translate(-50%, calc(-100% - 10px)); pointer-events: none; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; box-shadow: 0 6px 20px rgba(17, 20, 24, .12); display: grid; gap: 2px; font-size: 13px; white-space: nowrap; z-index: 2; }
+.heat-tip b { font-size: 13px; }
+.heat-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.heat-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.heat-legend i { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid var(--border); }

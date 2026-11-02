@@ -47,7 +47,16 @@ const ServiceZoneSchema = new mongoose.Schema({
     radiusMultiplier: { type: Number, default: 1, min: 0.1, max: 1 },
     reason: String, // "Heavy rain", "Rider shortage"
     until: Date, // auto-expiry of the stress override
+    auto: { type: Boolean, default: false }, // set by the automatic surge (heatmapService), not by ops
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    updatedAt: Date
+  },
+
+  // Learned hourly from real deliveries (heatmapService.learnEta): median
+  // riding speed in this zone, pickup to handover, including parking.
+  learned: {
+    rideKmph: Number,
+    rideSamples: Number,
     updatedAt: Date
   }
 }, {

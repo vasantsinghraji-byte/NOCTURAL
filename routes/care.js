@@ -104,6 +104,16 @@ router.get('/providers', [query('serviceType').optional().isString().isLength({ 
   }
 });
 
+// Busy areas near me: where visits are being requested and few nurses are online.
+router.get('/staff/busy-areas', staffOnly, async (req, res, next) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, ...(await require('../services/heatmapService').busyAreasFor(req.user)) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/staff/availability', staffOnly, async (req, res, next) => {
   try {
     res.json({ success: true, availability: await staffAvailabilityService.getAvailability(req.user._id) });

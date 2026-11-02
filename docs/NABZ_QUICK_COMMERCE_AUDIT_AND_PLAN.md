@@ -237,14 +237,14 @@ Effort: S = days, M = 1–2 weeks, L = 3+ weeks for one engineer.
 
 | # | Item | Effort | Done when |
 |---|---|---|---|
-| 1.1 | **Assign the rider at `ACCEPTED`**, timed so the rider reaches the store as packing ends (prep estimate minus rider travel time); keep assign-at-ready as the fallback | M | Rider waiting time at store and total time both drop; the ETA formula matches the code |
-| 1.2 | **Learned ETA v1:** rolling median prep time per store and median speed per zone and hour, from order milestones; show the promise before checkout and on Home | M | "% delivered by promise" is measured and above the target you set |
+| 1.1 | ✅ **Built.** **Assign the rider at `ACCEPTED`**, timed so the rider reaches the store as packing ends (prep estimate minus rider travel time); keep assign-at-ready as the fallback | M | Rider waiting time at store and total time both drop; the ETA formula matches the code |
+| 1.2 | ✅ **Built (store prep + zone speed; per-hour split still to do).** **Learned ETA v1:** rolling median prep time per store and median speed per zone and hour, from order milestones; show the promise before checkout and on Home | M | "% delivered by promise" is measured and above the target you set |
 | 1.3 | **Live rider tracking for customers** on the existing AppSync channels (rider heartbeat → order channel) | M | Customers see the rider and a countdown from pickup |
 | 1.4 | **Atlas Search** for medicines, services and stores: fuzzy matching, salt ↔ brand synonyms, Hinglish synonyms, autocomplete | M | "paracitamol", "dolo" and "bukhar ki dawai" return the right items |
 | 1.5 | **Product photos and pack info** for the top 500 SKUs | M | No generic icons in the top results |
 | 1.6 | **"Nabz Assured" stores:** 1–2 anchor chemists per launch zone commit to a core range, under 2-minute acceptance and daily stock confirmation, in return for ranking priority and a lower commission | M (mostly ops) | Each launch zone has an anchor; core-range fill rate is tracked |
 | 1.7 | **Third-party courier fallback** when no Nabz rider is free within N minutes | M | No order waits more than N minutes for pickup |
-| 1.8 | **Control tower v1** in the admin panel: live orders, riders and online staff per zone; SLA breaches; zone stress switch on the same screen | M | Ops can see and act on every late order in one view |
+| 1.8 | ✅ **Heat map, zone surge (automatic + manual) and busy areas built; live late-order list still to do.** **Control tower v1** in the admin panel: live orders, riders and online staff per zone; SLA breaches; zone stress switch on the same screen | M | Ops can see and act on every late order in one view |
 | 1.9 | **Free-delivery threshold experiment:** compare ₹249 with ₹349 or ₹399 in one zone each, behind a flag (the distance fee below it is built) | S | Contribution per order and conversion measured for each threshold |
 
 ### Phase 2 (weeks 3–8): nurse supply density and one customer flow

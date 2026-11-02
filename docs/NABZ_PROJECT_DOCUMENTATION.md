@@ -275,12 +275,23 @@ The most developed vertical. Full design and edge-case catalogue: [pharmacy/STOR
 
 ### 8.5 Riders
 
-- Code: `services/riderService.js`.
+- Code: `services/riderService.js` (database), `services/dispatchEngine.js` (the rules, pure functions), `services/heatmapService.js` (heat map, surge, learned ETA).
 - Riders go online with a location heartbeat (verified riders only).
-- When a store marks an order **ready**, it goes to a rider already heading to that store whose drops are within 3 km (a batch of up to 3), else to the nearest free online rider within 6 km. Cold-chain orders never wait in a batch.
+- **Just-in-time assignment** (the Blinkit / Zepto / Flipkart Minutes pattern): from the moment a store **accepts** an order, Nabz looks for a rider, but sends them only once their ride to the store takes about as long as the packing still left (minus 2 minutes), so they arrive as it's packed. Ready and cold-chain orders are assigned at once. The minute tick retries until the timing is right.
+- **Batching first:** a rider already heading to that store whose drops are within 3 km takes the new drop (a batch of up to 3). Cold-chain orders never wait in a batch.
+- **Rider score** for the free riders near the store (up to 8 within 6 km): minutes to the store, minus up to 6 minutes of fairness credit for riders idle longest (0.2 per idle minute, capped at 30), plus 3 minutes for each job they released today. Lowest score wins.
+- A rider can't mark "picked up" before the store marks the order ready. If the order is cancelled while they head to the store, the tick frees them and tells them.
+- **Busy areas:** riders (`GET /rider/busy-areas`) and nurses (`GET /care/staff/busy-areas`) see up to 3 nearby ~1 km cells where demand outruns supply, with distance and ride time. Cells only, never customer details.
 - Steps: arrived at store → picked up (order goes out for delivery) → arrived → delivered with the customer's 4-digit code. A rider can release a job before pickup.
 - Pay: ₹20 per drop + ₹5 per road km + ₹10 for each extra drop on the trip, booked in the ledger.
 - No rider free: the store delivers itself.
+
+### 8.5a Dispatch heat map, automatic surge and learned ETA
+
+- **Grid:** geohash cells at precision 6 (about 1.2 km × 0.6 km). Demand = pharmacy orders placed in the last 30 minutes still without a rider (or home visits still looking for a nurse, last 3 hours). Supply = free riders (or online nurses) with a location under 3 minutes old. Each cell gets demand, supply, gap and a 0–4 heat level.
+- **Control tower** (admin website, tab "Control tower", `GET /admin/ops/heatmap?layer=pharmacy|care`): the map, a table view, totals, and every zone's surge level with its reason and expiry. Refreshes every 30 seconds.
+- **Automatic surge** (minute tick, `heatmapService.autoSurge`): per active zone, orders waiting vs free riders inside it. Two or more orders per free rider = HIGH (delivery radius × 0.85); four or more = SEVERE (× 0.7). Lasts 15 minutes and is extended while it holds; ends once riders catch up (no sooner than 10 minutes, so it doesn't flap). A level ops set by hand (`stress.auto: false`) is never overridden while it lasts.
+- **Learned ETA** (hourly, `heatmapService.learnEta`): each store's median minutes from accepted to ready (needs 5 orders in 14 days), and each zone's median riding speed from pickup to handover (needs 10). Customer ETAs and rider timing use them instead of the store's own guess and the 18 km/h default.
 
 ### 8.6 Payments, payouts and wallet
 
@@ -356,7 +367,7 @@ Prepaid orders are invisible to the store until paid; the SLA clock starts at pa
 ### 9.3 Rider job
 
 ```
-READY_FOR_PICKUP ─► ASSIGNED (batched or nearest) ─► ACCEPTED ─► ARRIVED_AT_STORE ─► PICKED_UP ─► ARRIVED_AT_CUSTOMER ─► DELIVERED
+ACCEPTED / PREPARING / READY ─► (wait until ride time ≈ packing left) ─► ASSIGNED (batched or best score) ─► ACCEPTED ─► ARRIVED_AT_STORE ─► PICKED_UP ─► ARRIVED_AT_CUSTOMER ─► DELIVERED
                        └─ released before pickup ─► next rider          (order becomes OUT_FOR_DELIVERY)
 ```
 
@@ -428,9 +439,9 @@ Rider cost is ₹20 per drop + ₹5 per road km. With free delivery from ₹249,
 
 | Mechanism | What it runs | Notes |
 |---|---|---|
-| **Minute tick** (EventBridge → `POST /api/v1/internal/tick`, `services/cronService.js`) | Dispatch, pharmacy acceptance timeouts, partial refund retries, unpaid order expiry, pharmacy housekeeping, care refund outbox, campaign pushes, partner document expiry, care plans, ads, reliability, riders, refills, substitutions, call timeouts, settings reload | Holds a 55-second MongoDB lease (`jobLease`), so only one instance runs it. Records each run's result. CloudWatch alarms fire if it stops or fails. Exists because App Runner throttles CPU when idle |
+| **Minute tick** (EventBridge → `POST /api/v1/internal/tick`, `services/cronService.js`) | Dispatch, rider assignment (just in time), automatic surge, learned ETA (hourly), pharmacy acceptance timeouts, partial refund retries, unpaid order expiry, pharmacy housekeeping, care refund outbox, campaign pushes, partner document expiry, care plans, ads, reliability, riders, refills, substitutions, call timeouts, settings reload | Holds a 55-second MongoDB lease (`jobLease`), so only one instance runs it. Records each run's result. CloudWatch alarms fire if it stops or fails. Exists because App Runner throttles CPU when idle |
 | **In-process timers** (started in `server.js`) | Dispatch sweep every 10 s, pharmacy assignment worker every 20 s | Backup to the tick; may stall when the instance is idle |
-| **Fire-and-forget** (`setImmediate`, 8 call sites) | Rider assignment when an order is ready, rider sweep when a rider comes online, family notifications | Lost if the process restarts at that moment; the minute tick catches most of them later |
+| **Fire-and-forget** (`setImmediate`, 8 call sites) | Rider assignment when an order is accepted, packing or ready, rider sweep when a rider comes online, family notifications | Lost if the process restarts at that moment; the minute tick catches most of them later |
 | **Outbox workers** (`workers/`) | Refunds, booking completion, security notifications | Retry until done |
 
 ---

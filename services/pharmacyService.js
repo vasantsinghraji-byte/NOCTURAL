@@ -666,8 +666,10 @@ async function updateOrderStatus(orderId, { vendorId, actorUserId, status, note,
     { new: true }
   );
   if (!updated) throw new ConflictError('This order just changed. Refresh to see its latest status');
-  // Ready: find a Nabz rider (batched with nearby drops when possible). The store can still deliver itself if none is free.
-  if (status === 'READY_FOR_PICKUP' && updated.fulfilment === 'DELIVERY') {
+  // Accepted, packing or ready: find a Nabz rider, timed so they reach the store
+  // as packing ends (riderService.assign waits until then; the tick retries).
+  // Batched with nearby drops when possible. The store can still deliver itself if none is free.
+  if (['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP'].includes(status) && updated.fulfilment === 'DELIVERY' && !updated.rider) {
     setImmediate(() => { require('./riderService').assign(updated._id).catch(() => undefined); });
   }
   // Delivered: book the store's payout, our commission and the delivery fee.

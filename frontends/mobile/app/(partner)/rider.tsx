@@ -12,10 +12,14 @@ import { inr, problem } from '@/lib/market';
 import { BottomSheet, Btn, Empty, Meta, Note, Title } from '@/lib/marketUI';
 import { success, warn } from '@/lib/motion';
 import { useTabBarSpace } from '@/lib/PillTabBar';
+import BusyAreas from '@/lib/BusyAreas';
 import { C, F, clay, ui } from '@/lib/theme';
 
 const HEARTBEAT_MS = 30000;
 const greet = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
+// Riders are sent while the store packs; they pick up once it's marked ready.
+const BEFORE_PICKUP = ['ASSIGNED', 'ACCEPTED', 'ARRIVED_AT_STORE'];
+const isReady = (d: RiderDrop) => d.readyForPickup !== false;
 const STEP_LABEL: Record<string, string> = { ASSIGNED: 'Go to the store', ACCEPTED: 'Go to the store', ARRIVED_AT_STORE: 'At the store', PICKED_UP: 'On the way', ARRIVED_AT_CUSTOMER: 'At the door' };
 
 function openMaps(lat?: number, lng?: number, label?: string) {
@@ -83,7 +87,7 @@ export default function RiderHome() {
     try { await fn(); success(); load(); } catch (e) { warn(); appAlert('That didn’t work', problem(e).message); } finally { setBusy(''); }
   };
   const pickUpAll = (b: RiderBatch) => act(`pick:${b.store._id}`, async () => {
-    for (const d of b.drops.filter((x) => ['ASSIGNED', 'ACCEPTED', 'ARRIVED_AT_STORE'].includes(x.deliveryStatus))) await api.riderStep(d.orderId, 'picked-up');
+    for (const d of b.drops.filter((x) => BEFORE_PICKUP.includes(x.deliveryStatus) && isReady(x))) await api.riderStep(d.orderId, 'picked-up');
   });
   const release = async (d: RiderDrop) => {
     const reason = await appPrompt({ title: 'Can’t take this order?', message: 'It goes to the next rider. Please tell us why.', placeholder: 'Bike trouble, too far…', confirmText: 'Release Order', maxLength: 200 });
@@ -127,11 +131,13 @@ export default function RiderHome() {
         </View>
 
         <View style={{ padding: 16, gap: 14 }}>
+          <BusyAreas kind="rider" online={online} />
           <Title size={20}>Your trips</Title>
           {!batches ? <ActivityIndicator color={C.brand} /> : null}
           {batches && batches.length === 0 ? <Empty title={online ? 'Waiting for orders' : 'Go online to get orders'} text="Stay near pharmacies. Orders nearby are batched so you earn more per trip." /> : null}
           {batches?.map((b) => {
-            const toPick = b.drops.filter((d) => ['ASSIGNED', 'ACCEPTED', 'ARRIVED_AT_STORE'].includes(d.deliveryStatus));
+            const toPick = b.drops.filter((d) => BEFORE_PICKUP.includes(d.deliveryStatus));
+            const readyToPick = toPick.filter(isReady);
             return (
               <View key={String(b.store._id)} style={s.trip}>
                 <View style={s.storeRow}>
@@ -147,7 +153,9 @@ export default function RiderHome() {
                     {b.store.phone ? <Btn small variant="ghost" icon={Phone} label="Call Store" onPress={() => Linking.openURL(`tel:${b.store.phone}`)} /> : null}
                     {toPick.some((d) => d.deliveryStatus !== 'ARRIVED_AT_STORE')
                       ? <Btn small variant="soft" label="I’m at the Store" loading={busy === `arr:${b.store._id}`} onPress={() => act(`arr:${b.store._id}`, async () => { for (const d of toPick) if (d.deliveryStatus !== 'ARRIVED_AT_STORE') await api.riderStep(d.orderId, 'arrived-store'); })} /> : null}
-                    <Btn small label={`Picked Up (${toPick.length})`} loading={busy === `pick:${b.store._id}`} onPress={() => pickUpAll(b)} />
+                    {readyToPick.length
+                      ? <Btn small label={`Picked Up (${readyToPick.length})`} loading={busy === `pick:${b.store._id}`} onPress={() => pickUpAll(b)} />
+                      : <Btn small label="Being Packed" disabled onPress={() => undefined} />}
                   </View>
                 ) : null}
                 {b.drops.map((d, i) => (
@@ -162,6 +170,7 @@ export default function RiderHome() {
                     </View>
                     <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
                       <Text style={s.status}>{STEP_LABEL[d.deliveryStatus] || d.deliveryStatus}</Text>
+                      {BEFORE_PICKUP.includes(d.deliveryStatus) && !isReady(d) ? <Text style={s.packing}>Store is packing: reach by the time it’s ready</Text> : null}
                       {d.coldChain ? <View style={s.cold}><Snowflake size={12} color="#1f7fb8" /><Text style={s.coldText}>Cold chain: cooler bag, deliver within 60 min</Text></View> : null}
                       {d.collectCash > 0 ? <View style={s.cash}><Banknote size={12} color={C.amber} /><Text style={s.cashText}>Collect {inr(d.collectCash)} cash</Text></View> : null}
                     </View>
@@ -229,6 +238,7 @@ const s = StyleSheet.create({
   numText: { color: '#ffffff', fontFamily: F.heavy, fontSize: 13 },
   dropTitle: { fontFamily: F.bold, fontSize: 15, color: C.ink },
   pay: { fontFamily: F.display, fontSize: 17, color: C.mint },
+  packing: { fontFamily: F.bold, fontSize: 11, color: C.ink, backgroundColor: C.cardAlt, borderWidth: 1, borderColor: C.faint, paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
   status: { fontFamily: F.heavy, fontSize: 12, color: C.brandDark, backgroundColor: C.brandSoft, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, overflow: 'hidden' },
   cold: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#e6f0f5', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
   coldText: { fontFamily: F.bold, fontSize: 11, color: '#1f7fb8' },

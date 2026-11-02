@@ -114,6 +114,14 @@ const PharmacyVendorSchema = new mongoose.Schema({
   minOrderValue: { type: Number, default: 0 },
   deliveryFee: { type: Number, default: 0 },
   avgPreparationMinutes: { type: Number, default: 15 },
+  // Learned hourly from real orders (heatmapService.learnEta): the median
+  // minutes from accepting to ready. Used for ETAs and rider timing once
+  // there are enough samples; avgPreparationMinutes is the store's own guess.
+  learned: {
+    prepMinutes: Number,
+    prepSamples: Number,
+    updatedAt: Date
+  },
 
   // Lifecycle
   status: {

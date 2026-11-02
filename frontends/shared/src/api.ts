@@ -956,6 +956,11 @@ export class MedRushApi {
     return this.request<{ success: true } & AdminLogs>('GET', '/admin/ops/logs', { query: opts });
   }
 
+  /** Control tower: demand vs free riders / nurses per ~1 km cell, plus each zone's surge. */
+  adminHeatmap(layer: 'pharmacy' | 'care' = 'pharmacy') {
+    return this.request<{ success: true } & Heatmap>('GET', '/admin/ops/heatmap', { query: { layer } });
+  }
+
   adminPaymentLog(opts: { from?: string; to?: string; kind?: PaymentLogKind } = {}) {
     return this.request<{ success: true } & PaymentLog>('GET', '/admin/ops/payments', { query: opts });
   }
@@ -1155,6 +1160,15 @@ export class MedRushApi {
 
   riderRelease(orderId: string, reason?: string) {
     return this.request<{ success: true; released: boolean }>('POST', `/rider/jobs/${orderId}/release`, { body: { reason } });
+  }
+
+  /** Busy areas near me: riders see orders waiting, nurses see visits requested (cells only). */
+  riderBusyAreas() {
+    return this.request<{ success: true } & BusyAreas>('GET', '/rider/busy-areas');
+  }
+
+  staffBusyAreas() {
+    return this.request<{ success: true } & BusyAreas>('GET', '/care/staff/busy-areas');
   }
 
   riderEarnings() {
@@ -1563,8 +1577,28 @@ export interface CareLogView {
 export interface RiderEarning { earned: number; drops: number; cashCollected: number }
 export interface RiderDrop {
   orderId: string; orderNumber: string; deliveryStatus: string; coldChain: boolean; items: number; collectCash: number;
+  /** Riders are sent while the store packs: false until the store marks it ready. */
+  orderStatus?: string; readyForPickup?: boolean;
   address: { line1?: string; line2?: string; city?: string }; contactName?: string | null; contactPhone?: string | null; lat?: number; lng?: number; pay: number;
 }
+export interface BusyArea { lat: number; lng: number; heat: number; demand: number; distanceKm: number; rideMinutes: number }
+export interface BusyAreas { layer?: 'pharmacy' | 'care'; areas: BusyArea[]; reason?: 'NO_LOCATION' }
+
+export interface HeatCell {
+  hash: string; lat: number; lng: number;
+  bounds: { south: number; north: number; west: number; east: number };
+  demand: number; supply: number; gap: number; heat: number;
+}
+export interface HeatZone {
+  id: string; code: string; name: string; city: string; rideKmph: number | null;
+  stress: { level: 'NORMAL' | 'HIGH' | 'SEVERE'; radiusMultiplier?: number; reason?: string | null; until?: string | null; auto?: boolean };
+}
+export interface Heatmap {
+  layer: 'pharmacy' | 'care'; windowMinutes: number; generatedAt: string;
+  totals: { demand: number; freeSupply: number; online: number; shortCells: number };
+  cells: HeatCell[]; zones: HeatZone[];
+}
+
 export interface RiderBatch { store: { _id: string; name: string; address?: { line1?: string; city?: string }; phone?: string; lat?: number; lng?: number }; drops: RiderDrop[] }
 
 export interface RefillView {

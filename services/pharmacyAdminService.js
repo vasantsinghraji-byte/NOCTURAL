@@ -223,6 +223,7 @@ async function updateZone(zoneId, updates = {}, adminUserId) {
       radiusMultiplier: level === 'NORMAL' ? 1 : (radiusMultiplier ?? STRESS_DEFAULT_MULTIPLIER[level]),
       reason: level === 'NORMAL' ? undefined : reason,
       until: level === 'NORMAL' ? undefined : until,
+      auto: false, // set by ops: the automatic surge (heatmapService) leaves it alone until it expires
       updatedBy: adminUserId,
       updatedAt: new Date()
     };

@@ -17,6 +17,8 @@
  *   POST  /admin/ops/documents/:id/view            short-lived link to the file (fresh 2FA, audited)
  *   PATCH /admin/ops/documents/:id                 approve / reject (fresh 2FA, audited)
  *
+ *   GET   /admin/ops/heatmap?layer=pharmacy|care   demand vs free riders / nurses per ~1 km cell, zone surge
+ *
  * Manual badge changes still use PATCH /partners/admin/staff/:id/verification.
  */
 
@@ -49,6 +51,18 @@ router.get(
   [query('after').optional().isInt({ min: 0 }), query('level').optional().isIn(['error', 'warn', 'info', 'http', 'verbose', 'debug']), query('q').optional().isString().isLength({ max: 100 })],
   validate,
   wrap(async (req, res) => res.json({ success: true, ...logBuffer.query({ after: Number(req.query.after) || 0, level: req.query.level, q: req.query.q }) }))
+);
+
+router.get(
+  '/heatmap',
+  admin,
+  [query('layer').optional().isIn(['pharmacy', 'care']), query('precision').optional().isInt({ min: 5, max: 7 })],
+  validate,
+  wrap(async (req, res) => {
+    const heatmapService = require('../services/heatmapService');
+    const [map, zones] = await Promise.all([heatmapService.heatmap(req.query), heatmapService.zonesSummary()]);
+    res.json({ success: true, ...map, zones });
+  })
 );
 
 router.get(
