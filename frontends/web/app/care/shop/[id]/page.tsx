@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { ShopPosts } from '../../../_components/PartnerPosts';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { BadgeCheck, Building2, Clock, Home, Languages, MapPin, Minus, Plus, ShieldCheck, Star, Tag, Lock } from 'lucide-react';
 import type { CareMode, CareQuote, PlanPaymentMode, RateCardLine, ShopPage, SlotDay, PlanProposalView } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { KINDS, addDays, fmtDay, fmtTime, hoursLabel, inr, problem, todayIst, useVisitPlace, weekdayOf, WEEKDAY_LETTERS, WEEKDAY_NAMES } from '@/lib/care';
+import { KINDS, fmtDay, fmtTime, hoursLabel, inr, problem, useVisitPlace, weekdayOf, WEEKDAY_LETTERS, WEEKDAY_NAMES } from '@/lib/care';
 import CareArt from '../../../_components/care/CareArt';
 import PlacePicker from '../../../_components/care/PlacePicker';
 

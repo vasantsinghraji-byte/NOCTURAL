@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Redirect, router } from 'expo-router';
 import * as Location from 'expo-location';
 import {
-  BadgeCheck, Circle, Flame, IndianRupee, LogOut, MapPin, Navigation, Package, Phone, ShieldAlert, Star, Store, UserRound, Wallet, Sparkles, Megaphone, ClipboardList
+  BadgeCheck, Circle, Flame, IndianRupee, MapPin, Navigation, Package, Phone, ShieldAlert, Star, Store, UserRound, Wallet, Sparkles, ClipboardList
 } from 'lucide-react-native';
 import type { CareBooking, StaffDashboard, VisitOffer } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
@@ -52,7 +52,7 @@ const hello = () => {
 export default function StaffHome() {
   const insets = useSafeAreaInsets();
   const tabSpace = useTabBarSpace();
-  const { session, logout } = useAuth();
+  const { session } = useAuth();
   const [dash, setDash] = useState<StaffDashboard | null>(null);
   const [visits, setVisits] = useState<Visit[] | null>(null);
   const [offer, setOffer] = useState<VisitOffer | null>(null);

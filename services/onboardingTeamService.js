@@ -24,7 +24,8 @@ const { ValidationError, NotFoundError, ConflictError } = require('../utils/erro
 const logger = require('../utils/logger');
 
 const ROLE = 'onboarding_reviewer';
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Dots are excluded from the domain labels so the pattern can't backtrack polynomially.
+const EMAIL_RE = /^[^\s@]{1,64}@[^\s@.]{1,63}(?:\.[^\s@.]{1,63}){1,8}$/;
 
 /** Allowed login-ID domains, lower-case; empty = any. */
 function allowedDomains() {

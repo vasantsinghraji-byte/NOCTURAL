@@ -77,16 +77,17 @@ async function careLayer(now) {
   };
 }
 
-const LAYERS = { pharmacy: pharmacyLayer, care: careLayer };
 
 /** The control-tower heat map: cells with demand, supply and a 0-4 heat level. */
 async function heatmap({ layer = 'pharmacy', precision = 6, now = Date.now() } = {}) {
-  const read = LAYERS[layer] || LAYERS.pharmacy;
+  // Two fixed layers; anything else is the pharmacy layer (no lookup by caller input).
+  const isCare = layer === 'care';
+  const read = isCare ? careLayer : pharmacyLayer;
   const { demand, supply, online } = await read(now);
   const cells = engine.heatCells(demand, supply, Math.min(Math.max(Number(precision) || 6, 5), 7));
   return {
-    layer: LAYERS[layer] ? layer : 'pharmacy',
-    windowMinutes: layer === 'care' ? 180 : WINDOW_MIN,
+    layer: isCare ? 'care' : 'pharmacy',
+    windowMinutes: isCare ? 180 : WINDOW_MIN,
     totals: { demand: demand.length, freeSupply: supply.length, online, shortCells: cells.filter((c) => c.gap > 0).length },
     cells: cells.map((c) => ({
       hash: c.hash, lat: round6(c.lat), lng: round6(c.lng),

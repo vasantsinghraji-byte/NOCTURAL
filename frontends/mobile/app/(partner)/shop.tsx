@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Switch, Text, TextInput, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import { BadgeCheck, CalendarOff, LocateFixed, PauseCircle, PlayCircle, Plus, Save, Store, Tag, Trash2, Users } from 'lucide-react-native';
 import type { DayHours, MarketService, MyRateCardItem, MyShop, ShopKind, SlotDay, TeamMember } from '@medrush/shared';

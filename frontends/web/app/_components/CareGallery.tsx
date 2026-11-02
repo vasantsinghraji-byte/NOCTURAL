@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Activity, Award, ShieldCheck, Stethoscope } from 'lucide-react';
+import { Activity, ShieldCheck, Stethoscope } from 'lucide-react';
 
 const MOMENTS = [
   {

@@ -70,7 +70,8 @@ async function pendingCounts() {
 }
 
 const PROVISIONED_KINDS =['MEDICAL_STAFF', 'PHARMACY', 'DELIVERY', 'PATH_LAB', 'PHLEBOTOMIST'];
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Dots are excluded from the domain labels so the pattern can't backtrack polynomially.
+const EMAIL_RE = /^[^\s@]{1,64}@[^\s@.]{1,63}(?:\.[^\s@.]{1,63}){1,8}$/;
 
 function staffRole(details = {}) {
   return /\b(bpt|mpt|physio)/i.test(details.qualification || '') ? 'physiotherapist' : 'nurse';

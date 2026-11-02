@@ -41,7 +41,7 @@ const staffAvailabilityService = require('@nocturnal/shared').staffAvailabilityS
 const dispatchService = require('@nocturnal/shared').dispatchService;
 const crypto = require('crypto');
 // Marketplace sessions (a shop the customer chose) settle through their plan.
-const lazyPlans = () => require('./carePlanService');
+const lazyPlans = () => require('@nocturnal/shared').carePlanService;
 const isMarketplace = (booking) => Boolean(booking && booking.marketplace && booking.marketplace.plan);
 const { normalizeObjectId, nullProtoObject, setSafeField } = require('@nocturnal/shared').safeMongo;
 

@@ -83,8 +83,11 @@ const AD_FIELDS = Object.freeze({
 const FIELDS = { revenue: REVENUE_FIELDS, ads: AD_FIELDS };
 
 const getPath = (obj, path) => path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
+const UNSAFE_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 function setPath(obj, path, value) {
   const parts = path.split('.');
+  // Paths are allowlisted in validateChanges; never walk into prototypes regardless.
+  if (parts.some((k) => UNSAFE_KEYS.has(k))) throw new ValidationError('Invalid setting path');
   const leaf = parts.pop();
   let parent = obj;
   for (const k of parts) {
@@ -135,13 +138,14 @@ async function describe() {
 }
 
 function validateChanges(key, changes) {
-  const fields = FIELDS[key];
+  // Own properties only: "constructor", "toString" etc. must not pass as allowed names.
+  const fields = Object.hasOwn(FIELDS, key) ? FIELDS[key] : null;
   if (!fields) throw new ValidationError('Unknown settings group');
   const entries = Object.entries(changes || {});
   if (!entries.length) throw new ValidationError('Change at least one value');
   const clean = {};
   for (const [path, raw] of entries) {
-    const f = fields[path];
+    const f = Object.hasOwn(fields, path) ? fields[path] : null;
     if (!f) throw new ValidationError(`${path} can’t be changed here`);
     if (f.type === 'boolean') {
       if (typeof raw !== 'boolean') throw new ValidationError(`${f.label}: on or off`);

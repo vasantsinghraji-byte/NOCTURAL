@@ -90,11 +90,6 @@ export function WelcomeCareCarousel() {
     goToSlide((index + 1) % SLIDES.length);
   }
 
-  function handlePrev() {
-    tap();
-    goToSlide((index - 1 + SLIDES.length) % SLIDES.length);
-  }
-
   const slide = SLIDES[index];
   const Badge1Icon = slide.badge1.icon;
   const Badge2Icon = slide.badge2.icon;
