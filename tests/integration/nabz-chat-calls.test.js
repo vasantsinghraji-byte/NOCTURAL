@@ -212,4 +212,36 @@ describe('Chat and calls (real MongoDB)', () => {
     await NurseBooking.updateOne({ _id: visit._id }, { $set: { 'statusTimestamps.completedAt': new Date(Date.now() - 2 * 24 * 3600 * 1000) } });
     expect((await api('post', `/threads/${thread._id}/messages`, 'kamla', { text: 'one more' })).status).toBe(409);
   });
+
+  it('a reassigned visit moves the chat to the new nurse: messages reach them, the old nurse loses access', async () => {
+    if (!db) return;
+    const second = await User.create({ name: 'Rekha Nurse', email: `chatnurse2.${RUN}@nabz.test`, password: PASSWORD, phone: phone(5), role: 'nurse', isVerified: true });
+    tokens.nurse2 = await login('/auth/login', second.email, { portal: 'staff' });
+    const v = await booking(people.kamla._id, 'CONFIRMED');
+    const t = (await api('post', '/threads', 'kamla', { kind: 'CARE', ref: String(v._id) })).body.thread;
+    await api('post', `/threads/${t._id}/messages`, 'nurse', { text: 'On my way' });
+
+    // Sunita drops the visit; Rekha accepts it.
+    await NurseBooking.updateOne({ _id: v._id }, { $set: { serviceProvider: second._id } });
+
+    published = [];
+    const sent = await api('post', `/threads/${t._id}/messages`, 'kamla', { text: 'Are you coming?' });
+    expect(sent.status).toBe(201);
+    // Delivered live to the nurse who holds the visit now.
+    expect(published.map((x) => x.channel)).toContain(`/nabz/inbox/u-${second._id}`);
+    expect(published.map((x) => x.channel)).not.toContain(`/nabz/inbox/u-${people.nurse._id}`);
+
+    // Rekha sees the conversation in her list and can reply; Kamla gets the reply.
+    const list = await api('get', '/threads', 'nurse2');
+    expect(list.body.threads.map((x) => x._id)).toContain(t._id);
+    expect((await api('post', `/threads/${t._id}/messages`, 'nurse2', { text: 'Yes, 10 minutes away' })).status).toBe(201);
+    const view = await api('get', `/threads/${t._id}`, 'kamla');
+    expect(view.body.thread.with.name).toBe('Rekha Nurse');
+    expect(view.body.messages.map((m) => m.text)).toContain('Yes, 10 minutes away');
+
+    // Sunita no longer has access.
+    expect((await api('get', `/threads/${t._id}`, 'nurse')).status).toBe(404);
+    expect((await api('post', `/threads/${t._id}/messages`, 'nurse', { text: 'hello?' })).status).toBe(404);
+    await User.deleteOne({ _id: second._id });
+  });
 });

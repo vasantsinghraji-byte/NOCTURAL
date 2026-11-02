@@ -80,17 +80,32 @@ async function resolve(kind, ref, now = Date.now()) {
   };
 }
 
+const isParty = (actor, link) => (actor.kind === 'patient' ? String(link.patient) === String(actor.id) : String(link.provider) === String(actor.id));
 function assertParty(actor, link) {
-  const mine = actor.kind === 'patient' ? String(link.patient) === String(actor.id) : String(link.provider) === String(actor.id);
-  if (!mine) throw new NotFoundError('Conversation');
+  if (!isParty(actor, link)) throw new NotFoundError('Conversation');
 }
 
-async function loadThread(actor, threadId) {
+/**
+ * A booking can change hands (a nurse drops a visit and another accepts it).
+ * The conversation follows the booking: the current provider takes it over,
+ * so messages reach them and the previous provider loses access.
+ */
+async function syncParties(thread, link) {
+  if (!link || (String(thread.provider) === String(link.provider) && String(thread.patient) === String(link.patient))) return thread;
+  const updated = await ChatThread.findOneAndUpdate({ _id: thread._id }, { $set: { provider: link.provider, patient: link.patient } }, { new: true }).lean();
+  logger.info('Chat follows the booking to its current provider', { thread: String(thread._id), kind: thread.kind });
+  return updated || thread;
+}
+
+async function loadThread(actor, threadId, now = Date.now()) {
   const id = oid(threadId);
   const thread = id && await ChatThread.findById(id).lean();
   if (!thread) throw new NotFoundError('Conversation', threadId);
-  assertParty(actor, thread);
-  return thread;
+  if (isParty(actor, thread)) return thread;
+  // Not on the stored thread: let them in only if the booking has since moved to them.
+  const link = await resolve(thread.kind, thread.ref, now).catch(() => null);
+  if (!link || !isParty(actor, link)) throw new NotFoundError('Conversation');
+  return syncParties(thread, link);
 }
 
 async function people(threads) {
@@ -138,8 +153,9 @@ async function openThread(actor, { kind, ref }, now = Date.now()) {
     { $setOnInsert: { kind, ref: oid(ref), patient: link.patient, provider: link.provider, title: link.title } },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   ).lean();
+  const current = await syncParties(thread, link);
   const side = sideOf(actor);
-  return publicThread(thread, side, await people([thread]), link.open);
+  return publicThread(current, side, await people([current]), link.open);
 }
 
 async function listThreads(actor, now = Date.now()) {
@@ -174,9 +190,11 @@ async function send(actor, threadId, text, now = Date.now()) {
   const body = String(text || '').trim();
   if (!body) throw new ValidationError('Type a message');
   if (body.length > 2000) throw new ValidationError('Messages can be up to 2000 characters');
-  const thread = await loadThread(actor, threadId);
-  const link = await resolve(thread.kind, thread.ref, now);
+  const loaded = await loadThread(actor, threadId, now);
+  const link = await resolve(loaded.kind, loaded.ref, now).catch(() => null);
   if (!link || !link.open) throw new ConflictError('This conversation has closed with the booking');
+  // Deliver to whoever holds the booking now (it may have been reassigned).
+  const thread = await syncParties(loaded, link);
   const side = sideOf(actor);
   const lastMinute = await ChatMessage.countDocuments({ thread: thread._id, from: side, createdAt: { $gte: new Date(now - 60000) } });
   if (lastMinute >= MAX_PER_MINUTE) throw new ConflictError('You’re sending messages too fast. Wait a moment');

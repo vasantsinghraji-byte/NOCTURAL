@@ -9,8 +9,10 @@ import { appAlert } from '@/lib/dialog';
 import { setPendingCall, useLive } from '@/lib/live';
 import { problem } from '@/lib/market';
 import { PhotoAvatar } from '@/lib/profilePhoto';
-import { C, F, ui } from '@/lib/theme';
+import { C, F, depth, ui } from '@/lib/theme';
 
+// Time and ticks on your own (brand-coloured) bubbles.
+const MINE_META = 'rgba(255,255,255,0.85)';
 const time = (iso: string) => new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
 const mmss = (s = 0) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
@@ -55,8 +57,12 @@ export default function ChatThreadScreen() {
     api.chatRealtime(String(id)).then(({ realtime }) => {
       if (cancelled || !realtime.enabled || !realtime.channels?.thread || !realtime.realtimeUrl || !realtime.httpHost || !realtime.token) return;
       client = new RealtimeClient({ url: realtime.realtimeUrl, host: realtime.httpHost, token: realtime.token });
-      client.onState(setLive);
+      // "Live" only once this conversation's channel is confirmed; a dropped
+      // connection or a refused subscription falls back to polling.
+      client.onState((up) => { if (!up) setLive(false); });
       client.subscribe(realtime.channels.thread, realtime.token, (e) => {
+        if (e.type === 'subscribed') { setLive(true); return; }
+        if (e.type === 'error') { setLive(false); return; }
         if (e.type === 'message' && e.message) {
           merge([e.message as ChatMessageView]);
           api.markChatRead(String(id)).then(refreshUnread).catch(() => undefined);
@@ -68,9 +74,10 @@ export default function ChatThreadScreen() {
     return () => { cancelled = true; if (client) client.close(); };
   }, [id, merge, refreshUnread]);
 
+  // Poll every 5 s without a live link, and every 20 s with one as a safety net:
+  // messages must arrive even if a live event is missed.
   useEffect(() => {
-    if (live) return undefined;
-    const t = setInterval(load, 5000);
+    const t = setInterval(load, live ? 20000 : 5000);
     return () => clearInterval(t);
   }, [live, load]);
 
@@ -166,8 +173,8 @@ function Bubble({ m, mine }: { m: ChatMessageView; mine: boolean }) {
     <View style={[s.bubble, mine ? s.mine : s.theirs]}>
       <Text style={[s.text, mine && { color: '#ffffff' }]}>{m.text}</Text>
       <View style={s.meta}>
-        <Text style={[s.metaText, mine && { color: C.onNightMuted }]}>{time(m.createdAt)}</Text>
-        {mine ? (m.readAt ? <CheckCheck size={14} color={C.onNightMuted} /> : <Check size={14} color={C.onNightMuted} />) : null}
+        <Text style={[s.metaText, mine && { color: MINE_META }]}>{time(m.createdAt)}</Text>
+        {mine ? (m.readAt ? <CheckCheck size={14} color={MINE_META} /> : <Check size={14} color={MINE_META} />) : null}
       </View>
     </View>
   );
@@ -182,8 +189,8 @@ const s = StyleSheet.create({
   safety: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', backgroundColor: C.cardAlt, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 8, maxWidth: '92%' },
   safetyText: { fontFamily: F.medium, fontSize: 12, color: C.muted, flexShrink: 1 },
   bubble: { maxWidth: '80%', paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6, borderRadius: 16 },
-  mine: { alignSelf: 'flex-end', backgroundColor: C.brand, borderBottomRightRadius: 6 },
-  theirs: { alignSelf: 'flex-start', backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderBottomLeftRadius: 6 },
+  mine: { alignSelf: 'flex-end', backgroundColor: C.brand, borderBottomRightRadius: 6, ...depth.button },
+  theirs: { alignSelf: 'flex-start', backgroundColor: C.card, borderBottomLeftRadius: 6, ...depth.card },
   text: { fontFamily: F.medium, fontSize: 16, lineHeight: 22, color: C.ink },
   meta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 2 },
   metaText: { fontFamily: F.medium, fontSize: 11, color: C.muted },
@@ -191,7 +198,7 @@ const s = StyleSheet.create({
   callText: { fontFamily: F.semi, fontSize: 13, color: C.inkSoft },
   compose: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 10, backgroundColor: C.card, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border },
   input: { flex: 1, minHeight: 48, maxHeight: 130, backgroundColor: C.cardAlt, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, fontFamily: F.medium, fontSize: 16, color: C.ink },
-  send: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center' },
+  send: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', ...depth.button },
   closed: { textAlign: 'center', fontFamily: F.medium, fontSize: 14, color: C.muted, paddingHorizontal: 24, paddingTop: 10 },
   error: { color: C.roseInk, fontFamily: F.semi, fontSize: 15, textAlign: 'center' }
 });

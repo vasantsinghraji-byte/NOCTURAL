@@ -10,6 +10,7 @@ import { pickAndUploadPrescription } from '@/lib/prescription';
 import type { DeliveryQuote, PayMethod, PharmacyVendor, StorefrontItem } from '@medrush/shared';
 import { C, F, R, depth } from '@/lib/theme';
 import { BrandHeader } from '@/lib/BrandHeader';
+import { Gloss } from '@/lib/Skeuo';
 import { BottomSheet } from '@/lib/marketUI';
 import { inr } from '@/lib/market';
 import { appAlert } from '@/lib/dialog';
@@ -20,7 +21,7 @@ import { PaymentDismissedError, payOrderOnline } from '@/lib/payments';
 const FALLBACK = { lat: 26.9110, lng: 75.8010 }; // launch city demo area (C-Scheme, Jaipur)
 
 export default function Pharmacy() {
-  const params = useLocalSearchParams<{ refill?: string }>();
+  const params = useLocalSearchParams<{ refill?: string; store?: string; add?: string }>();
   const [refillId, setRefillId] = useState<string | null>(null);
   const tabSpace = useTabBarSpace();
   const { session } = useAuth();
@@ -106,6 +107,18 @@ export default function Pharmacy() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.refill]);
+
+  // "Buy again" from Home: open that store with the medicine already in the cart.
+  useEffect(() => {
+    if (!params.store || !params.add) return;
+    (async () => {
+      try {
+        await selectVendor({ _id: String(params.store) } as PharmacyVendor);
+        setCart((c) => ({ ...c, [String(params.add)]: (c[String(params.add)] || 0) + 1 }));
+      } catch (e) { setError(describeNetworkError(e)); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.store, params.add]);
 
   // Prices can change while the cart is open: refresh them without losing the cart.
   async function refreshPrices() {
@@ -362,6 +375,7 @@ export default function Pharmacy() {
           ) : null}
           <Pressable style={({ pressed }) => [styles.cartBar, pressed ? depth.pressed : depth.button]} onPress={() => setCartOpen(true)} accessibilityRole="button"
             accessibilityLabel={`${cartCount} items, ${inr(payable)}. View cart`}>
+            <Gloss radius={R.lg} />
             <View style={{ flex: 1 }}>
               <Text style={styles.cartCount}>{cartCount} item{cartCount === 1 ? '' : 's'}</Text>
               <Text style={styles.cartTotal}>{inr(payable)}{quote ? '' : ' + delivery'}</Text>
@@ -468,6 +482,7 @@ export default function Pharmacy() {
 function Stepper({ qty, name, onAdd, onRemove }: { qty: number; name: string; onAdd: () => void; onRemove: () => void }) {
   return (
     <View style={styles.stepper} accessibilityLabel={`${name}, ${qty} in cart`}>
+      <Gloss radius={R.sm} />
       <Pressable onPress={onRemove} hitSlop={6} style={styles.stepBtn} accessibilityRole="button" accessibilityLabel={`Remove one ${name}`}>
         <Minus size={16} color={C.onBrand} strokeWidth={2.4} />
       </Pressable>

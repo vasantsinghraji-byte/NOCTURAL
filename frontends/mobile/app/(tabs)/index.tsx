@@ -4,10 +4,10 @@ import * as SecureStore from 'expo-secure-store';
 import { useTabBarSpace } from '@/lib/PillTabBar';
 import { router, useFocusEffect } from 'expo-router';
 import {
-  Activity, CalendarClock, ChevronDown, ChevronRight, Crown, FlaskConical, LayoutGrid, Map as MapIcon, MapPin as MapPinIcon, PackageCheck, Pill, Radio,
-  RotateCcw, Search, ShieldCheck, Truck, X, Zap, type LucideIcon
+  Activity, CalendarClock, ChevronDown, ChevronRight, Clock, Crown, FlaskConical, LayoutGrid, Map as MapIcon, MapPin as MapPinIcon, PackageCheck, Pill,
+  RotateCcw, Search, ShieldCheck, Syringe, Truck, X, Zap, type LucideIcon
 } from 'lucide-react-native';
-import type { CareBooking, CareService, HomeBanner, HomeFeed, PharmacyVendor } from '@medrush/shared';
+import type { CareBooking, CareService, HomeBanner, HomeFeed, PharmacyOrder, PharmacyVendor } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useT } from '@/lib/i18n';
@@ -20,6 +20,7 @@ import { BottomSheet } from '@/lib/marketUI';
 import { PressScale, Rise, Skeleton } from '@/lib/motion';
 import { C, F, R, depth, ui } from '@/lib/theme';
 import { BrandHeader } from '@/lib/BrandHeader';
+import { EmbossTile, Gloss } from '@/lib/Skeuo';
 import { appAlert } from '@/lib/dialog';
 import { UpdatesFeed } from '@/lib/updatesFeed';
 import { EasyHome } from '@/lib/EasyHome';
@@ -31,7 +32,7 @@ const DEMO_AREA_KEY = 'nabz.demoArea';
 const GRID_MAX = 8;
 const ACTIVE = ['REQUESTED', 'ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'];
 const BANNER_LOOK: Record<HomeBanner['kind'], { icon: LucideIcon; bg: string; fg: string; ink: string }> = {
-  PLUS: { icon: Crown, bg: C.night, fg: C.gold, ink: C.onNight },
+  PLUS: { icon: Crown, bg: C.wine2, fg: C.plus, ink: '#ffffff' },
   SUPPLIES: { icon: PackageCheck, bg: C.night, fg: C.brand, ink: C.onNight },
   PHARMACY: { icon: Truck, bg: C.mintSoft, fg: C.mint, ink: C.ink },
   TRUST: { icon: ShieldCheck, bg: C.amberSoft, fg: C.amber, ink: C.ink }
@@ -85,6 +86,7 @@ function BookHome() {
   const [allOpen, setAllOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [orders, setOrders] = useState<PharmacyOrder[]>([]);
 
   useEffect(() => {
     api.listCareServices().then((r) => setServices(r.services)).catch((e) => { setServices([]); setError(describeNetworkError(e)); });
@@ -95,6 +97,7 @@ function BookHome() {
   useFocusEffect(useCallback(() => {
     if (session?.kind !== 'patient') { setVisits([]); return; }
     api.getMyCareBookings().then((r) => setVisits(r.data || r.bookings || [])).catch(() => undefined);
+    api.getMyOrders({ status: 'DELIVERED', limit: 5 }).then((r) => setOrders(r.orders || [])).catch(() => undefined);
   }, [session?.kind]));
 
   // Stores near me (reload only after moving ~1 km) + staff online (every 20 s).
@@ -119,6 +122,25 @@ function BookHome() {
   const hasMore = !q && matches.length > GRID_MAX;
   const gridItems = hasMore ? matches.slice(0, GRID_MAX - 1) : matches;
   const upcoming = visits.find((v) => ACTIVE.includes(v.status));
+  // Medicines bought before (no prescription items: those need a fresh upload).
+  const buyAgain = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { medicine: string; name: string; pack?: string; price: number; mrp?: number; store: string }[] = [];
+    for (const o of orders) {
+      const store = typeof o.vendor === 'string' ? o.vendor : o.vendor?._id;
+      for (const it of o.items || []) {
+        if (!store || it.requiresPrescription || seen.has(String(it.medicine))) continue;
+        seen.add(String(it.medicine));
+        out.push({ medicine: String(it.medicine), name: it.name, pack: it.packSize, price: it.unitPrice, mrp: it.mrp, store: String(store) });
+      }
+    }
+    return out.slice(0, 8);
+  }, [orders]);
+  // Delivery promise from the nearest store that can deliver here.
+  const etaMinutes = useMemo(() => {
+    const e = stores[0]?.eta;
+    return e ? Math.max(e.assignmentMinutes, e.prepMinutes) + e.lastMileMinutes : null;
+  }, [stores]);
   const again = useMemo(() => {
     const seen = new Set<string>();
     return visits.filter((v) => v.status === 'COMPLETED' && !seen.has(v.serviceType) && seen.add(v.serviceType))
@@ -142,9 +164,6 @@ function BookHome() {
   }
 
   const first = session?.name?.split(' ')[0];
-  const liveLine = nearby.count
-    ? `${t('home.online', { n: nearby.count })}${nearby.nearestKm !== null ? ` · nearest ${nearby.nearestKm} km` : ''}`
-    : t('home.offline');
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -152,16 +171,18 @@ function BookHome() {
         {/* Brand header: where, search and who's online, on the logo gradient */}
         <BrandHeader bleed={18} style={{ paddingHorizontal: 18 }}>
         <View style={styles.header}>
-          <Pressable onPress={chooseArea} style={styles.where} accessibilityRole="button" accessibilityLabel={`Care at ${area}. Change location`}>
-            <View style={styles.dot} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.whereLabel} numberOfLines={1}>{first ? `${t('home.hi', { name: first })} · ` : ''}{source === 'live' ? t('home.live') : t('home.careAt')}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={styles.whereArea} numberOfLines={1}>{area}</Text>
-                {DEMO_AREA_ENABLED ? <ChevronDown size={18} color={C.onHeader} /> : null}
-              </View>
+          <Pressable onPress={chooseArea} style={{ flex: 1 }} accessibilityRole="button" accessibilityLabel={`Delivery to ${area}. Change location`}>
+            <View style={styles.etaLabelRow}>
+              <Clock size={13} color={C.onHeaderMuted} />
+              <Text style={styles.etaLabel}>{first ? `HI ${first.toUpperCase()} · ` : ''}DELIVERY IN</Text>
             </View>
-            {demoArea ? <View style={styles.demoPill}><Text style={styles.demoPillText}>DEMO</Text></View> : null}
+            <Text style={styles.eta} numberOfLines={1}>{etaMinutes ? `${etaMinutes} minutes` : '30 minutes'}<Text style={{ color: C.coral }}>.</Text></Text>
+            <View style={styles.whereRow}>
+              <MapPinIcon size={15} color={C.onHeader} />
+              <Text style={styles.whereText} numberOfLines={1}>{source === 'live' ? 'Here · ' : ''}{area}</Text>
+              {DEMO_AREA_ENABLED ? <ChevronDown size={16} color={C.onHeader} /> : null}
+              {demoArea ? <View style={styles.demoPill}><Text style={styles.demoPillText}>DEMO</Text></View> : null}
+            </View>
           </Pressable>
           <PressScale onPress={openMap} style={styles.mapBtn} accessibilityRole="button" accessibilityLabel="See professionals, clinics and pharmacies on the map">
             <MapIcon size={22} color={C.onHeader} />
@@ -174,12 +195,19 @@ function BookHome() {
           {query ? <Pressable hitSlop={10} onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search"><X size={16} color={C.muted} /></Pressable> : null}
         </View>
 
-        <Pressable onPress={openMap} style={styles.live} accessibilityRole="button" accessibilityLabel={`${liveLine}. Open the map`}>
-          <View style={[styles.liveDot, nearby.count ? null : { backgroundColor: C.onHeaderMuted }]} />
-          <Text style={styles.liveText} numberOfLines={2}>{liveLine}</Text>
-          <Text style={styles.liveLink}>Map</Text>
-          <ChevronRight size={14} color={C.onHeader} />
-        </Pressable>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14, marginHorizontal: -18 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 18 }}>
+          {[
+            { label: 'All', on: true, go: () => undefined },
+            { label: 'Medicines', go: () => router.push('/pharmacy') },
+            { label: 'Lab tests', go: () => router.push('/labs') },
+            { label: 'Nurse', go: () => setAllOpen(true) },
+            { label: 'Physio', go: () => router.push('/care') }
+          ].map((c) => (
+            <Pressable key={c.label} onPress={c.go} accessibilityRole="button" accessibilityState={{ selected: !!c.on }} style={[styles.chip, c.on && styles.chipOn]}>
+              <Text style={[styles.chipText, c.on && styles.chipTextOn]}>{c.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
         </BrandHeader>
 
         {easySuggest && (
@@ -222,6 +250,48 @@ function BookHome() {
           </PressScale>
         )}
 
+        <Text style={[styles.sectionTitle, { marginTop: 22, marginBottom: 12 }]}>What do you need?</Text>
+        <View style={styles.needRow}>
+          <NeedTile icon={Pill} label="Pharmacy" badge={etaMinutes ? `${etaMinutes} min` : '30 min'} onPress={() => router.push('/pharmacy')} />
+          <NeedTile icon={FlaskConical} label="Lab tests" tone="green" onPress={() => router.push('/labs')} />
+          <NeedTile icon={Syringe} label="Nurse at home" tone="coral" badge={nearby.count ? `${nearby.count} online` : undefined} onPress={() => setAllOpen(true)} />
+          <NeedTile icon={Activity} label="Physio & care" tone="ink" onPress={() => router.push('/care')} />
+        </View>
+
+        {buyAgain.length > 0 && (
+          <>
+            <View style={styles.sectionRow}>
+              <Text style={styles.sectionTitle}>Buy again</Text>
+              <Pressable onPress={() => router.push('/pharmacy')} hitSlop={10} accessibilityRole="button"><Text style={styles.sectionLink}>See all</Text></Pressable>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -18 }} contentContainerStyle={{ gap: 10, paddingHorizontal: 18, paddingVertical: 6 }}>
+              {buyAgain.map((m) => {
+                const off = m.mrp && m.mrp > m.price ? Math.round(((m.mrp - m.price) / m.mrp) * 100) : 0;
+                return (
+                  <View key={m.medicine} style={styles.prod}>
+                    <View style={styles.prodImg}>
+                      <Pill size={28} color={C.faint} strokeWidth={1.6} />
+                      {off >= 5 ? <Text style={styles.prodOff}>{off}% OFF</Text> : null}
+                    </View>
+                    <Text style={styles.prodName} numberOfLines={2}>{m.name}</Text>
+                    {m.pack ? <Text style={styles.prodPack} numberOfLines={1}>{m.pack}</Text> : null}
+                    <View style={styles.prodRow}>
+                      <View>
+                        <Text style={styles.prodPrice}>{money(m.price)}</Text>
+                        {off >= 5 ? <Text style={styles.prodMrp}>{money(m.mrp as number)}</Text> : null}
+                      </View>
+                      <Pressable onPress={() => router.push({ pathname: '/pharmacy', params: { store: m.store, add: m.medicine } })} accessibilityRole="button" accessibilityLabel={`Add ${m.name}`}
+                        style={({ pressed }) => [styles.addBtn, pressed && { backgroundColor: C.brandSoft }]}>
+                        <Text style={styles.addText}>ADD</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </>
+        )}
+
         {/* Home nursing: everything visible at once, two rows of four */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle} numberOfLines={1}>{q ? `Results for “${query.trim()}”` : 'Nurse at home'}</Text>
@@ -236,20 +306,13 @@ function BookHome() {
             {gridItems.map((s) => <ServiceTile key={s.serviceType} service={s} onPress={() => pick(s)} />)}
             {hasMore ? (
               <Pressable onPress={() => setAllOpen(true)} style={styles.cell} accessibilityRole="button" accessibilityLabel={`See all ${nursing.length} services`}>
-                <View style={[styles.tile, { backgroundColor: C.cardAlt }]}><LayoutGrid size={26} color={C.inkSoft} /></View>
+                <EmbossTile size={66} radius={20}><LayoutGrid size={26} color={C.inkSoft} /></EmbossTile>
                 <Text style={styles.tileText}>See all</Text>
               </Pressable>
             ) : null}
             {q && matches.length === 0 ? <Text style={[ui.muted, { padding: 8 }]}>No service matches “{query.trim()}”.</Text> : null}
           </View>
         )}
-
-        {/* The rest of Nabz: one big tile each (like Instamart / Dineout) */}
-        <View style={styles.more}>
-          <MoreTile icon={Pill} title="Pharmacy" sub="Medicines in 30 min" onPress={() => router.push('/pharmacy')} />
-          <MoreTile icon={FlaskConical} title="Lab tests" sub="Sample from home" onPress={() => router.push('/labs')} />
-          <MoreTile icon={Activity} title="Physio & care" sub="Compare near you" onPress={() => router.push('/care')} />
-        </View>
 
         {/* Offers (server sends only offers that are actually live) */}
         {feed?.banners?.length ? (
@@ -327,18 +390,20 @@ function ServiceTile({ service, onPress }: { service: CareService; onPress: () =
   const Icon = serviceIcon(service.serviceType);
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.cell, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]} accessibilityRole="button" accessibilityLabel={service.displayName || service.name}>
-      <View style={styles.tile}><Icon size={28} color={C.brand} strokeWidth={1.9} /></View>
+      <EmbossTile size={66} radius={20}><Icon size={28} color={C.brand} strokeWidth={1.9} /></EmbossTile>
       <Text style={styles.tileText} numberOfLines={2}>{shortName(service)}</Text>
     </Pressable>
   );
 }
 
-function MoreTile({ icon: Icon, title, sub, onPress }: { icon: LucideIcon; title: string; sub: string; onPress: () => void }) {
+/** The four big "What do you need?" tiles: embossed icon, label, optional badge. */
+function NeedTile({ icon: Icon, label, badge, tone = 'brand', onPress }: { icon: LucideIcon; label: string; badge?: string; tone?: 'brand' | 'green' | 'coral' | 'ink'; onPress: () => void }) {
+  const look = { brand: { fg: C.brand, tint: C.brandSoft }, green: { fg: C.mint, tint: C.mintSoft }, coral: { fg: C.coralInk, tint: C.coralSoft }, ink: { fg: C.ink, tint: C.cardAlt } }[tone];
   return (
-    <PressScale style={styles.moreTile} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${title}. ${sub}`}>
-      <View style={styles.moreIcon}><Icon size={22} color={C.brand} strokeWidth={1.9} /></View>
-      <Text style={styles.moreTitle} numberOfLines={2}>{title}</Text>
-      <Text style={styles.moreSub} numberOfLines={2}>{sub}</Text>
+    <PressScale onPress={onPress} style={styles.need} accessibilityRole="button" accessibilityLabel={badge ? `${label}, ${badge}` : label}>
+      <EmbossTile size={72} radius={22} tint={look.tint}><Icon size={30} color={look.fg} strokeWidth={1.8} /></EmbossTile>
+      {badge ? <View style={styles.needBadge}><Gloss radius={999} strength={0.8} /><Text style={styles.needBadgeText}>{badge}</Text></View> : null}
+      <Text style={styles.needText} numberOfLines={2}>{label}</Text>
     </PressScale>
   );
 }
@@ -359,19 +424,35 @@ function WhenOption({ icon: Icon, title, sub, onPress, disabled }: { icon: Lucid
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  where: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
   mapBtn: { width: 50, height: 50, borderRadius: 16, backgroundColor: C.headerGlass, borderWidth: 1, borderColor: C.headerGlassBorder, alignItems: 'center', justifyContent: 'center' },
-  dot: { width: 14, height: 14, borderRadius: 7, backgroundColor: C.coral, borderWidth: 3, borderColor: '#ffffff' },
-  whereLabel: { fontFamily: F.semi, fontSize: 13, color: C.onHeaderMuted },
-  whereArea: { flexShrink: 1, fontFamily: F.displayHeavy, fontSize: 22, letterSpacing: -0.4, color: C.onHeader },
+  etaLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  etaLabel: { fontFamily: F.bold, fontSize: 11.5, letterSpacing: 1, color: C.onHeaderMuted },
+  eta: { fontFamily: F.displayHeavy, fontSize: 30, lineHeight: 34, letterSpacing: -0.6, color: C.onHeader, marginTop: 2 },
+  whereRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  whereText: { flexShrink: 1, fontFamily: F.semi, fontSize: 14, color: C.onHeader },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: C.headerGlass, borderWidth: 1, borderColor: C.headerGlassBorder },
+  chipOn: { backgroundColor: '#ffffff', borderColor: '#ffffff', boxShadow: '0 6px 12px -6px rgba(0,0,0,0.35)' },
+  chipText: { fontFamily: F.bold, fontSize: 13, color: C.onHeader },
+  chipTextOn: { color: C.brand },
+  needRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  need: { width: '24%', alignItems: 'center', gap: 8 },
+  needBadge: { position: 'absolute', top: -8, right: -2, backgroundColor: C.coral, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, ...depth.button },
+  needBadgeText: { fontFamily: F.heavy, fontSize: 10, color: C.ink },
+  needText: { fontFamily: F.bold, fontSize: 12.5, lineHeight: 16, color: C.ink, textAlign: 'center' },
+  prod: { width: 132, backgroundColor: C.card, borderRadius: R.lg, padding: 8, ...depth.card },
+  prodImg: { height: 84, borderRadius: R.md, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center', boxShadow: `inset 0 -6px 12px rgba(${C.tint},0.06)` },
+  prodOff: { position: 'absolute', top: 0, left: 0, backgroundColor: C.mint, color: '#ffffff', fontFamily: F.heavy, fontSize: 10, paddingHorizontal: 6, paddingVertical: 3, borderTopLeftRadius: R.md, borderBottomRightRadius: 8, overflow: 'hidden' },
+  prodName: { fontFamily: F.bold, fontSize: 13, lineHeight: 17, color: C.ink, marginTop: 8, minHeight: 34 },
+  prodPack: { fontFamily: F.medium, fontSize: 11.5, color: C.muted, marginTop: 2 },
+  prodRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 8 },
+  prodPrice: { fontFamily: F.heavy, fontSize: 14, color: C.ink },
+  prodMrp: { fontFamily: F.medium, fontSize: 11, color: C.muted, textDecorationLine: 'line-through' },
+  addBtn: { borderWidth: 1.5, borderColor: C.brand, backgroundColor: C.card, borderRadius: R.sm, minHeight: 34, minWidth: 58, alignItems: 'center', justifyContent: 'center', boxShadow: `inset 0 -2px 0 rgba(${C.tint},0.12), 0 4px 10px -6px rgba(${C.tint},0.5)` },
+  addText: { fontFamily: F.heavy, fontSize: 13, letterSpacing: 0.6, color: C.brand },
   demoPill: { backgroundColor: C.amberSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   demoPillText: { color: C.amber, fontFamily: F.heavy, fontSize: 10, letterSpacing: 1 },
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: 14, marginTop: 14, minHeight: 50, ...depth.raised },
   searchInput: { flex: 1, paddingVertical: 12, fontFamily: F.medium, fontSize: 15, color: C.ink },
-  live: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, backgroundColor: C.headerGlass, borderWidth: 1, borderColor: C.headerGlassBorder, minHeight: 44 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#5ee0a0' },
-  liveText: { flex: 1, fontFamily: F.semi, fontSize: 13, color: C.onHeader },
-  liveLink: { fontFamily: F.bold, fontSize: 13, color: C.onHeader },
   easyOffer: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 4, marginTop: 14, borderWidth: 1.5, borderColor: C.brandSoft },
   outside: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.amberSoft, borderRadius: 16, padding: 14, marginTop: 14 },
   upcoming: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.night, borderRadius: 16, padding: 14, marginTop: 14 },
@@ -385,13 +466,7 @@ const styles = StyleSheet.create({
   sectionLink: { fontFamily: F.bold, fontSize: 14, color: C.brand },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
   cell: { width: '25%', alignItems: 'center', gap: 7, paddingVertical: 8, paddingHorizontal: 4, minHeight: 112 },
-  tile: { width: 66, height: 66, borderRadius: R.xl, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...depth.tile },
   tileText: { fontSize: 12.5, lineHeight: 16, fontFamily: F.semi, color: C.ink, textAlign: 'center' },
-  more: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  moreTile: { flex: 1, borderRadius: R.lg, padding: 12, gap: 4, minHeight: 112, backgroundColor: C.card, ...depth.card },
-  moreIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center', ...depth.tile },
-  moreTitle: { fontFamily: F.bold, fontSize: 14, lineHeight: 19, color: C.ink, marginTop: 4 },
-  moreSub: { fontFamily: F.medium, fontSize: 12, lineHeight: 16, color: C.inkSoft },
   when: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, minHeight: 72, borderWidth: 1.5, borderColor: C.border },
   whenIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
   sheetGroup: { fontFamily: F.bold, fontSize: 14, color: C.inkSoft, marginTop: 6 },

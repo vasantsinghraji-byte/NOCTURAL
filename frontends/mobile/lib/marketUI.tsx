@@ -8,7 +8,8 @@ import CareArt, { WineGradient, type ArtKind } from './CareArt';
 import { PressScale, Skeleton } from './motion';
 import { useTabBarSpace } from './PillTabBar';
 import { dayShort, fmtTime, fromSaved, inr, usableAddresses, type VisitPlace } from './market';
-import { C, F, IS_DARK, clay, depth, ui } from './theme';
+import { C, F, IS_DARK, R, clay, depth, ui } from './theme';
+import { Gloss } from './Skeuo';
 
 /**
  * Care marketplace UI kit for the apps (mirrors the website's market.css):
@@ -96,6 +97,7 @@ export function Btn({ label, onPress, variant = 'primary', small, disabled, load
       }, variant === 'primary' && !off ? ui.btn : null, variant === 'primary' ? { paddingVertical: small ? 11 : 16, paddingHorizontal: small ? 16 : 22 } : null,
       variant === 'light' || variant === 'ghost' ? depth.card : null, style]}
     >
+      {variant === 'primary' && !off ? <Gloss radius={R.md} /> : null}
       {loading ? <ActivityIndicator size="small" color={l.fg} /> : Icon ? <Icon size={small ? 15 : 17} color={l.fg} /> : null}
       <Text style={{ color: l.fg, fontFamily: F.heavy, fontSize: small ? 14 : 16 }} numberOfLines={1}>{label}</Text>
     </PressScale>
