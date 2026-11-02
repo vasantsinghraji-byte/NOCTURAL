@@ -15,6 +15,7 @@ const metricsRouter = require('./routes/admin/metrics');
 const {
   globalRateLimiter,
   authRateLimiter,
+  customerAuthRateLimiter,
   hospitalWaitlistRateLimiter,
   passwordResetRateLimiter,
   apiRateLimiter,
@@ -157,6 +158,9 @@ if (shouldApplyRateLimits) {
   // Google / phone OTP sign-in (brute-force and SMS-cost protection)
   app.use('/api/v1/auth/social', authRateLimiter);
   app.use('/api/v1/auth/admin-mfa', authRateLimiter);
+  // Customer sign-in had only the general API limit (750 per 15 min per IP).
+  app.use('/api/v1/patients/login', customerAuthRateLimiter);
+  app.use('/api/v1/patients/register', customerAuthRateLimiter);
   app.use('/api/v1/auth/password/reset', authRateLimiter);
   app.use('/api/v1/auth/password/check', authRateLimiter);
   app.use('/api/v1/hospital-waitlist', hospitalWaitlistRateLimiter);
@@ -282,7 +286,9 @@ app.get('/service-worker.js', (req, res, next) => {
     Expires: '0'
   });
 
-  res.sendFile(path.join(frontendStaticDir, 'service-worker.js'), (error) => {
+  // `root` keeps the dotfiles check to this file only, so a checkout inside a
+  // hidden folder (e.g. .claude/worktrees) still serves it.
+  res.sendFile('service-worker.js', { root: frontendStaticDir }, (error) => {
     if (error) {
       next(error);
     }

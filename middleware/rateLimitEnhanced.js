@@ -222,6 +222,22 @@ const authRateLimiter = createRateLimiter({
 });
 
 /**
+ * Customer sign-in / sign-up limiter: 30 failed attempts per 15 minutes per IP.
+ * Higher than the staff auth limit (5) because many customers share one mobile
+ * carrier IP; one account is still locked after repeated wrong passwords
+ * (patientService LOGIN_GUARD). This stops one IP trying passwords across many
+ * accounts, which the per-account lock alone does not.
+ */
+const customerAuthRateLimiter = createRateLimiter({
+  name: 'customer-auth',
+  shared: true,
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: 'Too many sign-in attempts from this network, please try again in a few minutes',
+  skipSuccessfulRequests: true
+});
+
+/**
  * Hospital waitlist limiter
  * 10 submissions per hour per IP. This is intentionally separate from auth
  * because it is a public lead form, not an account-creation endpoint.
@@ -490,6 +506,7 @@ module.exports = {
   globalRateLimiter,
   strictRateLimiter,
   authRateLimiter,
+  customerAuthRateLimiter,
   hospitalWaitlistRateLimiter,
   passwordResetRateLimiter,
   apiRateLimiter,
