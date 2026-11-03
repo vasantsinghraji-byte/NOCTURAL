@@ -10,6 +10,8 @@ import { useTabBarSpace } from './PillTabBar';
 import { dayShort, fmtTime, fromSaved, inr, usableAddresses, type VisitPlace } from './market';
 import { C, F, IS_DARK, R, clay, depth, ui } from './theme';
 import { Gloss } from './Skeuo';
+import { BrandGradient } from './BrandHeader';
+import { NabzMark } from './Brand';
 
 /**
  * Care marketplace UI kit for the apps (mirrors the website's market.css):
@@ -56,14 +58,15 @@ export function MkHero({ title, accent, subtitle, art = 'heart', children, eyebr
   title: string; accent?: string; subtitle?: string; art?: ArtKind; children?: ReactNode; eyebrow?: string;
 }) {
   return (
-    <View style={s.hero}>
-      <WineGradient />
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View style={{ flex: 1, paddingRight: 6 }}>
+    <View style={[s.hero, depth.raised]}>
+      <BrandGradient radius={22} />
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+        <View style={{ flex: 1, paddingRight: 10 }}>
           {eyebrow ? <Text style={s.eyebrow}>{eyebrow}</Text> : null}
-          <Text style={s.heroTitle}>{title}{accent ? ` ${accent}` : null}</Text>
+          <Text style={s.heroTitle}>{title}{accent ? ` ${accent}` : null}{/[.?!]$/.test(accent || title) ? null : <Text style={{ color: C.coral }}>.</Text>}</Text>
           {subtitle ? <Text style={s.heroSub}>{subtitle}</Text> : null}
         </View>
+        <View style={s.heroMark}><NabzMark size={34} pulse={C.brand} /></View>
       </View>
       {children ? <View style={{ marginTop: 14 }}>{children}</View> : null}
     </View>
@@ -387,10 +390,11 @@ const s = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8, gap: 10, backgroundColor: C.bg },
   topTitle: { flex: 1, textAlign: 'center', fontFamily: F.display, fontSize: 18, color: C.ink },
   iconBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...clay },
-  hero: { borderRadius: 16, padding: 20, overflow: 'hidden', backgroundColor: C.night },
-  eyebrow: { alignSelf: 'flex-start', color: C.brand, fontFamily: F.semi, fontSize: 13, marginBottom: 6 },
-  heroTitle: { color: C.onNight, fontFamily: F.display, fontSize: 26, lineHeight: 31, letterSpacing: -0.6 },
-  heroSub: { color: C.onNightMuted, fontFamily: F.medium, fontSize: 13, lineHeight: 19, marginTop: 6 },
+  hero: { borderRadius: 22, padding: 20, overflow: 'hidden', backgroundColor: C.brand },
+  eyebrow: { alignSelf: 'flex-start', color: C.onHeaderMuted, fontFamily: F.bold, fontSize: 12, letterSpacing: 1, marginBottom: 6 },
+  heroTitle: { color: C.onHeader, fontFamily: F.displayHeavy, fontSize: 26, lineHeight: 31, letterSpacing: -0.6 },
+  heroSub: { color: C.onHeaderMuted, fontFamily: F.medium, fontSize: 13, lineHeight: 19, marginTop: 6 },
+  heroMark: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: C.headerGlass, borderWidth: 1, borderColor: C.headerGlassBorder },
   seg: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 999, padding: 4, gap: 4 },
   segBtn: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 10, borderRadius: 999, minHeight: 48 },
   segOn: { backgroundColor: C.card, borderWidth: 1, borderColor: C.brand },

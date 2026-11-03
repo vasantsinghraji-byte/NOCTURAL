@@ -17,6 +17,6 @@ export function MessagesIcon({ color = C.ink }: { color?: string }) {
 
 const s = StyleSheet.create({
   icon: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
-  dot: { position: 'absolute', top: 6, right: 4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  dotText: { color: '#ffffff', fontFamily: F.heavy, fontSize: 10 }
+  dot: { position: 'absolute', top: 6, right: 4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: C.coral, borderWidth: 1.5, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  dotText: { color: C.ink, fontFamily: F.heavy, fontSize: 10 }
 });

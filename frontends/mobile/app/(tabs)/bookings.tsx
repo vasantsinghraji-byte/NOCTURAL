@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarSpace } from '@/lib/PillTabBar';
 import { router, useFocusEffect } from 'expo-router';
 import type { CareBooking, OnlinePayMethod, PharmacyOrder } from '@medrush/shared';
@@ -10,6 +9,8 @@ import { inr } from '@/lib/care';
 import { IconTile, serviceIcon, TONES } from '@/lib/icons';
 import { Bike, CalendarDays, CalendarHeart, FlaskConical, Lock, Navigation, Star, Store, Stethoscope } from 'lucide-react-native';
 import { C, F, PASTELS, shadow, ui } from '@/lib/theme';
+import { BrandHeader } from '@/lib/BrandHeader';
+import { NabzMark } from '@/lib/Brand';
 import { chooseReschedule, confirmCancelVisit } from '@/lib/visitActions';
 import { appAlert } from '@/lib/dialog';
 import { PaymentSheet } from '@/lib/paymentSheet';
@@ -22,7 +23,6 @@ import { MessagesIcon } from '@/lib/MessagesIcon';
 type Tab = 'visits' | 'orders';
 
 export default function Bookings() {
-  const insets = useSafeAreaInsets();
   const tabSpace = useTabBarSpace();
   const { session } = useAuth();
   const [tab, setTab] = useState<Tab>('visits');
@@ -83,19 +83,23 @@ export default function Bookings() {
   }
 
   return (
-    <ScrollView style={ui.screen} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: tabSpace, gap: 12 }}
+    <ScrollView style={ui.screen} contentContainerStyle={{ padding: 16, paddingTop: 0, paddingBottom: tabSpace, gap: 12 }}
       refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={styles.title}>Bookings</Text>
-        <MessagesIcon />
-      </View>
-      <View style={styles.segment}>
-        {(['visits', 'orders'] as Tab[]).map((t) => (
-          <Pressable key={t} onPress={() => setTab(t)} style={[styles.segBtn, tab === t && styles.segOn]}>
-            <Text style={[styles.segText, tab === t && { color: C.onNight }]}>{t === 'visits' ? 'Staff visits' : 'Medicine orders'}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <BrandHeader bleed={16} style={{ paddingHorizontal: 16, gap: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={styles.mark}><NabzMark size={26} pulse={C.brand} /></View>
+          <Text style={styles.title}>Bookings<Text style={{ color: C.coral }}>.</Text></Text>
+          <View style={{ flex: 1 }} />
+          <MessagesIcon color={C.onHeader} />
+        </View>
+        <View style={styles.segment} accessibilityRole="tablist">
+          {(['visits', 'orders'] as Tab[]).map((t) => (
+            <Pressable key={t} onPress={() => setTab(t)} accessibilityRole="tab" accessibilityState={{ selected: tab === t }} style={[styles.segBtn, tab === t && styles.segOn]}>
+              <Text style={[styles.segText, tab === t && { color: C.brand }]}>{t === 'visits' ? 'Staff visits' : 'Medicine orders'}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </BrandHeader>
       {session?.kind === 'patient' && (
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <Pressable style={[ui.card, styles.shortcut]} onPress={() => router.push('/care/plans')} accessibilityRole="button">
@@ -245,13 +249,14 @@ function Empty({ text }: { text: string }) {
 const styles = StyleSheet.create({
   shortcut: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
   shortcutText: { fontFamily: F.bold, fontSize: 14, color: C.ink },
-  title: { fontSize: 38, fontFamily: F.display, color: C.ink },
+  title: { fontSize: 32, fontFamily: F.displayHeavy, color: C.onHeader, letterSpacing: -0.6 },
+  mark: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: C.headerGlass, borderWidth: 1, borderColor: C.headerGlassBorder },
   overlay: { flex: 1, backgroundColor: C.overlay, justifyContent: 'flex-end' },
   sheet: { backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 34, gap: 10 },
-  segment: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 14, padding: 4 },
+  segment: { flexDirection: 'row', backgroundColor: C.headerGlass, borderWidth: 1, borderColor: C.headerGlassBorder, borderRadius: 14, padding: 4 },
   segBtn: { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center' },
-  segOn: { backgroundColor: C.night },
-  segText: { fontFamily: F.bold, color: C.muted, fontSize: 13 },
+  segOn: { backgroundColor: '#ffffff', boxShadow: '0 6px 12px -6px rgba(0,0,0,0.35)' },
+  segText: { fontFamily: F.bold, color: C.onHeader, fontSize: 13 },
   item: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 16, padding: 16, ...shadow, elevation: 0 },
   status: { backgroundColor: C.card, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start' },
   statusText: { fontSize: 10, fontFamily: F.heavy, color: C.ink },
