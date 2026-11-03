@@ -15,6 +15,17 @@ import { LoadingScreen } from '@/lib/LoadingScreen';
 import { EasyModeProvider } from '@/lib/easyMode';
 import { LiveProvider } from '@/lib/live';
 import { C, F, IS_DARK } from '@/lib/theme';
+import { BrandGradient, LightStatusBar } from '@/lib/BrandHeader';
+
+/** Native headers (Sign in, Permissions, Join Nabz Partner) on the logo gradient like the rest of the app. */
+function BrandHeaderBackground() {
+  return (
+    <>
+      <BrandGradient />
+      <LightStatusBar />
+    </>
+  );
+}
 
 export default function RootLayout() {
   // Fonts ship inside the app bundle (no network at runtime).
@@ -33,8 +44,9 @@ export default function RootLayout() {
           <StatusBar style={IS_DARK ? 'light' : 'dark'} />
           <Stack
             screenOptions={{
-              headerStyle: { backgroundColor: C.bg },
-              headerTintColor: C.ink,
+              headerStyle: { backgroundColor: C.brand },
+              headerBackground: BrandHeaderBackground,
+              headerTintColor: C.onHeader,
               headerTitleStyle: { fontFamily: F.heavy },
               headerTitleAlign: 'center',
               headerShadowVisible: false,
