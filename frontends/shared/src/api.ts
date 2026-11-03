@@ -228,10 +228,14 @@ export class MedRushApi {
     }
 
     if (!res.ok || (payload && payload.success === false)) {
+      // "Validation failed" alone doesn't say what to fix: show the first field's own message.
+      const fieldMessage = Array.isArray(payload?.errors)
+        ? payload.errors.find((e: { message?: unknown }) => e && typeof e.message === 'string' && e.message)?.message
+        : undefined;
       // The server's limiter text ("API rate limit exceeded") means nothing to a customer.
       const message = res.status === 429
         ? 'Nabz is busy right now. Please wait a few seconds and try again.'
-        : (payload && (payload.message || payload.error)) || `Request failed (${res.status})`;
+        : fieldMessage || (payload && (payload.message || payload.error)) || `Request failed (${res.status})`;
       throw new ApiError(res.status, message, payload && payload.details, payload && typeof payload.code === 'string' ? payload.code : undefined);
     }
     return payload as T;

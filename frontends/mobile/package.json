@@ -10,7 +10,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "node -r sucrase/register lib/partnerTabs.test.ts && node -r sucrase/register lib/repeatGuard.test.ts"
+    "test": "node -r sucrase/register lib/partnerTabs.test.ts && node -r sucrase/register lib/repeatGuard.test.ts && node -r sucrase/register lib/apiErrors.test.ts"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "10.0.0",
