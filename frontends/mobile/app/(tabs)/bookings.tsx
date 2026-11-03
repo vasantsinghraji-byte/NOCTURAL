@@ -61,8 +61,10 @@ export default function Bookings() {
 
   const load = useCallback(() => {
     if (session?.kind !== 'patient') return;
+    // A fresh load clears the last failure (back online: the banner goes away).
+    setError(null);
     api.getMyCareBookings().then((r) => setVisits(r.data || r.bookings || [])).catch((e) => setError(describeNetworkError(e)));
-    api.getMyOrders({ limit: 20 }).then((r) => setOrders(r.orders)).catch(() => undefined);
+    api.getMyOrders({ limit: 20 }).then((r) => setOrders(r.orders)).catch((e) => setError(describeNetworkError(e)));
     api.myRefills().then((r) => setRefillOrders(new Set(r.refills.map((x) => String(x.fromOrder))))).catch(() => undefined);
   }, [session?.kind]);
   useFocusEffect(load);
@@ -119,7 +121,8 @@ export default function Bookings() {
           <Pressable style={ui.btnDark} onPress={() => router.push('/welcome')}><Text style={ui.btnText}>Sign in</Text></Pressable>
         </View>
       ) : tab === 'visits' ? (
-        visits.length === 0 ? <Empty text="No visits yet. Book a medical staff from Home." /> : visits.map((b, i) => (
+        // After a failed load, don't claim there are none: the error above says why the list is empty.
+        visits.length === 0 ? (error ? null : <Empty text="No visits yet. Book a medical staff from Home." />) : visits.map((b, i) => (
           <View key={b._id} style={[styles.item, { backgroundColor: PASTELS[i % PASTELS.length] }]}>
             <IconTile icon={serviceIcon(b.serviceType)} bg={C.card} color={TONES[i % TONES.length].fg} size={50} />
             <View style={{ flex: 1, gap: 2 }}>
@@ -171,7 +174,7 @@ export default function Bookings() {
           </View>
         ))
       ) : (
-        orders.length === 0 ? <Empty text="No medicine orders yet." /> : orders.map((o) => (
+        orders.length === 0 ? (error ? null : <Empty text="No medicine orders yet." />) : orders.map((o) => (
           <View key={o._id} style={{ gap: 8 }}>
             <View style={[styles.item, { backgroundColor: C.card }]}>
               <IconTile icon={o.fulfilment === 'STAFF_PICKUP' ? Stethoscope : Bike} size={50} />
