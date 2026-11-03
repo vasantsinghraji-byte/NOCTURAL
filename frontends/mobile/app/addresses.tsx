@@ -89,7 +89,7 @@ export default function Addresses() {
 
   const list = me?.savedAddresses;
   return (
-    <Screen header={<TopBar title="Saved addresses" right={<Btn small icon={Plus} label="Add" onPress={() => edit()} />} />}>
+    <Screen header={<TopBar title="Saved addresses" right={<Btn small variant="light" icon={Plus} label="Add" onPress={() => edit()} />} />}>
       {!me ? [0, 1].map((i) => <Skeleton key={i} height={90} radius={22} />) : null}
       {me && !list?.length ? <Empty title="No saved addresses" text="Save home, office or your parents’ place to book visits in one tap." action={<Btn icon={Plus} label="Add Address" onPress={() => edit()} />} /> : null}
       {list?.map((a) => {

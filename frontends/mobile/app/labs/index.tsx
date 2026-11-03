@@ -44,7 +44,7 @@ export default function LabTests() {
   const fasting = basket.some((id) => (byId.get(id)?.lab?.fastingHours || 0) > 0);
 
   return (
-    <Screen header={<TopBar title="Lab tests" right={signedIn ? <Btn small variant="soft" label="My Tests" onPress={() => router.push('/labs/orders')} /> : undefined} />}>
+    <Screen header={<TopBar title="Lab tests" right={signedIn ? <Btn small variant="light" label="My Tests" onPress={() => router.push('/labs/orders')} /> : undefined} />}>
       <BookingForBanner />
       <Rise><MkHero title="Lab tests," accent="compared" subtitle="See every lab’s price, report time and collection fee, then book a home collection." art="lab" /></Rise>
 

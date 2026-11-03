@@ -1,8 +1,24 @@
-import { useId, type ReactNode } from 'react';
+import { useCallback, useId, useState, type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { C, R, depth } from './theme';
+
+/**
+ * White status-bar icons while a brand header is on screen. Only the focused
+ * screen renders it, so going back to (or pushing) a light screen drops the
+ * entry and the root's dark icons return.
+ */
+export function LightStatusBar() {
+  const [focused, setFocused] = useState(false);
+  useFocusEffect(useCallback(() => {
+    setFocused(true);
+    return () => setFocused(false);
+  }, []));
+  return focused ? <StatusBar style="light" /> : null;
+}
 
 /**
  * The logo gradient (raspberry in the Nabz app, green in Nabz Partner) with a
@@ -50,6 +66,7 @@ export function BrandHeader({ children, style, bleed = 0 }: { children: ReactNod
     <View style={[s.wrap, depth.raised, bleed ? { marginHorizontal: -bleed } : null]}>
       <View style={[s.band, { paddingTop: insets.top + 10 }, style]}>
         <BrandGradient />
+        <LightStatusBar />
         {children}
       </View>
     </View>

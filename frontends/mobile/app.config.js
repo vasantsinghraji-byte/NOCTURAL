@@ -48,6 +48,8 @@ module.exports = {
       ['@config-plugins/react-native-webrtc', { microphonePermission: 'Nabz uses the microphone for voice calls with your nurse, pharmacy or lab.', cameraPermission: 'Nabz uses the camera to take photos you choose to share.' }],
       // Lets Razorpay open UPI apps directly (Android 11+ package visibility).
       './plugins/withUpiQueries',
+      // No black strip under the screens: the system navigation bar takes the tab bar colour.
+      './plugins/withNavigationBarTheme',
       // Embed the brand fonts natively (android assets/fonts) so they render even
       // if runtime font loading fails; names match the F.* families in lib/theme.ts.
       [

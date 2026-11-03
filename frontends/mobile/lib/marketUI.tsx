@@ -8,9 +8,9 @@ import CareArt, { WineGradient, type ArtKind } from './CareArt';
 import { PressScale, Skeleton } from './motion';
 import { useTabBarSpace } from './PillTabBar';
 import { dayShort, fmtTime, fromSaved, inr, usableAddresses, type VisitPlace } from './market';
-import { C, F, IS_DARK, R, clay, depth, ui } from './theme';
+import { C, F, IS_DARK, R, depth, ui } from './theme';
 import { Gloss } from './Skeuo';
-import { BrandGradient } from './BrandHeader';
+import { BrandGradient, LightStatusBar } from './BrandHeader';
 import { NabzMark } from './Brand';
 
 /**
@@ -27,7 +27,7 @@ export function Screen({ children, tabBar = false, header, refreshControl }: { c
     <View style={ui.screen}>
       {header}
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingTop: header ? 4 : insets.top + 12, paddingBottom: tabBar ? tabSpace : 40 + insets.bottom, gap: 14 }}
+        contentContainerStyle={{ padding: 16, paddingTop: header ? 16 : insets.top + 12, paddingBottom: tabBar ? tabSpace : 40 + insets.bottom, gap: 14 }}
         keyboardShouldPersistTaps="handled"
         refreshControl={refreshControl}
       >
@@ -37,18 +37,26 @@ export function Screen({ children, tabBar = false, header, refreshControl }: { c
   );
 }
 
-/** Back arrow + title for stack screens. */
+/**
+ * Back arrow + title for stack screens, on the logo gradient like the tab
+ * headers (deep red in Nabz, green in Nabz Partner). Right-slot buttons should
+ * use the 'light' Btn variant so they stand off the red.
+ */
 export function TopBar({ title, right, back = true, onBack }: { title?: string; right?: ReactNode; back?: boolean; onBack?: () => void }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[s.topBar, { paddingTop: insets.top + 8 }]}>
-      {back ? (
-        <PressScale onPress={onBack || (() => (router.canGoBack() ? router.back() : router.replace('/')))} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Back">
-          <ArrowLeft size={20} color={C.ink} />
-        </PressScale>
-      ) : <View style={{ width: 44 }} />}
-      <Text style={s.topTitle} numberOfLines={1}>{title}</Text>
-      <View style={{ minWidth: 44, alignItems: 'flex-end' }}>{right}</View>
+    <View style={[s.topWrap, depth.raised]}>
+      <View style={[s.topBar, { paddingTop: insets.top + 8 }]}>
+        <BrandGradient />
+        <LightStatusBar />
+        {back ? (
+          <PressScale onPress={onBack || (() => (router.canGoBack() ? router.back() : router.replace('/')))} style={s.glassBtn} accessibilityRole="button" accessibilityLabel="Back">
+            <ArrowLeft size={20} color={C.onHeader} />
+          </PressScale>
+        ) : <View style={{ width: 44 }} />}
+        <Text style={s.topTitle} numberOfLines={1} accessibilityRole="header">{title}</Text>
+        <View style={{ minWidth: 44, alignItems: 'flex-end' }}>{right}</View>
+      </View>
     </View>
   );
 }
@@ -387,9 +395,10 @@ export const mk = StyleSheet.create({
 });
 
 const s = StyleSheet.create({
-  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8, gap: 10, backgroundColor: C.bg },
-  topTitle: { flex: 1, textAlign: 'center', fontFamily: F.display, fontSize: 18, color: C.ink },
-  iconBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', ...clay },
+  topWrap: { borderBottomLeftRadius: R.xl, borderBottomRightRadius: R.xl, backgroundColor: C.brand },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 14, gap: 10, borderBottomLeftRadius: R.xl, borderBottomRightRadius: R.xl, overflow: 'hidden' },
+  topTitle: { flex: 1, textAlign: 'center', fontFamily: F.display, fontSize: 18, color: C.onHeader },
+  glassBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.headerGlass, borderWidth: 1, borderColor: C.headerGlassBorder, alignItems: 'center', justifyContent: 'center' },
   hero: { borderRadius: 22, padding: 20, overflow: 'hidden', backgroundColor: C.brand },
   eyebrow: { alignSelf: 'flex-start', color: C.onHeaderMuted, fontFamily: F.bold, fontSize: 12, letterSpacing: 1, marginBottom: 6 },
   heroTitle: { color: C.onHeader, fontFamily: F.displayHeavy, fontSize: 26, lineHeight: 31, letterSpacing: -0.6 },

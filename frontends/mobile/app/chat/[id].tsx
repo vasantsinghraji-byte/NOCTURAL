@@ -25,6 +25,8 @@ export default function ChatThreadScreen() {
   const [messages, setMessages] = useState<ChatMessageView[]>([]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  // State lags a render behind: two taps in one frame would both send.
+  const sendingRef = useRef(false);
   const [calling, setCalling] = useState(false);
   const [live, setLive] = useState(false);
   const [error, setError] = useState('');
@@ -83,7 +85,8 @@ export default function ChatThreadScreen() {
 
   const send = async () => {
     const body = text.trim();
-    if (!body) return;
+    if (!body || sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
     try {
       const { message } = await api.sendChatMessage(String(id), body);
@@ -93,6 +96,7 @@ export default function ChatThreadScreen() {
     } catch (e) {
       appAlert('Not sent', problem(e).message);
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
