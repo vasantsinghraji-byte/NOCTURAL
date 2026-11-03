@@ -147,7 +147,8 @@ export default function Bookings() {
               {b.supplies?.status === 'ORDERED' && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Store size={13} color={C.muted} /><Text style={ui.muted}>Supplies packed · {inr(b.supplies.amount || 0)}</Text></View>
               )}
-              <View style={{ flexDirection: 'row', gap: 16, marginTop: 4 }}>
+              {/* Wraps on narrow phones so Cancel never runs off the card. */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 16, rowGap: 10, marginTop: 4 }}>
                 {b.status === 'REQUESTED' && b.dispatch?.status === 'NO_STAFF' ? (
                   <Pressable style={styles.track} onPress={() => chooseReschedule(b._id, load, setError)}>
                     <CalendarDays size={14} color={C.onNight} />
@@ -170,7 +171,7 @@ export default function Bookings() {
                 )}
               </View>
             </View>
-            <View style={styles.status}><Text style={styles.statusText}>{b.status}</Text></View>
+            <View style={styles.status}><Text style={styles.statusText}>{VISIT_STATUS[b.status] || b.status.replace(/_/g, ' ')}</Text></View>
           </View>
         ))
       ) : (
@@ -249,6 +250,12 @@ function Empty({ text }: { text: string }) {
   return <View style={[ui.card, { alignItems: 'center' }]}><IconTile icon={CalendarDays} size={56} /><Text style={[ui.muted, { marginTop: 6 }]}>{text}</Text></View>;
 }
 
+/** Words for the visit status chip (the API's codes, e.g. EN_ROUTE, aren't for customers). */
+const VISIT_STATUS: Record<string, string> = {
+  REQUESTED: 'Requested', ASSIGNED: 'Assigned', CONFIRMED: 'Confirmed', EN_ROUTE: 'On the way',
+  IN_PROGRESS: 'In progress', COMPLETED: 'Completed', CANCELLED: 'Cancelled'
+};
+
 const styles = StyleSheet.create({
   shortcut: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
   shortcutText: { fontFamily: F.bold, fontSize: 14, color: C.ink },
@@ -262,7 +269,7 @@ const styles = StyleSheet.create({
   segText: { fontFamily: F.bold, color: C.onHeader, fontSize: 13 },
   item: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 16, padding: 16, ...shadow, elevation: 0 },
   status: { backgroundColor: C.card, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start' },
-  statusText: { fontSize: 10, fontFamily: F.heavy, color: C.ink },
+  statusText: { fontSize: 10, fontFamily: F.heavy, color: C.ink, textTransform: 'uppercase' },
   cancel: { color: C.rose, fontFamily: F.bold, marginTop: 6 },
   track: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.night, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
   trackText: { color: C.onNight, fontFamily: F.heavy, fontSize: 12 },

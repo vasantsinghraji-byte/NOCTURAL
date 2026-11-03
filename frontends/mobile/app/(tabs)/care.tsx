@@ -44,16 +44,17 @@ export default function CareHub() {
 
   return (
     <Screen tabBar refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={C.brand} />}>
-      <BookingForBanner />
-      <FamilyInvites />
       <Rise>
-        <MkHero eyebrow="NABZ CARE" title="Care at home, by people" accent="you choose" subtitle="Compare physios, caregivers and labs near you. Every price shown before you book." art="heart">
+        <MkHero top eyebrow="NABZ CARE" title="Care at home, by people" accent="you choose" subtitle="Compare physios, caregivers and labs near you. Every price shown before you book." art="heart">
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Btn small variant="light" label="Book a Physio" icon={ArrowRight} onPress={() => router.push('/care/PHYSIO')} />
             <Btn small variant="dark" label="Lab Tests" onPress={() => router.push('/labs')} />
           </View>
         </MkHero>
       </Rise>
+      {/* Below the full-width hero: it starts at the top edge of the screen. */}
+      <BookingForBanner />
+      <FamilyInvites />
 
       {mine && active.slice(0, 2).map((p, i) => {
         const next = p.sessions?.find((s) => ['CONFIRMED', 'REQUESTED', 'ASSIGNED'].includes(s.status));

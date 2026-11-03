@@ -10,7 +10,7 @@ import { useTabBarSpace } from './PillTabBar';
 import { dayShort, fmtTime, fromSaved, inr, usableAddresses, type VisitPlace } from './market';
 import { C, F, IS_DARK, R, depth, ui } from './theme';
 import { Gloss } from './Skeuo';
-import { BrandGradient, LightStatusBar } from './BrandHeader';
+import { BrandGradient, BrandHeader, LightStatusBar } from './BrandHeader';
 import { NabzMark } from './Brand';
 
 /**
@@ -61,13 +61,17 @@ export function TopBar({ title, right, back = true, onBack }: { title?: string; 
   );
 }
 
-/** Wine hero card with animated art (the CardioLife header). */
-export function MkHero({ title, accent, subtitle, art = 'heart', children, eyebrow }: {
-  title: string; accent?: string; subtitle?: string; art?: ArtKind; children?: ReactNode; eyebrow?: string;
+/**
+ * Brand hero: a red card, or with `top` (first thing on a tab screen with no
+ * TopBar) the full-width band from the top of the screen like Home, Bookings
+ * and Account.
+ */
+export function MkHero({ title, accent, subtitle, art = 'heart', children, eyebrow, top = false }: {
+  title: string; accent?: string; subtitle?: string; art?: ArtKind; children?: ReactNode; eyebrow?: string; top?: boolean;
 }) {
-  return (
-    <View style={[s.hero, depth.raised]}>
-      <BrandGradient radius={22} />
+  const insets = useSafeAreaInsets();
+  const body = (
+    <>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         <View style={{ flex: 1, paddingRight: 10 }}>
           {eyebrow ? <Text style={s.eyebrow}>{eyebrow}</Text> : null}
@@ -77,6 +81,14 @@ export function MkHero({ title, accent, subtitle, art = 'heart', children, eyebr
         <View style={s.heroMark}><NabzMark size={34} pulse={C.brand} /></View>
       </View>
       {children ? <View style={{ marginTop: 14 }}>{children}</View> : null}
+    </>
+  );
+  // Screen pads the top by insets.top + 12 when it has no header; the band starts above that.
+  if (top) return <View style={{ marginTop: -(insets.top + 12) }}><BrandHeader bleed={16} style={{ paddingHorizontal: 20, paddingBottom: 22 }}>{body}</BrandHeader></View>;
+  return (
+    <View style={[s.hero, depth.raised]}>
+      <BrandGradient radius={22} />
+      {body}
     </View>
   );
 }
