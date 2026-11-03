@@ -42,6 +42,7 @@ const { protect } = require('./middleware/auth');
 
 // Import error handler
 const errorHandler = require('./middleware/errorHandler');
+const { NotFoundError } = require('./utils/errors');
 
 // Request correlation ID, centralized request limits, and safe response wrapping
 const requestId = require('./middleware/requestId');
@@ -375,6 +376,10 @@ app.get('/api/health', (req, res) => {
     recommendation: 'Use /api/v1/health for versioned endpoint'
   });
 });
+
+// Unknown API routes answer in JSON like every other API error (apps parse
+// the body; Express's default is an HTML page that echoes the path back).
+app.use('/api', (req, res, next) => next(new NotFoundError('Endpoint')));
 
 // Error handling (must be last)
 app.use(errorHandler);

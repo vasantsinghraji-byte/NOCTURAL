@@ -80,11 +80,20 @@ describe('App Integration: GET /api/v1/health and core API mount', () => {
     expect(res.headers['x-api-version']).toBe('v1');
   });
 
-  test('Unknown API routes return 404 or redirect', async () => {
+  test('Unknown API routes return a JSON 404 (not the default HTML page)', async () => {
     const res = await request(app).get('/api/v1/nonexistent-route-xyz');
 
-    // Express default 404 or custom error handler
-    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.body).toMatchObject({ success: false });
+    expect(res.text).not.toMatch(/<html|Cannot GET/i);
+  });
+
+  test('Unknown POST API routes are a JSON 404 too', async () => {
+    const res = await request(app).post('/api/v1/nonexistent-route-xyz').send({});
+
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
   });
 
   test('Auth routes are mounted (POST /api/v1/auth/login returns 400 without body)', async () => {
