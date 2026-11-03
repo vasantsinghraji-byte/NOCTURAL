@@ -27,9 +27,13 @@ export function LightStatusBar() {
  */
 export function BrandGradient({ radius = 0 }: { radius?: number }) {
   const id = useId().replace(/:/g, '');
+  // Sized from layout, not "100%": on Android a percentage-sized Svg keeps its
+  // first height, so a header that grows once data loads showed a flat strip.
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   return (
-    <View style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]} pointerEvents="none">
-      <Svg width="100%" height="100%" preserveAspectRatio="none">
+    <View style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]} pointerEvents="none"
+      onLayout={(e) => { const { width: w, height: h } = e.nativeEvent.layout; setSize((p) => (p && p.w === w && p.h === h ? p : { w, h })); }}>
+      {size ? <Svg width={size.w} height={size.h} preserveAspectRatio="none">
         <Defs>
           <LinearGradient id={`g${id}`} x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor={C.brandLight} />
@@ -50,7 +54,7 @@ export function BrandGradient({ radius = 0 }: { radius?: number }) {
         <Rect width="100%" height="100%" fill={`url(#s${id})`} />
         {/* A faint ring echoing the logo's pin, top-right. */}
         <Circle cx="92%" cy="8%" r="90" fill="none" stroke="#ffffff" strokeOpacity="0.07" strokeWidth="22" />
-      </Svg>
+      </Svg> : null}
     </View>
   );
 }
