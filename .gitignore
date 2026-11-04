@@ -117,3 +117,4 @@ frontends/**/.turbo/
 crash.log
 terraform/environments/*.tfvars
 !terraform/environments/*.tfvars.example
+scripts/qa/staging-qa-results.json

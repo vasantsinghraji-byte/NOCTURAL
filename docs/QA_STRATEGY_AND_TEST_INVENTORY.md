@@ -170,6 +170,85 @@ The 4 skipped suites and 7 skipped tests are opt-in: they need flags such as `RU
 | Release | Staging and apps behind the branch | Staging deployed at `46540a0` (API and website). Staging smoke passed: health and commit, 7 website pages, stores near the demo area, the new routes require sign-in, CORS preflight, demo customer sign-in, a customer token refused on rider and admin routes. `Nabz.apk` and `Nabz-Partner.apk` rebuilt against staging, release-signed (SHA-1 `05:84:A4…6D:EA`), and the old copies removed | Release |
 | CodeQL | Alerts on PR #216 | 6 real issues fixed (settings allowlist, 2× email ReDoS, heat map lookup, timer clamp, unused code); 77 NoSQL alerts shown to be mitigated, with a regression test. Owner decision in `docs/SECURITY_CODEQL_TRIAGE.md` | **Security** |
 
+### 8.2 Real-life QA on 3–4 November 2026 (app and server)
+
+The brand redesign covered the Bookings, Account, Care and stack screens. After it, the apps and the API were tested on staging the way people actually use them: double and repeated taps, wrong input, losing the network, and a customer and a nurse chatting.
+
+**Where and how**
+- **API:** staging at `https://tiuh3tvxsa.ap-south-1.awsapprunner.com`, deployed at `be5af61`. The website was deployed at `cff46d0`.
+- **Accounts:** synthetic staging test accounts only.
+- **Apps:** release-signed APKs on the `MedRush_API_35` emulator (Android 15, gesture navigation, location set to Jaipur).
+- **Repeatable check:** `QA_ACCOUNTS_FILE=<private accounts file> node scripts/qa/stagingRealLifeQa.js`. It refuses anything except staging or localhost. It creates one cash-on-delivery order and one scheduled visit, then cancels both. It also sends about 33 chat messages, labelled `QA …`.
+
+**Automated results**
+
+| Check | Command | Result |
+|---|---|---|
+| Server, full suite | `npx jest -c jest.config.js --runInBand` | **1706 passed, 7 skipped, 0 failed** (211 suites). The first run had 143 failures, all in 3 model suites (`application`, `duty`, `user`), because the local MongoDB replica set wasn't running: those suites need a real `mongod` on `127.0.0.1:27017` (`rs0`). With it started, the same suites passed 143/143 in 24 s |
+| Server, app boot (with the new 404 tests) | `npx jest -c jest.config.js tests/integration/app-boot.test.js` | 10/10 passed |
+| App unit tests (now including API error text) | `npm test` in `frontends/mobile` | 18/18 passed (9 + 6 + 3) |
+| App and shared package type-check | `npx tsc --noEmit -p .` and `tsc --noEmit -p frontends/shared` | passed |
+| Staging real-life API checks | `scripts/qa/stagingRealLifeQa.js` | **30/30 passed** (three runs) |
+| Website on staging | CodeBuild `TARGET=web`, then pages `/`, `/pharmacy`, `/login`, `/care` | build succeeded; all pages 200 |
+
+**Staging API checks (30)**
+- **Error handling (14).** Each case returns the expected answer:
+  - no token → 401 JSON; tampered token → 401
+  - wrong password → 401; an unknown email gets the same "Invalid credentials" (no account enumeration)
+  - `{ "$gt": "" }` login injection → 400
+  - malformed JSON → 400
+  - unknown API route → JSON 404
+  - bad id → 400 with no stack trace; someone else's order → 404
+  - customer token on a pharmacy route → 401
+  - empty cart → 400
+  - chat message over 2,000 characters → 400
+  - cancel reason under 10 characters → 400
+- **Double and multiple taps (8):**
+  - Place order: 6 simultaneous taps with one key give **1 order**. A retry replays the same order, the same key with a different cart is refused (422), and order history shows exactly one new order.
+  - Cancel order: 6 simultaneous taps give 1 cancellation, and the rest get 409 with no 500s. Cancelling again gives a clean 409.
+  - Book visit: 6 simultaneous taps give **1 booking**.
+  - Cancel visit: 6 simultaneous taps give 1 cancellation. The rest get 400 or 409, never 500, and there is no double refund. This route has no idempotency middleware, but the state change is atomic and the app sends only one request per double tap (`repeatGuard.ts`).
+- **Chat (6):**
+  - the customer sends and the nurse receives; the nurse replies and the customer receives; the unread badge counts the reply
+  - someone else's conversation → 404
+  - more than 30 messages a minute → "You're sending messages too fast. Wait a moment" (409), never a 500
+- **Sign-in (2):** customer and nurse sign in.
+
+**Manual results on the emulator**
+
+| Scenario | Result |
+|---|---|
+| Triple tap on the Pharmacy tile and on a nurse service card | One screen opened; one Back returns Home |
+| Double tap on "Sign in / Create account", "Sign in with email" and the Sign in button | One screen and one sign-in |
+| "Sign in with email" before accepting the terms | "Please tick the box to accept the Terms and Conditions." |
+| Bad email on Sign in | Showed "Validation failed". **Fixed:** now shows the field's message |
+| Wi-Fi and mobile data off, then Bookings | "Can't reach Nabz right now…", no crash. It also showed "No visits yet" (false), and the banner stayed after coming back online. **Both fixed** |
+| Triple tap on chat Send | **1 message**, counted on the server |
+| Home, Care, Bookings, Account, Messages (customer) | Brand gradient headers, white status-bar icons on red, no black strip under the tab bar. Care's header was a card while the rest were full-width. **Fixed** |
+| Partner app, nurse signed in | Green gradient header, tab bar, white navigation bar. The gradient left a flat strip when the header grew after loading. **Fixed** |
+
+**Defects found and fixed**
+
+| # | Defect | Fix | Commit |
+|---|---|---|---|
+| 1 | Unknown `/api/v1/*` routes returned Express's HTML "Cannot GET" page | JSON 404 through the error handler; test tightened | `40e1030` |
+| 2 | Black Android navigation bar under every screen (the "gap at the bottom") | Config plugin `withNavigationBarTheme`: tab-bar colour, with a dark-mode variant | `be5af61` |
+| 3 | Stack screens (Messages, Addresses, Labs, Care plans, Refills…) and native headers (Sign in, Permissions) had no brand colour | `TopBar` and native headers on the logo gradient; white status-bar icons only while focused | `be5af61`, `88fe4e7` |
+| 4 | Two taps on chat Send in one frame could send the message twice | Ref guard in the send handler | `be5af61` |
+| 5 | Validation errors showed "Validation failed" instead of what to fix | Shared API client shows the first field's message (app and website); unit test | `93a468d` |
+| 6 | Bookings: the offline banner never cleared, and "No visits yet" showed after a failed load | Error cleared on reload, orders errors reported, no empty state after a failure | `26b465a` |
+| 7 | Bookings: raw `EN_ROUTE` status; "Cancel" cut off the card on narrow phones | Readable status words; action row wraps | `cff46d0` |
+| 8 | Care header was a floating card, unlike the other tabs | `MkHero top`: full-width band from the top edge | `cff46d0` |
+| 9 | Brand gradient kept its first height, leaving a flat strip when a header grew | Gradient sized from layout | `a749437` |
+
+**Notes**
+- **Test data on staging:**
+  - one cancelled cash-on-delivery order per run
+  - one cancelled visit per run (Wound dressing)
+  - about 33 `QA …` messages per run in the demo customer and nurse conversation
+- **Partner app on the emulator:** the copy installed on 8 October was signed with the old debug key, so Android refused the update until it was uninstalled. Phones that still have a pre-release-key build need the same uninstall.
+- **Not covered:** physical-device runs, iOS, and payment flows (Razorpay is not added yet).
+
 ## 9. How to read the inventory
 
 **Fields in each row:**
