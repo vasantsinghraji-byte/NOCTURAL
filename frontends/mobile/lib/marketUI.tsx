@@ -55,7 +55,7 @@ export function TopBar({ title, right, back = true, onBack }: { title?: string; 
             <ArrowLeft size={20} color={C.onHeader} />
           </PressScale>
         ) : <View style={{ width: 44 }} />}
-        <Text style={s.topTitle} numberOfLines={1} accessibilityRole="header">{title}</Text>
+        <Text style={s.topTitle} numberOfLines={2} maxFontSizeMultiplier={1.4} accessibilityRole="header">{title}</Text>
         <View style={{ minWidth: 44, alignItems: 'flex-end' }}>{right}</View>
       </View>
     </View>

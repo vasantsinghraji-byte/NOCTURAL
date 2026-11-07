@@ -23,5 +23,12 @@ export function earliestTodayMinutes(advanceBookingHours = 0, nowMs = Date.now()
   return now.getUTCHours() * 60 + now.getUTCMinutes() + Math.max(MIN_LEAD_MINUTES, advanceBookingHours * 60);
 }
 
+/**
+ * "2026-11-05" as "Thu, 5 Nov" whatever the phone's time zone. (new Date(ymd)
+ * is UTC midnight, which phones behind UTC showed as the day before.)
+ */
+export const fmtVisitDay = (ymd: string, opts: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' }) =>
+  new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-IN', { ...opts, timeZone: 'UTC' });
+
 /** Can this slot be booked? Any slot on a later day; today only with enough notice. */
 export const slotOpen = (day: string, tm: string, todayKey: string, earliestToday: number) => day !== todayKey || slotMinutes(tm) >= earliestToday;

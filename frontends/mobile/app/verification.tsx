@@ -24,7 +24,8 @@ const STATE: Record<VerificationItem['state'], { label: string; fg: string; bg: 
   EXPIRED: { label: 'Expired', fg: C.roseInk, bg: C.roseSoft, icon: TriangleAlert },
   MISSING: { label: 'Not added', fg: C.muted, bg: C.cardAlt, icon: CircleDashed }
 };
-const fmt = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+// Date-only values ("2027-01-31") are shown as that day in any time zone.
+const fmt = (d: string) => new Date(/^d{4}-d{2}-d{2}$/.test(d) ? `${d}T12:00:00Z` : d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', ...(/^d{4}-d{2}-d{2}$/.test(d) ? { timeZone: 'UTC' } : {}) });
 
 export default function VerificationScreen() {
   const insets = useSafeAreaInsets();

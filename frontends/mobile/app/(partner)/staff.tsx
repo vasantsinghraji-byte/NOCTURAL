@@ -314,7 +314,14 @@ export default function StaffHome() {
             <Earn icon={Wallet} label="This week" value={inr(dash?.week.earnings ?? 0)} sub={`${dash?.week.visits ?? 0} visits`} />
             <Earn icon={Star} label="Rating" value={dash?.rating ? Number(dash.rating).toFixed(1) : 'New'} sub={`${dash?.totalReviews ?? 0} reviews`} />
           </View>
-          {dash && dash.pendingPayout > 0 && <Text style={styles.payout}>Next weekly payout: {inr(dash.pendingPayout)}</Text>}
+          {dash?.payout && (dash.payout.earned > 0 || dash.payout.cashHeld > 0) ? (
+            <View style={{ gap: 2 }}>
+              <Text style={styles.payout}>Payout due: {inr(dash.payout.available)}</Text>
+              <Text style={[styles.payout, { fontSize: 12, opacity: 0.85 }]}>
+                {inr(dash.payout.earned)} earned − {inr(dash.payout.cashHeld)} cash you collected{dash.payout.owes > 0 ? ` · ${inr(dash.payout.owes)} is settled from your next earnings` : ''}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={{ padding: 16, gap: 12 }}>

@@ -385,7 +385,7 @@ function BookHome() {
                   onPress={() => { closeSearch(); setQuery(''); pick(s); }}>
                   <IconTile icon={serviceIcon(s.serviceType)} size={36} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.dropTitle} numberOfLines={1}>{s.displayName || s.name}</Text>
+                    <Text style={styles.dropTitle} numberOfLines={2}>{s.displayName || s.name}</Text>
                     {s.shortDescription ? <Text style={ui.muted} numberOfLines={1}>{s.shortDescription}</Text> : null}
                   </View>
                   {s.pricingPreview ? <Text style={styles.dropPrice}>{money(s.pricingPreview.regular.totalAmount)}</Text> : null}
@@ -447,7 +447,8 @@ function ServiceTile({ service, onPress }: { service: CareService; onPress: () =
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.cell, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]} accessibilityRole="button" accessibilityLabel={service.displayName || service.name}>
       <EmbossTile size={66} radius={20}><Icon size={28} color={C.brand} strokeWidth={1.9} /></EmbossTile>
-      <Text style={styles.tileText} numberOfLines={2}>{shortName(service)}</Text>
+      {/* Room for big text: three lines, scaling capped so four tiles still fit a row. */}
+      <Text style={styles.tileText} numberOfLines={3} maxFontSizeMultiplier={1.5}>{shortName(service)}</Text>
     </Pressable>
   );
 }
@@ -459,7 +460,7 @@ function NeedTile({ icon: Icon, label, badge, tone = 'brand', onPress }: { icon:
     <PressScale onPress={onPress} style={styles.need} accessibilityRole="button" accessibilityLabel={badge ? `${label}, ${badge}` : label}>
       <EmbossTile size={72} radius={22} tint={look.tint}><Icon size={30} color={look.fg} strokeWidth={1.8} /></EmbossTile>
       {badge ? <View style={styles.needBadge}><Gloss radius={999} strength={0.8} /><Text style={styles.needBadgeText}>{badge}</Text></View> : null}
-      <Text style={styles.needText} numberOfLines={2}>{label}</Text>
+      <Text style={styles.needText} numberOfLines={3} maxFontSizeMultiplier={1.5}>{label}</Text>
     </PressScale>
   );
 }
@@ -528,7 +529,7 @@ const styles = StyleSheet.create({
   sectionTitle: { flexShrink: 1, fontFamily: F.display, fontSize: 20, color: C.ink, letterSpacing: -0.3 },
   sectionLink: { fontFamily: F.bold, fontSize: 14, color: C.brand },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
-  cell: { width: '25%', alignItems: 'center', gap: 7, paddingVertical: 8, paddingHorizontal: 4, minHeight: 112 },
+  cell: { width: '25%', alignItems: 'center', gap: 7, paddingVertical: 8, paddingHorizontal: 2, minHeight: 112 },
   tileText: { fontSize: 12.5, lineHeight: 16, fontFamily: F.semi, color: C.ink, textAlign: 'center' },
   when: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, minHeight: 72, borderWidth: 1.5, borderColor: C.border },
   whenIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },

@@ -750,7 +750,10 @@ export interface StaffDashboard {
   name: string;
   today: { earnings: number; visits: number };
   week: { earnings: number; visits: number };
+  /** Gross earnings not yet paid out (before cash you collected). */
   pendingPayout: number;
+  /** What you'll actually be paid: earned − cash collected (same as Account › Payouts). */
+  payout?: { available: number; earned: number; cashHeld: number; owes: number } | null;
   rating: number | null;
   totalReviews: number;
   availability: StaffAvailability;

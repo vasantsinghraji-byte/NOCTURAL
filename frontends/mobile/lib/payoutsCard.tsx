@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Text } from '@/lib/T';
 import { Landmark, Smartphone, Wallet } from 'lucide-react-native';
@@ -17,7 +18,8 @@ export function PayoutsCard() {
   const load = useCallback(() => {
     api.getPayouts().then((r) => setData(r.payouts)).catch(() => undefined);
   }, []);
-  useEffect(load, [load]);
+  // Reload whenever the screen is shown again (a visit just finished changes the figures).
+  useFocusEffect(load);
 
   async function withdraw() {
     if (!data) return;
@@ -46,10 +48,10 @@ export function PayoutsCard() {
 
   return (
     <View style={[styles.card, { gap: 10 }]}>
-      <View style={styles.inline}><Wallet size={18} color={C.brand} /><Text style={ui.h3}>Payouts</Text></View>
+      <View style={styles.inline}><Wallet size={18} color={C.brand} /><Text style={ui.h3}>Payout due</Text></View>
       <Text style={styles.balance}>{inr(data.available)}</Text>
       <Text style={ui.muted}>
-        Available to withdraw: {inr(data.earned)} earned − {inr(data.cashHeld)} cash you collected.
+        {inr(data.earned)} earned − {inr(data.cashHeld)} cash you collected. You can withdraw it, or it’s paid weekly.
         {data.owes > 0 ? ` You hold ${inr(data.owes)} more in cash than you’ve earned; it’s settled from your next earnings.` : ''}
       </Text>
 

@@ -14,7 +14,7 @@ import { ArrowLeft, Camera, Check, CircleCheck, CircleX, FileText, MapPin, Store
 import { TextArea } from '@/lib/fields';
 import { RecipientPicker, rememberRecipient } from '@/lib/recipients';
 import { ProviderPicker } from '@/lib/providerPicker';
-import { ALL_SLOTS, SLOTS, earliestTodayMinutes, istNow, istYmd, slotOpen as isSlotOpen } from '@/lib/visitSlots';
+import { ALL_SLOTS, SLOTS, earliestTodayMinutes, fmtVisitDay, istNow, istYmd, slotOpen as isSlotOpen } from '@/lib/visitSlots';
 import { C, F, shadow, ui } from '@/lib/theme';
 
 type Mode = 'ASAP' | 'SCHEDULED';
@@ -316,7 +316,7 @@ export default function Book() {
 
         {step === 'time' && (
           <>
-            <Text style={styles.month}>{new Date(`${date}T12:00:00Z`).toLocaleString('en-IN', { month: 'long', timeZone: 'UTC' })}</Text>
+            <Text style={styles.month}>{fmtVisitDay(date, { month: 'long' })}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
               {days.map((d, i) => {
                 const key = istYmd(d);
@@ -480,7 +480,7 @@ export default function Book() {
               {bringing.length > 0 && <BillRow label={`Supplies (${bringing.length})`} value={inr(suppliesTotal)} />}
               <View style={styles.billLine} />
               <BillRow label="Total · pay after the visit" value={inr(fee + suppliesTotal)} strong />
-              <Text style={ui.muted}>{mode === 'ASAP' ? 'We’ll match the nearest verified professional now.' : `${date === todayKey ? 'Today' : new Date(`${date}T12:00:00Z`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })} · ${fmtTime(time)}`}</Text>
+              <Text style={ui.muted}>{mode === 'ASAP' ? 'We’ll match the nearest verified professional now.' : `${date === todayKey ? 'Today' : fmtVisitDay(date)} · ${fmtTime(time)}`}</Text>
               {uploadLater && <Text style={ui.muted}>Prescription: upload later from Bookings (needed before the visit starts)</Text>}
             </View>
             <PressScale style={[ui.btnDark, busy && { opacity: 0.6 }]} disabled={busy} onPress={book}>

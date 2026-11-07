@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ALL_SLOTS, earliestTodayMinutes, istYmd, slotOpen } from './visitSlots.ts';
+import { ALL_SLOTS, earliestTodayMinutes, fmtVisitDay, istYmd, slotOpen } from './visitSlots.ts';
 import { translatePhrase } from './phrases.ts';
 import { HI_PHRASES } from './hiPhrases.ts';
 
@@ -37,6 +37,19 @@ test('exactly 30 minutes ahead still counts (the server accepts it); later in th
 test('"today" is India\'s date even when the phone is abroad', () => {
   // 2026-11-05 20:00 UTC is already 2026-11-06 01:30 in India.
   assert.equal(istYmd(new Date(Date.UTC(2026, 10, 5, 20, 0) + 330 * 60000)), '2026-11-06');
+});
+
+test('the review screen shows the picked day even on a phone behind UTC', () => {
+  const before = process.env.TZ;
+  process.env.TZ = 'America/New_York';
+  try {
+    assert.match(fmtVisitDay('2026-11-05'), /5 Nov/);
+    assert.match(fmtVisitDay('2026-11-05'), /Thu/);
+    // The old way showed the day before here.
+    assert.match(new Date('2026-11-05').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), /4 Nov/);
+  } finally {
+    if (before === undefined) delete process.env.TZ; else process.env.TZ = before;
+  }
 });
 
 test('translation keeps surrounding spaces and leaves unknown text alone', () => {

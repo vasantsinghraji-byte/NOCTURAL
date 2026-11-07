@@ -216,6 +216,13 @@ export default function Bookings() {
                 <Text style={ui.h3}>{o.orderNumber}</Text>
                 <Text style={ui.muted}>{o.items.length} item(s) · {inr(o.amounts.total)}</Text>
                 {o.fulfilment === 'STAFF_PICKUP' && <Text style={ui.muted}>Brought by your nurse</Text>}
+                {(() => {
+                  // Why the order moved store or was cancelled (e.g. no pharmacy accepted in time).
+                  const why = ['CANCELLED', 'REJECTED'].includes(o.status)
+                    ? (o.cancellationReason || [...(o.timeline || [])].reverse().find((t) => t.note)?.note)
+                    : [...(o.timeline || [])].reverse().find((t) => t.note && /moved to/i.test(t.note))?.note;
+                  return why ? <Text style={[ui.muted, { color: ['CANCELLED', 'REJECTED'].includes(o.status) ? C.brandDark : C.inkSoft }]}>{why}</Text> : null;
+                })()}
                 {o.status === 'DELIVERED' && o.fulfilment !== 'STAFF_PICKUP' && (
                   refillOrders.has(o._id)
                     ? <Text style={[ui.muted, { color: C.mint, fontFamily: F.bold }]}>Refill reminder on</Text>

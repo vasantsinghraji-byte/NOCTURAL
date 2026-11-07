@@ -18,6 +18,13 @@ import { PhotoAvatar } from '@/lib/profilePhoto';
 const STAFF_ROLES = ['nurse', 'physiotherapist', 'medical_staff'];
 
 /** Partner account: who I am, what I earned, my rating, payouts and my referral code. */
+/** People-facing names for account roles (never the internal "lab_partner"). */
+const ROLE_LABELS: Record<string, string> = {
+  nurse: 'Nurse', physiotherapist: 'Physiotherapist', medical_staff: 'Medical staff', lab_partner: 'Path lab',
+  phlebotomist: 'Phlebotomist', pharmacy_vendor: 'Pharmacy partner', rider: 'Delivery partner', caregiver: 'Caregiver'
+};
+const roleLabel = (role?: string) => (role ? ROLE_LABELS[role] || role.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) : undefined);
+
 export default function PartnerAccountScreen() {
   return <PartnerAccount />;
 }
@@ -73,7 +80,7 @@ export function PartnerAccount({ embedded = false }: { embedded?: boolean }) {
         <Text style={styles.eyebrow}>MY ACCOUNT</Text>
         {acct && <View style={{ marginVertical: 8 }}><PhotoAvatar name={acct.name} url={acct.photoUrl} size={72} editable onChange={(url) => setAcct({ ...acct, photoUrl: url })} /></View>}
         <Text style={styles.name}>{acct?.name || session?.name || ''}</Text>
-        <Text style={styles.sub}>{acct?.kind === 'PHARMACY' ? acct.store?.name || 'Pharmacy partner' : [acct?.role, acct?.profile?.qualification].filter(Boolean).join(' · ')}</Text>
+        <Text style={styles.sub}>{acct?.kind === 'PHARMACY' ? acct.store?.name || 'Pharmacy partner' : [roleLabel(acct?.role), acct?.profile?.qualification].filter(Boolean).join(' · ')}</Text>
         {acct && (
           <View style={styles.ratingRow}>
             <Star size={16} color={C.gold} fill={acct.rating.average ? C.gold : 'transparent'} />
