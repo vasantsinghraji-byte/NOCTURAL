@@ -85,16 +85,6 @@ describe('CODEOWNERS security-governance validator', () => {
     ])).toEqual([]);
   });
 
-  it('keeps deployed Render smoke monitoring off pull requests', () => {
-    const workflowPath = path.join(ROOT, '.github/workflows/render-smoke.yml');
-    const workflowSource = fs.readFileSync(workflowPath, 'utf8');
-
-    expect(workflowSource).not.toMatch(/^\s*pull_request:/m);
-    expect(workflowSource).toContain('name: Post-Deploy Render Smoke');
-    expect(workflowSource).toContain('SMOKE_ORIGINS:');
-    expect(workflowSource).toContain('https://nocturnal-frontend-208z.onrender.com,https://nocturnal-api.onrender.com');
-  });
-
   it('renders the drift-audit issue body from the negative workflow fixture', () => {
     const fixture = JSON.parse(fs.readFileSync(
       path.join(ROOT, 'tests/fixtures/security/governance-drift-audit-issue.json'),

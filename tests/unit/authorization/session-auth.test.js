@@ -7,6 +7,15 @@
  */
 
 // AUTH-008 mocks
+// The sign-in attempt guard needs a real database; these tests fake the User
+// model, so let every attempt through (tests/bots cover the guard itself).
+jest.mock('../../../utils/attemptGuard', () => ({
+  // Plain functions: resetAllMocks() in these suites must not clear them.
+  reserveAttempt: async () => true,
+  lockIfExhausted: async () => undefined,
+  resetAttempts: async () => undefined,
+  lockedMinutes: async () => 0
+}));
 jest.mock('../../../models/user');
 jest.mock('../../../middleware/auth', () => ({
   generateToken: jest.fn().mockReturnValue('mock-jwt-token'),

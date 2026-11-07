@@ -1,0 +1,98 @@
+variable "region" {
+  type    = string
+  default = "ap-south-1"
+}
+
+variable "project" {
+  type    = string
+  default = "nabz"
+}
+
+variable "environment" {
+  type    = string
+  default = "staging"
+}
+
+variable "mongodb_uri_secret_name" {
+  description = "Secrets Manager secret holding the Atlas connection string (created by hand, never in git)"
+  type        = string
+  default     = "nabz/staging/MONGODB_URI"
+}
+
+variable "mongodb_db_name" {
+  type    = string
+  default = "nabz"
+}
+
+# Built in stages because each service needs an image first (see README.md).
+variable "create_api" {
+  type    = bool
+  default = false
+}
+
+variable "create_web" {
+  type    = bool
+  default = false
+}
+
+# Staging only: every approved store delivers within this radius (3500 km = all of India),
+# so testers outside Jaipur can order supplies. Set 0 to use real store radii.
+variable "test_store_radius_km" {
+  type    = number
+  default = 3500
+}
+
+# Seconds a store has to accept an order before it moves to the next store.
+variable "pharmacy_accept_sla_seconds" {
+  type    = number
+  default = 600
+}
+
+# Google sign-in: OAuth client ids are public values (not secrets).
+variable "google_oauth_client_ids" {
+  description = "Comma-separated Google OAuth client ids whose ID tokens the API accepts (web + Android)."
+  type        = string
+  default     = ""
+}
+
+variable "google_web_client_id" {
+  description = "The website's Google OAuth client id (must also be in google_oauth_client_ids)."
+  type        = string
+  default     = ""
+}
+
+variable "alert_email" {
+  description = "Email for staging alarms (tick stopped/failed, API 5xx). Empty = alarms go to the SNS topic only."
+  type        = string
+  default     = ""
+}
+
+variable "waf_signin_limit_per_5min" {
+  description = "Firewall: sign-in / OTP / password-reset requests allowed per IP in 5 minutes (shared mobile IPs need headroom)."
+  type        = number
+  default     = 300
+}
+
+variable "waf_requests_limit_per_5min" {
+  description = "Firewall: all requests allowed per IP in 5 minutes."
+  type        = number
+  default     = 6000
+}
+
+variable "waf_block_alarm_per_5min" {
+  description = "Alarm when the firewall blocks more than this many requests in 5 minutes."
+  type        = number
+  default     = 500
+}
+
+variable "app_max_instances" {
+  description = "Most App Runner instances per service (sign-in rushes scale out)."
+  type        = number
+  default     = 4
+}
+
+variable "app_max_concurrency" {
+  description = "Requests per instance before App Runner adds another."
+  type        = number
+  default     = 60
+}

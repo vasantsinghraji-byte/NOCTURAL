@@ -4,6 +4,7 @@
  */
 
 const { body, param, query, validationResult } = require('express-validator');
+const { LOGIN_PORTALS } = require('../constants/portals');
 const logger = require('../utils/logger');
 const {
   REGISTRATION_ROLES,
@@ -156,6 +157,10 @@ const validateLogin = [
   body('rememberMe')
     .optional()
     .isBoolean().withMessage('Remember me must be a boolean'),
+
+  body('portal')
+    .optional()
+    .isIn(Object.keys(LOGIN_PORTALS)).withMessage('Unknown login portal'),
 
   handleValidationErrors
 ];

@@ -110,7 +110,7 @@ router.get('/file', protect, async (req, res) => {
       return res.status(404).send('File not found');
     }
 
-    if (storageConfig.USE_GCS) {
+    if (storageConfig.USE_CLOUD) {
       const signedUrl = await storageConfig.getSignedUrl(key);
       if (!signedUrl) {
         return res.status(404).send('File not found');

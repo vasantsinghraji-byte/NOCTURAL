@@ -1,3 +1,4 @@
+const { TRANSACTION_OPTIONS } = require('../utils/queryUpdateOptions');
 const mongoose = require('mongoose');
 const refreshSessionService = require('./refreshSessionService');
 const compromisedPasswordService = require('./compromisedPasswordService');
@@ -95,7 +96,7 @@ const changePassword = async (options) => {
       try {
         await session.withTransaction(async () => {
           result = await executePasswordChange({ ...options, session });
-        });
+        }, TRANSACTION_OPTIONS);
       } finally {
         await session.endSession();
       }
