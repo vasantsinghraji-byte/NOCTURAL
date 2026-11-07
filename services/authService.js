@@ -132,6 +132,21 @@ class AuthService {
    * @param {Object} credentials - Login credentials
    * @returns {Promise<Object>} User and token
    */
+  /**
+   * A store login whose pharmacyVendor points at a store that no longer exists
+   * (e.g. stores re-created by a seed) is re-linked to the store it owns, so
+   * the dashboard doesn't say "Pharmacy vendor not found" and orders show up.
+   */
+  async repairPharmacyLink(user) {
+    const PharmacyVendor = require('../models/pharmacyVendor');
+    if (user.pharmacyVendor && await PharmacyVendor.exists({ _id: user.pharmacyVendor })) return;
+    const owned = await PharmacyVendor.findOne({ owner: user._id }).select('_id').lean();
+    if (!owned) return;
+    await User.updateOne({ _id: user._id }, { $set: { pharmacyVendor: owned._id } });
+    user.pharmacyVendor = owned._id;
+    logger.warn('Re-linked a pharmacy login to the store it owns', { userId: String(user._id), vendorId: String(owned._id) });
+  }
+
   async login(credentials) {
     const email = normalizeEmail(credentials.email);
     const { password } = credentials;
@@ -175,6 +190,7 @@ class AuthService {
     }
 
     await attemptGuard.resetAttempts(User, { _id: user._id }, 'loginGuard.failed', LOGIN_GUARD);
+    if (user.role === 'pharmacy_vendor') await this.repairPharmacyLink(user);
 
     // Generate short-lived access token and refresh token for cookie-backed sessions.
     const token = generateAccessToken(user._id, undefined, user.sessionVersion);

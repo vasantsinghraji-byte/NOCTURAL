@@ -90,6 +90,8 @@ describe('Pharmacy store network (real MongoDB)', () => {
       isOpen: true,
       avgPreparationMinutes: 10,
       deliveryFee: 20,
+      // Someone who can accept orders (stores without one never get moved orders).
+      owner: new mongoose.Types.ObjectId(),
       ...overrides
     });
   };
@@ -279,6 +281,27 @@ describe('Pharmacy store network (real MongoDB)', () => {
     expect(moved.status).toBe('CANCELLED');
     expect(moved.cancelledBy).toBe('SYSTEM');
     expect(await stockOf(second, med)).toBe(10);
+  });
+
+  it('skips a store nobody can accept at (no login) when moving an order', async () => {
+    if (!databaseAvailable) return;
+    const home = newArea();
+    const med = await medicine();
+    const first = await store(home, 1);
+    const unstaffed = await store(home, 1.5, { owner: null });
+    const staffed = await store(home, 3);
+    await list(first, med);
+    await list(unstaffed, med, { sellingPrice: 35 }); // nearer and cheaper, but nobody to accept
+    await list(staffed, med);
+
+    const order = await codOrder(home, first, [[med, 1]]);
+    await assignment.sweepAcceptanceTimeouts({ now: later(5) });
+    const moved = await PharmacyOrder.findById(order._id);
+    expect(moved.status).toBe('PLACED');
+    expect(String(moved.vendor)).toBe(String(staffed._id));
+    expect(await stockOf(unstaffed, med)).toBe(10);
+    // Leave nothing waiting for later sweeps in this file.
+    await pharmacyService.updateOrderStatus(order._id, { vendorId: staffed._id, actorUserId, status: 'ACCEPTED' });
   });
 
   it('never moves an order to a store that would charge more', async () => {

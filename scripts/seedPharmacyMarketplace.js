@@ -150,6 +150,10 @@ async function seed() {
           pharmacyVendor: vendor._id,
           isVerified: true
         });
+        // Stores are re-created on every run: keep an existing login linked to the new one.
+        if (existing && String(existing.pharmacyVendor) !== String(vendor._id)) {
+          await User.updateOne({ _id: existing._id }, { $set: { pharmacyVendor: vendor._id, role: 'pharmacy_vendor' } });
+        }
         vendor.owner = owner._id;
         await vendor.save();
         if (!existing) console.log(`   👤 Vendor login: ${v.owner.email} (password: SEED_DEMO_PASSWORD)`);

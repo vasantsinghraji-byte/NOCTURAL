@@ -220,6 +220,31 @@ describe('Care marketplace part 2 (real MongoDB)', () => {
       expect(link.body.url).toMatch(/^data:application\/pdf|^https:/);
     });
 
+    it('pay at collection: the bill is PAID only when the full amount is collected', async () => {
+      if (!db) return;
+      const book = async (time) => (await api('post', '/labs/orders', 'c1', { storeId: String(stores.lab._id), serviceIds: [String(svc.cbc._id)], mode: 'CLINIC', slot: { date: ist(6), time } })).body.order;
+      // ₹0 collected: still owed, and the lab isn't charged for cash it never took.
+      const none = await book('09:00');
+      expect((await api('post', `/partner/lab/orders/${none._id}/collect`, 'lab', { paidAmount: 0 })).status).toBe(200);
+      let saved = await LabOrder.findById(none._id).lean();
+      expect(saved.payment).toMatchObject({ status: 'PENDING', collectedAmount: 0 });
+      const up = await request(app).post(`/api/v1/marketplace/partner/lab/orders/${none._id}/report`).set(MOBILE).set({ Authorization: `Bearer ${tokens.lab}` })
+        .attach('report', Buffer.from('%PDF-1.4\n%nabz test report\n'), { filename: 'report.pdf', contentType: 'application/pdf' });
+      expect(up.status).toBe(200);
+      expect(await SettlementEntry.countDocuments({ 'source.id': new mongoose.Types.ObjectId(none._id), type: 'CASH_COLLECTED' })).toBe(0);
+      // Part paid: still PENDING; only what was taken is recorded.
+      const part = await book('09:30');
+      await api('post', `/partner/lab/orders/${part._id}/collect`, 'lab', { paidAmount: 100, method: 'UPI' });
+      saved = await LabOrder.findById(part._id).lean();
+      expect(saved.payment).toMatchObject({ status: 'PENDING', collectedAmount: 100, method: 'UPI' });
+      // More than the bill is refused.
+      const over = await book('10:30');
+      expect((await api('post', `/partner/lab/orders/${over._id}/collect`, 'lab', { paidAmount: over.payment.amount + 500 })).status).toBe(400);
+      // The full amount: PAID.
+      expect((await api('post', `/partner/lab/orders/${over._id}/collect`, 'lab', { paidAmount: over.payment.amount })).status).toBe(200);
+      expect((await LabOrder.findById(over._id).lean()).payment.status).toBe('PAID');
+    });
+
     it('a rejected sample gets a free re-collection; a late report earns credit', async () => {
       if (!db) return;
       const body = { storeId: String(stores.lab._id), serviceIds: [String(svc.cbc._id)], mode: 'CLINIC', slot: { date: ist(3), time: '10:00' } };

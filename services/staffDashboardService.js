@@ -68,7 +68,7 @@ async function demandNear(staffId) {
 
 async function getDashboard(staffId) {
   const { today, week } = periodStarts();
-  const [t, w, pending, user, availability, offer, demand, upcoming] = await Promise.all([
+  const [t, w, pending, user, availability, offer, demand, upcoming, payout] = await Promise.all([
     earningsSince(staffId, today),
     earningsSince(staffId, week),
     SettlementEntry.aggregate([
@@ -79,7 +79,9 @@ async function getDashboard(staffId) {
     staffAvailabilityService.getAvailability(staffId),
     dispatchService.getMyOffer(staffId),
     demandNear(staffId),
-    NurseBooking.countDocuments({ serviceProvider: staffId, status: { $in: ['ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'] } })
+    NurseBooking.countDocuments({ serviceProvider: staffId, status: { $in: ['ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'] } }),
+    // The same figure Account shows: earnings minus cash already collected from patients.
+    require('./payoutService').getPayoutSummary(staffId).catch(() => null)
   ]);
   const v = (user && user.careProfile && user.careProfile.verification) || {};
   return {
@@ -87,6 +89,7 @@ async function getDashboard(staffId) {
     today: t,
     week: w,
     pendingPayout: round2(pending[0] ? pending[0].amount : 0),
+    payout: payout ? { available: payout.available, earned: payout.earned, cashHeld: payout.cashHeld, owes: payout.owes } : null,
     rating: user && user.rating ? user.rating : null,
     totalReviews: (user && user.totalReviews) || 0,
     availability,

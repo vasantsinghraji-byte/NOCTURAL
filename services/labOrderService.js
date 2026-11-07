@@ -539,12 +539,18 @@ async function markCollected(user, orderId, { code, paidAmount, method } = {}) {
     'collectionOtp.verifiedAt': now
   };
   if (order.payment.status === 'PENDING' && order.payment.mode === 'PAY_AT_COLLECTION' && order.payment.amount > 0) {
-    const paid = Number(paidAmount);
+    const paid = Math.round(Number(paidAmount) * 100) / 100;
     if (!Number.isFinite(paid) || paid < 0) throw new ValidationError('Enter the amount collected from the customer');
-    Object.assign(set, {
-      'payment.status': 'PAID', 'payment.method': ['CASH', 'UPI'].includes(method) ? method : 'CASH',
-      'payment.paidAt': now, 'payment.collectedBy': user._id || user.id
-    });
+    const bill = order.payment.amount;
+    if (paid > bill + 1) throw new ValidationError(`That’s more than the bill of ₹${bill}. Enter what you collected.`);
+    // PAID only when the bill is covered (a rupee of rounding allowed); otherwise
+    // the customer still owes the rest and the lab is credited only what it took.
+    const full = paid >= bill - 1;
+    set['payment.collectedAmount'] = paid;
+    if (paid > 0) {
+      Object.assign(set, { 'payment.method': ['CASH', 'UPI'].includes(method) ? method : 'CASH', 'payment.collectedBy': user._id || user.id });
+    }
+    if (full) Object.assign(set, { 'payment.status': 'PAID', 'payment.paidAt': now });
   }
   if (order.payment.mode === 'PREPAID' && order.payment.status !== 'PAID') throw coded(ConflictError, 'This order isn’t paid yet', 'NOT_PAID');
   const updated = await LabOrder.findOneAndUpdate({ _id: order._id, status: 'SCHEDULED' }, { $set: set, $push: { timeline: { status: 'COLLECTED', at: now, by: 'LAB' } } }, { returnDocument: 'after' });

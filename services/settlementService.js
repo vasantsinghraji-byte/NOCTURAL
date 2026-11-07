@@ -97,8 +97,11 @@ async function recordLabOrder(order, labUserId) {
     const commission = pricing.round2(tests * policy.commissionRate);
     const occurredAt = new Date();
     const source = { kind: 'LAB_ORDER', id: order._id, ref: 'LAB' };
-    const cash = order.payment && order.payment.status === 'PAID' && ['CASH', 'UPI'].includes(order.payment.method) && order.payment.collectedBy
-      ? [{ source, party: { kind: 'PROVIDER', id: labUserId }, type: 'CASH_COLLECTED', amount: pricing.round2(order.payment.amount || 0), occurredAt }]
+    // Cash the lab really took at collection (older orders: the bill when marked PAID).
+    const p = order.payment || {};
+    const taken = typeof p.collectedAmount === 'number' ? p.collectedAmount : p.status === 'PAID' ? p.amount : 0;
+    const cash = taken > 0 && ['CASH', 'UPI'].includes(p.method) && p.collectedBy
+      ? [{ source, party: { kind: 'PROVIDER', id: labUserId }, type: 'CASH_COLLECTED', amount: pricing.round2(taken), occurredAt }]
       : [];
     return await insertIdempotent([
       ...cash,

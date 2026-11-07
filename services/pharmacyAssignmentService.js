@@ -193,6 +193,17 @@ function closeCurrentAttempt(order, outcome, { reasonCode, note, now }) {
  * Find the next store that has every remaining item at no more than the
  * price the customer already agreed to, and reserve it there.
  */
+/** Stores someone can accept orders at: an owner, or an active store login linked to them. */
+async function staffedVendorIds(vendorIds) {
+  if (!vendorIds.length) return new Set();
+  const User = require('../models/user');
+  const [owned, logins] = await Promise.all([
+    PharmacyVendor.find({ _id: { $in: vendorIds }, owner: { $ne: null } }).distinct('_id'),
+    User.distinct('pharmacyVendor', { pharmacyVendor: { $in: vendorIds }, role: 'pharmacy_vendor', isActive: { $ne: false } })
+  ]);
+  return new Set([...owned, ...logins].map(String));
+}
+
 async function reserveNextStore(order, now) {
   const ops = getPharmacyOps();
   const tried = (order.assignmentAttempts || []).map((a) => String(a.vendor));
@@ -213,9 +224,12 @@ async function reserveNextStore(order, now) {
   });
 
   const { reserveStock } = lazyPharmacyService();
+  const staffed = await staffedVendorIds((plan._fullOptions || []).map((o) => o.vendor._id));
   for (const option of plan._fullOptions || []) {
     const vendor = option.vendor;
     if (order.requiresPrescription && vendor.acceptsPrescriptionOrders === false) continue;
+    // A store with no login can never accept: moving there only delays the customer.
+    if (!staffed.has(String(vendor._id))) continue;
     try {
       const reserved = await reserveStock(vendor._id, lines.map((i) => ({ medicineId: String(i.medicine), quantity: i.quantity })), { now });
       return { vendor, option, reserved };

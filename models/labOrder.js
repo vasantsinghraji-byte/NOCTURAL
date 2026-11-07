@@ -70,6 +70,8 @@ const LabOrderSchema = new mongoose.Schema({
     paymentId: String,
     paidAt: Date,
     collectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    // Pay at collection: what the lab actually took (the bill is PAID only when it covers it).
+    collectedAmount: Number,
     holdUntil: Date
   },
 

@@ -16,6 +16,8 @@ const Patient = require('../../models/patient');
 const User = require('../../models/user');
 const NurseBooking = require('../../models/nurseBooking');
 const ServiceCatalog = require('../../models/serviceCatalog');
+const PharmacyVendor = require('../../models/pharmacyVendor');
+const SettlementEntry = require('../../models/settlementEntry');
 
 const RUN = `tf${Date.now().toString(36)}`;
 const HOME = { lat: 26.9110, lng: 75.8010 }; // C-Scheme, Jaipur
@@ -160,6 +162,46 @@ describe('Nabz tester feedback fixes (real MongoDB)', () => {
     const start = await request(app).put(`/api/v1/bookings/${bookingId}/start`).set(auth(tokens.nurse)).send({ visitCode: code });
     expect(start.status).toBe(200);
     expect(start.body.booking.status).toBe('IN_PROGRESS');
+  });
+
+  it('a store login linked to a deleted store is re-linked to the store it owns at sign-in', async () => {
+    if (skip()) return;
+    const owner = await User.create({
+      name: 'Store Manager', email: `store.${RUN}@nabz.test`, password: PASSWORD, phone: `9${PHONE.slice(1)}`, role: 'pharmacy_vendor', isVerified: true,
+      pharmacyVendor: new mongoose.Types.ObjectId() // the store it pointed at was deleted (e.g. re-seeded)
+    });
+    const store = await PharmacyVendor.create({
+      name: `Store ${RUN}`, slug: `store-${RUN}`, location: { type: 'Point', coordinates: [HOME.lng, HOME.lat] },
+      status: 'APPROVED', isActive: true, isOpen: true, owner: owner._id
+    });
+    try {
+      const login = await request(app).post('/api/v1/auth/login').set(MOBILE).send({ email: owner.email, password: PASSWORD, portal: 'pharmacy' });
+      expect(login.status).toBe(200);
+      const profile = await request(app).get('/api/v1/pharmacy/vendor/profile').set(auth(login.body.tokens.accessToken));
+      expect(profile.status).toBe(200);
+      expect(String((await User.findById(owner._id).lean()).pharmacyVendor)).toBe(String(store._id));
+    } finally {
+      await Promise.all([User.deleteOne({ _id: owner._id }), PharmacyVendor.deleteOne({ _id: store._id })]);
+    }
+  });
+
+  it('the nurse dashboard and Account show the same payout (earned minus cash collected)', async () => {
+    if (skip()) return;
+    const at = new Date();
+    const source = { kind: 'CARE_BOOKING', id: new mongoose.Types.ObjectId(), ref: 'TEST' };
+    await SettlementEntry.create([
+      { source, party: { kind: 'PROVIDER', id: nurse._id }, type: 'PROVIDER_PAYOUT', amount: 500, occurredAt: at },
+      { source, party: { kind: 'PROVIDER', id: nurse._id }, type: 'CASH_COLLECTED', amount: 500, occurredAt: at }
+    ]);
+    try {
+      const dash = await request(app).get('/api/v1/care/staff/dashboard').set(auth(tokens.nurse));
+      const acct = await request(app).get('/api/v1/partners/me/payouts').set(auth(tokens.nurse));
+      expect(dash.status).toBe(200);
+      expect(dash.body.dashboard.payout).toMatchObject({ available: 0, earned: 500, cashHeld: 500 });
+      expect(dash.body.dashboard.payout.available).toBe(acct.body.payouts.available);
+    } finally {
+      await SettlementEntry.deleteMany({ 'source.id': source.id });
+    }
   });
 
   it('saved preferences drop gender, and the public professional list hides it', async () => {
