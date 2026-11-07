@@ -101,7 +101,7 @@ async function createPatient({ name, email, phone, googleId, phoneVerified, emai
   const clash = await Patient.findOne({ $or: [{ email: safeEmail }, { phone: safePhone }] }).select('email phone');
   if (clash) {
     throw new ConflictError(clash.phone === safePhone
-      ? 'This mobile number already has an account. Sign in with your phone instead.'
+      ? 'This mobile number already has an account. Sign in with your mobile number and password instead.'
       : 'This email already has an account. Sign in with it instead.');
   }
   const patient = await Patient.create({

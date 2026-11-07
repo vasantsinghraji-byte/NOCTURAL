@@ -42,7 +42,9 @@ const {
   getMyOffer,
   acceptOffer,
   declineOffer,
-  raiseSos
+  raiseSos,
+  attachPrescription,
+  getPrescription
 } = require('../controllers/bookingController');
 
 // Validation rules
@@ -156,6 +158,10 @@ const createBookingValidation = [
     .optional()
     .isString()
     .isLength({ max: 500 }),
+  body('prescriptionLater')
+    .optional()
+    .isBoolean()
+    .withMessage('prescriptionLater must be true or false'),
   body('mode')
     .optional()
     .isIn(['ASAP', 'SCHEDULED'])
@@ -464,6 +470,16 @@ router.put(
   authorize('patient'),
   rescheduleBooking
 );
+
+// Prescription: attach later (patient) / view (patient, professional, admin)
+router.put(
+  '/:id/prescription',
+  mongoIdValidation,
+  body('prescriptionKey').isString().trim().isLength({ min: 1, max: 300 }).withMessage('Upload the prescription first'),
+  validate,
+  attachPrescription
+);
+router.get('/:id/prescription', mongoIdValidation, validate, getPrescription);
 
 // Cancel booking - patient, provider, or admin
 router.put(

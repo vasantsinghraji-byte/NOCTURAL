@@ -61,7 +61,7 @@ router.get(
     query('serviceId').optional().isMongoId(),
     query('mode').optional().isIn(['HOME', 'CLINIC']),
     query('sort').optional().isIn(['recommended', 'price', 'distance', 'rating']),
-    query('gender').optional().isIn(['FEMALE', 'MALE']),
+    // ?gender= from older apps is accepted and ignored (no choosing by gender).
     query('language').optional().isString().isLength({ max: 30 }),
     query('limit').optional().isInt({ min: 1, max: 50 }),
     ...latLng

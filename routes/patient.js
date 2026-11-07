@@ -61,13 +61,17 @@ const registerValidation = [
     .withMessage('Please provide a valid 10-digit Indian phone number')
 ];
 
+// "email" carries an email or a 10-digit mobile number (patientService.login).
+const looksLikeMobile = (value) => /^(\+?91)?[6-9]\d{9}$/.test(String(value || '').replace(/[\s-]/g, ''));
 const loginValidation = [
   body('email')
     .trim()
     .notEmpty()
-    .withMessage('Email is required')
+    .withMessage('Enter your email or mobile number'),
+  body('email')
+    .if((value) => !looksLikeMobile(value))
     .isEmail()
-    .withMessage('Please provide a valid email')
+    .withMessage('Enter a valid email or 10-digit mobile number')
     .normalizeEmail(),
   body('password')
     .notEmpty()

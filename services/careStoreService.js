@@ -485,7 +485,6 @@ function publicStore(store) {
     bio: store.bio,
     photos: store.photos || [],
     languages: store.languages || [],
-    gender: store.gender,
     qualification: store.qualification,
     experienceYears: store.experienceYears,
     accredited: Boolean(store.registration && store.registration.accredited),
@@ -591,14 +590,14 @@ async function listMarketplaceServices(kind = 'PHYSIO') {
  * price and travel fee for that point. HOME results only include shops whose
  * home-visit area covers the point.
  */
-async function searchStores({ kind = 'PHYSIO', serviceId, mode, lat, lng, sort = 'recommended', gender, language, limit = 30 } = {}) {
+async function searchStores({ kind = 'PHYSIO', serviceId, mode, lat, lng, sort = 'recommended', language, limit = 30 } = {}) {
   if (!STORE_KINDS.includes(kind)) throw new ValidationError('Unknown kind');
   if (mode && !['HOME', 'CLINIC'].includes(mode)) throw new ValidationError('Choose home or clinic');
   const point = toLatLng({ lat, lng });
   if (mode === 'HOME' && !point) throw new ValidationError('Choose the visit address first');
 
   const filter = { kind, status: 'APPROVED', isPaused: false };
-  if (gender && ['FEMALE', 'MALE'].includes(gender)) filter.gender = gender;
+  // No gender filter: customers don't choose professionals by gender (older apps may still send ?gender=, ignored).
   if (language) filter.languages = { $regex: `^${escapeRegex(String(language).slice(0, 30))}$`, $options: 'i' };
   if (mode === 'HOME') filter['home.enabled'] = true;
   if (mode === 'CLINIC') filter['clinic.enabled'] = true;

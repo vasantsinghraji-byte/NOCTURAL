@@ -8,6 +8,7 @@
 const bookingService = require('../services/bookingService');
 const dispatchService = require('../services/dispatchService');
 const responseHelper = require('../utils/responseHelper');
+const storageConfig = require('../config/storage');
 
 /**
  * @desc    Create a new booking
@@ -36,6 +37,41 @@ exports.getBooking = async (req, res, next) => {
     responseHelper.sendSuccess(res, { booking }, 'Booking fetched successfully');
   } catch (error) {
     responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+/**
+ * @desc    Attach the prescription later ("Upload later" at booking)
+ * @route   PUT /api/v1/bookings/:id/prescription  { prescriptionKey }
+ * @access  Private (the booking's patient)
+ */
+exports.attachPrescription = async (req, res, next) => {
+  try {
+    if (req.userType !== 'patient') return responseHelper.sendError(res, 'Only the customer can upload the prescription', 403);
+    const booking = await bookingService.attachPrescription(req.params.id, req.user.id, req.body.prescriptionKey);
+    return responseHelper.sendSuccess(res, { booking }, 'Prescription uploaded');
+  } catch (error) {
+    return responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+/**
+ * @desc    The booking's prescription file (never public)
+ * @route   GET /api/v1/bookings/:id/prescription
+ * @access  Private (patient, assigned professional, admin)
+ */
+exports.getPrescription = async (req, res, next) => {
+  try {
+    const key = await bookingService.getPrescriptionKey(req.params.id, req.user.id, req.user.role);
+    res.set('Cache-Control', 'private, no-store');
+    if (storageConfig.USE_CLOUD) {
+      const signedUrl = await storageConfig.getSignedUrl(key, 300);
+      if (!signedUrl) return responseHelper.sendError(res, 'Prescription file not found', 404);
+      return res.redirect(302, signedUrl);
+    }
+    return res.sendFile(storageConfig.resolveLocalFile(key));
+  } catch (error) {
+    return responseHelper.handleServiceError(error, res, next);
   }
 };
 

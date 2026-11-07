@@ -116,7 +116,7 @@ const PHYSIO_TYPES = /PHYSIO|THERAPY|REHAB/;
 async function listBookableProviders(serviceType) {
   const roles = PHYSIO_TYPES.test(String(serviceType || '')) ? ['physiotherapist'] : serviceType ? ['nurse', 'medical_staff'] : ['nurse', 'physiotherapist', 'medical_staff'];
   const rows = await User.find({ role: { $in: roles }, isActive: { $ne: false }, ...VERIFIED_FILTER })
-    .select('name role rating totalReviews isOnline careProfile.gender careProfile.qualification careProfile.languages careProfile.verification professional.yearsOfExperience')
+    .select('name role rating totalReviews isOnline careProfile.qualification careProfile.languages careProfile.verification professional.yearsOfExperience')
     .sort({ rating: -1, totalReviews: -1 })
     .limit(30)
     .lean();
@@ -126,7 +126,7 @@ async function listBookableProviders(serviceType) {
       _id: u._id,
       name: rest.length ? `${first} ${rest[rest.length - 1][0]}.` : first,
       role: u.role,
-      gender: u.careProfile && u.careProfile.gender,
+      // Gender is not shown: customers don't choose professionals by gender.
       qualification: u.careProfile && u.careProfile.qualification,
       languages: (u.careProfile && u.careProfile.languages) || [],
       experienceYears: u.professional && u.professional.yearsOfExperience,

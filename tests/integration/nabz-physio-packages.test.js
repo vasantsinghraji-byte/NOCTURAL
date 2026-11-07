@@ -79,7 +79,9 @@ describe('Physio choice, packages, preferences and tiers (real MongoDB)', () => 
     const res = await request(app).get('/api/v1/care/providers').query({ serviceType: 'PHYSIO_PACKAGE_10' });
     expect(res.status).toBe(200);
     const priya = res.body.providers.find((p) => String(p._id) === String(physioA._id));
-    expect(priya).toMatchObject({ name: 'Priya S.', gender: 'FEMALE', qualification: 'BPT', rating: 4.8 });
+    expect(priya).toMatchObject({ name: 'Priya S.', qualification: 'BPT', rating: 4.8 });
+    // Customers don't choose professionals by gender, so it isn't listed.
+    expect(priya).not.toHaveProperty('gender');
     expect(JSON.stringify(res.body)).not.toMatch(/9876506001|@nabz\.test/);
   });
 
@@ -140,7 +142,8 @@ describe('Physio choice, packages, preferences and tiers (real MongoDB)', () => 
       .send({ preferredGender: 'FEMALE', preferredProvider: String(physioA._id), allowSubstitute: false, street: '12 Ashok Marg', city: 'Jaipur', pincode: '302001' });
     expect(put.status).toBe(200);
     const get = await request(app).get('/api/v1/patients/me/care-preferences').set(auth());
-    expect(get.body.preferences).toMatchObject({ preferredGender: 'FEMALE', allowSubstitute: false, pincode: '302001' });
+    // An older app's gender preference is ignored.
+    expect(get.body.preferences).toMatchObject({ preferredGender: 'ANY', allowSubstitute: false, pincode: '302001' });
     expect(get.body.preferences.preferredProvider).toMatchObject({ name: 'Priya Sharma' });
   });
 

@@ -3,7 +3,8 @@
  *
  *   startDispatch(booking)  → SEARCHING, then offer to the nearest candidate
  *   candidate               = online + fresh heartbeat (staffAvailabilityService),
- *                             right role for the service, preferred gender,
+ *                             right role for the service (never filtered by
+ *                             gender: customers don't choose by gender),
  *                             not busy on another visit, not holding another
  *                             offer, hasn't declined this one
  *   offer                   → OFFERED for OFFER_TTL_MS; the partner app shows
@@ -106,8 +107,6 @@ async function findCandidate(booking) {
     role: { $in: rolesFor(booking.serviceType) },
     _id: { $nin: exclude }
   };
-  const gender = booking.dispatch && booking.dispatch.preferredGender;
-  if (gender === 'FEMALE' || gender === 'MALE') query['careProfile.gender'] = gender;
 
   // The customer chose a professional (or a package locked one in): offer to
   // them first. Scheduled visits don't need them online right now (they get a

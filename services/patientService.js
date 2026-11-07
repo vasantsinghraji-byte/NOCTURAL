@@ -21,6 +21,11 @@ const generateAccessToken = authTokens.generateAccessToken || authTokens.generat
 const generateRefreshToken = authTokens.generateRefreshToken || authTokens.generateToken;
 const normalizeEmail = email => String(email || '').trim().toLowerCase();
 const normalizePhone = phone => String(phone || '').trim();
+/** "98765 43210", "+91 9876543210" → "9876543210"; null when it isn't an Indian mobile number. */
+const mobileFrom = (value) => {
+  const digits = String(value || '').replace(/[\s-]/g, '').replace(/^\+?91(?=\d{10}$)/, '');
+  return /^[6-9]\d{9}$/.test(digits) ? digits : null;
+};
 
 class PatientService {
   /**
@@ -105,7 +110,11 @@ class PatientService {
    * @returns {Promise<Object>} Patient and token
    */
   async login(credentials) {
-    const email = normalizeEmail(credentials.email);
+    // The sign-in field takes an email or the account's mobile number (every
+    // customer account has a unique one), so phone users sign in without SMS.
+    const mobile = mobileFrom(credentials.email);
+    // `email` is also what the auth logs record: never the full number.
+    const email = mobile ? `mobile:******${mobile.slice(-4)}` : normalizeEmail(credentials.email);
     const { password } = credentials;
 
     if (!email || !password) {
@@ -116,7 +125,7 @@ class PatientService {
     }
 
     // Find patient and include password
-    const patient = await Patient.findOne({ email }).select('+password +sessionVersion');
+    const patient = await Patient.findOne(mobile ? { phone: mobile } : { email }).select('+password +sessionVersion');
 
     if (!patient) {
       logger.logAuth('patient_login', email, false, ERROR_MESSAGE.USER_NOT_FOUND);
