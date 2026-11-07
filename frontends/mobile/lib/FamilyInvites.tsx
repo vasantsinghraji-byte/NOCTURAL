@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { useFocusEffect } from 'expo-router';
 import { HeartHandshake } from 'lucide-react-native';
 import type { FamilyLinkView } from '@medrush/shared';

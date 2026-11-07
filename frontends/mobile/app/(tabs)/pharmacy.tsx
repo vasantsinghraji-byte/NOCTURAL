@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { ChevronRight, Clock, Minus, Pill, Plus, Truck } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';

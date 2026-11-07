@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { RefreshControl, Text, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { UserRound } from 'lucide-react-native';
 import type { CareLogView } from '@medrush/shared';

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { ResizeMode, Video } from 'expo-av';
@@ -85,8 +86,7 @@ export function MyPostsCard() {
   useEffect(load, [load]);
 
   async function add() {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { appAlert('Allow photos', 'Allow access to your photos to post them.'); return; }
+    // No permission for the gallery: the system photo picker needs none (asking failed on Android 12 and older).
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 0.8, videoMaxDuration: 60, allowsMultipleSelection: false });
     if (res.canceled || !res.assets?.length) return;
     const a = res.assets[0];

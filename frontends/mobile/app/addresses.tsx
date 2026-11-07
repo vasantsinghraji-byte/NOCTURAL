@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Switch, Text, TextInput, View } from 'react-native';
+import { Switch, TextInput, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { Home, LocateFixed, MapPin, Pencil, Plus, Trash2 } from 'lucide-react-native';

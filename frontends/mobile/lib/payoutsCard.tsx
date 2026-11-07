@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { Landmark, Smartphone, Wallet } from 'lucide-react-native';
 import type { PayoutSummary } from '@medrush/shared';
 import { api, describeNetworkError } from './api';

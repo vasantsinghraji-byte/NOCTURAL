@@ -30,7 +30,6 @@ function KindBrowser() {
   const serviceId = search.get('service') || '';
   const mode = (homeOnly ? 'HOME' : (search.get('mode') as CareMode) || 'HOME') as CareMode;
   const sort = search.get('sort') || 'recommended';
-  const gender = search.get('gender') || '';
 
   const [services, setServices] = useState<MarketService[] | null>(null);
   const [shops, setShops] = useState<Shop[] | null>(null);
@@ -52,10 +51,9 @@ function KindBrowser() {
     setError('');
     api.marketStores({
       kind, serviceId: serviceId || undefined, mode, sort: sort as 'recommended',
-      gender: (gender || undefined) as 'FEMALE' | undefined,
       lat: place.coords?.lat, lng: place.coords?.lng
     }).then((r) => setShops(r.stores)).catch((e) => { setError(problem(e).message); setShops([]); });
-  }, [kind, serviceId, mode, sort, gender, place.coords]);
+  }, [kind, serviceId, mode, sort, place.coords]);
 
   const chosen = useMemo(() => services?.find((s) => s._id === serviceId), [services, serviceId]);
   if (!found) notFound();
@@ -92,8 +90,6 @@ function KindBrowser() {
         ) : <span className="mk-badge dark">At your home</span>}
         <div className="mk-chips" role="group" aria-label="Sort" style={{ padding: 0 }}>
           {SORTS.map(([v, label]) => <button key={v} type="button" className="mk-chip" aria-pressed={sort === v} onClick={() => setParam('sort', v)}>{label}</button>)}
-          <button type="button" className="mk-chip" aria-pressed={gender === 'FEMALE'} onClick={() => setParam('gender', gender === 'FEMALE' ? '' : 'FEMALE')}>Female</button>
-          <button type="button" className="mk-chip" aria-pressed={gender === 'MALE'} onClick={() => setParam('gender', gender === 'MALE' ? '' : 'MALE')}>Male</button>
         </div>
       </div>
 

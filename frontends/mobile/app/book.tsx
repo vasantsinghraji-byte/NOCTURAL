@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Text, useTr } from '@/lib/T';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { CarePreferences, CareService, CareSuppliesQuote, CareSupplySource } from '@medrush/shared';
@@ -13,30 +14,23 @@ import { ArrowLeft, Camera, Check, CircleCheck, CircleX, FileText, MapPin, Store
 import { TextArea } from '@/lib/fields';
 import { RecipientPicker, rememberRecipient } from '@/lib/recipients';
 import { ProviderPicker } from '@/lib/providerPicker';
+import { ALL_SLOTS, SLOTS, earliestTodayMinutes, istNow, istYmd, slotOpen as isSlotOpen } from '@/lib/visitSlots';
 import { C, F, shadow, ui } from '@/lib/theme';
 
 type Mode = 'ASAP' | 'SCHEDULED';
 type StepId = 'supplies' | 'time' | 'details';
 const GENDERS = ['Female', 'Male', 'Other'] as const;
-const PREFS: Array<{ value: 'ANY' | 'FEMALE' | 'MALE'; label: string }> = [
-  { value: 'ANY', label: 'No preference' },
-  { value: 'FEMALE', label: 'Female' },
-  { value: 'MALE', label: 'Male' }
-];
-const SLOTS: Record<string, string[]> = {
-  Morning: ['08:00', '09:00', '10:00', '11:00'],
-  Afternoon: ['12:30', '14:00', '15:30'],
-  Evening: ['17:00', '18:30', '20:00']
-};
 const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const TITLES: Record<StepId, string> = { supplies: 'What should they bring?', time: 'Pick a time', details: 'Visit details' };
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const hm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
+
 /** Booking flow: supplies → (time, if scheduled) → details → confirm. Book now goes straight to matching. */
 export default function Book() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
+  const tr = useTr();
   const params = useLocalSearchParams<{ serviceType: string; lat: string; lng: string; area?: string; mode?: Mode }>();
   const point = { lat: Number(params.lat), lng: Number(params.lng) };
   const mode: Mode = params.mode === 'ASAP' ? 'ASAP' : 'SCHEDULED';
@@ -46,11 +40,15 @@ export default function Book() {
   const [quote, setQuote] = useState<CareSuppliesQuote | null>(null);
   const [bring, setBring] = useState<Record<string, boolean>>({});
   const [stepIdx, setStepIdx] = useState(0);
-  const days = useMemo(() => Array.from({ length: 14 }, (_, i) => new Date(Date.now() + (i + 1) * 86400000)), []);
-  const [date, setDate] = useState(ymd(days[0]));
+  // Today first (same-day visits), then the next 14 days, in India time.
+  const days = useMemo(() => {
+    const t = istNow();
+    return Array.from({ length: 15 }, (_, i) => new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate() + i)));
+  }, []);
+  const todayKey = istYmd(days[0]);
+  const [date, setDate] = useState(todayKey);
   const [time, setTime] = useState('10:00');
   const [form, setForm] = useState({ street: '', city: 'Jaipur', pincode: '', age: '', gender: 'Female' as (typeof GENDERS)[number], notes: '' });
-  const [pref, setPref] = useState<'ANY' | 'FEMALE' | 'MALE'>('ANY');
   // Booking for a parent / relative at their address (e.g. from another city).
   const [forOther, setForOther] = useState(false);
   // Choose a professional; packages keep them for every session.
@@ -62,6 +60,8 @@ export default function Book() {
   const [savePrefs, setSavePrefs] = useState(false);
   const [other, setOther] = useState({ name: '', contactName: '', contactPhone: '' });
   const [rx, setRx] = useState<{ key: string; url: string } | null>(null);
+  // "Upload later": book now, attach the prescription from Bookings before the visit.
+  const [rxLater, setRxLater] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -102,7 +102,6 @@ export default function Book() {
   function applySaved() {
     if (!saved) return;
     setForm((f) => ({ ...f, street: saved.street || f.street, city: saved.city || f.city, pincode: saved.pincode || f.pincode }));
-    if (saved.preferredGender) setPref(saved.preferredGender);
     const provider = saved.preferredProvider && typeof saved.preferredProvider === 'object' ? saved.preferredProvider._id : saved.preferredProvider || null;
     setChosen(provider || null);
     if (typeof saved.allowSubstitute === 'boolean') setAllowSub(saved.allowSubstitute);
@@ -115,6 +114,21 @@ export default function Book() {
   const preview = service?.pricingPreview ? (isMember ? service.pricingPreview.member : service.pricingPreview.regular) : null;
   const fee = preview ? preview.totalAmount : 0;
   const needsRx = !!service?.requirements?.prescriptionRequired || bringing.some((i) => i.requiresPrescription);
+  // Prescription medicines in the supplies are packed by the pharmacy now, so they need it now.
+  const rxNeededNow = bringing.some((i) => i.requiresPrescription);
+  const uploadLater = rxLater && !rx && !rxNeededNow;
+
+  // Same day: only times at least the lead time away (India time).
+  const earliestToday = earliestTodayMinutes(service?.requirements?.advanceBookingHours || 0);
+  const slotOpen = (day: string, tm: string) => isSlotOpen(day, tm, todayKey, earliestToday);
+  const openToday = ALL_SLOTS.filter((tm) => slotOpen(todayKey, tm));
+  // Nothing left today: start on tomorrow; a time that has passed moves to the next open one.
+  useEffect(() => { if (date === todayKey && service && openToday.length === 0) setDate(istYmd(days[1])); }, [service, openToday.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (slotOpen(date, time)) return;
+    const next = ALL_SLOTS.find((tm) => slotOpen(date, tm));
+    if (next) setTime(next);
+  }, [date, time, earliestToday]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function next() {
     setError(null);
@@ -125,7 +139,11 @@ export default function Book() {
         setError('Add the patient’s name and a 10-digit phone number for someone at the address.');
         return;
       }
-      if (needsRx && !rx) { setError('Attach the prescription for this visit.'); return; }
+      if (needsRx && !rx && !uploadLater) {
+        setError(rxNeededNow ? 'Attach the prescription: the pharmacy needs it to pack the prescription medicines.' : 'Attach the prescription, or choose “Upload later”.');
+        return;
+      }
+      if (!slotOpen(date, time)) { setError('That time has passed. Pick a later time or another day.'); return; }
       if (isPackage && sessionDates.length < sessions) { setError('Pick the days of the week for your sessions.'); return; }
       setConfirming(true);
       return;
@@ -136,7 +154,7 @@ export default function Book() {
   async function attachRx() {
     setError(null);
     const up = await pickAndUploadPrescription();
-    if (up) setRx({ key: up.key, url: up.url });
+    if (up) { setRx({ key: up.key, url: up.url }); setRxLater(false); }
   }
 
   async function book() {
@@ -146,7 +164,6 @@ export default function Book() {
     try {
       const common = {
         serviceType: service.serviceType,
-        preferredGender: pref,
         requestedProvider: chosen || undefined,
         allowSubstitute: chosen ? allowSub : undefined,
         scheduledTimezone: 'Asia/Kolkata',
@@ -154,7 +171,7 @@ export default function Book() {
       };
       if (savePrefs) {
         api.saveCarePreferences({
-          preferredGender: pref, preferredProvider: chosen, allowSubstitute: allowSub,
+          preferredProvider: chosen, allowSubstitute: allowSub,
           street: form.street.trim(), city: form.city.trim(), pincode: form.pincode
         }).then((r) => setSaved(r.preferences)).catch(() => undefined);
       }
@@ -197,7 +214,8 @@ export default function Book() {
         supplies: items.map((i) => ({ key: i.key, source: (bring[i.key] ? 'STAFF_BRINGS' : 'PATIENT_HAS') as CareSupplySource })),
         suppliesVendorId: bringing.length ? quote?.vendor?._id : undefined,
         prescriptionKey: rx?.key,
-        prescriptionUrl: rx?.url
+        prescriptionUrl: rx?.url,
+        prescriptionLater: uploadLater || undefined
       });
       success();
       if (forOther) rememberRecipient({ name: other.name, phone: other.contactPhone }).catch(() => undefined);
@@ -208,11 +226,12 @@ export default function Book() {
         return;
       }
       const s = res.booking.supplies;
+      const rxNote = uploadLater ? ' Upload the prescription from Bookings: the visit can’t start without it.' : '';
       setResult({
         ok: true,
-        message: s?.status === 'ORDERED'
+        message: (s?.status === 'ORDERED'
           ? `${quote?.vendor?.name} is packing your supplies (${inr(s.amount || 0)}). Your nurse collects them on the way.`
-          : 'We’ll offer this visit to verified professionals an hour before. You’ll get a notification when one accepts.'
+          : 'We’ll offer this visit to verified professionals an hour before. You’ll get a notification when one accepts.') + rxNote
       });
     } catch (e) {
       setResult({ ok: false, message: describeNetworkError(e) });
@@ -297,14 +316,17 @@ export default function Book() {
 
         {step === 'time' && (
           <>
-            <Text style={styles.month}>{days[0].toLocaleString('en-IN', { month: 'long' })}</Text>
+            <Text style={styles.month}>{new Date(`${date}T12:00:00Z`).toLocaleString('en-IN', { month: 'long', timeZone: 'UTC' })}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-              {days.map((d) => {
-                const on = ymd(d) === date;
+              {days.map((d, i) => {
+                const key = istYmd(d);
+                const on = key === date;
+                const full = i === 0 && openToday.length === 0;
                 return (
-                  <Pressable key={ymd(d)} onPress={() => setDate(ymd(d))} style={[styles.day, on && styles.dayOn]}>
-                    <Text style={[styles.dayName, on && { color: C.onNightMuted }]}>{DAYS[d.getDay()]}</Text>
-                    <Text style={[styles.dayNum, on && { color: C.onNight }]}>{d.getDate()}</Text>
+                  <Pressable key={key} onPress={() => setDate(key)} disabled={full} style={[styles.day, on && styles.dayOn, full && { opacity: 0.45 }]}
+                    accessibilityRole="button" accessibilityState={{ selected: on, disabled: full }} accessibilityLabel={i === 0 ? 'Today' : d.toUTCString().slice(0, 11)}>
+                    <Text style={[styles.dayName, on && { color: C.onNightMuted }]}>{i === 0 ? 'TODAY' : DAYS[d.getUTCDay()]}</Text>
+                    <Text style={[styles.dayNum, on && { color: C.onNight }]}>{d.getUTCDate()}</Text>
                   </Pressable>
                 );
               })}
@@ -330,18 +352,26 @@ export default function Book() {
                 )}
               </View>
             )}
-            {Object.entries(SLOTS).map(([label, slots]) => (
-              <View key={label} style={{ gap: 8 }}>
-                <Text style={ui.section}>{label}</Text>
-                <View style={styles.slots}>
-                  {slots.map((tm) => (
-                    <Pressable key={tm} onPress={() => setTime(tm)} style={[styles.slot, time === tm && styles.slotOn]}>
-                      <Text style={[styles.slotText, time === tm && { color: C.onNight }]}>{fmtTime(tm)}</Text>
-                    </Pressable>
-                  ))}
+            {date === todayKey && openToday.length > 0 && (
+              <Text style={ui.muted}>Today: times from {fmtTime(openToday[0])}. For a visit right now, go back and choose “Book now”.</Text>
+            )}
+            {Object.entries(SLOTS).map(([label, slots]) => {
+              const open = slots.filter((tm) => slotOpen(date, tm));
+              if (open.length === 0) return null;
+              return (
+                <View key={label} style={{ gap: 8 }}>
+                  <Text style={ui.section}>{label}</Text>
+                  <View style={styles.slots}>
+                    {open.map((tm) => (
+                      <Pressable key={tm} onPress={() => setTime(tm)} style={[styles.slot, time === tm && styles.slotOn]}
+                        accessibilityRole="radio" accessibilityState={{ checked: time === tm }}>
+                        <Text style={[styles.slotText, time === tm && { color: C.onNight }]}>{fmtTime(tm)}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </>
         )}
 
@@ -354,10 +384,10 @@ export default function Book() {
               </Pressable>
             )}
             <Text style={ui.label}>Address</Text>
-            <TextInput style={ui.input} value={form.street} onChangeText={(street) => setForm({ ...form, street })} placeholder="House / flat / street" placeholderTextColor={C.faint} />
+            <TextInput style={ui.input} value={form.street} onChangeText={(street) => setForm({ ...form, street })} placeholder={tr("House / flat / street")} placeholderTextColor={C.faint} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TextInput style={[ui.input, { flex: 1 }]} value={form.city} onChangeText={(city) => setForm({ ...form, city })} placeholder="City" placeholderTextColor={C.faint} />
-              <TextInput style={[ui.input, { width: 120 }]} value={form.pincode} onChangeText={(pincode) => setForm({ ...form, pincode })} placeholder="Pincode" keyboardType="number-pad" maxLength={6} placeholderTextColor={C.faint} />
+              <TextInput style={[ui.input, { flex: 1 }]} value={form.city} onChangeText={(city) => setForm({ ...form, city })} placeholder={tr("City")} placeholderTextColor={C.faint} />
+              <TextInput style={[ui.input, { width: 120 }]} value={form.pincode} onChangeText={(pincode) => setForm({ ...form, pincode })} placeholder={tr("Pincode")} keyboardType="number-pad" maxLength={6} placeholderTextColor={C.faint} />
             </View>
             <Text style={[ui.label, { marginTop: 6 }]}>Who is the visit for?</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -372,44 +402,50 @@ export default function Book() {
               <View style={{ gap: 8 }}>
                 <Text style={ui.muted}>For a parent or relative at the address above. The professional calls the contact below, not you, and you can track the visit live.</Text>
                 <RecipientPicker onPick={(r) => setOther({ name: r.name, contactName: '', contactPhone: r.phone })} />
-                <TextInput style={ui.input} value={other.name} onChangeText={(name) => setOther({ ...other, name })} placeholder="Patient’s full name" placeholderTextColor={C.faint} />
-                <TextInput style={ui.input} value={other.contactName} onChangeText={(contactName) => setOther({ ...other, contactName })} placeholder="Contact at the address (if not the patient)" placeholderTextColor={C.faint} />
-                <TextInput style={ui.input} value={other.contactPhone} onChangeText={(v) => setOther({ ...other, contactPhone: v.replace(/\D/g, '') })} placeholder="Their mobile number" keyboardType="phone-pad" maxLength={10} placeholderTextColor={C.faint} />
+                <TextInput style={ui.input} value={other.name} onChangeText={(name) => setOther({ ...other, name })} placeholder={tr("Patient’s full name")} placeholderTextColor={C.faint} />
+                <TextInput style={ui.input} value={other.contactName} onChangeText={(contactName) => setOther({ ...other, contactName })} placeholder={tr("Contact at the address (if not the patient)")} placeholderTextColor={C.faint} />
+                <TextInput style={ui.input} value={other.contactPhone} onChangeText={(v) => setOther({ ...other, contactPhone: v.replace(/\D/g, '') })} placeholder={tr("Their mobile number")} keyboardType="phone-pad" maxLength={10} placeholderTextColor={C.faint} />
               </View>
             )}
             <Text style={[ui.label, { marginTop: 6 }]}>Patient</Text>
             <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <TextInput style={[ui.input, { width: 84 }]} value={form.age} onChangeText={(age) => setForm({ ...form, age })} placeholder="Age" keyboardType="number-pad" maxLength={3} placeholderTextColor={C.faint} />
+              <TextInput style={[ui.input, { width: 84 }]} value={form.age} onChangeText={(age) => setForm({ ...form, age })} placeholder={tr("Age")} keyboardType="number-pad" maxLength={3} placeholderTextColor={C.faint} />
               {GENDERS.map((g) => (
                 <Pressable key={g} onPress={() => setForm({ ...form, gender: g })} style={[styles.slot, form.gender === g && styles.slotOn]}>
                   <Text style={[styles.slotText, form.gender === g && { color: C.onNight }]}>{g}</Text>
                 </Pressable>
               ))}
             </View>
-            <Text style={[ui.label, { marginTop: 6 }]}>Professional preference</Text>
-            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-              {PREFS.map((p) => (
-                <Pressable key={p.value} onPress={() => setPref(p.value)} style={[styles.slot, pref === p.value && styles.slotOn]}>
-                  <Text style={[styles.slotText, pref === p.value && { color: C.onNight }]}>{p.label}</Text>
-                </Pressable>
-              ))}
-            </View>
             {service && (
               <ProviderPicker serviceType={service.serviceType} value={chosen} onChange={(id) => setChosen(id)}
-                allowSubstitute={allowSub} onAllowSubstitute={setAllowSub} gender={pref} isPackage={isPackage} />
+                allowSubstitute={allowSub} onAllowSubstitute={setAllowSub} isPackage={isPackage} />
             )}
             <View style={styles.saveRow}>
-              <Text style={[ui.muted, { flex: 1 }]}>Save these preferences (address, gender, professional) for next time</Text>
+              <Text style={[ui.muted, { flex: 1 }]}>Save these preferences (address, professional) for next time</Text>
               <Switch value={savePrefs} onValueChange={setSavePrefs} trackColor={{ true: C.brand, false: C.border }} thumbColor="#ffffff" />
             </View>
-            <TextArea minHeight={80} style={{ marginTop: 6 }} value={form.notes} onChangeText={(notes) => setForm({ ...form, notes })} placeholder="Notes: allergies, floor, gate code (optional)" />
+            <TextArea minHeight={80} style={{ marginTop: 6 }} value={form.notes} onChangeText={(notes) => setForm({ ...form, notes })} placeholder={tr("Notes: allergies, floor, gate code (optional)")} />
             {needsRx && (
-              <Pressable style={ui.btnOutline} onPress={attachRx}>
-                <View style={styles.inline}>
-                  {rx ? <FileText size={18} color={C.brand} /> : <Camera size={18} color={C.brand} />}
-                  <Text style={ui.btnOutlineText}>{rx ? 'Prescription attached' : 'Attach prescription (required)'}</Text>
-                </View>
-              </Pressable>
+              <View style={{ gap: 8 }}>
+                <Pressable style={ui.btnOutline} onPress={attachRx} accessibilityRole="button">
+                  <View style={styles.inline}>
+                    {rx ? <FileText size={18} color={C.brand} /> : <Camera size={18} color={C.brand} />}
+                    <Text style={ui.btnOutlineText}>{rx ? 'Prescription attached · change' : uploadLater ? 'Attach prescription now' : 'Attach prescription (required)'}</Text>
+                  </View>
+                </Pressable>
+                {!rx && (rxNeededNow ? (
+                  <Text style={ui.muted}>Needed now: the pharmacy packs the prescription medicines for this visit.</Text>
+                ) : (
+                  <Pressable style={[styles.check, rxLater && styles.checkOn]} onPress={() => setRxLater((v) => !v)}
+                    accessibilityRole="checkbox" accessibilityState={{ checked: rxLater }}>
+                    <View style={[styles.box, rxLater && styles.boxOn]}>{rxLater && <Check size={15} color={C.onNight} strokeWidth={3} />}</View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={ui.h3}>Upload later</Text>
+                      <Text style={ui.muted}>Book now and upload it from Bookings when you have it. The professional can’t start the visit until it’s uploaded.</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
             )}
           </View>
         )}
@@ -444,8 +480,8 @@ export default function Book() {
               {bringing.length > 0 && <BillRow label={`Supplies (${bringing.length})`} value={inr(suppliesTotal)} />}
               <View style={styles.billLine} />
               <BillRow label="Total · pay after the visit" value={inr(fee + suppliesTotal)} strong />
-              <Text style={ui.muted}>{mode === 'ASAP' ? 'We’ll match the nearest verified professional now.' : `${new Date(date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(time)}`}</Text>
-              {pref !== 'ANY' && <Text style={ui.muted}>Preference: {pref === 'FEMALE' ? 'female' : 'male'} professional (we’ll try, not guaranteed)</Text>}
+              <Text style={ui.muted}>{mode === 'ASAP' ? 'We’ll match the nearest verified professional now.' : `${date === todayKey ? 'Today' : new Date(`${date}T12:00:00Z`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })} · ${fmtTime(time)}`}</Text>
+              {uploadLater && <Text style={ui.muted}>Prescription: upload later from Bookings (needed before the visit starts)</Text>}
             </View>
             <PressScale style={[ui.btnDark, busy && { opacity: 0.6 }]} disabled={busy} onPress={book}>
               {busy ? <ActivityIndicator color={C.onBrand} /> : <Text style={ui.btnText}>{mode === 'ASAP' ? 'Find my nurse' : 'Book visit'}</Text>}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useFocusEffect } from 'expo-router';
 import type { ChatThreadView } from '@medrush/shared';
 import { api } from '@/lib/api';

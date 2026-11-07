@@ -266,7 +266,7 @@ export default function NursingPage() {
                   <option value="">Best available (nearest verified professional)</option>
                   {providers.map((p) => (
                     <option key={p._id} value={p._id}>
-                      {[p.name, p.qualification, p.gender === 'FEMALE' ? 'Female' : p.gender === 'MALE' ? 'Male' : null, p.rating ? `★ ${p.rating.toFixed(1)}` : 'New'].filter(Boolean).join(' · ')}
+                      {[p.name, p.qualification, p.rating ? `★ ${p.rating.toFixed(1)}` : 'New'].filter(Boolean).join(' · ')}
                     </option>
                   ))}
                 </select>

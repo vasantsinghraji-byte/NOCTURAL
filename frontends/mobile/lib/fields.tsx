@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import { Text } from '@/lib/T';
 import * as WebBrowser from 'expo-web-browser';
 import { Check, Eye, EyeOff } from 'lucide-react-native';
 import { WEB_BASE_URL } from './variant';

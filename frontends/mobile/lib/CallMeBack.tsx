@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useFocusEffect } from 'expo-router';
 import { CheckCircle2, PhoneCall } from 'lucide-react-native';
 import type { CallbackTopic, CallbackView } from '@medrush/shared';

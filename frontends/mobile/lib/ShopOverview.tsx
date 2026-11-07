@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useFocusEffect } from 'expo-router';
 import { CalendarClock, CalendarOff, ChevronRight, Clock, ListChecks, MapPin, Star, Store, type LucideIcon } from 'lucide-react-native';
 import type { MyRateCardItem, MyShop } from '@medrush/shared';

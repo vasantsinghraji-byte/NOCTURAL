@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { BadgeCheck, Sparkles, Star } from 'lucide-react-native';
 import type { CareProvider } from '@medrush/shared';
 import { api } from './api';
@@ -9,14 +10,12 @@ import { C, F, clay, ui } from './theme';
  * "Choose your physiotherapist / nurse": Best available, or a specific verified
  * professional. For packages the same professional comes to every session.
  */
-export function ProviderPicker({ serviceType, value, onChange, allowSubstitute, onAllowSubstitute, gender, isPackage }: {
+export function ProviderPicker({ serviceType, value, onChange, allowSubstitute, onAllowSubstitute, isPackage }: {
   serviceType: string;
   value: string | null;
   onChange: (id: string | null, provider?: CareProvider) => void;
   allowSubstitute: boolean;
   onAllowSubstitute: (v: boolean) => void;
-  /** Customer's gender preference narrows the list. */
-  gender?: 'ANY' | 'FEMALE' | 'MALE';
   isPackage?: boolean;
 }) {
   const [providers, setProviders] = useState<CareProvider[] | null>(null);
@@ -24,7 +23,8 @@ export function ProviderPicker({ serviceType, value, onChange, allowSubstitute, 
     api.listCareProviders(serviceType).then((r) => setProviders(r.providers)).catch(() => setProviders([]));
   }, [serviceType]);
 
-  const list = (providers || []).filter((p) => !gender || gender === 'ANY' || p.gender === gender);
+  // Customers choose by rating, experience and qualification, never by gender.
+  const list = providers || [];
   const physio = /PHYSIO|THERAPY|REHAB/.test(serviceType);
   const who = physio ? 'physiotherapist' : 'professional';
 
@@ -52,15 +52,12 @@ export function ProviderPicker({ serviceType, value, onChange, allowSubstitute, 
                   <Text style={[styles.meta, on && { color: C.onNightMuted }]}>{p.rating ? `${p.rating.toFixed(1)} (${p.reviews})` : 'New'}</Text>
                 </View>
                 <Text style={[styles.meta, on && { color: C.onNightMuted }]} numberOfLines={1}>
-                  {[p.qualification, p.experienceYears ? `${p.experienceYears} yrs` : null, p.gender === 'FEMALE' ? 'Female' : p.gender === 'MALE' ? 'Male' : null].filter(Boolean).join(' · ')}
+                  {[p.qualification, p.experienceYears ? `${p.experienceYears} yrs` : null].filter(Boolean).join(' · ')}
                 </Text>
                 <View style={styles.row}><BadgeCheck size={12} color={on ? C.onNight : C.mint} /><Text style={[styles.meta, { color: on ? C.onNight : C.mint }]}>Verified</Text></View>
               </Pressable>
             );
           })}
-          {providers.length > 0 && list.length === 0 && (
-            <View style={[styles.card, { justifyContent: 'center' }]}><Text style={styles.meta}>No {gender === 'FEMALE' ? 'female' : 'male'} {who} listed yet</Text></View>
-          )}
         </ScrollView>
       )}
       {value && (

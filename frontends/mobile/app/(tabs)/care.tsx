@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useFocusEffect } from 'expo-router';
 import { Activity, ArrowRight, CalendarHeart, FlaskConical, HeartHandshake, RotateCcw, Sparkles, Wallet, type LucideIcon } from 'lucide-react-native';
 import { CallMeBack } from '@/lib/CallMeBack';

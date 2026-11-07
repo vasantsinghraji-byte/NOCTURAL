@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { Text } from '@/lib/T';
 import { router } from 'expo-router';
 import { MessageCircle } from 'lucide-react-native';
 import type { ChatKind } from '@medrush/shared';

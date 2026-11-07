@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Text, View } from 'react-native';
+import { Image, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useLocalSearchParams } from 'expo-router';
 import { BadgeCheck, Building2, Clock, Home, MapPin, ShieldCheck, Star, Tag } from 'lucide-react-native';
 import type { CareMode, MarketService, ShopCard as Shop } from '@medrush/shared';
@@ -24,7 +25,6 @@ export default function KindBrowser() {
   const [serviceId, setServiceId] = useState(params.service || '');
   const [mode, setMode] = useState<CareMode>('HOME');
   const [sort, setSort] = useState<Sort>('recommended');
-  const [gender, setGender] = useState<'' | 'FEMALE' | 'MALE'>('');
   const [services, setServices] = useState<MarketService[] | null>(null);
   const [shops, setShops] = useState<Shop[] | null>(null);
   const [error, setError] = useState('');
@@ -35,11 +35,11 @@ export default function KindBrowser() {
     let live = true;
     setShops(null);
     setError('');
-    api.marketStores({ kind, serviceId: serviceId || undefined, mode, sort, gender: gender || undefined, lat: place.coords?.lat, lng: place.coords?.lng })
+    api.marketStores({ kind, serviceId: serviceId || undefined, mode, sort, lat: place.coords?.lat, lng: place.coords?.lng })
       .then((r) => { if (live) setShops(r.stores); })
       .catch((e) => { if (live) { setError(problem(e).message); setShops([]); } });
     return () => { live = false; };
-  }, [kind, serviceId, mode, sort, gender, place.coords]);
+  }, [kind, serviceId, mode, sort, place.coords]);
 
   const chosen = useMemo(() => services?.find((x) => x._id === serviceId), [services, serviceId]);
   const effectiveMode: CareMode = homeOnly ? 'HOME' : mode;
@@ -61,8 +61,6 @@ export default function KindBrowser() {
         : <Badge tone="red" icon={Home} label="At your home" />}
       <Chips>
         {SORTS.map(([v, label]) => <Chip key={v} label={label} on={sort === v} onPress={() => setSort(v)} />)}
-        <Chip label="Female" on={gender === 'FEMALE'} onPress={() => setGender(gender === 'FEMALE' ? '' : 'FEMALE')} />
-        <Chip label="Male" on={gender === 'MALE'} onPress={() => setGender(gender === 'MALE' ? '' : 'MALE')} />
       </Chips>
 
       <PlaceCard saved={me?.savedAddresses || []} place={place} onChange={setPlace} onLocate={useMyLocation} locating={locating} signedIn={signedIn} />

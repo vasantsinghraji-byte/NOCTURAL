@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import Svg, { Path } from 'react-native-svg';
 import { NabzMark } from './Brand';
 import { IS_PARTNER_APP } from './variant';

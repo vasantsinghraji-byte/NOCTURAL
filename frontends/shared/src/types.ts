@@ -625,9 +625,10 @@ export interface CreateCareBookingInput {
   suppliesVendorId?: string;
   prescriptionKey?: string;
   prescriptionUrl?: string;
+  /** Book without the prescription; upload it from Bookings before the visit starts. */
+  prescriptionLater?: boolean;
   /** Book now (nearest online nurse is offered the visit) or schedule for later. */
   mode?: 'ASAP' | 'SCHEDULED';
-  preferredGender?: 'FEMALE' | 'MALE' | 'ANY';
 }
 
 export interface CareBooking {
@@ -641,6 +642,8 @@ export interface CareBooking {
   cancellation?: { reason?: string; cancellationFee?: number };
   serviceLocation?: CreateCareBookingInput['serviceLocation'];
   patientDetails?: { name?: string; age?: number; gender?: string };
+  /** PENDING: booked with "Upload later"; the visit can't start until it's ATTACHED. */
+  prescription?: { status: 'NONE' | 'ATTACHED' | 'PENDING'; uploadedAt?: string };
   /** Package session: n of total, linked by id. */
   series?: { id: string; index: number; total: number };
   supplies?: {
@@ -813,7 +816,6 @@ export interface CareProvider {
   _id: string;
   name: string;
   role: string;
-  gender?: 'FEMALE' | 'MALE' | 'OTHER';
   qualification?: string;
   languages: string[];
   experienceYears?: number;

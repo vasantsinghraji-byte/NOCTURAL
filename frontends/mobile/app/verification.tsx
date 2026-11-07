@@ -139,8 +139,8 @@ function UploadSheet({ item, onClose, onDone }: { item: VerificationItem | null;
   const isAadhaar = item.kind === 'AADHAAR';
 
   async function pick(camera: boolean) {
-    const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { setError(camera ? 'Allow camera access to take a photo.' : 'Allow photo access to choose a picture.'); return; }
+    // No permission for the gallery: the system photo picker needs none (asking failed on Android 12 and older).
+    if (camera && !(await ImagePicker.requestCameraPermissionsAsync()).granted) { setError('Allow camera access to take a photo, or choose one from your gallery.'); return; }
     const res = camera
       ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });

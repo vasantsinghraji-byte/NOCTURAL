@@ -1,5 +1,6 @@
 import { useCallback, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { useTabBarSpace } from '@/lib/PillTabBar';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import type { MembershipStatus } from '@medrush/shared';
@@ -67,6 +68,13 @@ export default function Account() {
   }
   const { t, lang, setLang } = useT();
   const { easy, setEasy } = useEasyMode();
+  // Easy mode changes Home, so show it straight away rather than leave the person on Account.
+  function toggleEasy(on: boolean) {
+    setEasy(on);
+    if (!on) return;
+    router.navigate('/');
+    appAlert('Easy mode is on', 'Home now shows a few big buttons, and the tabs at the bottom are larger. Turn it off any time in Account.');
+  }
   const [plus, setPlus] = useState<MembershipStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -159,7 +167,7 @@ export default function Account() {
           <Text style={ui.h3}>Easy mode</Text>
           <Text style={ui.muted}>A simple home with big buttons and fewer choices</Text>
         </View>
-        <Switch value={easy} onValueChange={setEasy} trackColor={{ true: C.brand, false: C.faint }} thumbColor="#ffffff" accessibilityLabel="Easy mode" />
+        <Switch value={easy} onValueChange={toggleEasy} trackColor={{ true: C.brand, false: C.faint }} thumbColor="#ffffff" accessibilityLabel="Easy mode" />
       </View>
       <Row icon={Type} title="Make text bigger" desc="Opens your phone’s display settings. Nabz follows the size you choose." onPress={openTextSizeSettings} />
       {session?.kind === 'patient' && <CallMeBack topic="OTHER" />}
@@ -167,7 +175,7 @@ export default function Account() {
       <Text style={ui.section}>Settings</Text>
       <Row icon={Languages} title={t('account.language')} desc={t('account.languageDesc')} onPress={() => setLang(lang === 'en' ? 'hi' : 'en')}
         right={<Text style={styles.lang}>{lang === 'en' ? 'English' : 'हिन्दी'}</Text>} />
-      <Row icon={ShieldCheck} title="Permissions" desc="Location, notifications, camera, photos" href="/permissions" />
+      <Row icon={ShieldCheck} title="Permissions" desc="Location, notifications, camera" href="/permissions" />
       <Row icon={Briefcase} title="Work with Nabz" desc="Nurses, physios, pharmacies, labs: apply to join" href="/partner-apply" />
       {session && <Row icon={LogOut} title="Log out" desc={`Signed in as ${session.email}`} onPress={async () => { await logout(); setExplored(false); router.replace('/welcome'); }} />}
       {session?.kind === 'patient' && <Row icon={Gift} title="Have a referral code?" desc="From a Nabz nurse, physio or pharmacy" onPress={enterReferral} />}

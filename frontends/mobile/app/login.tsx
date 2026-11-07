@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Text, useTr } from '@/lib/T';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Bike, FlaskConical, Stethoscope, Store, type LucideIcon } from 'lucide-react-native';
 import { homeForRole, useAuth, type AccountKind } from '@/lib/auth';
@@ -28,7 +29,8 @@ const WAITLIST: Array<{ role: WaitlistRole; icon: LucideIcon; title: string; hin
 /** Email sign-in. Customer app: customers only. Nabz Partner: medical staff, pharmacy, delivery and path lab. */
 export default function Login() {
   const { login, register } = useAuth();
-  const params = useLocalSearchParams<{ kind?: AccountKind }>();
+  const tr = useTr();
+  const params = useLocalSearchParams<{ kind?: AccountKind; use?: 'phone' }>();
   const [kind, setKind] = useState<AccountKind>(IS_PARTNER_APP ? (params.kind || 'staff') : 'patient');
   const [waitlist, setWaitlist] = useState<WaitlistRole | null>(null);
   const [mode, setMode] = useState<Mode>('login');
@@ -71,6 +73,7 @@ export default function Login() {
   }
 
   const isRegister = mode === 'register';
+  const customerSignIn = !IS_PARTNER_APP && !isRegister;
   const active = PARTNER_PORTALS.find((p) => p.kind === kind);
 
   return (
@@ -121,18 +124,22 @@ export default function Login() {
             <>
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Full name</Text>
-                <TextInput style={ui.input} placeholder="As on your ID" placeholderTextColor={C.faint} value={name} onChangeText={setName} autoComplete="name" />
+                <TextInput style={ui.input} placeholder={tr("As on your ID")} placeholderTextColor={C.faint} value={name} onChangeText={setName} autoComplete="name" />
               </View>
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Mobile number</Text>
-                <TextInput style={ui.input} placeholder="10 digits" placeholderTextColor={C.faint} keyboardType="phone-pad" value={phone} onChangeText={setPhone} maxLength={10} />
+                <TextInput style={ui.input} placeholder={tr("10 digits")} placeholderTextColor={C.faint} keyboardType="phone-pad" value={phone} onChangeText={setPhone} maxLength={10} />
               </View>
             </>
           )}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Email</Text>
-            <TextInput style={ui.input} placeholder="you@example.com" placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false} keyboardType="email-address"
-              autoComplete="email" value={email} onChangeText={setEmail} />
+            {/* Customers can type their mobile number here too (signs in with the account's password). */}
+            <Text style={styles.fieldLabel}>{customerSignIn ? 'Email or mobile number' : 'Email'}</Text>
+            <TextInput style={ui.input} placeholder={customerSignIn ? (params.use === 'phone' ? '10-digit mobile number' : 'you@example.com or mobile number') : 'you@example.com'}
+              placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false}
+              keyboardType={customerSignIn && params.use === 'phone' ? 'phone-pad' : 'email-address'} autoFocus={params.use === 'phone'}
+              autoComplete={customerSignIn && params.use === 'phone' ? 'tel' : 'email'} value={email} onChangeText={setEmail}
+              accessibilityLabel={customerSignIn ? 'Email or mobile number' : 'Email'} />
           </View>
           <View style={styles.field}>
             <View style={styles.labelRow}>
@@ -174,7 +181,7 @@ export default function Login() {
           <View style={[ui.card, { gap: 8 }]}>
             <Text style={ui.h3}>Server (testing builds only)</Text>
             <TextInput style={ui.input} autoCapitalize="none" autoCorrect={false} keyboardType="url"
-              value={server} onChangeText={setServer} placeholder="http://10.0.2.2:5000" placeholderTextColor={C.faint} />
+              value={server} onChangeText={setServer} placeholder={tr("http://10.0.2.2:5000")} placeholderTextColor={C.faint} />
             <Text style={ui.muted}>Emulator: http://10.0.2.2:5000 · USB phone: http://localhost:5000 (adb reverse) · Wi-Fi phone: http://&lt;laptop IP&gt;:5000</Text>
             <Pressable style={ui.btnOutline} onPress={testServer}>
               <Text style={ui.btnOutlineText}>Test connection</Text>

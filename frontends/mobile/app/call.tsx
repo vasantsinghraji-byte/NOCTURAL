@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { PermissionsAndroid, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PermissionsAndroid, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router } from 'expo-router';
 import { Mic, MicOff, PhoneOff, ShieldCheck, Volume2, VolumeX } from 'lucide-react-native';
 import { RTCIceCandidate, RTCPeerConnection, RTCSessionDescription, mediaDevices } from 'react-native-webrtc';

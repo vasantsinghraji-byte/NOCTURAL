@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { RefreshControl, Text, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { CalendarClock, CalendarHeart, ClipboardList, FlaskConical, HeartPulse, Pill, UserRound } from 'lucide-react-native';
 import type { FamilyMemberCare } from '@medrush/shared';

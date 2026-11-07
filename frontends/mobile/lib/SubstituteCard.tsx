@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { ArrowRight, ShieldCheck } from 'lucide-react-native';
 import type { OrderItem } from '@medrush/shared';
 import { api } from './api';

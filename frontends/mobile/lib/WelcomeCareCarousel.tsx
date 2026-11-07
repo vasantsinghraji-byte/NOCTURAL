@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  Dimensions,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View
-} from 'react-native';
+import { Animated, Dimensions, Image, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { BadgeCheck, Clock3, Heart, ShieldCheck } from 'lucide-react-native';
 import { C, F } from './theme';
 import { tap } from './motion';

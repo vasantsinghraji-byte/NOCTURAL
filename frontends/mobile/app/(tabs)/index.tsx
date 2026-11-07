@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Dimensions, Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Text } from '@/lib/T';
 import * as SecureStore from 'expo-secure-store';
 import { useTabBarSpace } from '@/lib/PillTabBar';
 import { router, useFocusEffect } from 'expo-router';
@@ -67,10 +68,15 @@ function BookHome() {
   const point = demoArea ? DEMO_POINT : live.point;
   const area = demoArea ? 'C-Scheme, Jaipur (demo area)' : live.area;
   const source = demoArea ? 'recent' : live.source;
+  // Back to the real location (the way out of the demo area, always on screen while in it).
+  function exitDemo() {
+    setDemoArea(false);
+    SecureStore.deleteItemAsync(DEMO_AREA_KEY).catch(() => undefined);
+  }
   function chooseArea() {
     if (!DEMO_AREA_ENABLED) return;
     appAlert('Where should we send care?', 'Nabz is live in Jaipur. Outside Jaipur you can try the app in the Jaipur demo area.', [
-      { text: 'My live location', onPress: () => { setDemoArea(false); SecureStore.deleteItemAsync(DEMO_AREA_KEY).catch(() => undefined); } },
+      { text: 'My live location', onPress: exitDemo },
       { text: 'Jaipur demo area', onPress: () => { setDemoArea(true); SecureStore.setItemAsync(DEMO_AREA_KEY, '1').catch(() => undefined); } },
       { text: 'Cancel', style: 'cancel' }
     ]);
@@ -85,6 +91,12 @@ function BookHome() {
   const [picked, setPicked] = useState<CareService | null>(null);
   const [allOpen, setAllOpen] = useState(false);
   const [query, setQuery] = useState('');
+  // Search suggestions open in a dropdown under the box (measured on screen).
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [dropTop, setDropTop] = useState(0);
+  const searchRef = useRef<View>(null);
+  const measureSearch = () => searchRef.current?.measureInWindow((_x, y, _w, h) => setDropTop(y + h + 6));
+  const closeSearch = () => { setSearchOpen(false); Keyboard.dismiss(); };
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<PharmacyOrder[]>([]);
 
@@ -117,10 +129,12 @@ function BookHome() {
   const nursing = useMemo(() => (services || []).filter((s) => s.category !== 'PACKAGE'), [services]);
   const packages = useMemo(() => (services || []).filter((s) => s.category === 'PACKAGE'), [services]);
   const q = query.trim().toLowerCase();
-  const matches = q ? nursing.filter((s) => `${s.displayName} ${s.name} ${s.shortDescription || ''}`.toLowerCase().includes(q)) : nursing;
+  // Suggestions: every service (packages too) whose name or description matches.
+  const suggestions = useMemo(() => (q ? (services || []).filter((s) => `${s.displayName} ${s.name} ${s.shortDescription || ''}`.toLowerCase().includes(q)).slice(0, 6) : []), [q, services]);
+  const wantsMedicine = q.length > 1 && !suggestions.length;
   // Two rows of four: seven services + "See all" when there are more.
-  const hasMore = !q && matches.length > GRID_MAX;
-  const gridItems = hasMore ? matches.slice(0, GRID_MAX - 1) : matches;
+  const hasMore = nursing.length > GRID_MAX;
+  const gridItems = hasMore ? nursing.slice(0, GRID_MAX - 1) : nursing;
   const upcoming = visits.find((v) => ACTIVE.includes(v.status));
   // Medicines bought before (no prescription items: those need a fresh upload).
   const buyAgain = useMemo(() => {
@@ -167,7 +181,8 @@ function BookHome() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: tabSpace }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: tabSpace }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={() => { if (searchOpen) closeSearch(); }}>
         {/* Brand header: where, search and who's online, on the logo gradient */}
         <BrandHeader bleed={18} style={{ paddingHorizontal: 18 }}>
         <View style={styles.header}>
@@ -182,6 +197,11 @@ function BookHome() {
               <Text style={styles.whereText} numberOfLines={1}>{source === 'live' ? 'Here · ' : ''}{area}</Text>
               {DEMO_AREA_ENABLED ? <ChevronDown size={16} color={C.onHeader} /> : null}
               {demoArea ? <View style={styles.demoPill}><Text style={styles.demoPillText}>DEMO</Text></View> : null}
+              {demoArea ? (
+                <Pressable onPress={exitDemo} hitSlop={10} style={styles.exitDemo} accessibilityRole="button" accessibilityLabel="Exit demo area and use my location">
+                  <X size={12} color={C.onHeader} /><Text style={styles.exitDemoText}>Exit demo</Text>
+                </Pressable>
+              ) : null}
             </View>
           </Pressable>
           <PressScale onPress={openMap} style={styles.mapBtn} accessibilityRole="button" accessibilityLabel="See professionals, clinics and pharmacies on the map">
@@ -189,10 +209,12 @@ function BookHome() {
           </PressScale>
         </View>
 
-        <View style={styles.searchBox}>
+        <View ref={searchRef} style={styles.searchBox} onLayout={measureSearch}>
           <Search size={18} color={C.muted} />
-          <TextInput value={query} onChangeText={setQuery} placeholder={t('home.search')} placeholderTextColor={C.muted} style={styles.searchInput} accessibilityLabel="Search services" returnKeyType="search" />
-          {query ? <Pressable hitSlop={10} onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search"><X size={16} color={C.muted} /></Pressable> : null}
+          <TextInput value={query} onChangeText={(v) => { setQuery(v); setSearchOpen(true); measureSearch(); }} onFocus={() => { measureSearch(); setSearchOpen(true); }}
+            placeholder={t('home.search')} placeholderTextColor={C.muted} style={styles.searchInput} accessibilityLabel="Search services" returnKeyType="search"
+            onSubmitEditing={() => { if (suggestions[0]) { closeSearch(); setQuery(''); pick(suggestions[0]); } }} />
+          {query ? <Pressable hitSlop={10} onPress={() => { setQuery(''); closeSearch(); }} accessibilityRole="button" accessibilityLabel="Clear search"><X size={16} color={C.muted} /></Pressable> : null}
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14, marginHorizontal: -18 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 18 }}>
@@ -294,8 +316,8 @@ function BookHome() {
 
         {/* Home nursing: everything visible at once, two rows of four */}
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle} numberOfLines={1}>{q ? `Results for “${query.trim()}”` : 'Nurse at home'}</Text>
-          {!q && nursing.length > 0 ? <Pressable onPress={() => setAllOpen(true)} hitSlop={10} accessibilityRole="button"><Text style={styles.sectionLink}>See all</Text></Pressable> : null}
+          <Text style={styles.sectionTitle} numberOfLines={1}>Nurse at home</Text>
+          {nursing.length > 0 ? <Pressable onPress={() => setAllOpen(true)} hitSlop={10} accessibilityRole="button"><Text style={styles.sectionLink}>See all</Text></Pressable> : null}
         </View>
         {services === null ? (
           <View style={styles.grid}>
@@ -310,7 +332,6 @@ function BookHome() {
                 <Text style={styles.tileText}>See all</Text>
               </Pressable>
             ) : null}
-            {q && matches.length === 0 ? <Text style={[ui.muted, { padding: 8 }]}>No service matches “{query.trim()}”.</Text> : null}
           </View>
         )}
 
@@ -352,6 +373,41 @@ function BookHome() {
         )}
         <View style={{ height: 16 }} />
       </ScrollView>
+
+      {/* Search dropdown: over the page, closes on a tap outside or a choice */}
+      {searchOpen && q ? (
+        <>
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeSearch} accessibilityLabel="Close search" />
+          <View style={[styles.dropdown, { top: dropTop }]} accessibilityRole="menu">
+            <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 320 }}>
+              {suggestions.map((s) => (
+                <Pressable key={s.serviceType} style={({ pressed }) => [styles.dropRow, pressed && { backgroundColor: C.brandSoft }]} accessibilityRole="menuitem"
+                  onPress={() => { closeSearch(); setQuery(''); pick(s); }}>
+                  <IconTile icon={serviceIcon(s.serviceType)} size={36} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dropTitle} numberOfLines={1}>{s.displayName || s.name}</Text>
+                    {s.shortDescription ? <Text style={ui.muted} numberOfLines={1}>{s.shortDescription}</Text> : null}
+                  </View>
+                  {s.pricingPreview ? <Text style={styles.dropPrice}>{money(s.pricingPreview.regular.totalAmount)}</Text> : null}
+                </Pressable>
+              ))}
+              {!suggestions.length ? <Text style={[ui.muted, { padding: 14 }]}>No service matches “{query.trim()}”.</Text> : null}
+              <Pressable style={({ pressed }) => [styles.dropRow, styles.dropLink, pressed && { backgroundColor: C.brandSoft }]} accessibilityRole="menuitem"
+                onPress={() => { closeSearch(); router.push('/pharmacy'); }}>
+                <IconTile icon={Pill} size={36} />
+                <Text style={[styles.dropTitle, { flex: 1 }]}>{wantsMedicine ? 'Search medicines in Pharmacy' : 'Medicines'}</Text>
+                <ChevronRight size={16} color={C.muted} />
+              </Pressable>
+              <Pressable style={({ pressed }) => [styles.dropRow, pressed && { backgroundColor: C.brandSoft }]} accessibilityRole="menuitem"
+                onPress={() => { closeSearch(); router.push('/labs'); }}>
+                <IconTile icon={FlaskConical} size={36} />
+                <Text style={[styles.dropTitle, { flex: 1 }]}>Lab tests</Text>
+                <ChevronRight size={16} color={C.muted} />
+              </Pressable>
+            </ScrollView>
+          </View>
+        </>
+      ) : null}
 
       {/* Step 1 of booking: now or later? */}
       <BottomSheet visible={!!picked} onClose={() => setPicked(null)} title={picked ? (picked.displayName || picked.name) : ''}>
@@ -451,8 +507,15 @@ const styles = StyleSheet.create({
   addText: { fontFamily: F.heavy, fontSize: 13, letterSpacing: 0.6, color: C.brand },
   demoPill: { backgroundColor: C.amberSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   demoPillText: { color: C.amber, fontFamily: F.heavy, fontSize: 10, letterSpacing: 1 },
+  exitDemo: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 6, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: C.headerGlass, borderWidth: 1, borderColor: C.headerGlassBorder },
+  exitDemoText: { color: C.onHeader, fontFamily: F.bold, fontSize: 11 },
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: 14, marginTop: 14, minHeight: 50, ...depth.raised },
   searchInput: { flex: 1, paddingVertical: 12, fontFamily: F.medium, fontSize: 15, color: C.ink },
+  dropdown: { position: 'absolute', left: 18, right: 18, backgroundColor: C.card, borderRadius: 16, paddingVertical: 6, overflow: 'hidden', ...depth.raised },
+  dropRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 9 },
+  dropLink: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border, marginTop: 4 },
+  dropTitle: { fontFamily: F.bold, fontSize: 15, color: C.ink },
+  dropPrice: { fontFamily: F.bold, fontSize: 13, color: C.brand },
   easyOffer: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 4, marginTop: 14, borderWidth: 1.5, borderColor: C.brandSoft },
   outside: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.amberSoft, borderRadius: 16, padding: 14, marginTop: 14 },
   upcoming: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.night, borderRadius: 16, padding: 14, marginTop: 14 },

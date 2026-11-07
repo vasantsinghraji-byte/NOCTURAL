@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { RefreshControl, Text, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useFocusEffect } from 'expo-router';
 import { CalendarHeart, ChevronRight, Sparkles, Wallet } from 'lucide-react-native';
 import type { CarePlanView, PlanProposalView, WalletView } from '@medrush/shared';

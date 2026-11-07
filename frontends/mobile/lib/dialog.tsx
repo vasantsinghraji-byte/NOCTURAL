@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View, type KeyboardTypeOptions } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, TextInput, View, type KeyboardTypeOptions } from 'react-native';
+import { Text } from '@/lib/T';
 import { C, F, IS_DARK, clay } from './theme';
 
 /**

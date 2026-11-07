@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import * as Contacts from 'expo-contacts';
 import * as SecureStore from 'expo-secure-store';
 import { BookUser, UserRound } from 'lucide-react-native';

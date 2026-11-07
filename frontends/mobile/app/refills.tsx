@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { RefreshControl, Text, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useFocusEffect } from 'expo-router';
 import { Pill, RotateCcw } from 'lucide-react-native';
 import type { RefillView } from '@medrush/shared';

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, Text, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { Building2, CheckCircle2, Droplets, FileText, FlaskConical, Home, Timer, Wallet } from 'lucide-react-native';

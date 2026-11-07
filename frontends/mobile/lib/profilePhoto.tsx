@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera } from 'lucide-react-native';
 import { api, describeNetworkError, getAuthToken } from './api';
@@ -22,8 +23,8 @@ export function PhotoAvatar({ name, url, size = 60, editable = false, onChange }
   const token = getAuthToken();
 
   async function upload(camera: boolean) {
-    const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { appAlert(camera ? 'Camera access needed' : 'Photo access needed', 'Allow it in Settings to add a profile photo.'); return; }
+    // No permission for the gallery: the system photo picker needs none (asking failed on Android 12 and older).
+    if (camera && !(await ImagePicker.requestCameraPermissionsAsync()).granted) { appAlert('Camera access needed', 'Allow it in Settings to take a profile photo, or choose one from your gallery.'); return; }
     const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7 };
     const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
     if (res.canceled || !res.assets[0]) return;

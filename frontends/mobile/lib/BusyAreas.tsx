@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { useFocusEffect } from 'expo-router';
 import { Flame, Navigation } from 'lucide-react-native';
 import type { BusyArea } from '@medrush/shared';

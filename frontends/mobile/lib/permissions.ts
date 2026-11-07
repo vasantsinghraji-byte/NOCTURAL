@@ -5,7 +5,7 @@ import { getNotificationPermission, requestNotificationPermission } from './noti
 export type PermissionStatus = 'granted' | 'denied' | 'undetermined';
 
 export interface AppPermission {
-  key: 'location' | 'notifications' | 'camera' | 'photos';
+  key: 'location' | 'notifications' | 'camera';
   title: string;
   why: string;
   check: () => Promise<PermissionStatus>;
@@ -38,11 +38,6 @@ export const APP_PERMISSIONS: AppPermission[] = [
     check: async () => norm((await ImagePicker.getCameraPermissionsAsync()).status),
     request: async () => norm((await ImagePicker.requestCameraPermissionsAsync()).status)
   },
-  {
-    key: 'photos',
-    title: 'Photos',
-    why: 'Attach a prescription image from your gallery.',
-    check: async () => norm((await ImagePicker.getMediaLibraryPermissionsAsync()).status),
-    request: async () => norm((await ImagePicker.requestMediaLibraryPermissionsAsync()).status)
-  }
+  // No "Photos" permission: choosing from the gallery uses the system photo
+  // picker, which needs none.
 ];

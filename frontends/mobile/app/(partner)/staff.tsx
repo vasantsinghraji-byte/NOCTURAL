@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, AppState, Easing, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, AppState, Easing, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Redirect, router } from 'expo-router';
 import * as Location from 'expo-location';
 import {
-  BadgeCheck, Circle, Flame, IndianRupee, MapPin, Navigation, Package, Phone, ShieldAlert, Star, Store, UserRound, Wallet, Sparkles, ClipboardList
+  BadgeCheck, Circle, Flame, IndianRupee, MapPin, Navigation, Package, Phone, ShieldAlert, Star, Store, UserRound, Wallet, Sparkles, ClipboardList, FileText
 } from 'lucide-react-native';
 import type { CareBooking, StaffDashboard, VisitOffer } from '@medrush/shared';
-import { api, describeNetworkError } from '@/lib/api';
+import { api, describeNetworkError, getAuthToken } from '@/lib/api';
 import { STAFF_ROLES, useAuth } from '@/lib/auth';
 import { DEMO_POINT, inr } from '@/lib/care';
 import { PressScale, Rise, success, tap, warn } from '@/lib/motion';
@@ -62,6 +62,8 @@ export default function StaffHome() {
   const [lastPing, setLastPing] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [codeFor, setCodeFor] = useState<Visit | null>(null);
+  // Prescription viewer (the image is private: loaded with the sign-in token).
+  const [rxFor, setRxFor] = useState<string | null>(null);
   const [proposeFor, setProposeFor] = useState<string | null>(null);
   const [completeFor, setCompleteFor] = useState<Visit | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
@@ -397,6 +399,18 @@ export default function StaffHome() {
                     <Text style={[ui.muted, { marginTop: 4 }]}>Collect {inr(v.supplies.amount || 0)} from the patient for supplies.</Text>
                   </View>
                 )}
+                {v.prescription?.status === 'PENDING' && !['COMPLETED', 'CANCELLED'].includes(v.status) && (
+                  <View style={styles.rxPending}>
+                    <FileText size={16} color={C.brandDark} />
+                    <Text style={[ui.muted, { flex: 1, color: C.brandDark }]}>Prescription not uploaded yet. You can’t start the visit until the patient uploads it in their app; remind them in Chat.</Text>
+                  </View>
+                )}
+                {v.prescription?.status === 'ATTACHED' && ['ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'].includes(v.status) && (
+                  <Pressable style={styles.inline} onPress={() => setRxFor(v._id)} accessibilityRole="button" hitSlop={8}>
+                    <FileText size={14} color={C.brand} />
+                    <Text style={[ui.muted, { color: C.brand, fontFamily: F.bold }]}>View prescription</Text>
+                  </Pressable>
+                )}
                 {v.supplies?.items?.some((i) => i.source === 'PATIENT_HAS') && (
                   <Text style={ui.muted}>Patient has: {v.supplies.items.filter((i) => i.source === 'PATIENT_HAS').map((i) => i.name).join(', ')}</Text>
                 )}
@@ -432,6 +446,15 @@ export default function StaffHome() {
       </ScrollView>
 
       {proposeFor && <ProposalSheet bookingId={proposeFor} onClose={() => setProposeFor(null)} />}
+      <Modal visible={!!rxFor} transparent animationType="fade" onRequestClose={() => setRxFor(null)}>
+        <View style={styles.rxOverlay}>
+          {rxFor ? (
+            <Image style={styles.rxImage} resizeMode="contain" accessibilityLabel="Prescription"
+              source={{ uri: api.careBookingPrescriptionLink(rxFor), headers: getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : undefined }} />
+          ) : null}
+          <PressScale style={[ui.btnDark, { alignSelf: 'stretch' }]} onPress={() => setRxFor(null)}><Text style={ui.btnText}>Close</Text></PressScale>
+        </View>
+      </Modal>
       <CodeSheet
         visit={codeFor}
         onClose={() => setCodeFor(null)}
@@ -616,6 +639,9 @@ const styles = StyleSheet.create({
   demandBar: { height: 8, borderRadius: 4, backgroundColor: C.accent },
   demandCount: { fontFamily: F.bold, color: C.ink, width: 24, textAlign: 'right' },
   sosBtn: { width: 48, borderRadius: 16, backgroundColor: '#e5484d', alignItems: 'center', justifyContent: 'center' },
+  rxPending: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', padding: 10, borderRadius: 12, backgroundColor: C.brandSoft },
+  rxOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', padding: 20, gap: 16, justifyContent: 'center' },
+  rxImage: { width: '100%', flex: 1, borderRadius: 12 },
   offer: { backgroundColor: C.night, borderRadius: 16, padding: 18, gap: 8, borderWidth: 1, borderColor: C.brand, ...shadow },
   offerKicker: { color: C.gold, fontFamily: F.heavy, fontSize: 11, letterSpacing: 1 },
   offerSecs: { color: C.onNight, fontFamily: F.heavy, fontSize: 14 },

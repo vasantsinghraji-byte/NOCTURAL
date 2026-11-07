@@ -1,5 +1,6 @@
 import Svg, { Circle, Path } from 'react-native-svg';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/lib/T';
 import { C, F } from './theme';
 
 /** Nabz mark: location pin carrying a pulse line, coral live dot. */

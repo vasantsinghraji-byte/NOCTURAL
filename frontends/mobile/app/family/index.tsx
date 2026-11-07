@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { RefreshControl, Text, TextInput, View } from 'react-native';
+import { RefreshControl, TextInput, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useFocusEffect } from 'expo-router';
 import { ChevronRight, HeartHandshake, ShieldCheck, UserPlus, Users } from 'lucide-react-native';
 import type { FamilyLinkView } from '@medrush/shared';

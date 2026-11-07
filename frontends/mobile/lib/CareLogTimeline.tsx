@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { Activity, CheckCircle2, HeartPulse, NotebookPen, Pill, PlayCircle, Utensils, type LucideIcon } from 'lucide-react-native';
 import type { CareLogView, CareVitals } from '@medrush/shared';
 import { fmtClock } from './market';

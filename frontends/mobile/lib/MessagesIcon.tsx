@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router } from 'expo-router';
 import { MessageCircle } from 'lucide-react-native';
 import { useLive } from './live';

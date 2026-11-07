@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
@@ -82,12 +83,13 @@ export default function Welcome() {
           <TermsCheckbox checked={agreed} onChange={(v) => { setAgreed(v); if (v) setError(null); }} tone="brand"
             label="I agree to the" linkText="Terms and Conditions and Privacy Policy" />
           {error && <Text style={styles.error}>{error}</Text>}
-          {methods.phone && (
-            <PressScale style={[styles.primary, !agreed && { opacity: 0.6 }]} onPress={() => { if (!needTerms()) router.push('/phone'); }}>
-              <Phone size={18} color={C.brand} />
-              <Text style={styles.primaryText}>{t('welcome.phone')}</Text>
-            </PressScale>
-          )}
+          {/* Mobile number first: a code by SMS where that's switched on, otherwise
+              the mobile number + password on the sign-in screen. */}
+          <PressScale style={[styles.primary, !agreed && { opacity: 0.6 }]} accessibilityRole="button"
+            onPress={() => { if (!needTerms()) router.push(methods.phone ? '/phone' : { pathname: '/login', params: { use: 'phone' } }); }}>
+            <Phone size={18} color={C.brand} />
+            <Text style={styles.primaryText}>{methods.phone ? t('welcome.phone') : t('welcome.mobile')}</Text>
+          </PressScale>
           {GOOGLE_CONFIGURED && methods.google && (
             <View pointerEvents={agreed ? 'auto' : 'none'} style={!agreed && { opacity: 0.6 }}>
               <GoogleButton label={t('welcome.google')} onResult={onGoogle} onError={setError} />

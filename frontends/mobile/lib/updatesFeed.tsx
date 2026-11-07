@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import type { FeedUpdate } from '@medrush/shared';
 import { api } from './api';

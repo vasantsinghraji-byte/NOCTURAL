@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { C, F, shadow } from './theme';
 
 /** Midnight hero card: serif headline, soft glow orbs for depth (no gradient module). */

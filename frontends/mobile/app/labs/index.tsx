@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useLocalSearchParams } from 'expo-router';
 import { BadgeCheck, Building2, Check, Clock, Droplets, FlaskConical, Home, Search, ShieldCheck, X } from 'lucide-react-native';
 import type { CareMode, LabCompareRow, LabQuote, MarketService, SlotDay } from '@medrush/shared';

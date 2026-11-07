@@ -1,4 +1,5 @@
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { ChevronRight, ShieldCheck } from 'lucide-react-native';
 import { PressScale } from './motion';
 import { C, F, clay } from './theme';

@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
-import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { useTabBarSpace } from '@/lib/PillTabBar';
 import { router, useFocusEffect } from 'expo-router';
 import type { CareBooking, OnlinePayMethod, PharmacyOrder } from '@medrush/shared';
@@ -7,7 +8,8 @@ import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { inr } from '@/lib/care';
 import { IconTile, serviceIcon, TONES } from '@/lib/icons';
-import { Bike, CalendarDays, CalendarHeart, FlaskConical, Lock, Navigation, Star, Store, Stethoscope } from 'lucide-react-native';
+import { Bike, CalendarDays, CalendarHeart, FileText, FlaskConical, Lock, Navigation, Star, Store, Stethoscope } from 'lucide-react-native';
+import { pickAndUploadPrescription } from '@/lib/prescription';
 import { C, F, PASTELS, shadow, ui } from '@/lib/theme';
 import { BrandHeader } from '@/lib/BrandHeader';
 import { NabzMark } from '@/lib/Brand';
@@ -36,6 +38,27 @@ export default function Bookings() {
   // Refill reminders: which delivered orders already have one, and the sheet to set one up.
   const [refillOrders, setRefillOrders] = useState<Set<string>>(new Set());
   const [refilling, setRefilling] = useState<string | null>(null);
+  // "Upload later" prescriptions: one upload at a time (a double tap doesn't open the picker twice).
+  const [rxFor, setRxFor] = useState<string | null>(null);
+  const rxBusy = useRef(false);
+
+  async function uploadPrescription(bookingId: string) {
+    if (rxBusy.current) return;
+    rxBusy.current = true;
+    setRxFor(bookingId);
+    try {
+      const up = await pickAndUploadPrescription();
+      if (!up) return;
+      await api.attachCareBookingPrescription(bookingId, up.key);
+      appAlert('Prescription uploaded', 'Your professional can see it and start the visit.');
+      load();
+    } catch (e) {
+      appAlert('Could not upload the prescription', describeNetworkError(e));
+    } finally {
+      rxBusy.current = false;
+      setRxFor(null);
+    }
+  }
 
   async function startRefill(everyDays: 15 | 30 | 60 | 90) {
     if (!refilling) return;
@@ -143,6 +166,16 @@ export default function Bookings() {
               )}
               {b.status === 'CANCELLED' && (b.cancellation?.cancellationFee || 0) > 0 && (
                 <Text style={ui.muted}>Cancellation fee {inr(b.cancellation?.cancellationFee || 0)}, added to your next booking</Text>
+              )}
+              {b.prescription?.status === 'PENDING' && !['COMPLETED', 'CANCELLED'].includes(b.status) && (
+                <View style={styles.rxNote}>
+                  <Text style={[ui.muted, { color: C.brandDark, fontFamily: F.bold }]}>Prescription needed before the visit starts</Text>
+                  <Pressable style={[styles.rxBtn, rxFor === b._id && { opacity: 0.6 }]} disabled={rxFor !== null} onPress={() => uploadPrescription(b._id)}
+                    accessibilityRole="button" accessibilityLabel="Upload prescription">
+                    <FileText size={15} color={C.onBrand} />
+                    <Text style={styles.rxBtnText}>{rxFor === b._id ? 'Uploading…' : 'Upload prescription'}</Text>
+                  </Pressable>
+                </View>
               )}
               {b.supplies?.status === 'ORDERED' && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Store size={13} color={C.muted} /><Text style={ui.muted}>Supplies packed · {inr(b.supplies.amount || 0)}</Text></View>
@@ -270,6 +303,9 @@ const styles = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 16, padding: 16, ...shadow, elevation: 0 },
   status: { backgroundColor: C.card, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start' },
   statusText: { fontSize: 10, fontFamily: F.heavy, color: C.ink, textTransform: 'uppercase' },
+  rxNote: { gap: 8, marginTop: 6, padding: 10, borderRadius: 12, backgroundColor: C.brandSoft },
+  rxBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: C.brand, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  rxBtnText: { color: C.onBrand, fontFamily: F.bold, fontSize: 13 },
   cancel: { color: C.rose, fontFamily: F.bold, marginTop: 6 },
   track: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.night, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
   trackText: { color: C.onNight, fontFamily: F.heavy, fontSize: 12 },

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { BackHandler, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Building2, CalendarDays, Check, Clock, CreditCard, Home, Lock, MapPin, UserRound, type LucideIcon } from 'lucide-react-native';

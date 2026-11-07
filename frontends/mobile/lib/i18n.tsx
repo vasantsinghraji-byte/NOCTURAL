@@ -10,6 +10,7 @@ const EN = {
   'welcome.title': 'Care that\ncomes home.',
   'welcome.sub': 'Verified nurses at your door in minutes. Medicines from pharmacies near you.',
   'welcome.phone': 'Continue with phone',
+  'welcome.mobile': 'Sign in with mobile number',
   'welcome.google': 'Continue with Google',
   'welcome.email': 'Sign in with email',
   'welcome.explore': 'Explore first',
@@ -132,6 +133,7 @@ const HI: Partial<Record<Key, string>> = {
   'rate.title': 'विज़िट कैसी रही?',
   'rate.submit': 'रेटिंग भेजें',
   'rate.thanks': 'धन्यवाद। आपकी राय से देखभाल सुरक्षित रहती है।',
+  'welcome.mobile': 'मोबाइल नंबर से साइन इन करें',
   'tab.home': 'होम',
   'tab.care': 'देखभाल',
   'tab.pharmacy': 'फ़ार्मेसी',
@@ -165,6 +167,11 @@ export function LangProvider({ children }: { children: ReactNode }) {
   }, [lang]);
   const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
   return <LangContext.Provider value={value}>{children}</LangContext.Provider>;
+}
+
+/** The current language, or English outside <LangProvider> (e.g. the first loading screen). */
+export function useLang(): Lang {
+  return useContext(LangContext)?.lang ?? 'en';
 }
 
 export function useT() {

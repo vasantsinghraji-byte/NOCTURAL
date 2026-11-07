@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { AppState, Modal, Pressable, StyleSheet, Text, Vibration, View } from 'react-native';
+import { AppState, Modal, Pressable, StyleSheet, Vibration, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { router } from 'expo-router';
 import { Phone, PhoneOff } from 'lucide-react-native';
 import { RealtimeClient, type CallBundle, type IncomingCall, type RealtimeEvent } from '@medrush/shared';

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppState, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { APP_PERMISSIONS, type PermissionStatus } from '@/lib/permissions';
 import { C, F } from '@/lib/theme';
 

@@ -651,6 +651,16 @@ export class MedRushApi {
     return this.request<{ success: true; data?: CareBooking[]; bookings?: CareBooking[] }>('GET', '/bookings/patient/me');
   }
 
+  /** "Upload later": attach the prescription (key from uploadPrescription) to a booked visit. */
+  attachCareBookingPrescription(id: string, prescriptionKey: string) {
+    return this.request<{ success: true; booking: CareBooking }>('PUT', `/bookings/${id}/prescription`, { body: { prescriptionKey } });
+  }
+
+  /** The visit's prescription image (patient, their professional or an admin; send the auth header). */
+  careBookingPrescriptionLink(id: string): string {
+    return this.buildUrl(`/bookings/${id}/prescription`);
+  }
+
   cancelCareBooking(id: string, reason: string) {
     return this.request<{ success: true; booking: CareBooking }>('PUT', `/bookings/${id}/cancel`, { body: { reason } });
   }
@@ -1232,7 +1242,7 @@ export class MedRushApi {
     return this.request<{ success: true; banner: M.SpotlightAd | null }>('GET', `/marketplace/services/${serviceId}/banner`, { query: { city } });
   }
 
-  marketStores(q: { kind: M.ShopKind; serviceId?: string; mode?: M.CareMode; lat?: number; lng?: number; sort?: 'recommended' | 'price' | 'distance' | 'rating'; gender?: 'FEMALE' | 'MALE'; language?: string; city?: string }) {
+  marketStores(q: { kind: M.ShopKind; serviceId?: string; mode?: M.CareMode; lat?: number; lng?: number; sort?: 'recommended' | 'price' | 'distance' | 'rating'; language?: string; city?: string }) {
     return this.request<{ success: true; stores: M.ShopCard[] }>('GET', '/marketplace/stores', { query: q });
   }
 

@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { HeartHandshake, X } from 'lucide-react-native';
 import { setBookingFor, useBookingFor } from './bookingFor';
 import { PressScale } from './motion';

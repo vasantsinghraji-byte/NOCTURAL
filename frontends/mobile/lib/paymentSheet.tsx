@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/lib/T';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Banknote, ChevronRight, CreditCard, Landmark, Smartphone } from 'lucide-react-native';
 import { PAY_METHOD_LABELS, type PayMethod } from '@medrush/shared';
