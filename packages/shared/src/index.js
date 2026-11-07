@@ -60,6 +60,7 @@ lazyExport('User', () => require('../../../models/user'));
 
 // services
 lazyExport('notificationService', () => require('../../../services/notificationService'));
+lazyExport('pharmacyService', () => require('../../../services/pharmacyService'));
 lazyExport('refreshSessionService', () => require('../../../services/refreshSessionService'));
 lazyExport('securityAuditService', () => require('../../../services/securityAuditService'));
 lazyExport('passwordSecurityService', () => require('../../../services/passwordSecurityService'));

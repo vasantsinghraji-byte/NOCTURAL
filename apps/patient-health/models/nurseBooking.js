@@ -391,6 +391,15 @@ const NurseBookingSchema = new mongoose.Schema({
   // Family tracking link (/track/<token>), valid while the visit is active.
   shareToken: { type: String, select: false },
 
+  // The doctor's prescription for services that need one. PENDING = the
+  // customer chose "Upload later": the booking stands, but the visit can't
+  // start until it's uploaded. The file is private (GET /bookings/:id/prescription).
+  prescription: {
+    key: String,
+    status: { type: String, enum: ['NONE', 'ATTACHED', 'PENDING'], default: 'NONE' },
+    uploadedAt: Date
+  },
+
   // Safety
   sos: [{
     at: Date,

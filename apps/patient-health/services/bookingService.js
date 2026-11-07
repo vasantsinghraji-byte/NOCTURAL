@@ -186,7 +186,6 @@ class BookingService {
       isPackage,
       packageDetails,
       mode,
-      preferredGender,
       requestedProvider,
       allowSubstitute
     } = bookingData;
@@ -242,10 +241,10 @@ class BookingService {
       throw new ValidationError(`Service is not available in ${requestedCity || 'the requested city'}`);
     }
 
-    // Check if prescription is required
-    if (service.requirements?.prescriptionRequired && !bookingData.prescriptionUrl) {
-      throw new ValidationError('Prescription is required for this service');
-    }
+    // Prescription: the upload key from POST /pharmacy/prescriptions (only the
+    // customer's own uploads). Services that need one can be booked with
+    // "Upload later"; the visit then can't start until it's attached.
+    const prescription = this.resolvePrescription(bookingData, safePatientId, service.requirements?.prescriptionRequired);
 
     // Calculate pricing
     let basePrice;
@@ -328,11 +327,13 @@ class BookingService {
           previousDues,
           payableAmount
         },
-        prescriptionUrl: bookingData.prescriptionUrl,
+        ...(prescription ? { prescription } : {}),
         status: 'REQUESTED',
         dispatch: {
           mode: mode === 'ASAP' ? 'ASAP' : 'SCHEDULED',
-          preferredGender: ['FEMALE', 'MALE'].includes(preferredGender) ? preferredGender : 'ANY',
+          // Customers don't choose professionals by gender (product rule); older
+          // apps may still send preferredGender, which is ignored.
+          preferredGender: 'ANY',
           ...(chosenProvider ? { requestedProvider: chosenProvider } : {}),
           allowSubstitute: chosenProvider ? allowSubstitute !== false : true
         },
@@ -416,6 +417,57 @@ class BookingService {
    * @param {String} userId - User ID (patient or provider)
    * @returns {Promise<Object>} Booking details
    */
+  /** The prescription for a new booking, or a ValidationError. */
+  resolvePrescription(bookingData, patientId, required) {
+    const key = typeof bookingData.prescriptionKey === 'string' ? bookingData.prescriptionKey.trim() : '';
+    if (key) {
+      const { isOwnPrescriptionKey } = require('@nocturnal/shared').pharmacyService;
+      if (!isOwnPrescriptionKey(key, String(patientId))) throw new ValidationError('That prescription upload isn’t on your account. Please upload it again.');
+      return { key, status: 'ATTACHED', uploadedAt: new Date() };
+    }
+    if (!required) return null;
+    if (bookingData.prescriptionLater === true) return { status: 'PENDING' };
+    throw new ValidationError('This service needs a doctor’s prescription. Attach it, or choose “Upload later”.');
+  }
+
+  /**
+   * "Upload later": the customer attaches (or replaces) the prescription on
+   * their own booking before the visit is done.
+   */
+  async attachPrescription(bookingId, patientId, prescriptionKey) {
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const { isOwnPrescriptionKey } = require('@nocturnal/shared').pharmacyService;
+    if (!isOwnPrescriptionKey(prescriptionKey, String(safePatientId))) throw new ValidationError('That prescription upload isn’t on your account. Please upload it again.');
+    const booking = await NurseBooking.findOneAndUpdate(
+      { _id: safeBookingId, patient: safePatientId, status: { $nin: ['COMPLETED', 'CANCELLED'] } },
+      { $set: { prescription: { key: prescriptionKey, status: 'ATTACHED', uploadedAt: new Date() } } },
+      { new: true }
+    );
+    if (!booking) {
+      const exists = await NurseBooking.exists({ _id: safeBookingId, patient: safePatientId });
+      if (!exists) throw new NotFoundError('Booking', bookingId);
+      throw new ConflictError('This visit is already finished or cancelled');
+    }
+    logger.info('Prescription attached to booking', { booking: String(booking._id) });
+    return booking;
+  }
+
+  /** Storage key of a booking's prescription, for its patient, its professional or an admin. */
+  async getPrescriptionKey(bookingId, userId, userRole) {
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const safeUserId = String(normalizeObjectId(userId, 'user id'));
+    const booking = await NurseBooking.findById(safeBookingId).select('patient serviceProvider prescription').lean();
+    if (!booking) throw new NotFoundError('Booking', bookingId);
+    const allowed = String(booking.patient) === safeUserId
+      || (booking.serviceProvider && String(booking.serviceProvider) === safeUserId)
+      || visitPolicy.isAdminRole(userRole);
+    if (!allowed) throw new AuthorizationError('Not authorized to view this prescription');
+    const key = booking.prescription && booking.prescription.status === 'ATTACHED' && booking.prescription.key;
+    if (!key) throw new NotFoundError('Prescription');
+    return key;
+  }
+
   async getBookingById(bookingId, userId, userRole) {
     const safeBookingId = normalizeObjectId(bookingId, 'booking id');
     const safeUserId = normalizeObjectId(userId, 'user id');
@@ -841,6 +893,11 @@ class BookingService {
     }
     if (newStatus === 'CANCELLED') {
       return this.cancelBooking(booking._id, safeUserId, note || 'Cancelled by admin', userRole);
+    }
+
+    // No treatment before the doctor's prescription is in (booked with "Upload later").
+    if (newStatus === 'IN_PROGRESS' && booking.prescription && booking.prescription.status === 'PENDING') {
+      throw new ValidationError('The prescription for this visit hasn’t been uploaded yet. Ask the patient to upload it in the Nabz app (Bookings) before you start.');
     }
 
     // Starting the visit needs the patient's code (Rapido-style ride OTP).
@@ -1689,13 +1746,14 @@ class BookingService {
   /** Saved booking preferences (gender, favourite professional, substitutes, address). */
   async getCarePreferences(patientId) {
     const p = await Patient.findById(normalizeObjectId(patientId, 'patient id')).select('carePreferences')
-      .populate('carePreferences.preferredProvider', 'name careProfile.gender rating').lean();
+      .populate('carePreferences.preferredProvider', 'name rating').lean();
     return (p && p.carePreferences) || null;
   }
 
   async saveCarePreferences(patientId, prefs = {}) {
     const clean = {
-      preferredGender: ['ANY', 'FEMALE', 'MALE'].includes(prefs.preferredGender) ? prefs.preferredGender : 'ANY',
+      // No gender preference any more (older apps may still send one).
+      preferredGender: 'ANY',
       allowSubstitute: prefs.allowSubstitute !== false,
       language: prefs.language ? String(prefs.language).slice(0, 30) : undefined,
       street: prefs.street ? String(prefs.street).slice(0, 200) : undefined,
