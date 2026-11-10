@@ -18,6 +18,7 @@ const Membership = require('../models/membership');
 const MembershipPlan = require('../models/membershipPlan');
 const gateway = require('../utils/razorpayGateway');
 const settlementService = require('./settlementService');
+const couponService = require('./couponService');
 const { getRevenuePolicy } = require('../config/revenue');
 const logger = require('../utils/logger');
 const { ConflictError, NotFoundError, PaymentError, ValidationError } = require('../utils/errors');
@@ -130,31 +131,58 @@ async function startTrial(patientId) {
   }
 }
 
-async function createCheckout(patientId, planCode) {
+async function createCheckout(patientId, planCode, couponCode) {
   const plan = await getPlan(planCode);
   const razorpay = gateway.getClient(); // 503 when online payment is off
-  const pending = await Membership.create({
-    patient: patientId,
-    plan: plan.code,
-    source: 'PAID',
-    status: 'PENDING_PAYMENT',
-    startsAt: new Date(),
-    endsAt: new Date(),
-    amount: plan.price,
-    days: plan.days
-  });
-  const gatewayOrder = await razorpay.orders.create({
-    amount: gateway.toPaise(plan.price),
-    currency: 'INR',
-    receipt: `plus_${pending._id}`,
-    notes: { membershipId: String(pending._id), patientId: String(patientId), plan: plan.code }
-  });
-  pending.razorpay = { orderId: gatewayOrder.id };
-  await pending.save();
+  const id = new mongoose.Types.ObjectId();
+  // Discount code: off the plan price (Nabz pays it); something must be left to pay online.
+  let discount = 0;
+  let code;
+  if (typeof couponCode === 'string' && couponCode.trim()) {
+    const used = await couponService.reserve({ code: couponCode, patientId, service: 'MEMBERSHIP', amount: plan.price, orderId: id });
+    if (plan.price - used.discount < 1) {
+      await couponService.release('MEMBERSHIP', id, 'Code worth the whole plan');
+      throw new ValidationError('This code is worth the whole plan. Pick a longer plan or remove the code', 'couponCode');
+    }
+    discount = used.discount;
+    code = used.code;
+  }
+  const amount = Math.round((plan.price - discount) * 100) / 100;
+  let pending;
+  try {
+    pending = await Membership.create({
+      _id: id,
+      patient: patientId,
+      plan: plan.code,
+      source: 'PAID',
+      status: 'PENDING_PAYMENT',
+      startsAt: new Date(),
+      endsAt: new Date(),
+      amount,
+      listPrice: plan.price,
+      couponDiscount: discount,
+      ...(code ? { coupon: { code } } : {}),
+      days: plan.days
+    });
+    const gatewayOrder = await razorpay.orders.create({
+      amount: gateway.toPaise(amount),
+      currency: 'INR',
+      receipt: `plus_${pending._id}`,
+      notes: { membershipId: String(pending._id), patientId: String(patientId), plan: plan.code, ...(code ? { coupon: code } : {}) }
+    });
+    pending.razorpay = { orderId: gatewayOrder.id };
+    await pending.save();
+  } catch (err) {
+    // No checkout opened: the code's use goes back.
+    if (discount > 0) await couponService.release('MEMBERSHIP', id, 'Checkout could not be opened').catch(() => undefined);
+    if (pending) await Membership.updateOne({ _id: id, status: 'PENDING_PAYMENT' }, { $set: { status: 'CANCELLED' } }).catch(() => undefined);
+    throw err;
+  }
   return {
     membershipId: pending._id,
-    razorpayOrderId: gatewayOrder.id,
-    amount: gateway.toPaise(plan.price),
+    razorpayOrderId: pending.razorpay.orderId,
+    amount: gateway.toPaise(amount),
+    discount,
     currency: 'INR',
     keyId: gateway.getPublicKeyId(),
     plan: publicPlan(plan)

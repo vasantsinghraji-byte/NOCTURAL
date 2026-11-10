@@ -8,8 +8,8 @@ import { useTabBarSpace } from '@/lib/PillTabBar';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { pickAndUploadPrescription } from '@/lib/prescription';
-import type { CouponPreview, DeliveryQuote, PayMethod, PharmacyVendor, StorefrontItem } from '@medrush/shared';
-import { CouponField } from '@/lib/CouponField';
+import type { DeliveryQuote, PayMethod, PharmacyVendor, StorefrontItem } from '@medrush/shared';
+import { CouponField, type AppliedCoupon } from '@/lib/CouponField';
 import { C, F, R, depth } from '@/lib/theme';
 import { BrandHeader } from '@/lib/BrandHeader';
 import { Gloss } from '@/lib/Skeuo';
@@ -188,7 +188,7 @@ export default function Pharmacy() {
   // free-delivery amount), refreshed as the cart changes. Signed-in customers only.
   const [quote, setQuote] = useState<DeliveryQuote | null>(null);
   // Discount code (checked again by the server when the order is placed).
-  const [coupon, setCoupon] = useState<CouponPreview | null>(null);
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
   const isPatient = session?.kind === 'patient';
   useEffect(() => {
     if (!active || !isPatient || subtotal <= 0) { setQuote(null); return undefined; }

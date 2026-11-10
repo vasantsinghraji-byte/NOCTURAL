@@ -159,9 +159,6 @@ export default function CouponsPanel({ sensitive }: { sensitive: Sensitive }) {
               ))}
             </div>
             {!draft.services.length && <p className="muted" style={{ margin: '6px 0 0' }}>Pick at least one.</p>}
-            {draft.services.some((s) => s !== 'PHARMACY') && (
-              <p className="muted" style={{ margin: '6px 0 0' }}>Medicine orders use codes now; the other checkouts accept them as each one is switched on.</p>
-            )}
           </fieldset>
           <label className="check-row" htmlFor="cp-first" style={{ marginTop: 8 }}>
             <input id="cp-first" type="checkbox" checked={draft.firstOrderOnly} onChange={(e) => set('firstOrderOnly', e.target.checked)} />

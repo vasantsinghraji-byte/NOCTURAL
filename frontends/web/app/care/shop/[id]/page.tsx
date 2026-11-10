@@ -10,6 +10,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { KINDS, fmtDay, fmtTime, hoursLabel, inr, problem, useVisitPlace, weekdayOf, WEEKDAY_LETTERS, WEEKDAY_NAMES } from '@/lib/care';
 import CareArt from '../../../_components/care/CareArt';
+import CouponBox, { type AppliedCoupon } from '../../../_components/CouponBox';
 import PlacePicker from '../../../_components/care/PlacePicker';
 
 const MAX_SESSIONS = 30;
@@ -109,28 +110,43 @@ function Shop() {
   const needsAddress = mode === 'HOME';
   const ready = Boolean(patient && item && startDate && time && (!needsAddress || place.coords) && (forWhom === 'me' || pd.name.trim().length > 1));
 
-  // Live bill: re-quote when anything changes (prices always come from the server).
-  useEffect(() => {
-    if (!ready || !item) { setQuote(null); return; }
-    const t = setTimeout(() => {
-      setQuoting(true);
-      setQuoteError('');
-      api.careQuote({
+  // Discount code: asked for with the quote, so the bill is the server's.
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
+  const quoteInput = (couponCode: string | undefined = coupon?.code) => ({
         storeId: id,
-        serviceId: item.service._id,
+        serviceId: item!.service._id, // only called once an item is chosen (ready)
         mode,
         sessions,
         paymentMode: payment,
         schedule: { startDate, time, weekdays: sessions > 1 ? weekdays : undefined },
         ...(needsAddress ? (place.addressId ? { addressId: place.addressId } : { address: place.address || { street: place.label, coordinates: place.coords! } }) : {}),
         ...(forWhom === 'other' ? { patientDetails: { name: pd.name.trim(), age: pd.age ? Number(pd.age) : undefined, gender: (pd.gender || undefined) as 'Male' | undefined, relation: pd.relation || undefined } } : {}),
-        ...(proposal ? { proposalId: proposal._id } : {})
-      }).then((r) => setQuote(r.quote))
-        .catch((e) => { setQuote(null); setQuoteError(problem(e).message); })
+        ...(proposal ? { proposalId: proposal._id } : {}),
+        ...(couponCode ? { couponCode } : {})
+  });
+  const checkCoupon = async (code: string) => {
+    const r = await api.careQuote(quoteInput(code));
+    setQuote(r.quote);
+    return r.quote.coupon;
+  };
+
+  // Live bill: re-quote when anything changes (prices always come from the server).
+  useEffect(() => {
+    if (!ready || !item) { setQuote(null); return; }
+    const t = setTimeout(() => {
+      setQuoting(true);
+      setQuoteError('');
+      api.careQuote(quoteInput()).then((r) => setQuote(r.quote))
+        .catch((e) => {
+          // The code no longer fits this booking: drop it and say why (re-quoted without it).
+          if (coupon) { setCoupon(null); setQuoteError(problem(e).message); return; }
+          setQuote(null); setQuoteError(problem(e).message);
+        })
         .finally(() => setQuoting(false));
     }, 350);
     return () => clearTimeout(t);
-  }, [ready, id, item, mode, sessions, payment, startDate, time, weekdays, needsAddress, place, forWhom, pd, proposal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, id, item, mode, sessions, payment, startDate, time, weekdays, needsAddress, place, forWhom, pd, proposal, coupon?.code]);
 
   const book = async () => {
     if (!quote) return;
@@ -343,6 +359,7 @@ function Shop() {
                   <div className="line total"><span>Total</span><span>{inr(quote.amounts.total)}</span></div>
                   {quote.paymentMode === 'PER_SESSION' && quote.sessions > 1 && <p className="mk-help" style={{ margin: 0 }}>You pay {inr(quote.amounts.perSessionPayable)} after each {meta.unit}.</p>}
                   {quote.amounts.creditAvailable > 0 && <p className="mk-note green" style={{ margin: 0 }}>{inr(quote.amounts.creditAvailable)} Nabz credit will be used.</p>}
+                  <CouponBox service={quote.sessions > 1 ? 'CARE_PLAN' : 'CARE_VISIT'} value={coupon} onChange={setCoupon} check={checkCoupon} />
                 </div>
                 <details>
                   <summary className="mk-meta" style={{ cursor: 'pointer' }}>{quote.schedule.dates.length} date{quote.schedule.dates.length > 1 ? 's' : ''}, {fmtTime(quote.schedule.time)}</summary>

@@ -10,6 +10,7 @@ import { fmtDay, fmtTime, inr, placeBody, problem, useMe, useVisitPlace, type Vi
 import { Badge, Bill, Btn, Card, DateStrip, Empty, Label, Meta, MkHero, Note, PlaceCard, Screen, Seg, TimeGrid, Title, TopBar, mk } from '@/lib/marketUI';
 import { PaymentDismissedError, payLabOrder } from '@/lib/payments';
 import { BookingForBanner } from '@/lib/BookingForBanner';
+import { CouponField, type AppliedCoupon } from '@/lib/CouponField';
 import { getBookingFor, setBookingFor } from '@/lib/bookingFor';
 import { PressScale, Rise, Skeleton, success } from '@/lib/motion';
 import { C, F, ui } from '@/lib/theme';
@@ -138,6 +139,8 @@ function LabBooking({ row, serviceIds, mode, place, fasting, signedIn, prefill }
   const [quote, setQuote] = useState<LabQuote | null>(null);
   const [err, setErr] = useState('');
   const [booking, setBooking] = useState(false);
+  // Discount code: asked for with the quote, so the bill is the server's.
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
 
   useEffect(() => {
     api.marketSlots(row.store._id, { serviceId: serviceIds[0], mode, days: 10 })
@@ -146,16 +149,26 @@ function LabBooking({ row, serviceIds, mode, place, fasting, signedIn, prefill }
   const times = (days?.find((d) => d.date === date)?.times || []).filter((t) => !fasting || t <= '10:00');
 
   const forWho = getBookingFor();
-  const input = () => ({
+  const input = (couponCode: string | undefined = coupon?.code) => ({
     storeId: row.store._id, serviceIds, mode, slot: { date, time }, paymentMode: payment, ...(mode === 'HOME' ? placeBody(place) : {}),
-    ...(forWho ? { patientDetails: { name: forWho.name, relation: forWho.relation } } : {})
+    ...(forWho ? { patientDetails: { name: forWho.name, relation: forWho.relation } } : {}),
+    ...(couponCode ? { couponCode } : {})
   });
   useEffect(() => {
     if (!signedIn || !date || !time) { setQuote(null); return; }
     setErr('');
-    api.labQuote(input()).then((r) => setQuote(r.quote)).catch((e) => { setQuote(null); setErr(problem(e).message); });
+    api.labQuote(input()).then((r) => setQuote(r.quote)).catch((e) => {
+      // The code no longer fits this booking: drop it and say why (re-quoted without it).
+      if (coupon) { setCoupon(null); setErr(problem(e).message); return; }
+      setQuote(null); setErr(problem(e).message);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signedIn, date, time, payment, mode, place]);
+  }, [signedIn, date, time, payment, mode, place, coupon?.code]);
+  const checkCoupon = async (code: string) => {
+    const r = await api.labQuote(input(code));
+    setQuote(r.quote);
+    return r.quote.coupon;
+  };
 
   const book = async () => {
     if (!quote) return;
@@ -195,10 +208,12 @@ function LabBooking({ row, serviceIds, mode, place, fasting, signedIn, prefill }
               ...quote.tests.map((t) => ({ key: t.service, label: t.name, amount: t.price })),
               ...(mode === 'HOME' ? [{ key: 'collect', label: 'Home collection', amount: quote.amounts.collectionWaived ? 'Free' : quote.amounts.collectionFee }] : []),
               ...(quote.amounts.platformFee > 0 ? [{ key: 'fee', label: 'Nabz fee', amount: quote.amounts.platformFee }] : []),
-              { key: 'gst', label: 'GST', amount: quote.amounts.gst }
+              { key: 'gst', label: 'GST', amount: quote.amounts.gst },
+              ...(quote.coupon ? [{ key: 'coupon', label: `Coupon ${quote.coupon.code}`, amount: -quote.coupon.discount }] : [])
             ]}
             total={quote.amounts.total}
           />
+          <CouponField service="LAB" value={coupon} onChange={setCoupon} check={checkCoupon} />
           {quote.creditAvailable > 0 ? <Note tone="green">{`${inr(Math.min(quote.creditAvailable, quote.amounts.total))} Nabz credit will be used.`}</Note> : null}
           <View style={mk.row}><BadgeCheck size={13} color={C.muted} /><Meta>Report in about {quote.reportHours} hours after collection.</Meta></View>
           <Btn label={booking ? 'Booking…' : `Book for ${fmtDay(date)}, ${fmtTime(time)}`} loading={booking} onPress={book} />

@@ -649,6 +649,8 @@ export interface CreateCareBookingInput {
   prescriptionLater?: boolean;
   /** Book now (nearest online nurse is offered the visit) or schedule for later. */
   mode?: 'ASAP' | 'SCHEDULED';
+  /** Discount code (POST /coupons/check with service CARE_VISIT to preview it). */
+  couponCode?: string;
 }
 
 export interface CareBooking {

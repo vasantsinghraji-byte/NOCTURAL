@@ -11,6 +11,7 @@ import { KINDS, WEEKDAY_LETTERS, WEEKDAY_NAMES, dayShort, fmtClock, fmtDay, fmtT
 import { Bill, Btn, Chip, Chips, DateStrip, Empty, Label, Meta, Note, PlaceCard, Seg, Stepper, TimeGroups, Title, TopBar } from '@/lib/marketUI';
 import { PaymentDismissedError, payCarePlan } from '@/lib/payments';
 import { CallMeBack } from '@/lib/CallMeBack';
+import { CouponField, type AppliedCoupon } from '@/lib/CouponField';
 import { getBookingFor, setBookingFor } from '@/lib/bookingFor';
 import { PressScale, Rise, Skeleton, success, tap } from '@/lib/motion';
 import { C, F, IS_DARK, clay, ui } from '@/lib/theme';
@@ -117,6 +118,26 @@ export default function BookFlow() {
   const ready = Boolean(signedIn && visitOk && timeOk && weekdays.length);
   const stepOk = [visitOk, weekdays.length > 0, timeOk, Boolean(quote && !quoting)][step];
 
+  // Discount code: asked for with the quote, so the bill is the server's.
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
+  const quoteInput = (couponCode: string | undefined = coupon?.code) => ({
+        storeId: id,
+        serviceId: item!.service._id, // only called once an item is chosen (ready)
+        mode,
+        sessions,
+        paymentMode: sessions > 1 ? payment : 'PER_SESSION',
+        schedule: { startDate, time, weekdays: sessions > 1 ? weekdays : undefined },
+        ...(mode === 'HOME' ? placeBody(place) : {}),
+        ...(forWhom === 'other' ? { patientDetails: { name: pd.name.trim(), age: pd.age ? Number(pd.age) : undefined, gender: pd.gender || undefined, relation: pd.relation || undefined } } : {}),
+        ...(proposal ? { proposalId: proposal._id } : {}),
+        ...(couponCode ? { couponCode } : {})
+  });
+  const checkCoupon = async (code: string) => {
+    const r = await api.careQuote(quoteInput(code));
+    setQuote(r.quote);
+    return r.quote.coupon;
+  };
+
   // Live bill from the server whenever the choices are complete.
   useEffect(() => {
     if (!ready || !item) { setQuote(null); return undefined; }
@@ -124,22 +145,18 @@ export default function BookFlow() {
     const t = setTimeout(() => {
       setQuoting(true);
       setQuoteError('');
-      api.careQuote({
-        storeId: id,
-        serviceId: item.service._id,
-        mode,
-        sessions,
-        paymentMode: sessions > 1 ? payment : 'PER_SESSION',
-        schedule: { startDate, time, weekdays: sessions > 1 ? weekdays : undefined },
-        ...(mode === 'HOME' ? placeBody(place) : {}),
-        ...(forWhom === 'other' ? { patientDetails: { name: pd.name.trim(), age: pd.age ? Number(pd.age) : undefined, gender: pd.gender || undefined, relation: pd.relation || undefined } } : {}),
-        ...(proposal ? { proposalId: proposal._id } : {})
-      }).then((r) => { if (live) setQuote(r.quote); })
-        .catch((e) => { if (live) { setQuote(null); setQuoteError(problem(e).message); } })
+      api.careQuote(quoteInput()).then((r) => { if (live) setQuote(r.quote); })
+        .catch((e) => {
+          if (!live) return;
+          // The code no longer fits this booking: drop it and say why (re-quoted without it).
+          if (coupon) { setCoupon(null); setQuoteError(problem(e).message); return; }
+          setQuote(null); setQuoteError(problem(e).message);
+        })
         .finally(() => { if (live) setQuoting(false); });
     }, 300);
     return () => { live = false; clearTimeout(t); };
-  }, [ready, id, item, mode, sessions, payment, startDate, time, weekdays, place, forWhom, pd, proposal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, id, item, mode, sessions, payment, startDate, time, weekdays, place, forWhom, pd, proposal, coupon?.code]);
 
   const go = (n: number) => { tap(); setNotice(null); setStep(n); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const back = useCallback(() => { if (step > 0) { setStep((n) => n - 1); return true; } return false; }, [step]);
@@ -347,6 +364,7 @@ export default function BookFlow() {
                   <Bill lines={quote.lines.map((l) => ({ key: l.code + l.label, label: l.label, amount: l.amount }))} total={quote.amounts.total} />
                   {quote.paymentMode === 'PER_SESSION' && quote.sessions > 1 ? <Meta>You pay {inr(quote.amounts.perSessionPayable)} after each {unit}.</Meta> : null}
                   {quote.amounts.creditAvailable > 0 ? <Note tone="green">{`${inr(quote.amounts.creditAvailable)} Nabz credit will be used.`}</Note> : null}
+                  <CouponField service={quote.sessions > 1 ? 'CARE_PLAN' : 'CARE_VISIT'} value={coupon} onChange={setCoupon} check={checkCoupon} />
                   {quote.schedule.dates.length > 1 ? <Meta>Dates: {quote.schedule.dates.slice(0, 8).map((d) => `${dayShort(d)} ${Number(d.slice(8))}`).join(', ')}{quote.schedule.dates.length > 8 ? '…' : ''}</Meta> : null}
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Lock size={12} color={C.muted} /><Meta>Price locked until {fmtClock(quote.expiresAt)}</Meta></View>
                 </>

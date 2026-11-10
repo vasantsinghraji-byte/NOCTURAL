@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { payForMembership, PaymentDismissedError } from '@/lib/razorpay';
 import { IconTile } from '../_components/icons';
+import CouponBox, { type AppliedCoupon } from '../_components/CouponBox';
 
 /** Only the benefits switched on in admin settings. */
 function benefitsFor(status: MembershipStatus | null) {
@@ -29,6 +30,7 @@ export default function PlusPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
 
   const load = useCallback(() => {
     if (!patient) return;
@@ -75,9 +77,14 @@ export default function PlusPage() {
               </button>
             )}
             <button className="btn ghost" disabled={busy || !status?.onlinePayment || !plan}
-              onClick={() => plan && run(() => payForMembership({ name: patient.name, email: patient.email, contact: patient.phone }, plan.code), 'Welcome to Nabz Plus!')}>
-              {!plan ? 'No plan on sale right now' : status?.onlinePayment ? `Join for ₹${plan.price}` : 'Online payment coming soon'}
+              onClick={() => plan && run(() => payForMembership({ name: patient.name, email: patient.email, contact: patient.phone }, plan.code, coupon?.code), 'Welcome to Nabz Plus!')}>
+              {!plan ? 'No plan on sale right now' : status?.onlinePayment ? `Join for ₹${Math.max(1, plan.price - (coupon?.discount || 0))}` : 'Online payment coming soon'}
             </button>
+          </div>
+        )}
+        {patient && !status?.active && plan && status?.onlinePayment && (
+          <div style={{ marginTop: 14, maxWidth: 420 }}>
+            <CouponBox service="MEMBERSHIP" amount={plan.price} value={coupon} onChange={setCoupon} />
           </div>
         )}
       </section>

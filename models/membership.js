@@ -19,6 +19,10 @@ const MembershipSchema = new mongoose.Schema({
   amount: { type: Number, default: 0, min: 0 },
   // Length sold at checkout, so a later plan edit can't change a paid period.
   days: { type: Number, min: 1, max: 366 },
+  // Plan price before a discount code, and what the code took off (Nabz pays it).
+  listPrice: { type: Number, min: 0 },
+  couponDiscount: { type: Number, default: 0, min: 0 },
+  coupon: { code: String },
   currency: { type: String, default: 'INR' },
   razorpay: {
     orderId: String,

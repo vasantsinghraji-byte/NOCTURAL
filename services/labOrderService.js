@@ -25,6 +25,7 @@ const pricingService = require('./pricingService');
 const careSlotService = require('./careSlotService');
 const careStoreService = require('./careStoreService');
 const walletService = require('./walletService');
+const couponService = require('./couponService');
 const settlementService = require('./settlementService');
 const { haversineKm, toLatLng } = require('../utils/geoDistance');
 const { reserveAttempt } = require('../utils/attemptGuard');
@@ -229,9 +230,15 @@ async function buildLabQuote(patientId, input = {}) {
   const feeP = Math.round(testsSubtotal * 100 * policy.care.lab.customerFeeRate);
   const taxableP = policy.gstHealthcareExempt ? feeP : Math.round(testsSubtotal * 100) + Math.round(collection.charged * 100) + feeP;
   const gstP = Math.round(taxableP * policy.gstRate);
-  const total = round2((Math.round(testsSubtotal * 100) + Math.round(collection.charged * 100) + feeP + gstP) / 100);
+  const gross = round2((Math.round(testsSubtotal * 100) + Math.round(collection.charged * 100) + feeP + gstP) / 100);
+  // Discount code: off the tests only, paid by Nabz (the lab still earns on the full tests).
+  const coupon = input.couponCode
+    ? await couponService.preview({ code: input.couponCode, patientId, service: 'LAB', amount: testsSubtotal })
+    : null;
+  const total = round2(gross - (coupon ? coupon.discount : 0));
   return {
     store,
+    coupon: coupon ? { code: coupon.code, description: coupon.description, offer: coupon.offer, discount: coupon.discount } : null,
     mode,
     slot,
     lines,
@@ -243,6 +250,7 @@ async function buildLabQuote(patientId, input = {}) {
       collectionWaived: collection.waived,
       platformFee: feeP / 100,
       gst: gstP / 100,
+      coupon: coupon ? coupon.discount : 0,
       total
     },
     creditAvailable: await walletService.balance(patientId),
@@ -258,6 +266,7 @@ const publicLabQuote = (q) => ({
   address: q.address,
   fasting: q.fasting,
   amounts: q.amounts,
+  coupon: q.coupon,
   creditAvailable: q.creditAvailable,
   reportHours: q.reportHours
 });
@@ -290,7 +299,16 @@ async function bookLabOrder(patientId, input = {}) {
   const minutes = q.mode === 'HOME' ? HOME_MINUTES : WALKIN_MINUTES;
   const slotKeys = await careSlotService.reserve(q.store, q.mode, q.slot.date, q.slot.time, minutes, _id);
   const prepaid = input.paymentMode === 'PREPAID';
+  let couponUsed = null;
   try {
+    // Use the code now (limits are checked again, atomically, against this order).
+    if (q.coupon) {
+      couponUsed = await couponService.reserve({ code: q.coupon.code, patientId, service: 'LAB', amount: q.amounts.testsSubtotal, orderId: _id });
+      if (couponUsed.discount !== q.coupon.discount) {
+        q.amounts.total = round2(q.amounts.total + q.coupon.discount - couponUsed.discount);
+        q.amounts.coupon = couponUsed.discount;
+      }
+    }
     let order = await LabOrder.create({
       _id,
       dedupeKey,
@@ -304,9 +322,11 @@ async function bookLabOrder(patientId, input = {}) {
       patientDetails: pd,
       prescriptionKey: input.prescriptionKey ? String(input.prescriptionKey).slice(0, 300) : undefined,
       amounts: { ...q.amounts },
+      coupon: q.coupon ? { code: q.coupon.code, description: q.coupon.description } : undefined,
       payment: {
         mode: prepaid ? 'PREPAID' : 'PAY_AT_COLLECTION',
-        status: 'PENDING',
+        // A code that covers the whole bill leaves nothing to pay.
+        status: q.amounts.total === 0 ? 'PAID' : 'PENDING',
         amount: q.amounts.total,
         holdUntil: prepaid ? new Date(Date.now() + getRevenuePolicy().care.plan.paymentHoldMinutes * 60000) : undefined
       },
@@ -328,6 +348,7 @@ async function bookLabOrder(patientId, input = {}) {
   } catch (err) {
     await careSlotService.release(slotKeys, _id);
     await LabOrder.deleteOne({ _id });
+    if (couponUsed) await couponService.release('LAB_ORDER', _id, 'Booking could not be made').catch(() => undefined);
     if (err && err.code === 11000) throw coded(ConflictError, 'You already have this collection booked. Check My lab tests.', 'DUPLICATE_ORDER');
     throw err;
   }
@@ -343,6 +364,7 @@ function publicOrder(o, { forCustomer = false } = {}) {
     address: o.address,
     patientDetails: o.patientDetails,
     amounts: o.amounts,
+    coupon: o.coupon && o.coupon.code ? { code: o.coupon.code } : undefined,
     payment: o.payment && { mode: o.payment.mode, status: o.payment.status, amount: o.payment.amount, method: o.payment.method, holdUntil: o.payment.holdUntil },
     status: o.status,
     collectedAt: o.collectedAt,

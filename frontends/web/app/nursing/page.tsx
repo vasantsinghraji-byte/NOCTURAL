@@ -10,6 +10,7 @@ import { CircleCheck, MapPin, Store } from 'lucide-react';
 import { IconTile, serviceIcon, TONES } from '../_components/icons';
 import { Modal, confirmDialog } from '../_components/Dialog';
 import ChatButton from '../_components/chat/ChatButton';
+import CouponBox, { type AppliedCoupon } from '../_components/CouponBox';
 
 const DEMO_COORDS: Coords = { lat: 26.9110, lng: 75.8010 }; // launch city demo area (C-Scheme, Jaipur)
 
@@ -96,7 +97,9 @@ export default function NursingPage() {
   const needsRx = !!service?.requirements?.prescriptionRequired || bringing.some((i) => i.requiresPrescription);
   // Server-computed price; Nabz Plus members pay no platform fee.
   const preview = service?.pricingPreview ? (isMember ? service.pricingPreview.member : service.pricingPreview.regular) : null;
-  const visitFee = preview ? preview.totalAmount : 0;
+  // Discount code: off the service price (checked again when the visit is booked).
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
+  const visitFee = Math.max(0, (preview ? preview.totalAmount : 0) - (coupon?.discount || 0));
 
   async function book(e: React.FormEvent) {
     e.preventDefault();
@@ -129,8 +132,10 @@ export default function NursingPage() {
         supplies: (quote?.items || []).map((i) => ({ key: i.key, source: choices[i.key] })),
         suppliesVendorId: bringing.length ? quote?.vendor?._id : undefined,
         prescriptionKey,
-        prescriptionUrl
+        prescriptionUrl,
+        ...(coupon ? { couponCode: coupon.code } : {})
       });
+      setCoupon(null);
       setDone(res.booking);
       loadVisits();
     } catch (err) {
@@ -308,10 +313,15 @@ export default function NursingPage() {
             )}
           </div>
 
+          {patient && (
+            <div className="card" style={{ marginTop: 16 }}>
+              <CouponBox service="CARE_VISIT" amount={service.pricing.basePrice} value={coupon} onChange={setCoupon} />
+            </div>
+          )}
           <div className="card" style={{ marginTop: 16, position: 'sticky', bottom: 12, boxShadow: 'var(--shadow)' }}>
             <div className="row">
               <div>
-                <div><b>{service.displayName}</b> · visit {inr(visitFee)} <span className="muted">({isMember ? 'Plus: no platform fee' : 'incl. fees & GST'})</span></div>
+                <div><b>{service.displayName}</b> · visit {inr(visitFee)} <span className="muted">({isMember ? 'Plus: no platform fee' : 'incl. fees & GST'}{coupon ? `, ${coupon.code} saves ${inr(coupon.discount)}` : ''})</span></div>
                 <div className="muted">Supplies from pharmacy: {inr(suppliesTotal)} · pay at the visit</div>
               </div>
               {patient ? (

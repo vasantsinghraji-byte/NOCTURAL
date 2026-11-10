@@ -34,6 +34,7 @@ const BookingCompletionOutbox = require('../models/bookingCompletionOutbox');
 const careSuppliesService = require('@nocturnal/shared').careSuppliesService;
 const pricingService = require('@nocturnal/shared').pricingService;
 const membershipService = require('@nocturnal/shared').membershipService;
+const couponService = require('@nocturnal/shared').couponService;
 const settlementService = require('@nocturnal/shared').settlementService;
 const partnerReferralService = require('@nocturnal/shared').partnerReferralService;
 const commissionService = require('@nocturnal/shared').commissionService;
@@ -187,7 +188,8 @@ class BookingService {
       packageDetails,
       mode,
       requestedProvider,
-      allowSubstitute
+      allowSubstitute,
+      couponCode
     } = bookingData;
     // Visits happen in India, so the time is always local India time (IST,
     // no daylight saving) whatever time zone the booker's phone is in, e.g.
@@ -293,10 +295,18 @@ class BookingService {
 
     // Price upfront (config/revenue.js): platform fee waived for Nabz Plus members.
     const quote = pricingService.quoteCareVisit({ basePrice, isMember: await membershipService.isMember(safePatientId) });
-    const { platformFee, gst, totalAmount, discount } = quote;
+    const { platformFee, gst, totalAmount } = quote;
     // A late-cancellation fee from an earlier visit is added to this bill.
     const previousDues = laterSession ? 0 : roundToTwoDecimals(Number(patient.pendingDues) || 0);
-    const payableAmount = roundToTwoDecimals(quote.payableAmount + previousDues);
+    // Discount code (the first visit of a package only): off the service price, paid by
+    // Nabz; the professional still earns on the full price (settlement COUPON_DISCOUNT).
+    const bookingId = new mongoose.Types.ObjectId();
+    let couponDiscount = 0;
+    if (typeof couponCode === 'string' && couponCode.trim() && !laterSession) {
+      couponDiscount = (await couponService.reserve({ code: couponCode, patientId: safePatientId, service: 'CARE_VISIT', amount: basePrice, orderId: bookingId })).discount;
+    }
+    const discount = roundToTwoDecimals((quote.discount || 0) + couponDiscount);
+    const payableAmount = roundToTwoDecimals(quote.payableAmount - couponDiscount + previousDues);
 
     // Create booking with final pricing in a single operation
     // One live booking per customer, service, time and person cared for: a double
@@ -306,6 +316,7 @@ class BookingService {
     let booking;
     try {
       booking = await NurseBooking.create({
+        _id: bookingId,
         dedupeKey,
         patient: safePatientId,
         serviceType,
@@ -323,6 +334,7 @@ class BookingService {
           platformFee,
           gst,
           discount,
+          ...(couponDiscount > 0 ? { couponDiscount } : {}),
           totalAmount,
           previousDues,
           payableAmount
@@ -344,6 +356,7 @@ class BookingService {
         shareToken: crypto.randomBytes(16).toString('hex')
       });
     } catch (err) {
+      if (couponDiscount > 0) await couponService.release('CARE_BOOKING', bookingId, 'Booking could not be made').catch(() => undefined);
       if (err && err.code === 11000 && err.keyPattern && err.keyPattern.dedupeKey) {
         throw new ConflictError('You already have this visit booked for that time. Check My bookings.');
       }

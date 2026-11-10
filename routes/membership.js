@@ -52,11 +52,14 @@ router.post('/trial', protectPatient, idempotency({ route: 'membership/trial' })
 router.post(
   '/checkout',
   protectPatient,
-  [body('plan').optional().isString().trim().toUpperCase().matches(PLAN_CODE).withMessage('Unknown plan')],
+  [
+    body('plan').optional().isString().trim().toUpperCase().matches(PLAN_CODE).withMessage('Unknown plan'),
+    body('couponCode').optional({ values: 'falsy' }).isString().trim().isLength({ max: 30 }).withMessage('That code is not valid')
+  ],
   validate,
   async (req, res, next) => {
     try {
-      const checkout = await membershipService.createCheckout(req.user._id, req.body.plan || 'PLUS_MONTHLY');
+      const checkout = await membershipService.createCheckout(req.user._id, req.body.plan || 'PLUS_MONTHLY', req.body.couponCode);
       res.status(201).json({ success: true, ...checkout });
     } catch (error) {
       next(error);

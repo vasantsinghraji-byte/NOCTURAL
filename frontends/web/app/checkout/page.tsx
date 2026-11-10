@@ -8,8 +8,8 @@ import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { payForOrder } from '@/lib/razorpay';
 import { loadDeliveryCoords } from '@/lib/location';
-import type { CouponPreview, DeliveryQuote, PaymentOptions } from '@medrush/shared';
-import CouponBox from '../_components/CouponBox';
+import type { DeliveryQuote, PaymentOptions } from '@medrush/shared';
+import CouponBox, { type AppliedCoupon } from '../_components/CouponBox';
 
 const rupees = (n: number) => `₹${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
@@ -72,7 +72,7 @@ export default function CheckoutPage() {
     return () => { live = false; };
   }, [patient, cart.vendorId, cart.subtotal]);
   // Discount code: off the items, checked again by the server when the order is placed.
-  const [coupon, setCoupon] = useState<CouponPreview | null>(null);
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
   const payable = Math.max(0, (quote ? quote.total : cart.subtotal) - (coupon?.discount || 0));
 
   const lines = useMemo(() => Object.values(cart.lines), [cart.lines]);

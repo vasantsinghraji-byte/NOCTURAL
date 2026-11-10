@@ -692,8 +692,8 @@ export class MedRushApi {
     return this.request<{ success: true }>('POST', '/membership/trial');
   }
 
-  membershipCheckout(plan = 'PLUS_MONTHLY') {
-    return this.request<{ success: true; razorpayOrderId: string; amount: number; currency: string; keyId: string }>('POST', '/membership/checkout', { body: { plan } });
+  membershipCheckout(plan = 'PLUS_MONTHLY', couponCode?: string) {
+    return this.request<{ success: true; razorpayOrderId: string; amount: number; currency: string; keyId: string; discount?: number }>('POST', '/membership/checkout', { body: { plan, ...(couponCode ? { couponCode } : {}) } });
   }
 
   adminMembershipPlans() {

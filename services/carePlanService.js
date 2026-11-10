@@ -33,6 +33,10 @@ const careSlotService = require('./careSlotService');
 const careStoreService = require('./careStoreService');
 const membershipService = require('./membershipService');
 const walletService = require('./walletService');
+const couponService = require('./couponService');
+
+/** Coupon "service" for a marketplace booking: one session is a visit, more is a plan. */
+const couponServiceFor = (sessions) => (sessions > 1 ? 'CARE_PLAN' : 'CARE_VISIT');
 const PlanProposal = require('../models/planProposal');
 const visitPolicy = require('./careVisitPolicy');
 const { haversineKm, toLatLng } = require('../utils/geoDistance');
@@ -279,6 +283,17 @@ async function buildQuote(patientId, input = {}) {
   }
   if (travel.waived) q.lines.push({ code: 'TRAVEL_WAIVED', label: 'No travel fee: same address and day as your other booking', amount: 0 });
 
+  // Discount code: off the service price only (never travel or fees); Nabz pays for it,
+  // the professional still earns on the full price.
+  const serviceValue = round2(q.serviceSubtotal - q.discount - offer);
+  let coupon = null;
+  if (input.couponCode) {
+    const c = await couponService.preview({ code: input.couponCode, patientId, service: couponServiceFor(sessions), amount: serviceValue });
+    coupon = { code: c.code, description: c.description, offer: c.offer, discount: c.discount };
+    q.total = round2(q.total - c.discount);
+    q.lines.push({ code: 'COUPON', label: `Coupon ${c.code}`, amount: -c.discount });
+  }
+
   return {
     patient: patientId,
     store: store._id,
@@ -297,6 +312,7 @@ async function buildQuote(patientId, input = {}) {
     travel: travelFeeOnce ? { ...travel, liveInOnce: true } : travel,
     proposal: proposal ? proposal._id : undefined,
     firstSession,
+    coupon,
     amounts: {
       listPricePerSession: q.listPricePerSession,
       discountPercent: q.discountPercent,
@@ -304,6 +320,7 @@ async function buildQuote(patientId, input = {}) {
       serviceSubtotal: q.serviceSubtotal,
       discount: q.discount,
       offer,
+      coupon: coupon ? coupon.discount : 0,
       creditAvailable: await walletService.balance(patientId),
       travelTotal: q.travelTotal,
       platformFee: q.platformFee,
@@ -314,6 +331,7 @@ async function buildQuote(patientId, input = {}) {
     memberFeeWaived: q.memberFeeWaived,
     lines: q.lines,
     _perSession: { platformFee: q.platformFeePerSession, gst: q.gstPerSession },
+    _serviceValue: serviceValue,
     _store: store,
     _service: service,
     _kind: store.kind
@@ -367,6 +385,7 @@ async function bookPlan(patientId, quoteId) {
   const reserved = []; // [{ id, keys }]
   const createdIds = [];
   let plan = null;
+  let couponUsed = null; // { kind, id, discount }
   let keepQuoteUsed = false;
   try {
     const fresh = await buildQuote(patientId, {
@@ -378,7 +397,8 @@ async function bookPlan(patientId, quoteId) {
       address: quote.address,
       schedule: { startDate: quote.schedule.startDate, weekdays: quote.schedule.weekdays, time: quote.schedule.time },
       patientDetails: quote.patientDetails,
-      proposalId: quote.proposal
+      proposalId: quote.proposal,
+      couponCode: quote.coupon && quote.coupon.code
     });
     const { _store: store, _perSession: perSession, _service: service, _kind: kind } = fresh;
     if (fresh.amounts.total !== quote.amounts.total || fresh.amounts.perSessionPayable !== quote.amounts.perSessionPayable) {
@@ -394,12 +414,22 @@ async function bookPlan(patientId, quoteId) {
 
     const policy = getRevenuePolicy().care.plan;
     const prepaid = fresh.paymentMode === 'PREPAID';
+    const planId = new mongoose.Types.ObjectId();
+    // Use the discount code now, tied to this plan (or its one visit); limits are checked again.
+    if (fresh.coupon) {
+      const service = couponServiceFor(fresh.sessions);
+      const orderId = fresh.sessions > 1 ? planId : sessionIds[0];
+      const used = await couponService.reserve({ code: fresh.coupon.code, patientId, service, amount: fresh._serviceValue, orderId });
+      couponUsed = { kind: fresh.sessions > 1 ? 'CARE_PLAN' : 'CARE_BOOKING', id: orderId, discount: used.discount };
+      if (used.discount !== fresh.coupon.discount) throw conflict('This code changed. Check the price and book again.', 'COUPON_CHANGED');
+    }
     // Solo: the professional; agency / clinic at home: the named caregiver or physio; else the shop's account.
     const { practitioner } = held;
     const seriesId = crypto.randomBytes(8).toString('hex');
     const lastDay = planLastDay(fresh.sessions, fresh.schedule.startDate);
     const a = fresh.amounts;
     plan = await CarePlan.create({
+      _id: planId,
       patient: patientId,
       store: store._id,
       practitioner,
@@ -421,9 +451,11 @@ async function bookPlan(patientId, quoteId) {
         platformFeePerSession: perSession.platformFee,
         gstPerSession: perSession.gst,
         offer: a.offer || 0,
+        coupon: a.coupon || 0,
         travelWaived: Boolean(fresh.travel.waived),
         total: a.total
       },
+      coupon: fresh.coupon ? { code: fresh.coupon.code, description: fresh.coupon.description } : undefined,
       proposal: fresh.proposal,
       address: fresh.address,
       patientDetails: fresh.patientDetails,
@@ -498,6 +530,23 @@ async function bookPlan(patientId, quoteId) {
       shareToken: crypto.randomBytes(16).toString('hex'),
       dedupeKey: dedupeKeyFor(patientId, plan.serviceType, date, fresh.schedule.time, fresh.patientDetails)
     }));
+    // The code's discount: prepaid plans already pay less upfront (booked in the ledger with
+    // the first visit); pay-per-visit plans take it off the first visits' bills.
+    if (couponUsed && couponUsed.discount > 0) {
+      if (prepaid) docs[0].pricing.couponDiscount = couponUsed.discount;
+      else {
+        let left = couponUsed.discount;
+        for (const d of docs) {
+          if (left <= 0) break;
+          const use = round2(Math.min(left, d.pricing.payableAmount - (d.pricing.previousDues || 0)));
+          if (use <= 0) continue;
+          d.pricing.discount = round2((d.pricing.discount || 0) + use);
+          d.pricing.couponDiscount = use;
+          d.pricing.payableAmount = round2(d.pricing.payableAmount - use);
+          left = round2(left - use);
+        }
+      }
+    }
     try {
       for (const doc of docs) {
         await NurseBooking.create(doc);
@@ -544,6 +593,7 @@ async function bookPlan(patientId, quoteId) {
     for (const r of reserved) await careSlotService.release(r.keys, r.id).catch(() => undefined);
     if (createdIds.length) await NurseBooking.deleteMany({ _id: { $in: createdIds } });
     if (plan) await CarePlan.deleteOne({ _id: plan._id });
+    if (couponUsed) await couponService.release(couponUsed.kind, couponUsed.id, 'Booking could not be made').catch(() => undefined);
     if (!keepQuoteUsed) await CareQuote.updateOne({ _id: quote._id }, { $unset: { usedAt: 1 } });
     throw err;
   }

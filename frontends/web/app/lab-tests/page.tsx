@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth';
 import { fmtDay, fmtTime, inr, problem, useVisitPlace } from '@/lib/care';
 import { payForLabOrder } from '@/lib/razorpay';
 import CareArt from '../_components/care/CareArt';
+import CouponBox from '../_components/CouponBox';
 import PlacePicker from '../_components/care/PlacePicker';
 
 export default function LabTestsRoute() {
@@ -157,6 +158,8 @@ function LabBooking({ row, serviceIds, mode, place, fasting, signedIn, onBooked 
   const [quote, setQuote] = useState<LabQuote | null>(null);
   const [err, setErr] = useState('');
   const [booking, setBooking] = useState(false);
+  // Discount code: the quote is asked for with it, so the bill is the server's.
+  const [coupon, setCoupon] = useState<{ code: string; offer: string; discount: number } | null>(null);
 
   useEffect(() => {
     setDays(null);
@@ -165,16 +168,25 @@ function LabBooking({ row, serviceIds, mode, place, fasting, signedIn, onBooked 
   }, [row, serviceIds, mode]);
   const times = (days?.find((d) => d.date === date)?.times || []).filter((t) => !fasting || t <= '10:00');
 
-  const input = () => ({
-    storeId: row.store._id, serviceIds, mode, slot: { date, time }, paymentMode: payment,
+  const input = (couponCode: string | undefined = coupon?.code) => ({
+    storeId: row.store._id, serviceIds, mode, slot: { date, time }, paymentMode: payment, ...(couponCode ? { couponCode } : {}),
     ...(mode === 'HOME' ? (place.addressId ? { addressId: place.addressId } : { address: place.address || (place.coords ? { street: place.label, coordinates: place.coords } : undefined) }) : {})
   });
   useEffect(() => {
     if (!signedIn || !date || !time) { setQuote(null); return; }
     setErr('');
-    api.labQuote(input()).then((r) => setQuote(r.quote)).catch((e) => { setQuote(null); setErr(problem(e).message); });
+    api.labQuote(input()).then((r) => setQuote(r.quote)).catch((e) => {
+      // The code no longer fits this booking: drop it and show why (the effect re-quotes without it).
+      if (coupon) { setCoupon(null); setErr(problem(e).message); return; }
+      setQuote(null); setErr(problem(e).message);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signedIn, date, time, payment, mode, place]);
+  }, [signedIn, date, time, payment, mode, place, coupon?.code]);
+  const checkCoupon = async (code: string) => {
+    const r = await api.labQuote(input(code));
+    setQuote(r.quote);
+    return r.quote.coupon;
+  };
 
   const book = async () => {
     if (!quote) return;
@@ -219,7 +231,9 @@ function LabBooking({ row, serviceIds, mode, place, fasting, signedIn, onBooked 
           {mode === 'HOME' && <div className={`line ${quote.amounts.collectionWaived ? 'neg' : ''}`}><span>Home collection</span><span>{quote.amounts.collectionWaived ? 'Free' : inr(quote.amounts.collectionFee)}</span></div>}
           {quote.amounts.platformFee > 0 && <div className="line"><span>Nabz fee</span><span>{inr(quote.amounts.platformFee)}</span></div>}
           <div className="line"><span>GST</span><span>{inr(quote.amounts.gst)}</span></div>
+          {quote.coupon && <div className="line neg"><span>Coupon {quote.coupon.code}</span><span>−{inr(quote.coupon.discount)}</span></div>}
           <div className="line total"><span>Total</span><span>{inr(quote.amounts.total)}</span></div>
+          <CouponBox service="LAB" value={coupon} onChange={setCoupon} check={checkCoupon} />
           {quote.creditAvailable > 0 && <p className="mk-note green" style={{ margin: 0 }}>{inr(Math.min(quote.creditAvailable, quote.amounts.total))} Nabz credit will be used.</p>}
           <p className="mk-help" style={{ margin: 0 }}><BadgeCheck size={12} aria-hidden="true" /> Report in about {quote.reportHours} hours after collection.</p>
           <button type="button" className="mk-btn block" onClick={book} disabled={booking}>{booking ? 'Booking…' : `Book for ${fmtDay(date)}, ${fmtTime(time)}`}</button>

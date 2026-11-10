@@ -63,6 +63,7 @@ const CareQuoteSchema = new mongoose.Schema({
     serviceSubtotal: Number, // list price × sessions
     discount: { type: Number, default: 0 },
     offer: { type: Number, default: 0 }, // shop's new-customer offer, on the first session
+    coupon: { type: Number, default: 0 }, // discount code, paid by Nabz
     creditAvailable: { type: Number, default: 0 },
     travelTotal: { type: Number, default: 0 },
     platformFee: { type: Number, default: 0 },
@@ -79,6 +80,8 @@ const CareQuoteSchema = new mongoose.Schema({
   },
   memberFeeWaived: { type: Boolean, default: false },
   lines: [{ _id: false, code: String, label: String, amount: Number }],
+  // Discount code the customer applied (used when the plan is booked).
+  coupon: { code: String, description: String, offer: String, discount: Number },
 
   expiresAt: { type: Date, required: true },
   usedAt: Date,

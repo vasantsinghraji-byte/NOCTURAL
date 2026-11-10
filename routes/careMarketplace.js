@@ -113,7 +113,8 @@ const quoteValidation = [
   body('address.coordinates.lng').optional().isFloat({ min: -180, max: 180 }),
   body('patientDetails.name').optional().isString().isLength({ max: 120 }),
   body('patientDetails.age').optional().isInt({ min: 0, max: 150 }),
-  body('patientDetails.gender').optional().isIn(['Male', 'Female', 'Other'])
+  body('patientDetails.gender').optional().isIn(['Male', 'Female', 'Other']),
+  body('couponCode').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 30 }).withMessage('That code is not valid')
 ];
 
 router.post('/quotes', patient, quoteValidation, validate, wrap(async (req, res) => {
@@ -363,7 +364,8 @@ const labOrderValidation = [
   body('address.pincode').optional().matches(/^\d{6}$/),
   body('paymentMode').optional().isIn(['PREPAID', 'PAY_AT_COLLECTION']),
   body('prescriptionKey').optional().isString().isLength({ max: 300 }),
-  body('patientDetails.name').optional().isString().isLength({ max: 120 })
+  body('patientDetails.name').optional().isString().isLength({ max: 120 }),
+  body('couponCode').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 30 }).withMessage('That code is not valid')
 ];
 
 router.post('/labs/quote', patient, labOrderValidation, validate, wrap(async (req, res) => {

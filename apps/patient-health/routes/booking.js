@@ -172,7 +172,8 @@ const createBookingValidation = [
     .isIn(['FEMALE', 'MALE', 'ANY'])
     .withMessage('Invalid preferred gender'),
   body('requestedProvider').optional({ values: 'falsy' }).isMongoId().withMessage('Invalid professional'),
-  body('allowSubstitute').optional().isBoolean()
+  body('allowSubstitute').optional().isBoolean(),
+  body('couponCode').optional({ values: 'falsy' }).isString().trim().isLength({ max: 30 }).withMessage('That code is not valid')
 ];
 
 const assignProviderValidation = [
@@ -281,6 +282,7 @@ router.post(
   body('preferredGender').optional().isIn(['FEMALE', 'MALE', 'ANY']),
   body('requestedProvider').optional({ values: 'falsy' }).isMongoId(),
   body('allowSubstitute').optional().isBoolean(),
+  body('couponCode').optional({ values: 'falsy' }).isString().trim().isLength({ max: 30 }).withMessage('That code is not valid'),
   validate,
   idempotency({ route: 'bookings/package' }),
   bookPackage

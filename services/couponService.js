@@ -62,7 +62,8 @@ const SERVICES = Object.freeze({
   MEMBERSHIP: {
     kind: 'MEMBERSHIP',
     model: () => require('../models/membership'),
-    dead: () => ({ $or: [{ status: 'CANCELLED' }, { status: 'PENDING_PAYMENT', createdAt: { $lt: new Date(Date.now() - 24 * HOUR_MS) } }] }),
+    // A Plus checkout left unpaid for half an hour was abandoned: the code can be tried again.
+    dead: () => ({ $or: [{ status: 'CANCELLED' }, { status: 'PENDING_PAYMENT', createdAt: { $lt: new Date(Date.now() - HOUR_MS / 2) } }] }),
     live: () => ({ source: 'PAID', status: { $in: ['ACTIVE', 'REFUNDED'] } })
   }
 });

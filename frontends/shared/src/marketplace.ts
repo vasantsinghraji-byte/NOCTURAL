@@ -95,8 +95,12 @@ export interface CareQuote {
     listPricePerSession: number; discountPercent: number; servicePerSession: number; serviceSubtotal: number;
     discount: number; offer: number; creditAvailable: number; travelTotal: number; platformFee: number; gst: number;
     total: number; perSessionPayable: number;
+    /** What a discount code takes off (already out of `total`). */
+    coupon?: number;
   };
   lines: QuoteLine[];
+  /** The discount code on this quote; it is used when the plan is booked. */
+  coupon?: { code: string; description: string; offer: string; discount: number } | null;
   expiresAt: string;
 }
 
@@ -111,6 +115,8 @@ export interface QuoteInput {
   address?: { street: string; city?: string; pincode?: string; landmark?: string; coordinates: LatLng };
   patientDetails?: { name: string; age?: number; gender?: 'Male' | 'Female' | 'Other'; relation?: string };
   proposalId?: string;
+  /** Discount code: checked when quoting, used when booking. */
+  couponCode?: string;
 }
 
 export interface PlanSession {
@@ -198,6 +204,8 @@ export interface LabOrderInput {
   prescriptionKey?: string;
   patientDetails?: QuoteInput['patientDetails'];
   expectedTotal?: number;
+  /** Discount code: checked when quoting, used when booking. */
+  couponCode?: string;
 }
 
 export interface LabQuote {
@@ -206,7 +214,9 @@ export interface LabQuote {
   slot: { date: string; time: string };
   tests: { service: string; name: string; price: number; fastingHours: number; reportHours: number; sampleType?: string }[];
   fasting: boolean;
-  amounts: { testsSubtotal: number; collectionFee: number; collectionWaived: boolean; platformFee: number; gst: number; total: number };
+  amounts: { testsSubtotal: number; collectionFee: number; collectionWaived: boolean; platformFee: number; gst: number; total: number; coupon?: number };
+  /** The discount code on this quote (already out of `amounts.total`). */
+  coupon?: { code: string; description: string; offer: string; discount: number } | null;
   creditAvailable: number;
   reportHours: number;
 }

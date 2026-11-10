@@ -13,6 +13,7 @@ import { PressScale, success } from '@/lib/motion';
 import { ArrowLeft, Camera, Check, CircleCheck, CircleX, FileText, MapPin, Store, Zap } from 'lucide-react-native';
 import { TextArea } from '@/lib/fields';
 import { RecipientPicker, rememberRecipient } from '@/lib/recipients';
+import { CouponField, type AppliedCoupon } from '@/lib/CouponField';
 import { ProviderPicker } from '@/lib/providerPicker';
 import { ALL_SLOTS, SLOTS, earliestTodayMinutes, fmtVisitDay, istNow, istYmd, slotOpen as isSlotOpen } from '@/lib/visitSlots';
 import { C, F, shadow, ui } from '@/lib/theme';
@@ -64,6 +65,8 @@ export default function Book() {
   const [rxLater, setRxLater] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Discount code: off the service price (checked again when the visit is booked).
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isMember, setIsMember] = useState(false);
@@ -112,7 +115,7 @@ export default function Book() {
   const suppliesTotal = bringing.reduce((s, i) => s + (i.unitPrice || 0) * i.quantity, 0);
   // Server-computed price; Nabz Plus members pay no platform fee.
   const preview = service?.pricingPreview ? (isMember ? service.pricingPreview.member : service.pricingPreview.regular) : null;
-  const fee = preview ? preview.totalAmount : 0;
+  const fee = Math.max(0, (preview ? preview.totalAmount : 0) - (coupon?.discount || 0));
   const needsRx = !!service?.requirements?.prescriptionRequired || bringing.some((i) => i.requiresPrescription);
   // Prescription medicines in the supplies are packed by the pharmacy now, so they need it now.
   const rxNeededNow = bringing.some((i) => i.requiresPrescription);
@@ -167,7 +170,9 @@ export default function Book() {
         requestedProvider: chosen || undefined,
         allowSubstitute: chosen ? allowSub : undefined,
         scheduledTimezone: 'Asia/Kolkata',
-        scheduledTimezoneOffsetMinutes: -new Date().getTimezoneOffset() || 330
+        scheduledTimezoneOffsetMinutes: -new Date().getTimezoneOffset() || 330,
+        // A package uses the code on its first session.
+        ...(coupon ? { couponCode: coupon.code } : {})
       };
       if (savePrefs) {
         api.saveCarePreferences({
@@ -478,10 +483,12 @@ export default function Book() {
               <BillRow label={isMember ? 'Platform fee (waived with Plus)' : 'Platform fee'} value={inr(preview?.platformFee ?? 0)} />
               <BillRow label="GST" value={inr(preview?.gst ?? 0)} />
               {bringing.length > 0 && <BillRow label={`Supplies (${bringing.length})`} value={inr(suppliesTotal)} />}
+              {coupon && <BillRow label={`Coupon ${coupon.code}`} value={`−${inr(coupon.discount)}`} />}
               <View style={styles.billLine} />
               <BillRow label="Total · pay after the visit" value={inr(fee + suppliesTotal)} strong />
               <Text style={ui.muted}>{mode === 'ASAP' ? 'We’ll match the nearest verified professional now.' : `${date === todayKey ? 'Today' : fmtVisitDay(date)} · ${fmtTime(time)}`}</Text>
               {uploadLater && <Text style={ui.muted}>Prescription: upload later from Bookings (needed before the visit starts)</Text>}
+              {service ? <CouponField service="CARE_VISIT" amount={preview?.basePrice ?? service.pricing.basePrice} value={coupon} onChange={setCoupon} /> : null}
             </View>
             <PressScale style={[ui.btnDark, busy && { opacity: 0.6 }]} disabled={busy} onPress={book}>
               {busy ? <ActivityIndicator color={C.onBrand} /> : <Text style={ui.btnText}>{mode === 'ASAP' ? 'Find my nurse' : 'Book visit'}</Text>}

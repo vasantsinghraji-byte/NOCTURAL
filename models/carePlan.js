@@ -40,9 +40,12 @@ const CarePlanSchema = new mongoose.Schema({
     platformFeePerSession: { type: Number, default: 0 },
     gstPerSession: { type: Number, default: 0 },
     offer: { type: Number, default: 0 },
+    // Discount code (paid by Nabz): off the upfront payment, or the first visits' bills.
+    coupon: { type: Number, default: 0 },
     travelWaived: { type: Boolean, default: false },
     total: Number
   },
+  coupon: { code: String, description: String },
   creditUsed: { type: Number, default: 0 }, // Nabz credit spent on this plan
   proposal: { type: mongoose.Schema.Types.ObjectId, ref: 'PlanProposal' },
 

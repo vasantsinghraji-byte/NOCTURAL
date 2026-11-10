@@ -78,7 +78,8 @@ async function recordCareBooking(booking) {
       ...cash,
       { source, party: { kind: 'PROVIDER', id: booking.serviceProvider }, type: 'PROVIDER_PAYOUT', amount: split.providerPayout, basis: split.basePrice, rate: split.commissionRate, occurredAt },
       { source, party: { kind: 'PLATFORM' }, type: 'COMMISSION', amount: split.commission, basis: split.basePrice, rate: split.commissionRate, occurredAt, status: 'PAID' },
-      { source, party: { kind: 'PLATFORM' }, type: 'PLATFORM_FEE', amount: split.platformFee, occurredAt, status: 'PAID' }
+      { source, party: { kind: 'PLATFORM' }, type: 'PLATFORM_FEE', amount: split.platformFee, occurredAt, status: 'PAID' },
+      ...(booking.pricing && booking.pricing.couponDiscount > 0 ? [{ source, party: { kind: 'PLATFORM' }, type: 'COUPON_DISCOUNT', amount: pricing.round2(booking.pricing.couponDiscount), occurredAt, status: 'PAID' }] : [])
     ], { bookingId: String(booking._id) });
   } catch (err) {
     logger.error('Settlement recording failed', { bookingId: String(booking && booking._id), error: err.message });
@@ -108,7 +109,8 @@ async function recordLabOrder(order, labUserId) {
       ...cash,
       { source, party: { kind: 'PROVIDER', id: labUserId }, type: 'PROVIDER_PAYOUT', amount: pricing.round2(tests - commission + collection), basis: tests, rate: policy.commissionRate, occurredAt },
       { source, party: { kind: 'PLATFORM' }, type: 'COMMISSION', amount: commission, basis: tests, rate: policy.commissionRate, occurredAt, status: 'PAID' },
-      { source, party: { kind: 'PLATFORM' }, type: 'PLATFORM_FEE', amount: pricing.round2(order.amounts && order.amounts.platformFee), occurredAt, status: 'PAID' }
+      { source, party: { kind: 'PLATFORM' }, type: 'PLATFORM_FEE', amount: pricing.round2(order.amounts && order.amounts.platformFee), occurredAt, status: 'PAID' },
+      ...(order.amounts && order.amounts.coupon > 0 ? [{ source, party: { kind: 'PLATFORM' }, type: 'COUPON_DISCOUNT', amount: pricing.round2(order.amounts.coupon), occurredAt, status: 'PAID' }] : [])
     ], { labOrderId: String(order._id) });
   } catch (err) {
     logger.error('Lab settlement recording failed', { labOrderId: String(order && order._id), error: err.message });
@@ -131,14 +133,13 @@ async function recordCareCancellationFee(booking, fee) {
 
 async function recordMembership(membership) {
   try {
-    return await insertIdempotent([{
-      source: { kind: 'MEMBERSHIP', id: membership._id, ref: membership.plan },
-      party: { kind: 'PLATFORM' },
-      type: 'MEMBERSHIP_FEE',
-      amount: pricing.round2(membership.amount),
-      occurredAt: new Date(),
-      status: 'PAID'
-    }], { membershipId: String(membership._id) });
+    const source = { kind: 'MEMBERSHIP', id: membership._id, ref: membership.plan };
+    const discount = pricing.round2(membership.couponDiscount || 0);
+    // The full plan fee, and a discount code's part as Nabz's cost (net = what was paid).
+    return await insertIdempotent([
+      { source, party: { kind: 'PLATFORM' }, type: 'MEMBERSHIP_FEE', amount: pricing.round2(discount > 0 ? membership.amount + discount : membership.amount), occurredAt: new Date(), status: 'PAID' },
+      ...(discount > 0 ? [{ source, party: { kind: 'PLATFORM' }, type: 'COUPON_DISCOUNT', amount: discount, occurredAt: new Date(), status: 'PAID' }] : [])
+    ], { membershipId: String(membership._id) });
   } catch (err) {
     logger.error('Settlement recording failed', { membershipId: String(membership && membership._id), error: err.message });
     return 0;

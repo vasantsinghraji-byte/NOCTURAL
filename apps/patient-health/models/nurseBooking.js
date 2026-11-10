@@ -173,6 +173,8 @@ const NurseBookingSchema = new mongoose.Schema({
     platformFee: Number, // Our commission
     gst: Number,
     discount: Number,
+    // Part of `discount` that came from a discount code (Nabz pays it; booked in the ledger on completion).
+    couponDiscount: Number,
     totalAmount: Number,
     previousDues: Number, // unpaid late-cancellation fees carried onto this bill
     payableAmount: Number

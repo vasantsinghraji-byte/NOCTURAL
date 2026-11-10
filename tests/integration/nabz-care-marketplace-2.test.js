@@ -24,6 +24,8 @@ const SettlementEntry = require('../../models/settlementEntry');
 const AdCampaign = require('../../models/adCampaign');
 const { AdWallet, AdWalletEntry, AdStatDaily, AdViewerMark } = require('../../models/adLedger');
 const { PlatformSetting, SettingChange } = require('../../models/platformSetting');
+const Coupon = require('../../models/coupon');
+const CouponRedemption = require('../../models/couponRedemption');
 
 const PASSWORD = 'Strong@12345';
 const RUN = Date.now();
@@ -133,6 +135,8 @@ describe('Care marketplace part 2 (real MongoDB)', () => {
       AdWalletEntry.deleteMany({ owner: { $in: allUsers } }),
       PlatformSetting.deleteMany({}),
       SettingChange.deleteMany({ proposedBy: admin._id }),
+      Coupon.deleteMany({ createdBy: admin._id }),
+      CouponRedemption.deleteMany({ patient: { $in: pids } }),
       ServiceCatalog.deleteMany({ _id: { $in: Object.values(svc).map((s) => s._id) } }),
       User.deleteMany({ _id: { $in: allUsers } }),
       Patient.deleteMany({ _id: { $in: pids } })
@@ -550,6 +554,65 @@ describe('Care marketplace part 2 (real MongoDB)', () => {
       const overview = await require('../../services/careAdminService').overview();
       expect(overview).toEqual(expect.objectContaining({ shopsPending: expect.any(Number), refundsPending: expect.any(Number), needsAction: expect.any(Number) }));
       expect(overview.needsAction).toBeGreaterThanOrEqual(1); // the released caregiver days
+    });
+  });
+
+  // ── Discount codes ───────────────────────────────────────────────────────
+
+  describe('discount codes on lab tests and care plans', () => {
+    const coupons = () => require('../../services/couponService');
+    const window = () => ({ startsAt: new Date(Date.now() - 86400000), endsAt: new Date(Date.now() + 7 * 86400000) });
+
+    it('a lab code comes off the tests in the quote and the booking; the lab is paid on the full tests', async () => {
+      if (!db) return;
+      const code = await coupons().adminCreate(admin._id, { code: `LAB${RUN}`.toUpperCase().slice(0, 20), description: '₹100 off lab tests', kind: 'FLAT', value: 100, services: ['LAB'], ...window() });
+      const body = { storeId: String(stores.lab._id), serviceIds: [String(svc.tsh._id)], mode: 'CLINIC', slot: { date: ist(12), time: '10:00' } };
+      const plain = await api('post', '/labs/quote', 'c4', body);
+      const withCode = await api('post', '/labs/quote', 'c4', { ...body, couponCode: code.code });
+      expect(withCode.status).toBe(200);
+      expect(withCode.body.quote.coupon).toMatchObject({ code: code.code, discount: 100 });
+      expect(withCode.body.quote.amounts.total).toBe(Math.round((plain.body.quote.amounts.total - 100) * 100) / 100);
+
+      const res = await api('post', '/labs/orders', 'c4', { ...body, couponCode: code.code, expectedTotal: withCode.body.quote.amounts.total });
+      expect(res.status).toBe(201);
+      const order = await LabOrder.findById(res.body.order._id);
+      expect(order.amounts.coupon).toBe(100);
+      expect(order.coupon.code).toBe(code.code);
+      // Used once per customer: a second booking is refused until this one is cancelled.
+      expect((await api('post', '/labs/quote', 'c4', { ...body, slot: { date: ist(12), time: '11:00' }, couponCode: code.code })).body.message).toMatch(/already used/);
+      const settlement = require('../../services/settlementService');
+      await settlement.recordLabOrder(order, users.lab._id);
+      const rows = await SettlementEntry.find({ 'source.id': order._id }).lean();
+      expect(rows.find((r) => r.type === 'COUPON_DISCOUNT').amount).toBe(100);
+      expect(rows.find((r) => r.type === 'PROVIDER_PAYOUT').basis).toBe(order.amounts.testsSubtotal);
+      expect((await api('post', `/labs/orders/${order._id}/cancel`, 'c4', { reason: 'Changed my mind' })).status).toBeLessThan(300);
+      expect((await api('post', '/labs/quote', 'c4', { ...body, slot: { date: ist(12), time: '11:00' }, couponCode: code.code })).status).toBe(200);
+    });
+
+    it('a care-plan code takes 10% off the sessions; pay-per-visit plans take it off the first visit', async () => {
+      if (!db) return;
+      const code = await coupons().adminCreate(admin._id, { code: `PLN${RUN}`.toUpperCase().slice(0, 20), description: '10% off physio plans', kind: 'PERCENT', value: 10, services: ['CARE_PLAN'], ...window() });
+      const body = { storeId: String(stores.py._id), serviceId: String(svc.back._id), mode: 'CLINIC', sessions: 2, schedule: { startDate: ist(13), time: '11:00', weekdays: EVERY_DAY } };
+      const one = await api('post', '/quotes', 'c4', { ...body, sessions: 1, couponCode: code.code });
+      expect(one.status).toBe(400);
+      expect(one.body.message).toMatch(/care plans/);
+
+      const q = await api('post', '/quotes', 'c4', { ...body, couponCode: code.code });
+      expect(q.status).toBe(201);
+      const listed = q.body.quote.lines.find((l) => l.code === 'COUPON');
+      const serviceValue = q.body.quote.amounts.serviceSubtotal - q.body.quote.amounts.discount - q.body.quote.amounts.offer;
+      expect(listed.amount).toBe(-Math.round(serviceValue * 0.1));
+      const sum = q.body.quote.lines.reduce((s, l) => s + Math.round(l.amount * 100), 0);
+      expect(sum).toBe(Math.round(q.body.quote.amounts.total * 100));
+
+      const booked = await api('post', '/plans', 'c4', { quoteId: q.body.quote._id });
+      expect(booked.status).toBe(201);
+      const plan = await CarePlan.findById(booked.body.plan._id).lean();
+      expect(plan.coupon.code).toBe(code.code);
+      const first = await NurseBooking.findOne({ 'marketplace.plan': plan._id, 'series.index': 1 }).lean();
+      expect(first.pricing.couponDiscount).toBe(-listed.amount);
+      expect(first.pricing.payableAmount).toBe(Math.round((first.pricing.totalAmount - first.pricing.couponDiscount) * 100) / 100);
+      expect(await CouponRedemption.countDocuments({ 'order.id': plan._id, status: 'RESERVED' })).toBe(1);
     });
   });
 });

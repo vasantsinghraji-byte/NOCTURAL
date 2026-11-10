@@ -6,15 +6,21 @@ import { Text } from '@/lib/T';
 import { api, describeNetworkError } from '@/lib/api';
 import { C, F, R } from '@/lib/theme';
 
+/** A code applied at checkout: what the bill shows. */
+export type AppliedCoupon = Pick<CouponPreview, 'code' | 'offer' | 'discount'>;
+
 /**
  * "Have a coupon?" at checkout. A preview only: the server checks the code
  * again when the order is placed. A changed amount re-checks the code.
+ * Screens with a server quote (labs, care plans) pass `check`, which asks for
+ * a new quote with the code; they re-quote themselves when the order changes.
  */
-export function CouponField({ service, amount, value, onChange }: {
+export function CouponField({ service, amount = 0, value, onChange, check }: {
   service: CouponService;
-  amount: number;
-  value: CouponPreview | null;
-  onChange: (coupon: CouponPreview | null) => void;
+  amount?: number;
+  value: AppliedCoupon | null;
+  onChange: (coupon: AppliedCoupon | null) => void;
+  check?: (code: string) => Promise<AppliedCoupon | null | undefined>;
 }) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -26,7 +32,9 @@ export function CouponField({ service, amount, value, onChange }: {
     setBusy(true);
     setError(null);
     try {
-      onChange((await api.checkCoupon(clean, service, amount)).coupon);
+      const found = check ? await check(clean) : (await api.checkCoupon(clean, service, amount)).coupon;
+      if (!found) throw new Error('That code is not valid');
+      onChange(found);
     } catch (e) {
       onChange(null);
       setError(describeNetworkError(e));
@@ -37,7 +45,7 @@ export function CouponField({ service, amount, value, onChange }: {
 
   const appliedCode = value?.code;
   useEffect(() => {
-    if (appliedCode) apply(appliedCode);
+    if (appliedCode && !check) apply(appliedCode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amount]);
 

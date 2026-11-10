@@ -59,8 +59,11 @@ const LabOrderSchema = new mongoose.Schema({
     credit: { type: Number, default: 0 }, // Nabz wallet used
     platformFee: { type: Number, default: 0 },
     gst: { type: Number, default: 0 },
+    // Discount code (services/couponService.js): off the tests, paid by Nabz.
+    coupon: { type: Number, default: 0 },
     total: Number
   },
+  coupon: { code: String, description: String },
   payment: {
     mode: { type: String, enum: ['PREPAID', 'PAY_AT_COLLECTION'], default: 'PAY_AT_COLLECTION' },
     status: { type: String, enum: ['PENDING', 'PAID', 'REFUND_PENDING', 'REFUNDED'], default: 'PENDING' },
