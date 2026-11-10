@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, BadgeIndianRupee, CalendarClock, FlaskConical, HandCoins, ShieldCheck, Store, Tag, Users } from 'lucide-react';
-import type { MarketplaceOverview, ShopKind } from '@medrush/shared';
+import type { AdminRateCardLine, MarketplaceOverview, ShopKind } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { inr, todayIst, fmtDay, fmtTime, KINDS } from '@/lib/care';
 import { promptDialog, confirmDialog } from '../_components/Dialog';
@@ -103,6 +103,7 @@ function Shops({ sensitive }: { sensitive: Sensitive }) {
   const [kind, setKind] = useState<ShopKind | ''>('');
   const [rows, setRows] = useState<Awaited<ReturnType<typeof api.adminMarketStores>>['stores'] | null>(null);
   const [notice, setNotice] = useState('');
+  const [prices, setPrices] = useState<string | null>(null); // shop whose rate card is open
   const load = useCallback(() => api.adminMarketStores({ status, kind: kind || undefined }).then((r) => setRows(r.stores)).catch(() => setRows([])), [status, kind]);
   useEffect(() => { setRows(null); load(); }, [load]);
   const decide = async (id: string, next: 'APPROVED' | 'SUSPENDED' | 'REJECTED') => {
@@ -138,11 +139,49 @@ function Shops({ sensitive }: { sensitive: Sensitive }) {
               {s.status === 'APPROVED' && <button type="button" className="mk-btn ghost small" onClick={() => decide(s._id, 'SUSPENDED')}>Suspend</button>}
               {s.status === 'PENDING' && <button type="button" className="mk-btn ghost small" onClick={() => decide(s._id, 'REJECTED')}>Reject</button>}
               <button type="button" className="mk-btn soft small" onClick={() => strike(s._id)}>Strike</button>
+              <button type="button" className="mk-btn soft small" aria-expanded={prices === s._id} onClick={() => setPrices(prices === s._id ? null : s._id)}>Prices</button>
             </div>
           </div>
+          {prices === s._id && <RateCard storeId={s._id} sensitive={sensitive} />}
         </article>
       ))}
     </section>
+  );
+}
+
+/**
+ * A shop's prices against the catalogue band. A shop can't set a price outside
+ * the band (e.g. a senior sports physio charging more) until Nabz allows a range
+ * for that one line.
+ */
+function RateCard({ storeId, sensitive }: { storeId: string; sensitive: Sensitive }) {
+  const [rows, setRows] = useState<AdminRateCardLine[] | null>(null);
+  const [notice, setNotice] = useState('');
+  const load = useCallback(() => api.adminStoreRateCard(storeId).then((r) => setRows(r.items)).catch(() => setRows([])), [storeId]);
+  useEffect(() => { load(); }, [load]);
+  const allow = async (line: AdminRateCardLine) => {
+    const min = await promptDialog({ title: `Lowest price for ${line.service}`, label: 'Lowest allowed (₹)', inputMode: 'numeric', pattern: /^d{1,6}$/, patternHint: 'Whole rupees' });
+    if (!min) return;
+    const max = await promptDialog({ title: `Highest price for ${line.service}`, label: 'Highest allowed (₹)', inputMode: 'numeric', pattern: /^d{1,6}$/, patternHint: 'Whole rupees' });
+    if (!max) return;
+    if (Number(max) < Number(min)) { setNotice('The highest price must be at least the lowest.'); return; }
+    sensitive(async () => { await api.adminApprovePrice(line._id, Number(min), Number(max)); setNotice(`${line.service}: ₹${min}–₹${max} allowed. The shop can now set a price in that range.`); await load(); });
+  };
+  if (!rows) return <div className="mk-skel" />;
+  if (!rows.length) return <p className="mk-meta">No prices set yet.</p>;
+  return (
+    <div style={{ display: 'grid', gap: 6 }}>
+      {notice && <p className="mk-note green" role="status">{notice}</p>}
+      {rows.map((l) => (
+        <div key={l._id} className="mk-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+          <p className="mk-meta grow" style={{ margin: 0 }}>
+            <b>{l.service}</b>{l.isActive ? '' : ' (off)'} · {l.clinic != null ? `clinic ${inr(l.clinic)}` : ''}{l.clinic != null && l.home != null ? ', ' : ''}{l.home != null ? `home ${inr(l.home)}` : ''}
+            {' · '}{l.approved ? `allowed ${inr(l.approved.min)}–${inr(l.approved.max)}` : l.band ? `band ${l.band.min != null ? inr(l.band.min) : '₹0'}–${l.band.max != null ? inr(l.band.max) : 'any'}` : 'no band'}
+          </p>
+          <button type="button" className="mk-btn ghost small" onClick={() => allow(l)}>{l.approved ? 'Change range' : 'Allow a range'}</button>
+        </div>
+      ))}
+    </div>
   );
 }
 

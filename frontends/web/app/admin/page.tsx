@@ -18,9 +18,11 @@ import CallbacksPanel from './CallbacksPanel';
 import TeamPanel from './TeamPanel';
 import PlansPanel from './PlansPanel';
 import CouponsPanel from './CouponsPanel';
+import PharmacyOpsPanel from './PharmacyOpsPanel';
+import MedicinesPanel from './MedicinesPanel';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { ApiError, type AdminSection, type AuthUser, type Medicine, type PharmacyVendor } from '@medrush/shared';
+import { ApiError, type AdminSection, type AuthUser, type PharmacyVendor } from '@medrush/shared';
 import { StepUpDialog } from '../_components/AdminMfa';
 
 type View = AdminSection | 'team';
@@ -37,8 +39,8 @@ const SECTIONS: Array<{ key: View; label: string; group: string; hint: string; i
   { key: 'partners', label: 'Partner applications', group: 'Verification', hint: 'Approve or reject people who applied to join', icon: '✎' },
   { key: 'documents', label: 'Partner documents', group: 'Verification', hint: 'ID, licence and registration documents', icon: '▤' },
   { key: 'verification', label: 'Staff checks', group: 'Verification', hint: 'Nurse and physio badges: ID, police, council', icon: '✓' },
-  { key: 'vendors', label: 'Pharmacies', group: 'Pharmacy', hint: 'Approve or suspend stores', icon: '⌂' },
-  { key: 'medicines', label: 'Medicines', group: 'Pharmacy', hint: 'Master catalogue', icon: '℞' },
+  { key: 'vendors', label: 'Pharmacies', group: 'Pharmacy', hint: 'Stores, delivery zones and surge, flagged orders, H1 register', icon: '⌂' },
+  { key: 'medicines', label: 'Medicines', group: 'Pharmacy', hint: 'Master catalogue: edit, merge duplicates, recall a batch', icon: '℞' },
   { key: 'payments', label: 'Payments & revenue', group: 'Money', hint: 'Revenue and the payment log', icon: '₹' },
   { key: 'withdrawals', label: 'Withdrawals', group: 'Money', hint: 'Partner payout requests', icon: '⇄' },
   { key: 'plans', label: 'Plans & coupons', group: 'Money', hint: 'Nabz Plus plans and discount codes', icon: '%' },
@@ -72,7 +74,7 @@ export default function AdminConsole() {
   const [checking, setChecking] = useState(true);
   const [view, setView] = useState<View | null>(null);
   const [vendors, setVendors] = useState<PharmacyVendor[]>([]);
-  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [medicinesKey, setMedicinesKey] = useState(0); // bump to reload the catalogue list
   const [error, setError] = useState<string | null>(null);
   // Sensitive actions need a fresh authenticator code: park the action, ask, retry.
   const [pending, setPending] = useState<(() => Promise<void>) | null>(null);
@@ -83,7 +85,6 @@ export default function AdminConsole() {
     setError(null);
     try {
       if (which === 'vendors') setVendors((await api.adminListVendors({ limit: 100 })).vendors);
-      if (which === 'medicines') setMedicines((await api.adminListMedicines({ limit: 100 })).medicines);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
     }
@@ -102,7 +103,7 @@ export default function AdminConsole() {
       .finally(() => setChecking(false));
   }, []);
 
-  useEffect(() => { if (view === 'vendors' || view === 'medicines') loadStore(view); }, [view, loadStore]);
+  useEffect(() => { if (view === 'vendors') loadStore(view); }, [view, loadStore]);
 
   function open(next: View) {
     setView(next);
@@ -224,6 +225,7 @@ export default function AdminConsole() {
               ))}
             </div>
           )}
+          {view === 'vendors' && <PharmacyOpsPanel sensitive={sensitive} />}
           {view === 'tower' && <HeatmapPanel />}
           {view === 'care' && <MarketplacePanel sensitive={sensitive} />}
           {view === 'support' && <CallbacksPanel sensitive={sensitive} />}
@@ -240,18 +242,8 @@ export default function AdminConsole() {
           {view === 'plans' && <><PlansPanel sensitive={sensitive} /><CouponsPanel sensitive={sensitive} /></>}
           {view === 'medicines' && (
             <>
-              <AddMedicine onAdded={() => loadStore('medicines')} onError={setError} />
-              <div className="grid cards" style={{ marginTop: 12 }}>
-                {medicines.map((m) => (
-                  <div key={m._id} className="card admin-card">
-                    <div className="row">
-                      <h3>{m.name}</h3>
-                      {m.requiresPrescription ? <span className="pill rx">Rx</span> : <span className="pill">OTC</span>}
-                    </div>
-                    <span className="muted">{m.genericName || m.category} · {m.packSize || m.form} · MRP ₹{m.referenceMrp ?? '-'}</span>
-                  </div>
-                ))}
-              </div>
+              <AddMedicine onAdded={() => setMedicinesKey((k) => k + 1)} onError={setError} />
+              <MedicinesPanel sensitive={sensitive} reloadKey={medicinesKey} />
             </>
           )}
         </div>

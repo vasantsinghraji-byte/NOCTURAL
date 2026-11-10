@@ -142,6 +142,18 @@ function UserDialog({ row, sensitive, onClose, onChanged }: { row: AdminUserRow;
     }).then((reason) => { if (reason) suspend(next, reason); });
   }
 
+  // Goodwill credit (customers): spent automatically on their next booking or lab order.
+  async function giveCredit() {
+    const amount = await promptDialog({ title: `Give ${row.name} Nabz credit`, message: 'It is used automatically on their next visit, plan or lab booking.', label: 'Amount (₹1 to ₹5,000)', inputMode: 'numeric', pattern: /^(?:[1-9]d{0,2}|[1-4]d{3}|5000)$/, patternHint: 'A whole amount from ₹1 to ₹5,000' });
+    if (!amount) return;
+    const reason = await promptDialog({ title: 'Why?', message: 'Saved in the audit log with your name.', label: 'Reason', placeholder: 'e.g. late visit on 3 Nov', minLength: 5, maxLength: 200, confirmLabel: `Give ₹${amount}` });
+    if (!reason) return;
+    sensitive(async () => {
+      const r = await api.adminGiveCredit(row._id, Number(amount), reason);
+      setNotice(`₹${amount} credit given. Their balance is now ₹${r.balance}.`);
+    });
+  }
+
   function suspend(next: boolean, reason: string) {
     sensitive(async () => {
       const r = await api.adminSetUserActive(row.type, row._id, next, reason);
@@ -178,6 +190,7 @@ function UserDialog({ row, sensitive, onClose, onChanged }: { row: AdminUserRow;
 
         <div className="row" style={{ gap: 8, justifyContent: 'flex-start', flexWrap: 'wrap', marginTop: 8 }}>
           {!contact && <button className="btn secondary" onClick={reveal}>Show contact details</button>}
+          {row.type !== 'partners' && <button className="btn secondary" onClick={giveCredit}>Give Nabz credit</button>}
           {user && <button className={user.active ? 'btn secondary danger' : 'btn'} onClick={toggleActive}>{user.active ? 'Suspend account' : 'Restore account'}</button>}
           <button className="btn secondary" onClick={onClose} style={{ marginLeft: 'auto' }}>Close</button>
         </div>

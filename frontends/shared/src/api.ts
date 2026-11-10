@@ -51,6 +51,10 @@ import type {
   MembershipStatus,
   AdminMembershipPlan,
   AdminCoupon,
+  AdminZone,
+  AdminFlaggedOrder,
+  H1RegisterRow,
+  AdminRateCardLine,
   CouponInput,
   CouponPreview,
   CouponService,
@@ -1142,6 +1146,48 @@ export class MedRushApi {
   adminCreateMedicine(body: Partial<Medicine> & { name: string }) {
     return this.request<{ success: true; medicine: Medicine }>('POST', '/pharmacy/admin/medicines', { body });
   }
+
+  adminUpdateMedicine(id: string, body: Partial<Medicine>) {
+    return this.request<{ success: true; medicine: Medicine }>('PATCH', `/pharmacy/admin/medicines/${id}`, { body });
+  }
+
+  /** Fold a duplicate product into another; `force` also moves stock already listed by stores. */
+  adminMergeMedicine(id: string, intoId: string, force = false) {
+    return this.request<{ success: true; [k: string]: unknown }>('POST', `/pharmacy/admin/medicines/${id}/merge`, { body: { intoId, force } });
+  }
+
+  adminRecallBatch(body: { medicineId: string; batchNumber: string; reason?: string; notifyPatients?: boolean }) {
+    return this.request<{ success: true; [k: string]: unknown }>('POST', '/pharmacy/admin/recalls', { body });
+  }
+
+  adminCreateVendor(body: { name: string; contactPhone?: string; contactEmail?: string; drugLicenseNumber?: string; gstin?: string; address?: Partial<Address>; location?: { coordinates: [number, number] }; serviceRadiusKm?: number; deliveryFee?: number; minOrderValue?: number; hasColdStorage?: boolean }) {
+    return this.request<{ success: true; vendor: PharmacyVendor }>('POST', '/pharmacy/admin/vendors', { body });
+  }
+
+  adminZones() {
+    return this.request<{ success: true; zones: AdminZone[] }>('GET', '/pharmacy/admin/zones');
+  }
+
+  adminCreateZone(body: { code: string; name: string; city: string; boundary: { type: 'Polygon' | 'MultiPolygon'; coordinates: unknown[] }; maxLastMileKm?: number }) {
+    return this.request<{ success: true; zone: AdminZone }>('POST', '/pharmacy/admin/zones', { body });
+  }
+
+  adminUpdateZone(id: string, body: { name?: string; isActive?: boolean; maxLastMileKm?: number; stress?: { level: 'NORMAL' | 'HIGH' | 'SEVERE'; radiusMultiplier?: number; reason?: string; until?: string } }) {
+    return this.request<{ success: true; zone: AdminZone }>('PATCH', `/pharmacy/admin/zones/${id}`, { body });
+  }
+
+  adminFlaggedOrders(days = 14) {
+    return this.request<{ success: true; orders: AdminFlaggedOrder[] }>('GET', '/pharmacy/admin/orders/flagged', { query: { days } });
+  }
+
+  adminH1Register(params: { from?: string; to?: string; vendorId?: string } = {}) {
+    return this.request<{ success: true; from: string; to: string; rows: H1RegisterRow[] }>('GET', '/pharmacy/admin/register/h1', { query: params });
+  }
+
+  /** CSV download of the Schedule H1 register for every store (cookie-authenticated link). */
+  adminH1RegisterLink(from: string, to: string): string {
+    return this.buildUrl(`/pharmacy/admin/register/h1?format=csv&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  }
   // ── Address book (saved places for visits and deliveries) ───────────────
   addAddress(body: { label?: string; street: string; landmark?: string; city: string; state: string; pincode: string; coordinates?: { lat: number; lng: number }; isDefault?: boolean }) {
     return this.request<{ success: true; data?: PatientProfile; patient?: PatientProfile }>('POST', '/patients/me/addresses', { body });
@@ -1576,6 +1622,19 @@ export class MedRushApi {
 
   adminReviewOffer(itemId: string, decision: 'APPROVED' | 'REJECTED', reason?: string) {
     return this.request<{ success: true }>('PUT', `/marketplace/admin/offers/${itemId}`, { body: { decision, reason } });
+  }
+
+  adminStoreRateCard(storeId: string) {
+    return this.request<{ success: true; items: AdminRateCardLine[] }>('GET', `/marketplace/admin/stores/${storeId}/rate-card`);
+  }
+
+  /** Allow one rate-card line a price range outside the catalogue band. */
+  adminApprovePrice(itemId: string, min: number, max: number) {
+    return this.request<{ success: true }>('PUT', `/marketplace/admin/rate-cards/${itemId}/price-approval`, { body: { min, max } });
+  }
+
+  adminAdWallet(ownerId: string, body: { amount?: number; trusted?: boolean; blocked?: boolean; note?: string }) {
+    return this.request<{ success: true; wallet: M.AdWalletView }>('PUT', `/marketplace/admin/ads/wallets/${ownerId}`, { body });
   }
 
   adminGiveCredit(patientId: string, amount: number, reason: string) {

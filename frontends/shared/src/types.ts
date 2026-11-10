@@ -118,6 +118,12 @@ export interface Medicine {
   images?: string[];
   referenceMrp?: number;
   requiresPrescription?: boolean;
+  // Admin catalogue controls (present on admin listings).
+  isActive?: boolean;
+  isBanned?: boolean;
+  isDiscontinued?: boolean;
+  coldChain?: boolean;
+  maxQtyPerOrder?: number;
 }
 
 export interface StorefrontItem {
@@ -707,6 +713,32 @@ export interface OnboardingReviewer {
 // ── Nabz Plus membership ───────────────────────────────────────────────────
 
 export interface MembershipPlan { code: string; name: string; price: number; days: number; note?: string }
+
+// ── Admin: pharmacy operations ─────────────────────────────────────────────
+
+export interface AdminZone {
+  _id: string; code: string; name: string; city: string; isActive: boolean; maxLastMileKm?: number;
+  stress?: { level: 'NORMAL' | 'HIGH' | 'SEVERE'; radiusMultiplier?: number; reason?: string; until?: string; source?: string };
+}
+
+export interface AdminFlaggedOrder {
+  _id: string; orderNumber: string; status: string; createdAt: string;
+  patient?: { _id: string; name?: string; phone?: string } | null;
+  vendor?: { _id: string; name?: string } | null;
+  riskFlags: Array<{ code: string; detail?: string }>;
+  items: Array<{ name: string; quantity: number }>;
+}
+
+export interface H1RegisterRow {
+  suppliedOn?: string; orderNumber: string; store?: string; storeLicence?: string; patientName?: string; patientAddress?: string;
+  prescriberName?: string; prescriberRegistration?: string; prescriberAddress?: string; prescribedOn?: string; drug: string; batches?: string; quantity: number;
+}
+
+export interface AdminRateCardLine {
+  _id: string; service: string; isActive: boolean; clinic: number | null; home: number | null;
+  band: { min: number | null; max: number | null } | null;
+  approved: { min: number; max: number; at?: string } | null;
+}
 
 // ── Discount coupons ───────────────────────────────────────────────────────
 

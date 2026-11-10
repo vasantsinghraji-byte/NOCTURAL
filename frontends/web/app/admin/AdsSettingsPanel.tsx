@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Megaphone, Power, SlidersHorizontal } from 'lucide-react';
-import type { AdCampaignView, SettingField } from '@medrush/shared';
+import type { AdCampaignView, AdWalletView, SettingField } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { inr, fmtDay } from '@/lib/care';
 import { promptDialog, confirmDialog } from '../_components/Dialog';
@@ -29,6 +29,23 @@ function Ads({ sensitive }: { sensitive: Sensitive }) {
   const [status, setStatus] = useState<typeof STATUS[number]>('PENDING_REVIEW');
   const [data, setData] = useState<{ campaigns: AdCampaignView[]; report: Awaited<ReturnType<typeof api.adminAds>>['report'] } | null>(null);
   const [notice, setNotice] = useState('');
+  // Advertiser wallet open for one ad's owner (balance, trust, block).
+  const [wallet, setWallet] = useState<{ ownerId: string; name: string; view: AdWalletView } | null>(null);
+  const openWallet = (c: AdCampaignView) => {
+    const ownerId = c.owner?._id;
+    if (!ownerId) return;
+    sensitive(async () => { const r = await api.adminAdWallet(ownerId, {}); setWallet({ ownerId, name: c.store?.name || c.owner?.name || 'Advertiser', view: r.wallet }); });
+  };
+  const changeWallet = async (body: { amount?: number; trusted?: boolean; blocked?: boolean; note?: string }, done: string) => {
+    if (!wallet) return;
+    sensitive(async () => { const r = await api.adminAdWallet(wallet.ownerId, body); setWallet({ ...wallet, view: r.wallet }); setNotice(done); });
+  };
+  const adjust = async () => {
+    const raw = await promptDialog({ title: `Adjust ${wallet?.name}'s ad wallet`, message: 'Add credit (e.g. 500) or take some back (e.g. -200).', label: 'Amount (₹)', pattern: /^-?d{1,6}$/, patternHint: 'A whole amount, minus to take back' });
+    if (!raw || Number(raw) === 0) return;
+    const note = await promptDialog({ title: 'Why?', label: 'Note (the advertiser sees it)', minLength: 3, maxLength: 200 });
+    if (note) changeWallet({ amount: Number(raw), note }, `Wallet ${Number(raw) > 0 ? 'credited' : 'debited'} ₹${Math.abs(Number(raw))}.`);
+  };
   const load = useCallback(() => api.adminAds(status).then((r) => setData(r)).catch(() => setData({ campaigns: [], report: [] })), [status]);
   useEffect(() => { setData(null); load(); }, [load]);
   const decide = async (c: AdCampaignView, decision: 'APPROVE' | 'REJECT' | 'PAUSE' | 'RESUME') => {
@@ -58,6 +75,20 @@ function Ads({ sensitive }: { sensitive: Sensitive }) {
         <button type="button" className="mk-btn soft small" onClick={houseAd}>New House Ad</button>
       </div>
       {notice && <p className="mk-note green" role="status">{notice}</p>}
+      {wallet && (
+        <article className="mk-card" style={{ padding: 14, display: 'grid', gap: 8 }} aria-label={`${wallet.name} ad wallet`}>
+          <div className="mk-row" style={{ flexWrap: 'wrap' }}>
+            <p className="mk-title grow">{wallet.name}: ad wallet {inr(wallet.view.balance)}{wallet.view.trusted ? ' · trusted' : ''}{wallet.view.blocked ? ' · blocked' : ''}</p>
+            <button type="button" className="mk-btn ghost small" onClick={() => setWallet(null)}>Close</button>
+          </div>
+          <div className="mk-row" style={{ gap: 6, flexWrap: 'wrap' }}>
+            <button type="button" className="mk-btn soft small" onClick={adjust}>Add or take back credit</button>
+            <button type="button" className="mk-btn ghost small" onClick={() => changeWallet({ trusted: !wallet.view.trusted }, wallet.view.trusted ? 'Their ads need review again.' : 'Their ads now go live without review.')}>{wallet.view.trusted ? 'Stop trusting' : 'Trust (skip review)'}</button>
+            <button type="button" className="mk-btn ghost small" onClick={() => changeWallet({ blocked: !wallet.view.blocked }, wallet.view.blocked ? 'They can advertise again.' : 'They can no longer advertise.')}>{wallet.view.blocked ? 'Unblock' : 'Block from ads'}</button>
+          </div>
+          {(wallet.view.entries || []).slice(0, 5).map((e) => <p key={e._id} className="mk-meta" style={{ margin: 0 }}>{fmtDay(e.createdAt)} · {e.type.toLowerCase()} · {inr(e.amount)}{e.note ? ` · ${e.note}` : ''}</p>)}
+        </article>
+      )}
       {!data && <div className="mk-skel" />}
       {data && data.campaigns.length === 0 && <p className="mk-meta">Nothing here.</p>}
       {(data?.campaigns || []).map((c) => (
@@ -72,6 +103,7 @@ function Ads({ sensitive }: { sensitive: Sensitive }) {
               {c.status === 'PENDING_REVIEW' && <><button type="button" className="mk-btn small" onClick={() => decide(c, 'APPROVE')}>Approve</button><button type="button" className="mk-btn ghost small" onClick={() => decide(c, 'REJECT')}>Reject</button></>}
               {c.status === 'ACTIVE' && <button type="button" className="mk-btn ghost small" onClick={() => decide(c, 'PAUSE')}>Pause</button>}
               {c.status === 'PAUSED' && <button type="button" className="mk-btn soft small" onClick={() => decide(c, 'RESUME')}>Resume</button>}
+              {c.owner?._id && <button type="button" className="mk-btn ghost small" onClick={() => openWallet(c)}>Wallet</button>}
             </div>
           </div>
         </article>

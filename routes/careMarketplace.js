@@ -261,6 +261,10 @@ router.put('/admin/stores/:id/status', areaSensitive("care"),
   })
 );
 
+router.get('/admin/stores/:id/rate-card', area("care"), [id('id')], validate, wrap(async (req, res) => {
+  res.json({ success: true, items: await careStoreService.adminRateCard(req.params.id) });
+}));
+
 router.put('/admin/rate-cards/:id/price-approval', areaSensitive("care"),
   [id('id'), body('min').isFloat({ min: 1 }), body('max').isFloat({ min: 1 })],
   validate,

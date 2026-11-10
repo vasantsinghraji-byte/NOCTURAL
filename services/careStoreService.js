@@ -19,6 +19,7 @@ const pricingService = require('./pricingService');
 const careSlotService = require('./careSlotService');
 const { haversineKm, toLatLng } = require('../utils/geoDistance');
 const { STORE_OWNER_ROLES, KIND_CATEGORIES, WEEKDAYS, STORE_KINDS } = require('../constants/marketplace');
+const mongoose = require('mongoose');
 const { ValidationError, NotFoundError, AuthorizationError, ConflictError } = require('../utils/errors');
 const logger = require('../utils/logger');
 
@@ -683,6 +684,21 @@ async function adminSetStatus(adminId, storeId, status, reason) {
   return { store: store.toObject(), released };
 }
 
+/** A shop's rate card for the admin: prices, the catalog band and any approved range. */
+async function adminRateCard(storeId) {
+  if (!mongoose.isValidObjectId(storeId)) throw new ValidationError('Invalid shop id');
+  const items = await RateCardItem.find({ store: storeId }).populate('service', 'name displayName marketplace.priceFloor marketplace.priceCeiling').sort({ updatedAt: -1 }).limit(300).lean();
+  return items.map((i) => ({
+    _id: i._id,
+    service: i.service ? (i.service.displayName || i.service.name) : 'Removed service',
+    isActive: i.isActive !== false,
+    clinic: i.clinic && i.clinic.enabled ? i.clinic.price : null,
+    home: i.home && i.home.enabled ? i.home.price : null,
+    band: i.service && i.service.marketplace ? { min: i.service.marketplace.priceFloor ?? null, max: i.service.marketplace.priceCeiling ?? null } : null,
+    approved: i.priceApproval && Number.isFinite(i.priceApproval.min) ? { min: i.priceApproval.min, max: i.priceApproval.max, at: i.priceApproval.approvedAt } : null
+  }));
+}
+
 /** Allow a price range outside the catalog band for one rate card line. */
 async function adminApprovePrice(adminId, itemId, { min, max } = {}) {
   const lo = Number(min);
@@ -757,6 +773,7 @@ module.exports = {
   adminListStores,
   adminSetStatus,
   adminApprovePrice,
+  adminRateCard,
   addStrike,
   publicStore,
   reachFor,

@@ -615,4 +615,17 @@ describe('Care marketplace part 2 (real MongoDB)', () => {
       expect(await CouponRedemption.countDocuments({ 'order.id': plan._id, status: 'RESERVED' })).toBe(1);
     });
   });
+
+  describe('admin rate-card review', () => {
+    it('lists a shop’s prices against the catalogue band and shows an allowed range', async () => {
+      if (!db) return;
+      expect((await api('get', `/admin/stores/${stores.py._id}/rate-card`, 'c0')).status).toBe(401);
+      const before = await services().adminRateCard(stores.py._id);
+      const back = before.find((l) => l.service === svc.back.displayName);
+      expect(back).toMatchObject({ clinic: expect.any(Number), band: { min: 300, max: 2500 }, approved: null });
+      await services().adminApprovePrice(admin._id, back._id, { min: 200, max: 4000 });
+      const after = await services().adminRateCard(stores.py._id);
+      expect(after.find((l) => String(l._id) === String(back._id)).approved).toMatchObject({ min: 200, max: 4000 });
+    });
+  });
 });

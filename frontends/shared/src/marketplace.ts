@@ -296,7 +296,7 @@ export interface AdCampaignView {
   endAt: string;
   stats?: { impressions: number; clicks: number; spend: number; bookings: number; ctr: number; costPerBooking: number | null };
   store?: { name: string };
-  owner?: { name: string };
+  owner?: { _id?: string; name: string };
 }
 
 export interface AdWalletView { balance: number; trusted: boolean; blocked: boolean; entries: { _id: string; type: string; amount: number; note?: string; createdAt: string }[] }
