@@ -49,6 +49,7 @@ import type {
   CarePackageInput,
   LoginPortal,
   MembershipStatus,
+  AdminMembershipPlan,
   VisitTracking,
   StaffAvailability,
   NearbyStaff,
@@ -689,6 +690,14 @@ export class MedRushApi {
 
   membershipCheckout(plan = 'PLUS_MONTHLY') {
     return this.request<{ success: true; razorpayOrderId: string; amount: number; currency: string; keyId: string }>('POST', '/membership/checkout', { body: { plan } });
+  }
+
+  adminMembershipPlans() {
+    return this.request<{ success: true; plans: AdminMembershipPlan[]; trialDays: number; onlinePayment: boolean }>('GET', '/membership/admin/plans');
+  }
+
+  adminSaveMembershipPlan(code: string, input: { name?: string; price?: number; days?: number; note?: string; active?: boolean; sortOrder?: number }) {
+    return this.request<{ success: true; plan: AdminMembershipPlan }>('PUT', `/membership/admin/plans/${encodeURIComponent(code)}`, { body: input });
   }
 
   verifyMembership(response: RazorpayHandlerResponse) {

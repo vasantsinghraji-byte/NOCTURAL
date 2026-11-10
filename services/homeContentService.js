@@ -8,6 +8,7 @@
 const NurseBooking = require('../models/nurseBooking');
 const { getRevenuePolicy } = require('../config/revenue');
 const careSuppliesService = require('./careSuppliesService');
+const membershipService = require('./membershipService');
 
 let cache = { at: 0, popular: [] };
 const POPULAR_TTL_MS = 10 * 60 * 1000;
@@ -26,7 +27,8 @@ async function popularServiceTypes() {
 
 async function getHome() {
   const policy = getRevenuePolicy();
-  const plan = policy.membership.plans.PLUS_MONTHLY;
+  const offer = await membershipService.listPlans();
+  const plan = offer.plans[0];
   const services = await careSuppliesService.listServices();
   const popularTypes = await popularServiceTypes();
   const byType = new Map(services.map((s) => [s.serviceType, s]));
@@ -34,14 +36,15 @@ async function getHome() {
   const featured = services.filter((s) => s.isFeatured && s.category !== 'PACKAGE');
 
   const banners = [
-    {
+    // Only while a free trial exists (admin settings can switch it off).
+    plan && offer.trialDays > 0 ? {
       id: 'plus-trial',
       kind: 'PLUS',
-      title: `Try ${plan.name} free for ${policy.membership.trialDays} days`,
+      title: `Try ${plan.name} free for ${offer.trialDays} days`,
       subtitle: 'Free medicine delivery and no platform fee on visits',
       cta: 'Start free trial',
       action: 'plus'
-    },
+    } : null,
     {
       id: 'supplies',
       kind: 'SUPPLIES',

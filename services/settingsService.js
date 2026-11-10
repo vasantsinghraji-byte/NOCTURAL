@@ -45,6 +45,9 @@ const REVENUE_FIELDS = Object.freeze({
   'pharmacy.deliveryMaxFee': num(0, 1000, 'Delivery fee: most it can be (₹, before surge and night)'),
   'pharmacy.freeDeliveryAbove': num(0, 100000, 'Free delivery from basket (₹, 0 = never)'),
   'pharmacy.nightSurcharge': num(0, 500, 'Night delivery surcharge (₹)'),
+  'membership.trialDays': num(0, 90, 'Nabz Plus: free trial length (days, 0 = no trial)'),
+  'pharmacy.memberFreeDelivery': bool('Nabz Plus: free medicine delivery'),
+  'care.memberFeeWaived': bool('Nabz Plus: no platform fee on home visits'),
   gstHealthcareExempt: bool('GST only on the Nabz fee (health care exempt) — only after the CA confirms')
 });
 

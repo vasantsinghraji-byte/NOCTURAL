@@ -23,7 +23,7 @@ export type Role =
 /** Admin panel sections (constants/adminAccess.js on the server). */
 export type AdminSection =
   | 'tower' | 'care' | 'support' | 'users' | 'partners' | 'documents' | 'verification'
-  | 'vendors' | 'medicines' | 'payments' | 'withdrawals' | 'campaigns' | 'ads' | 'posts' | 'logs';
+  | 'vendors' | 'medicines' | 'payments' | 'withdrawals' | 'plans' | 'campaigns' | 'ads' | 'posts' | 'logs';
 
 /** What an admin account can open: full = the main admin; partnerKinds null = every partner type. */
 export interface AdminAccess {
@@ -700,7 +700,10 @@ export interface OnboardingReviewer {
 
 // ── Nabz Plus membership ───────────────────────────────────────────────────
 
-export interface MembershipPlan { code: string; name: string; price: number; days: number }
+export interface MembershipPlan { code: string; name: string; price: number; days: number; note?: string }
+
+/** A plan as the admin panel sees it (members = paid customers on it now). */
+export interface AdminMembershipPlan extends MembershipPlan { active: boolean; sortOrder: number; members: number; trials: number; updatedAt?: string }
 
 export interface MembershipStatus {
   active: boolean;
@@ -709,6 +712,8 @@ export interface MembershipStatus {
   trialDays: number;
   plans: MembershipPlan[];
   onlinePayment: boolean;
+  /** Benefits switched on in admin settings (older servers omit it: assume both). */
+  benefits?: { freeDelivery: boolean; noVisitFee: boolean; visitFeePercent: number };
 }
 
 // ── Live tracking & staff availability ─────────────────────────────────────

@@ -103,7 +103,13 @@ export default function Account() {
     }
   }
 
-  const plan = plus?.plans?.[0];
+  // Cheapest per day first; plans and benefits come from the admin panel.
+  const plan = plus?.plans?.reduce<NonNullable<typeof plus>['plans'][number] | undefined>((best, p) => (!best || p.price / p.days < best.price / best.days ? p : best), undefined);
+  const perks = [
+    (plus?.benefits?.freeDelivery ?? true) && 'Free medicine delivery',
+    (plus?.benefits?.noVisitFee ?? true) && 'No platform fee on nurse visits',
+    'Priority support'
+  ].filter(Boolean).join(' · ');
 
   return (
     <ScrollView style={ui.screen} contentContainerStyle={{ padding: 16, paddingTop: 0, paddingBottom: tabSpace, gap: 12 }}>
@@ -134,7 +140,7 @@ export default function Account() {
             <Text style={styles.plusTitle}>Nabz Plus</Text>
             {plus.active && <View style={styles.plusBadge}><BadgeCheck size={12} color={C.mint} /><Text style={styles.plusBadgeText}>ACTIVE</Text></View>}
           </View>
-          <Text style={styles.plusText}>Free medicine delivery · No platform fee on nurse visits · Priority support</Text>
+          <Text style={styles.plusText}>{perks}</Text>
           {plus.active ? (
             <Text style={styles.plusSub}>Valid till {plus.validUntil ? new Date(plus.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</Text>
           ) : plus.trialAvailable ? (
@@ -144,7 +150,7 @@ export default function Account() {
             </Pressable>
           ) : (
             <Text style={styles.plusSub}>
-              {plan ? `₹${plan.price} / ${plan.days} days · ` : ''}{plus.onlinePayment ? 'Subscribe on nabz web' : 'Online payment coming soon'}
+              {plan ? `${plus.plans.length > 1 ? 'From ' : ''}₹${plan.price} / ${plan.days} days · ` : ''}{plus.onlinePayment ? 'Subscribe on nabz web' : 'Online payment coming soon'}
             </Text>
           )}
         </View>

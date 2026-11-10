@@ -87,8 +87,8 @@ async function payForOrderOnce(
 }
 
 /** Nabz Plus: Razorpay modal for the plan price → server-side verification. */
-async function payForMembershipOnce(prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
-  const [Razorpay, checkout] = await Promise.all([loadCheckout(), api.membershipCheckout()]);
+async function payForMembershipOnce(plan: string | undefined, prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
+  const [Razorpay, checkout] = await Promise.all([loadCheckout(), api.membershipCheckout(plan)]);
   const response = await new Promise<RazorpayHandlerResponse>((resolve, reject) => {
     const rzp = new Razorpay({
       key: checkout.keyId,
@@ -183,8 +183,8 @@ export function payForOrder(orderId: string,
   return onePayment(`pharmacy:${orderId}`, () => payForOrderOnce(orderId, prefill, method));
 }
 
-export function payForMembership(prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {
-  return onePayment(`membership`, () => payForMembershipOnce(prefill));
+export function payForMembership(prefill: { name?: string; email?: string; contact?: string } = {}, plan?: string): Promise<void> {
+  return onePayment(`membership`, () => payForMembershipOnce(plan, prefill));
 }
 
 export function payForCarePlan(planId: string, prefill: { name?: string; email?: string; contact?: string } = {}): Promise<void> {

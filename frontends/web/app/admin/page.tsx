@@ -16,6 +16,7 @@ import PostsPanel from './PostsPanel';
 import HeatmapPanel from './HeatmapPanel';
 import CallbacksPanel from './CallbacksPanel';
 import TeamPanel from './TeamPanel';
+import PlansPanel from './PlansPanel';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { ApiError, type AdminSection, type AuthUser, type Medicine, type PharmacyVendor } from '@medrush/shared';
@@ -39,6 +40,7 @@ const SECTIONS: Array<{ key: View; label: string; group: string; hint: string; i
   { key: 'medicines', label: 'Medicines', group: 'Pharmacy', hint: 'Master catalogue', icon: '℞' },
   { key: 'payments', label: 'Payments & revenue', group: 'Money', hint: 'Revenue and the payment log', icon: '₹' },
   { key: 'withdrawals', label: 'Withdrawals', group: 'Money', hint: 'Partner payout requests', icon: '⇄' },
+  { key: 'plans', label: 'Plans & coupons', group: 'Money', hint: 'Nabz Plus plans and discount codes', icon: '%' },
   { key: 'campaigns', label: 'Campaigns', group: 'Growth', hint: 'Offers and announcements', icon: '✦' },
   { key: 'ads', label: 'Ads & settings', group: 'Growth', hint: 'Sponsored listings and marketplace settings', icon: '◆' },
   { key: 'posts', label: 'Partner posts', group: 'Growth', hint: 'Photos and videos partners post', icon: '▣' },
@@ -234,6 +236,7 @@ export default function AdminConsole() {
           {view === 'logs' && <LogsPanel />}
           {view === 'campaigns' && <CampaignsPanel sensitive={sensitive} />}
           {view === 'team' && <TeamPanel sensitive={sensitive} />}
+          {view === 'plans' && <PlansPanel sensitive={sensitive} />}
           {view === 'medicines' && (
             <>
               <AddMedicine onAdded={() => loadStore('medicines')} onError={setError} />

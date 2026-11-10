@@ -22,6 +22,7 @@ const ADMIN_SECTIONS = Object.freeze([
   { key: 'medicines', label: 'Medicines', group: 'Pharmacy', hint: 'Master catalogue, merges and recalls' },
   { key: 'payments', label: 'Payments & revenue', group: 'Money', hint: 'Payment log and revenue' },
   { key: 'withdrawals', label: 'Withdrawals', group: 'Money', hint: 'Partner payout requests' },
+  { key: 'plans', label: 'Plans & coupons', group: 'Money', hint: 'Nabz Plus plans and discount codes' },
   { key: 'campaigns', label: 'Campaigns', group: 'Growth', hint: 'Offers and announcements' },
   { key: 'ads', label: 'Ads & settings', group: 'Growth', hint: 'Sponsored listings and marketplace settings' },
   { key: 'posts', label: 'Partner posts', group: 'Growth', hint: 'Photos and videos partners post' },
