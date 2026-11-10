@@ -19,6 +19,10 @@ const lazyPharmacyService = () => require('./pharmacyService');
 async function createSplitCheckout(patientId, payload = {}) {
   const { groups, deliveryAddress, deliveryLocation, prescriptionKey } = payload;
   const ops = getPharmacyOps();
+  // Never ignore a code silently: say it can't be used here.
+  if (typeof payload.couponCode === 'string' && payload.couponCode.trim()) {
+    throw new ValidationError('Coupons work on single-pharmacy orders for now. Remove the code to place this order', 'couponCode');
+  }
   if (payload.paymentMode && payload.paymentMode !== 'COD') {
     throw new ValidationError('Orders split across pharmacies are cash on delivery for now');
   }

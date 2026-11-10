@@ -8,7 +8,8 @@ import { useTabBarSpace } from '@/lib/PillTabBar';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { pickAndUploadPrescription } from '@/lib/prescription';
-import type { DeliveryQuote, PayMethod, PharmacyVendor, StorefrontItem } from '@medrush/shared';
+import type { CouponPreview, DeliveryQuote, PayMethod, PharmacyVendor, StorefrontItem } from '@medrush/shared';
+import { CouponField } from '@/lib/CouponField';
 import { C, F, R, depth } from '@/lib/theme';
 import { BrandHeader } from '@/lib/BrandHeader';
 import { Gloss } from '@/lib/Skeuo';
@@ -186,6 +187,8 @@ export default function Pharmacy() {
   // The delivery fee for this basket from this store (distance-based below the
   // free-delivery amount), refreshed as the cart changes. Signed-in customers only.
   const [quote, setQuote] = useState<DeliveryQuote | null>(null);
+  // Discount code (checked again by the server when the order is placed).
+  const [coupon, setCoupon] = useState<CouponPreview | null>(null);
   const isPatient = session?.kind === 'patient';
   useEffect(() => {
     if (!active || !isPatient || subtotal <= 0) { setQuote(null); return undefined; }
@@ -253,10 +256,12 @@ export default function Pharmacy() {
         prescriptionKey: rx?.key,
         paymentMode: prepaid ? 'PREPAID' : 'COD',
         // The server refuses the order if the store changed a price since this screen loaded.
-        quotedSubtotal: Math.round(cartTotal * 100) / 100
+        quotedSubtotal: Math.round(cartTotal * 100) / 100,
+        couponCode: coupon?.code
       });
       setCart({});
       setRx(null);
+      setCoupon(null);
       if (refillId) { api.refillOrdered(refillId, res.order._id).catch(() => undefined); setRefillId(null); }
       if (forOther) rememberRecipient(recipient).catch(() => undefined);
       if (!prepaid) {
@@ -291,7 +296,7 @@ export default function Pharmacy() {
   const fee = quote?.deliveryFee;
   const toFree = quote && quote.deliveryFee > 0 ? quote.breakdown.amountToFreeDelivery : 0;
   const freeAt = quote?.breakdown.freeDeliveryAbove || 0;
-  const payable = quote ? quote.total : subtotal;
+  const payable = Math.max(0, (quote ? quote.total : subtotal) - (coupon?.discount || 0));
 
   return (
     <View style={styles.screen}>
@@ -425,8 +430,10 @@ export default function Pharmacy() {
                 Includes {[quote.breakdown.surgeAmount > 0 ? `${inr(quote.breakdown.surgeAmount)} busy-hours fee` : '', quote.breakdown.nightSurcharge > 0 ? `${inr(quote.breakdown.nightSurcharge)} late-night fee` : ''].filter(Boolean).join(' and ')}.
               </Text>
             ) : null}
+            {coupon ? <BillRow label={`Coupon ${coupon.code}`} value={`−${inr(coupon.discount)}`} good /> : null}
             <View style={styles.billDivider} />
             <BillRow label="To pay" value={inr(payable)} strong />
+            {isPatient ? <CouponField service="PHARMACY" amount={subtotal} value={coupon} onChange={setCoupon} /> : null}
           </View>
 
           <View style={styles.group}>

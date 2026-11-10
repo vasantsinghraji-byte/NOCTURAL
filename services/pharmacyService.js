@@ -29,6 +29,7 @@ const pharmacyPaymentService = require('./pharmacyPaymentService');
 const pharmacyNotificationService = require('./pharmacyNotificationService');
 const pricingService = require('./pricingService');
 const membershipService = require('./membershipService');
+const couponService = require('./couponService');
 const settlementService = require('./settlementService');
 const availability = require('./pharmacyAvailabilityService');
 const batchService = require('./pharmacyBatchService');
@@ -275,6 +276,10 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
   // `fulfilment`/`careVisit` are set only by internal callers (home-care
   // supplies), never from the request body.
   const { vendorId, deliveryAddress, deliveryLocation, prescriptionKey, paymentMode, quotedSubtotal } = payload;
+  const couponCode = typeof payload.couponCode === 'string' && payload.couponCode.trim() ? payload.couponCode : null;
+  if (couponCode && (fulfilment === 'STAFF_PICKUP' || checkout)) {
+    throw new ValidationError('Coupons work on single-pharmacy orders for now. Remove the code to place this order', 'couponCode');
+  }
 
   if (!mongoose.isValidObjectId(vendorId)) {
     throw new ValidationError('A valid vendorId is required');
@@ -340,6 +345,9 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
 
   // Reserve stock atomically before building the order.
   const reserved = await reserveStock(vendorId, items, { now });
+  // Known up front so a coupon use can be tied to this order before it is saved.
+  const orderId = new mongoose.Types.ObjectId();
+  let couponUsed = null;
 
   try {
     const orderItems = reserved.map(({ inventory, quantity, batches }) => {
@@ -383,15 +391,23 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
       throw new ValidationError(`Minimum order value for this pharmacy is ₹${vendor.minOrderValue}`);
     }
     const tax = 0; // GST computed at settlement for MVP
-    const total = Math.round((itemsSubtotal + deliveryFee + tax) * 100) / 100;
     // The customer confirmed an items total on screen; if the store changed a
     // price since, show the new one instead of silently charging more or less.
     if (quotedSubtotal !== undefined && quotedSubtotal !== null && Math.abs(Number(quotedSubtotal) - itemsSubtotal) > 0.5) {
       throw new ConflictError(`Prices changed since you opened your cart. Items now cost ₹${itemsSubtotal}. Please review and place the order again`, 'quotedSubtotal');
     }
+    // Discount code: off the items only (delivery stays payable); Nabz pays for it.
+    if (couponCode) {
+      couponUsed = await couponService.reserve({ code: couponCode, patientId, service: 'PHARMACY', amount: itemsSubtotal, orderId });
+    }
+    const { total, discount } = pricingService.pharmacyTotals({ itemsSubtotal, deliveryFee, tax, discount: couponUsed ? couponUsed.discount : 0 });
+    if (mode === 'PREPAID' && total < 1) {
+      throw new ValidationError('With this code there is nothing to pay online. Choose Cash on Delivery', 'couponCode');
+    }
     const isCod = mode === 'COD';
 
     const order = await PharmacyOrder.create({
+      _id: orderId,
       patient: patientId,
       vendor: vendorId,
       items: orderItems,
@@ -402,7 +418,8 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
       zone: delivery.zone ? delivery.zone._id : undefined,
       distanceKm: delivery.distanceKm,
       eta: delivery.eta,
-      amounts: { itemsSubtotal, deliveryFee, tax, discount: 0, total, originalTotal: total },
+      amounts: { itemsSubtotal, deliveryFee, tax, discount, total, originalTotal: total },
+      coupon: couponUsed ? { code: couponUsed.code, description: couponUsed.description } : undefined,
       feeBreakdown: fee.breakdown,
       paymentMode: mode,
       fulfilment: isStaffPickup ? 'STAFF_PICKUP' : 'DELIVERY',
@@ -438,8 +455,9 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
     }
     return order;
   } catch (err) {
-    // Order build failed after reservation: return stock (and batches).
+    // Order build failed after reservation: return stock (and batches), and the coupon use.
     await rollbackReservation(vendorId, reserved);
+    if (couponUsed) await couponService.release('PHARMACY_ORDER', orderId, 'Order could not be placed').catch(() => undefined);
     throw err;
   }
 }

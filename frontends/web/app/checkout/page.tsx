@@ -8,7 +8,8 @@ import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { payForOrder } from '@/lib/razorpay';
 import { loadDeliveryCoords } from '@/lib/location';
-import type { DeliveryQuote, PaymentOptions } from '@medrush/shared';
+import type { CouponPreview, DeliveryQuote, PaymentOptions } from '@medrush/shared';
+import CouponBox from '../_components/CouponBox';
 
 const rupees = (n: number) => `₹${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
@@ -70,7 +71,9 @@ export default function CheckoutPage() {
       .catch(() => { if (live) setQuote(null); });
     return () => { live = false; };
   }, [patient, cart.vendorId, cart.subtotal]);
-  const payable = quote ? quote.total : cart.subtotal;
+  // Discount code: off the items, checked again by the server when the order is placed.
+  const [coupon, setCoupon] = useState<CouponPreview | null>(null);
+  const payable = Math.max(0, (quote ? quote.total : cart.subtotal) - (coupon?.discount || 0));
 
   const lines = useMemo(() => Object.values(cart.lines), [cart.lines]);
   const set = (k: keyof typeof addr) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -129,7 +132,8 @@ export default function CheckoutPage() {
           const c = loadDeliveryCoords();
           return c ? { coordinates: [c.lng, c.lat] as [number, number] } : undefined;
         })(),
-        paymentMode: mode === 'cod' ? 'COD' : 'PREPAID'
+        paymentMode: mode === 'cod' ? 'COD' : 'PREPAID',
+        couponCode: coupon?.code
       });
       cart.clear();
       const orderId = res.order._id;
@@ -180,8 +184,14 @@ export default function CheckoutPage() {
             Includes {[quote.breakdown.surgeAmount > 0 ? `${rupees(quote.breakdown.surgeAmount)} busy-hours fee` : '', quote.breakdown.nightSurcharge > 0 ? `${rupees(quote.breakdown.nightSurcharge)} late-night fee` : ''].filter(Boolean).join(' and ')}.
           </p>
         )}
+        {coupon && (
+          <div className="row" style={{ padding: '3px 0' }}><span className="muted">Coupon {coupon.code}</span><span style={{ color: 'var(--mint)', fontWeight: 700 }}>−{rupees(coupon.discount)}</span></div>
+        )}
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '10px 0' }} />
         <div className="row"><b>To pay</b><b>{rupees(payable)}</b></div>
+        <div style={{ marginTop: 12 }}>
+          <CouponBox service="PHARMACY" amount={cart.subtotal} value={coupon} onChange={setCoupon} />
+        </div>
         {quote && quote.deliveryFee > 0 && quote.breakdown.amountToFreeDelivery > 0 && (
           <div className="notice good" style={{ marginTop: 10 }}>
             Add {rupees(quote.breakdown.amountToFreeDelivery)} more for free delivery. <Link href="/pharmacy" style={{ fontWeight: 700, textDecoration: 'underline' }}>Add items</Link>

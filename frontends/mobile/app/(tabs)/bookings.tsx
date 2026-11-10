@@ -217,7 +217,7 @@ export default function Bookings() {
               <IconTile icon={o.fulfilment === 'STAFF_PICKUP' ? Stethoscope : Bike} size={50} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={ui.h3}>{o.orderNumber}</Text>
-                <Text style={ui.muted}>{o.items.length} item(s) · {inr(o.amounts.total)}</Text>
+                <Text style={ui.muted}>{o.items.length} item(s) · {inr(o.amounts.total)}{o.amounts.discount > 0 ? ` · saved ${inr(o.amounts.discount)}${o.coupon?.code ? ` with ${o.coupon.code}` : ''}` : ''}</Text>
                 {o.fulfilment === 'STAFF_PICKUP' && <Text style={ui.muted}>Brought by your nurse</Text>}
                 {(() => {
                   // Why the order moved store or was cancelled (e.g. no pharmacy accepted in time).

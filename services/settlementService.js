@@ -42,6 +42,7 @@ async function recordPharmacyOrder(order) {
       { source, party: { kind: 'VENDOR', id: order.vendor }, type: 'VENDOR_PAYOUT', amount: split.vendorPayout, basis: split.itemsSubtotal, rate: split.commissionRate, occurredAt },
       { source, party: { kind: 'PLATFORM' }, type: 'COMMISSION', amount: split.commission, basis: split.itemsSubtotal, rate: split.commissionRate, occurredAt, status: 'PAID' },
       { source, party: { kind: 'PLATFORM' }, type: 'DELIVERY_FEE', amount: split.deliveryFee, occurredAt, status: 'PAID' },
+      ...(order.amounts && order.amounts.discount > 0 ? [{ source, party: { kind: 'PLATFORM' }, type: 'COUPON_DISCOUNT', amount: pricing.round2(order.amounts.discount), occurredAt, status: 'PAID' }] : []),
       ...(storeTookCash ? [{ source, party: { kind: 'VENDOR', id: order.vendor }, type: 'CASH_COLLECTED', amount: pricing.round2(order.amounts.total), occurredAt }] : [])
     ], { orderId: String(order._id) });
   } catch (err) {
@@ -162,6 +163,7 @@ async function getSummary({ from, to } = {}) {
   const byType = {};
   const byLine = { PHARMACY_ORDER: 0, CARE_BOOKING: 0, MEMBERSHIP: 0 };
   let platformRevenue = 0;
+  let couponDiscounts = 0;
   let pendingPayouts = 0;
   let cashWithPartners = 0;
   for (const r of rows) {
@@ -169,6 +171,13 @@ async function getSummary({ from, to } = {}) {
     byType[type] = pricing.round2((byType[type] || 0) + r.amount);
     if (type === 'CASH_COLLECTED') {
       if (status === 'PENDING') cashWithPartners += r.amount;
+      continue;
+    }
+    // Nabz pays for discount codes: they come off platform revenue.
+    if (type === 'COUPON_DISCOUNT') {
+      couponDiscounts += r.amount;
+      platformRevenue -= r.amount;
+      if (byLine[source] !== undefined) byLine[source] = pricing.round2(byLine[source] - r.amount);
       continue;
     }
     if (PLATFORM_REVENUE_TYPES.includes(type)) {
@@ -183,6 +192,7 @@ async function getSummary({ from, to } = {}) {
     from: from || null,
     to: to || null,
     platformRevenue: pricing.round2(platformRevenue),
+    couponDiscounts: pricing.round2(couponDiscounts),
     partnerEarnings: pricing.round2(partnerEarnings),
     // Gross value that flowed through the platform (excludes GST).
     grossValue: pricing.round2(platformRevenue + partnerEarnings),

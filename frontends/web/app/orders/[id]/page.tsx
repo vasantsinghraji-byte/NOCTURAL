@@ -156,6 +156,12 @@ export default function OrderDetailPage() {
             <span>₹{it.lineTotal}</span>
           </div>
         ))}
+        {order.amounts.discount > 0 && (
+          <div className="row" style={{ padding: '3px 0' }}>
+            <span className="muted">Coupon{order.coupon?.code ? ` ${order.coupon.code}` : ''}</span>
+            <span style={{ color: 'var(--mint)', fontWeight: 700 }}>−₹{order.amounts.discount}</span>
+          </div>
+        )}
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '10px 0' }} />
         <div className="row"><b>Total ({order.paymentMode})</b><b>₹{order.amounts.total}</b></div>
         {order.paymentMode === 'PREPAID' && (

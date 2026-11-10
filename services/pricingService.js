@@ -172,6 +172,16 @@ function quoteCarePlan({ listPrice, sessions, mode, travelPerSession = 0, discou
   return { ...amounts, lines };
 }
 
+/**
+ * A pharmacy order's total. A coupon never takes off more than the items
+ * (delivery stays payable), also after items are removed or swapped.
+ */
+function pharmacyTotals({ itemsSubtotal, deliveryFee = 0, tax = 0, discount = 0 }) {
+  const items = round2(itemsSubtotal);
+  const off = Math.min(round2(discount), items);
+  return { discount: off, total: round2(items + round2(deliveryFee) + round2(tax) - off) };
+}
+
 /** Who earns what on a delivered pharmacy order. */
 // A referral credit can lower the rate for one job (commissionOverride).
 const rateFor = (doc, normal) => (doc && doc.commissionOverride && Number.isFinite(doc.commissionOverride.rate) ? doc.commissionOverride.rate : normal);
@@ -214,6 +224,7 @@ module.exports = {
   sessionDiscountPercent,
   splitPharmacyOrder,
   splitCareBooking,
+  pharmacyTotals,
   isNight,
   round2
 };

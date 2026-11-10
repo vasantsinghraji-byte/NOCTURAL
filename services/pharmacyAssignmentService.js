@@ -32,6 +32,7 @@ const pharmacyPaymentService = require('./pharmacyPaymentService');
 const pharmacyNotificationService = require('./pharmacyNotificationService');
 const pushNotificationService = require('./pushNotificationService');
 const { getPharmacyOps } = require('../config/pharmacyOps');
+const { pharmacyTotals } = require('./pricingService');
 const { PHARMACY_REJECTION_REASONS, PHARMACY_REASSIGNABLE_REJECTIONS } = require('../constants/enums');
 const { ValidationError, NotFoundError, ConflictError, AuthorizationError } = require('../utils/errors');
 const logger = require('../utils/logger');
@@ -290,7 +291,7 @@ async function moveOrCancel(order, {
       };
     });
     const itemsSubtotal = round2(items.filter((i) => (i.status || 'AVAILABLE') === 'AVAILABLE').reduce((s, i) => s + i.lineTotal, 0));
-    const total = round2(itemsSubtotal + (order.amounts.deliveryFee || 0) + (order.amounts.tax || 0) - (order.amounts.discount || 0));
+    const { total, discount } = pharmacyTotals({ itemsSubtotal, deliveryFee: order.amounts.deliveryFee, tax: order.amounts.tax, discount: order.amounts.discount });
     const priceDrop = round2(order.amounts.total - total);
     const storeName = next.vendor.name || 'another pharmacy';
     const moveNote = outcome === 'TIMED_OUT'
@@ -304,6 +305,7 @@ async function moveOrCancel(order, {
         items,
         'amounts.itemsSubtotal': itemsSubtotal,
         'amounts.total': total,
+        'amounts.discount': discount,
         distanceKm: next.vendor.distanceKm,
         eta: next.vendor.eta,
         acceptBy: new Date(now.getTime() + ops.acceptSlaSeconds * 1000),
@@ -452,14 +454,14 @@ async function markItemsUnavailable(orderId, { vendorId, actorUserId, medicineId
     return plain;
   });
   const itemsSubtotal = round2(items.filter((i) => (i.status || 'AVAILABLE') === 'AVAILABLE').reduce((s, i) => s + i.lineTotal, 0));
-  const total = round2(itemsSubtotal + (order.amounts.deliveryFee || 0) + (order.amounts.tax || 0) - (order.amounts.discount || 0));
+  const { total, discount } = pharmacyTotals({ itemsSubtotal, deliveryFee: order.amounts.deliveryFee, tax: order.amounts.tax, discount: order.amounts.discount });
   const removed = round2(order.amounts.total - total);
   const names = hits.map((i) => i.name).join(', ');
 
   const updated = await PharmacyOrder.findOneAndUpdate(
     { _id: order._id, vendor: vendorId, status: order.status, 'amounts.total': order.amounts.total },
     {
-      $set: { items, 'amounts.itemsSubtotal': itemsSubtotal, 'amounts.total': total },
+      $set: { items, 'amounts.itemsSubtotal': itemsSubtotal, 'amounts.total': total, 'amounts.discount': discount },
       $push: { timeline: { status: order.status, at: now, note: `Not available: ${names}`, by: actorUserId } }
     },
     { new: true }

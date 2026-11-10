@@ -21,6 +21,7 @@ const VendorInventory = require('../models/vendorInventory');
 const Medicine = require('../models/medicine');
 const { ValidationError, NotFoundError, ConflictError, AuthorizationError } = require('../utils/errors');
 const logger = require('../utils/logger');
+const { pharmacyTotals } = require('./pricingService');
 
 const ANSWER_MINUTES = 15;
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -172,12 +173,12 @@ async function respond(orderId, medicineId, accept, { patientId, by = 'CUSTOMER'
     };
   });
   const itemsSubtotal = round2(items.filter((i) => (i.status || 'AVAILABLE') === 'AVAILABLE').reduce((s, i) => s + i.lineTotal, 0));
-  const total = round2(itemsSubtotal + (fresh.amounts.deliveryFee || 0) + (fresh.amounts.tax || 0) - (fresh.amounts.discount || 0));
+  const { total, discount } = pharmacyTotals({ itemsSubtotal, deliveryFee: fresh.amounts.deliveryFee, tax: fresh.amounts.tax, discount: fresh.amounts.discount });
   const lower = round2(fresh.amounts.total - total);
   const updated = await PharmacyOrder.findOneAndUpdate(
     { _id: fresh._id, 'amounts.total': fresh.amounts.total },
     {
-      $set: { items, 'amounts.itemsSubtotal': itemsSubtotal, 'amounts.total': total },
+      $set: { items, 'amounts.itemsSubtotal': itemsSubtotal, 'amounts.total': total, 'amounts.discount': discount },
       $push: { timeline: { status: fresh.status, at: now, note: `Customer accepted ${sub.name} in place of ${item.name}` } }
     },
     { new: true }

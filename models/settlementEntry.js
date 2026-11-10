@@ -15,7 +15,9 @@ const SOURCE_KINDS = ['PHARMACY_ORDER', 'CARE_BOOKING', 'MEMBERSHIP', 'LAB_ORDER
 const PARTY_KINDS = ['PLATFORM', 'VENDOR', 'PROVIDER', 'RIDER'];
 // CASH_COLLECTED: a partner took the customer's cash (pay after visit / COD).
 // It is netted against what we owe them; if it's more, they owe us.
-const ENTRY_TYPES = ['VENDOR_PAYOUT', 'PROVIDER_PAYOUT', 'COMMISSION', 'DELIVERY_FEE', 'PLATFORM_FEE', 'MEMBERSHIP_FEE', 'CASH_COLLECTED', 'RIDER_PAYOUT'];
+// COUPON_DISCOUNT: what a discount code took off the customer's bill. Nabz pays
+// for it, so it is subtracted from platform revenue (never from a partner's payout).
+const ENTRY_TYPES = ['VENDOR_PAYOUT', 'PROVIDER_PAYOUT', 'COMMISSION', 'DELIVERY_FEE', 'PLATFORM_FEE', 'MEMBERSHIP_FEE', 'CASH_COLLECTED', 'RIDER_PAYOUT', 'COUPON_DISCOUNT'];
 const ENTRY_STATUSES = ['PENDING', 'PAID', 'VOID'];
 
 const SettlementEntrySchema = new mongoose.Schema({

@@ -17,6 +17,7 @@ import HeatmapPanel from './HeatmapPanel';
 import CallbacksPanel from './CallbacksPanel';
 import TeamPanel from './TeamPanel';
 import PlansPanel from './PlansPanel';
+import CouponsPanel from './CouponsPanel';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { ApiError, type AdminSection, type AuthUser, type Medicine, type PharmacyVendor } from '@medrush/shared';
@@ -236,7 +237,7 @@ export default function AdminConsole() {
           {view === 'logs' && <LogsPanel />}
           {view === 'campaigns' && <CampaignsPanel sensitive={sensitive} />}
           {view === 'team' && <TeamPanel sensitive={sensitive} />}
-          {view === 'plans' && <PlansPanel sensitive={sensitive} />}
+          {view === 'plans' && <><PlansPanel sensitive={sensitive} /><CouponsPanel sensitive={sensitive} /></>}
           {view === 'medicines' && (
             <>
               <AddMedicine onAdded={() => loadStore('medicines')} onError={setError} />

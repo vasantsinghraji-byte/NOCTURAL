@@ -274,6 +274,11 @@ const PharmacyOrderSchema = new mongoose.Schema({
     originalTotal: { type: Number, min: 0 },
     refunded: { type: Number, default: 0, min: 0 }
   },
+  // Discount code used at checkout (services/couponService.js); Nabz pays the discount.
+  coupon: {
+    code: String,
+    description: String
+  },
   currency: { type: String, default: 'INR' },
   // How the delivery fee was built (config/revenue.js): shown on the receipt.
   feeBreakdown: {

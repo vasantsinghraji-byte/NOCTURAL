@@ -50,6 +50,10 @@ import type {
   LoginPortal,
   MembershipStatus,
   AdminMembershipPlan,
+  AdminCoupon,
+  CouponInput,
+  CouponPreview,
+  CouponService,
   VisitTracking,
   StaffAvailability,
   NearbyStaff,
@@ -698,6 +702,24 @@ export class MedRushApi {
 
   adminSaveMembershipPlan(code: string, input: { name?: string; price?: number; days?: number; note?: string; active?: boolean; sortOrder?: number }) {
     return this.request<{ success: true; plan: AdminMembershipPlan }>('PUT', `/membership/admin/plans/${encodeURIComponent(code)}`, { body: input });
+  }
+
+  // ── Discount coupons ───────────────────────────────────────────────────────
+  /** What a code takes off an order worth `amount` (before fees). Nothing is used until the order is placed. */
+  checkCoupon(code: string, service: CouponService, amount: number) {
+    return this.request<{ success: true; coupon: CouponPreview }>('POST', '/coupons/check', { body: { code, service, amount } });
+  }
+
+  adminCoupons() {
+    return this.request<{ success: true; coupons: AdminCoupon[]; services: Array<{ key: CouponService; label: string }> }>('GET', '/coupons/admin');
+  }
+
+  adminCreateCoupon(input: CouponInput) {
+    return this.request<{ success: true; coupon: AdminCoupon }>('POST', '/coupons/admin', { body: input });
+  }
+
+  adminUpdateCoupon(id: string, input: Partial<CouponInput>) {
+    return this.request<{ success: true; coupon: AdminCoupon }>('PUT', `/coupons/admin/${id}`, { body: input });
   }
 
   verifyMembership(response: RazorpayHandlerResponse) {

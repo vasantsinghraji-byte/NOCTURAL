@@ -43,7 +43,8 @@ const createOrderValidation = [
   body('deliveryAddress.contactPhone').optional({ values: 'falsy' }).matches(/^(\+?91)?[6-9]\d{9}$/).withMessage('Enter a valid mobile number for the recipient'),
   body('prescriptionKey').optional().isString().trim().isLength({ min: 1, max: 512 }).withMessage('prescriptionKey must be the key returned by POST /prescriptions'),
   body('paymentMode').optional().isIn(['PREPAID', 'COD']),
-  body('quotedSubtotal').optional().isFloat({ min: 0 }).withMessage('quotedSubtotal must be the items total shown to the customer')
+  body('quotedSubtotal').optional().isFloat({ min: 0 }).withMessage('quotedSubtotal must be the items total shown to the customer'),
+  body('couponCode').optional({ nullable: true }).isString().trim().isLength({ max: 30 }).withMessage('That code is not valid')
 ];
 
 const availabilityValidation = [

@@ -436,6 +436,8 @@ export interface PharmacyOrder {
   timeline?: Array<{ status: PharmacyOrderStatus; at: string; note?: string }>;
   deliveryAddress?: Address;
   amounts: OrderAmounts;
+  /** Discount code used at checkout (amounts.discount is what it took off). */
+  coupon?: { code: string; description?: string };
   paymentMode: 'PREPAID' | 'COD';
   paymentStatus: PaymentStatus;
   /** PREPAID only: unpaid orders are auto-cancelled after this. */
@@ -493,6 +495,8 @@ export interface CreateOrderInput {
   paymentMode?: 'PREPAID' | 'COD';
   /** Items total the customer saw; the order is refused (409) if prices changed since. */
   quotedSubtotal?: number;
+  /** Discount code (single-pharmacy orders); checked again when the order is placed. */
+  couponCode?: string;
 }
 
 export interface Pagination {
@@ -701,6 +705,40 @@ export interface OnboardingReviewer {
 // ── Nabz Plus membership ───────────────────────────────────────────────────
 
 export interface MembershipPlan { code: string; name: string; price: number; days: number; note?: string }
+
+// ── Discount coupons ───────────────────────────────────────────────────────
+
+export type CouponService = 'PHARMACY' | 'CARE_VISIT' | 'LAB' | 'CARE_PLAN' | 'MEMBERSHIP';
+
+/** What a code takes off at checkout (POST /coupons/check). */
+export interface CouponPreview { code: string; description: string; offer: string; discount: number; payable: number }
+
+export interface CouponInput {
+  code?: string;
+  description: string;
+  kind: 'PERCENT' | 'FLAT';
+  value: number;
+  maxDiscount?: number | null;
+  minOrder?: number;
+  services: CouponService[];
+  startsAt: string;
+  endsAt: string;
+  totalLimit?: number | null;
+  perCustomerLimit?: number;
+  firstOrderOnly?: boolean;
+  active?: boolean;
+}
+
+export interface AdminCoupon extends CouponInput {
+  _id: string;
+  code: string;
+  usedCount: number;
+  uses: number;
+  discountGiven: number;
+  offer: string;
+  status: 'LIVE' | 'SCHEDULED' | 'ENDED' | 'USED_UP' | 'OFF';
+  createdAt: string;
+}
 
 /** A plan as the admin panel sees it (members = paid customers on it now). */
 export interface AdminMembershipPlan extends MembershipPlan { active: boolean; sortOrder: number; members: number; trials: number; updatedAt?: string }
