@@ -249,6 +249,63 @@ The brand redesign covered the Bookings, Account, Care and stack screens. After 
 - **Partner app on the emulator:** the copy installed on 8 October was signed with the old debug key, so Android refused the update until it was uninstalled. Phones that still have a pre-release-key build need the same uninstall.
 - **Not covered:** physical-device runs, iOS, and payment flows (Razorpay is not added yet).
 
+### 8.3 Tester feedback, 5–7 November 2026
+
+Two reports from testers came in:
+
+- **Product feedback:** 9 items.
+- **APK test report:** 41 cases, 7 failed and 4 blocked.
+
+Each item was reproduced first, on staging or in code, then fixed with a test.
+
+**Product feedback**
+
+| # | Reported | Cause | Fix |
+|---|---|---|---|
+| 1 | No way back after entering the "Demo" | The Jaipur demo area could only be left by tapping the address | Home shows an "Exit demo" button while in it |
+| 2 | No mobile-number sign-in on the main screen | SMS sign-in was never built (no SMS provider), so the button was hidden | Customers sign in with mobile number + password (`/patients/login` accepts either). The welcome screen shows "Sign in with mobile number" |
+| 3 | Search results appear below the search bar | Search re-filtered the grid in place | A dropdown over the page: matching services, plus Medicines and Lab tests |
+| 4 | Easy mode does nothing visible | It only changes Home, and it is switched on from Account | Turning it on goes to Home with a confirmation. The tab bar is bigger everywhere |
+| 5 | Language change incomplete | About 60 strings had Hindi | `lib/T.tsx` translates any `Text` on the customer screens from `lib/hiPhrases.ts` (about 600 phrases, covering the service names). `lib/testerFeedback.test.ts` checks the dictionary |
+| 6 | Gallery blocked | On Android 12 and older the app asked for storage permissions it deliberately blocks, so the gallery never opened | The gallery opens with the system picker (no permission needed). The camera still asks |
+| 7 | No same-day slots | The date strip started at tomorrow (the server already allowed same-day) | "Today" shows only times at least 30 minutes away, or the service's notice period if longer |
+| 8 | Remove gender preference | Booking choice, picker filter, marketplace filter, dispatch filter, gender on public profiles | All removed, on the server too: older apps' `preferredGender` / `?gender=` are ignored |
+| 9 | Prescription "Upload later" | Required up front; and the attached prescription was never saved on the booking, so nurses never saw it | Upload later from Bookings. The prescription is stored on the booking and viewable by the patient, the assigned professional and admins. **The visit can't start until it's uploaded** (safety) |
+
+**APK test report**
+
+| # | Reported | Cause | Fix | Evidence |
+|---|---|---|---|---|
+| 1 | Pharmacy dashboard: "Pharmacy vendor not found" | The demo seed re-creates stores on every run but left the existing login pointing at the deleted store | Pharmacy sign-in re-links to the store the login owns. The seed keeps the link | Staging: the dashboard opens with orders. Integration test |
+| 2 | ₹145 order never reached the pharmacy, then "Cancelled" at ₹133 | Same broken link. After 10 minutes the order moved to another demo store with no login (its own prices), then auto-cancelled: "No nearby pharmacy accepted" | Orders only move to stores with an owner or login. The order card shows why it moved or was cancelled | Staging end-to-end: place, pharmacy sees it, accept. Integration test |
+| 3 | Lab report upload fails with 403 | **Not the app.** The staging firewall (AWS WAF) blocked the uploads: rules `SQLi_BODY` ×3 and `GenericLFI_BODY` ×2 matched image bytes (WAF logs) | **Open: needs an owner decision** (see below). Some photos pass (a real PNG uploaded fine), others are blocked | WAF log, staging repro |
+| 4 | ₹0 cash collected marked the ₹365.80 lab bill Paid | The amount was checked to be a number, then ignored. Settlement also charged the lab for the full bill as cash collected | PAID only when the bill is covered. A part payment stays pending and the amount taken is recorded. Over the bill is refused. Settlement uses the cash actually taken | Staging: a ₹0 collection stays PENDING. Integration test |
+| 5 | "App not responding" on cold launch | Not reproduced yet | Cold launches measured on the emulator with the new APK (below) | — |
+| 6 | 5 Nov booking shown as 4 Nov on review | A date-only value was read as UTC midnight and shown in the phone's zone | Visit dates are formatted as that calendar day in any zone | Unit test with the phone set to New York |
+| 7 | "Next weekly payout" ≠ Account ₹0 | The dashboard showed gross earnings; Account showed earnings minus cash collected | Both show "Payout due" from the same summary, with the breakdown | Staging: both ₹0. Integration test |
+| 8 | Payout explanation stale until restart | The card loaded once | It reloads whenever the screen is shown | — |
+| 9 | Names cut off with large text | Two lines on four-per-row tiles | Three lines with a scaling cap; titles wrap | — |
+| 10 | "Lab_partner" shown | The raw role was printed | Readable role names ("Path lab") | — |
+
+**Checks run**
+- Server full suite: **1715 passed, 0 failed** (7 opt-in skipped). New and changed tests:
+  - `nabz-tester-feedback.test.js` (7)
+  - `pharmacy-store-network.test.js` (an unstaffed store is skipped)
+  - `nabz-care-marketplace-2.test.js` (lab cash)
+  - patient-health mirror re-synced, split validator passing
+- App unit tests 26/26. Type-check of the app, shared package and website: passed.
+- Staging: API and website deployed at `d98fc18`. Checked live:
+  - pharmacy order end to end
+  - lab ₹0 collection
+  - lab report delivered and downloaded by the customer
+  - matching payout figures
+
+**Open: firewall and file uploads (#3).** The staging WAF's body-scanning rules misread image bytes as SQL injection or path traversal. The proposed fix, **not yet applied** (`terraform/apprunner-staging/waf.tf` is unchanged), is to set the body-scanning rules to count instead of block for `multipart/form-data` requests only. Uploads still get every URI, header and query rule, and the API checks sign-in, file type by its bytes, and size.
+
+The other option leaves the WAF unchanged: the app uploads files straight to S3 with a short-lived signed URL, and the API checks the file after upload. That is more work.
+
+The same false positive can hit prescription, profile-photo and partner-document uploads.
+
 ## 9. How to read the inventory
 
 **Fields in each row:**
