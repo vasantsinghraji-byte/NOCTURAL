@@ -4,6 +4,7 @@ import { homeForRole, useAuth } from '@/lib/auth';
 import { useT } from '@/lib/i18n';
 import { LoadingScreen } from '@/lib/LoadingScreen';
 import { PillTabBar } from '@/lib/PillTabBar';
+import { ActiveOrderProvider } from '@/lib/activeOrder';
 import { IS_PARTNER_APP } from '@/lib/variant';
 
 const ICONS: Record<string, LucideIcon> = { index: House, care: HeartPulse, pharmacy: ShoppingBag, bookings: CalendarDays, account: UserRound };
@@ -28,6 +29,8 @@ export default function TabsLayout() {
   }
 
   return (
+    // The current visit/order rides above the tabs on every tab (lib/activeOrder.tsx).
+    <ActiveOrderProvider>
     <Tabs tabBar={(props) => <PillTabBar {...props} icons={ICONS} />} screenOptions={{ headerShown: false }}>
       <Tabs.Screen name="index" options={{ title: t('tab.home') }} />
       <Tabs.Screen name="care" options={{ title: t('tab.care') }} />
@@ -35,6 +38,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="bookings" options={{ title: t('tab.bookings') }} />
       <Tabs.Screen name="account" options={{ title: t('tab.account') }} />
     </Tabs>
+    </ActiveOrderProvider>
   );
 }
 

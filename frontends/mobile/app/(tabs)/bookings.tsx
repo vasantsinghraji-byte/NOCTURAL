@@ -1,8 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/lib/T';
 import { useTabBarSpace } from '@/lib/PillTabBar';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import type { CareBooking, OnlinePayMethod, PharmacyOrder } from '@medrush/shared';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -27,7 +27,10 @@ type Tab = 'visits' | 'orders';
 export default function Bookings() {
   const tabSpace = useTabBarSpace();
   const { session } = useAuth();
-  const [tab, setTab] = useState<Tab>('visits');
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<Tab>(params.tab === 'orders' ? 'orders' : 'visits');
+  // The live order strip opens Bookings on the medicine orders tab.
+  useEffect(() => { if (params.tab === 'orders' || params.tab === 'visits') setTab(params.tab); }, [params.tab]);
   const [visits, setVisits] = useState<CareBooking[]>([]);
   const [orders, setOrders] = useState<PharmacyOrder[]>([]);
   const [error, setError] = useState<string | null>(null);

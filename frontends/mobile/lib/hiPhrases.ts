@@ -656,6 +656,16 @@ export const HI_PHRASES: Record<string, string> = {
   'Attach the prescription, or choose “Upload later”.': 'पर्चा लगाएँ, या “बाद में अपलोड करें” चुनें।',
   'Add the address, a 6-digit pincode and the patient’s age.': 'पता, 6 अंकों का पिनकोड और मरीज़ की उम्र डालें।',
 
+  // ── Live order strip, messages on tracking ──
+  'Visit in progress': 'विज़िट जारी है',
+  'Finding your professional…': 'आपके प्रोफ़ेशनल को ढूँढ रहे हैं…',
+  'No professional free right now': 'अभी कोई प्रोफ़ेशनल खाली नहीं है',
+  'Medicines on the way': 'दवाएँ रास्ते में हैं',
+  'Packed, waiting for the rider': 'पैक हो गया, राइडर का इंतज़ार',
+  'Packing your medicines': 'आपकी दवाएँ पैक हो रही हैं',
+  'Loading…': 'लोड हो रहा है…',
+  'No messages yet. Say hello or ask about the visit.': 'अभी कोई संदेश नहीं। नमस्ते कहें या विज़िट के बारे में पूछें।',
+
   // ── The rest of the customer screens ──
   '30 min': '30 मिनट',
   '30 minutes': '30 मिनट',

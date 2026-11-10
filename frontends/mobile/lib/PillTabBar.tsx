@@ -7,6 +7,7 @@ import { tap } from './motion';
 import { C, F, IS_DARK } from './theme';
 import { isHiddenTab } from './partnerTabs';
 import { useEasyMode } from './easyMode';
+import { LiveOrderStrip, STRIP_SPACE, useActiveOrder } from './activeOrder';
 
 /**
  * Bottom tab bar shared by the customer and partner apps, docked to the
@@ -22,18 +23,23 @@ const EASY_TAB_BAR_HEIGHT = 74;
 export function useTabBarSpace() {
   const insets = useSafeAreaInsets();
   const { easy } = useEasyMode();
-  return (easy ? EASY_TAB_BAR_HEIGHT : TAB_BAR_HEIGHT) + insets.bottom + 12;
+  // Room for the live order strip too, so a screen's last item isn't hidden behind it.
+  const { item } = useActiveOrder();
+  return (easy ? EASY_TAB_BAR_HEIGHT : TAB_BAR_HEIGHT) + insets.bottom + 12 + (item ? STRIP_SPACE : 0);
 }
 
 export function PillTabBar({ state, descriptors, navigation, icons }: BottomTabBarProps & { icons: Record<string, LucideIcon> }) {
   const insets = useSafeAreaInsets();
   const { easy } = useEasyMode();
   const height = easy ? EASY_TAB_BAR_HEIGHT : TAB_BAR_HEIGHT;
+  const { item } = useActiveOrder();
   // Tabs hidden with `href: null` aren't shown. expo-router removes `href`
   // from the options and marks hidden tabs with display: 'none' instead
   // (checking `href` let every tab through: nurses saw the pharmacy tabs).
   const routes = state.routes.filter((r) => !isHiddenTab(descriptors[r.key].options));
   return (
+    <>
+    {item ? <LiveOrderStrip item={item} bottom={height + insets.bottom + 8} /> : null}
     <View style={[s.bar, { paddingBottom: insets.bottom, height: height + insets.bottom }]} accessibilityRole="tablist">
       {routes.map((route) => {
         const focused = state.routes[state.index]?.key === route.key;
@@ -46,6 +52,7 @@ export function PillTabBar({ state, descriptors, navigation, icons }: BottomTabB
         return <TabButton key={route.key} icon={icons[route.name]} label={label} focused={focused} onPress={onPress} easy={easy} />;
       })}
     </View>
+    </>
   );
 }
 

@@ -4,6 +4,7 @@ import { Text } from '@/lib/T';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
+import { ChatPreview } from '@/lib/ChatPreview';
 import * as Location from 'expo-location';
 import {
   ArrowLeft, BadgeCheck, Clock, Crown, Fingerprint, Languages, Navigation, Phone, Share2, ShieldAlert, ShieldCheck, Star, Syringe
@@ -230,6 +231,9 @@ export default function Track() {
             ) : null}
           </Rise>
         )}
+
+        {/* What the professional has written, right here (opens the chat). */}
+        {staff && <ChatPreview kind="CARE" refId={String(id)} name={staff.name} />}
 
         {badges.length > 0 && !done && (
           <View style={styles.badges}>
