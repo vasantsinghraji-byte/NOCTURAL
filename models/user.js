@@ -276,6 +276,15 @@ const UserSchema = new mongoose.Schema({
     select: false
   },
 
+  // Admin team member (role ops_admin): the admin sections and partner types
+  // the main admin gave them. Enforced by middleware/adminAccess.js.
+  adminAccess: {
+    sections: { type: [String], default: undefined },
+    partnerKinds: { type: [String], default: undefined },
+    updatedAt: Date,
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  },
+
   // ── MedRush quick-commerce fields ──────────────────────────────────────
   // Pharmacy store this account belongs to (role: pharmacy_vendor).
   pharmacyVendor: {

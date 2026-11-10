@@ -51,6 +51,8 @@ lazyExport('rateLimiter', () => require('../../../middleware/rateLimiter'));
 lazyExport('idempotency', () => require('../../../middleware/idempotency'));
 lazyExport('upload', () => require('../../../middleware/upload'));
 lazyExport('spamTrap', () => require('../../../middleware/spamTrap'));
+// Admin team access (which admin sections an ops_admin may open).
+lazyExport('adminAccess', () => require('../../../middleware/adminAccess'));
 
 // config
 lazyExport('storage', () => require('../../../config/storage'));

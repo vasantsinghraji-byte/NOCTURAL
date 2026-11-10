@@ -82,6 +82,7 @@ import type {
   PartnerDocument,
   PartnerKind,
   OnboardingReviewer,
+  AdminSection,
   PartnerDocumentKind,
   VerificationStatus,
   SubstituteOption
@@ -1059,13 +1060,23 @@ export class MedRushApi {
     return this.request<{ success: true; document: PartnerDocument; awaitingSecondApproval?: boolean }>('PATCH', `/onboarding/documents/${id}`, { body: input });
   }
 
+  /** The admin team, plus the sections and partner types the main admin can hand out. */
   onboardingTeam() {
-    return this.request<{ success: true; reviewers: OnboardingReviewer[]; allowedDomains: string[] }>('GET', '/onboarding/team');
+    return this.request<{
+      success: true; reviewers: OnboardingReviewer[]; allowedDomains: string[];
+      sections: Array<{ key: AdminSection; label: string; group: string; hint: string }>;
+      partnerKinds: Array<{ key: string; label: string }>;
+    }>('GET', '/onboarding/team');
   }
 
-  /** The reviewer sets their own password through the emailed one-time link. */
-  onboardingAddReviewer(body: { name: string; email: string }) {
+  /** The team member sets their own password through the emailed one-time link. */
+  onboardingAddReviewer(body: { name: string; email: string; access: { sections: AdminSection[]; partnerKinds: string[] } }) {
     return this.request<{ success: true; reviewer: OnboardingReviewer; invite: { sent: boolean; link?: string } }>('POST', '/onboarding/team', { body });
+  }
+
+  /** Change what a team member can open (sections and partner types). */
+  onboardingSetAccess(id: string, access: { sections: AdminSection[]; partnerKinds: string[] }) {
+    return this.request<{ success: true; reviewer: OnboardingReviewer }>('PUT', `/onboarding/team/${id}/access`, { body: { access } });
   }
 
   onboardingSetReviewerActive(id: string, active: boolean) {

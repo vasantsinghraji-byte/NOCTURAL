@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import RevenuePanel from './RevenuePanel';
 import ApplicationsPanel from './ApplicationsPanel';
 import WithdrawalsPanel from './WithdrawalsPanel';
@@ -14,29 +14,48 @@ import MarketplacePanel from './MarketplacePanel';
 import AdsSettingsPanel from './AdsSettingsPanel';
 import PostsPanel from './PostsPanel';
 import HeatmapPanel from './HeatmapPanel';
+import CallbacksPanel from './CallbacksPanel';
+import TeamPanel from './TeamPanel';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { ApiError, type AuthUser, type Medicine, type PharmacyVendor } from '@medrush/shared';
+import { ApiError, type AdminSection, type AuthUser, type Medicine, type PharmacyVendor } from '@medrush/shared';
 import { StepUpDialog } from '../_components/AdminMfa';
 
-type Tab = 'tower' | 'care' | 'ads' | 'posts' | 'users' | 'documents' | 'verification' | 'payments' | 'logs' | 'campaigns' | 'partners' | 'withdrawals' | 'vendors' | 'medicines';
-// Platform-admin tabs first: the day-to-day operations.
-const TABS: Array<{ key: Tab; label: string; platformOnly?: boolean }> = [
-  { key: 'tower', label: 'Control tower', platformOnly: true },
-  { key: 'care', label: 'Care marketplace', platformOnly: true },
-  { key: 'ads', label: 'Ads & settings', platformOnly: true },
-  { key: 'posts', label: 'Partner posts', platformOnly: true },
-  { key: 'users', label: 'Users', platformOnly: true },
-  { key: 'documents', label: 'Documents', platformOnly: true },
-  { key: 'verification', label: 'Staff checks', platformOnly: true },
-  { key: 'partners', label: 'Partner applications', platformOnly: true },
-  { key: 'payments', label: 'Payments', platformOnly: true },
-  { key: 'withdrawals', label: 'Withdrawals', platformOnly: true },
-  { key: 'campaigns', label: 'Campaigns', platformOnly: true },
-  { key: 'logs', label: 'Live logs', platformOnly: true },
-  { key: 'vendors', label: 'Vendors' },
-  { key: 'medicines', label: 'Medicines' }
+type View = AdminSection | 'team';
+
+/**
+ * Sections of the console, grouped as in the sidebar. The server decides who
+ * may open which (constants/adminAccess.js); this only labels and lays them out.
+ */
+const SECTIONS: Array<{ key: View; label: string; group: string; hint: string; icon: string }> = [
+  { key: 'tower', label: 'Control tower', group: 'Operations', hint: 'Live demand and supply map, zone surge', icon: '◎' },
+  { key: 'care', label: 'Care marketplace', group: 'Operations', hint: 'Visits, plans, lab orders, refunds, catalogue', icon: '✚' },
+  { key: 'support', label: 'Call-back requests', group: 'Operations', hint: 'Customers who asked Nabz to call', icon: '☎' },
+  { key: 'users', label: 'Users', group: 'People', hint: 'Customers and partners, suspend or restore', icon: '◉' },
+  { key: 'partners', label: 'Partner applications', group: 'Verification', hint: 'Approve or reject people who applied to join', icon: '✎' },
+  { key: 'documents', label: 'Partner documents', group: 'Verification', hint: 'ID, licence and registration documents', icon: '▤' },
+  { key: 'verification', label: 'Staff checks', group: 'Verification', hint: 'Nurse and physio badges: ID, police, council', icon: '✓' },
+  { key: 'vendors', label: 'Pharmacies', group: 'Pharmacy', hint: 'Approve or suspend stores', icon: '⌂' },
+  { key: 'medicines', label: 'Medicines', group: 'Pharmacy', hint: 'Master catalogue', icon: '℞' },
+  { key: 'payments', label: 'Payments & revenue', group: 'Money', hint: 'Revenue and the payment log', icon: '₹' },
+  { key: 'withdrawals', label: 'Withdrawals', group: 'Money', hint: 'Partner payout requests', icon: '⇄' },
+  { key: 'campaigns', label: 'Campaigns', group: 'Growth', hint: 'Offers and announcements', icon: '✦' },
+  { key: 'ads', label: 'Ads & settings', group: 'Growth', hint: 'Sponsored listings and marketplace settings', icon: '◆' },
+  { key: 'posts', label: 'Partner posts', group: 'Growth', hint: 'Photos and videos partners post', icon: '▣' },
+  { key: 'logs', label: 'Live logs', group: 'System', hint: 'Server logs (redacted)', icon: '≡' },
+  { key: 'team', label: 'Team & access', group: 'Admin', hint: 'Who can open what', icon: '⚑' }
 ];
+
+const ROLE_LABEL: Record<string, string> = { platform_admin: 'Main admin', ops_admin: 'Team member', admin: 'Admin', onboarding_reviewer: 'Onboarding reviewer' };
+
+/** What this account can open: the server's list, plus Team for the main admin. */
+function viewsFor(user: AuthUser | null): View[] {
+  if (!user) return [];
+  if (user.role === 'admin') return ['vendors', 'medicines']; // older hospital-level admin
+  const mine: View[] = [...(user.adminAccess?.sections || [])];
+  if (user.adminAccess?.full) mine.push('team');
+  return SECTIONS.map((s) => s.key).filter((k) => mine.includes(k));
+}
 
 const VENDOR_ACTIONS: Record<string, string[]> = {
   PENDING: ['APPROVED', 'REJECTED'],
@@ -48,21 +67,20 @@ const VENDOR_ACTIONS: Record<string, string[]> = {
 export default function AdminConsole() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checking, setChecking] = useState(true);
-  const [tab, setTab] = useState<Tab>('vendors');
+  const [view, setView] = useState<View | null>(null);
   const [vendors, setVendors] = useState<PharmacyVendor[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Sensitive actions need a fresh authenticator code: park the action, ask, retry.
   const [pending, setPending] = useState<(() => Promise<void>) | null>(null);
 
-  const isAdmin = user && (user.role === 'admin' || user.role === 'platform_admin');
+  const views = useMemo(() => viewsFor(user), [user]);
 
-  const load = useCallback(async () => {
+  const loadStore = useCallback(async (which: View) => {
     setError(null);
     try {
-      const [v, m] = await Promise.all([api.adminListVendors({ limit: 100 }), api.adminListMedicines({ limit: 100 })]);
-      setVendors(v.vendors);
-      setMedicines(m.medicines);
+      if (which === 'vendors') setVendors((await api.adminListVendors({ limit: 100 })).vendors);
+      if (which === 'medicines') setMedicines((await api.adminListMedicines({ limit: 100 })).medicines);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
     }
@@ -72,16 +90,25 @@ export default function AdminConsole() {
     api.staffMe()
       .then((res) => {
         setUser(res.user);
-        // The open tab lives in the URL (?tab=payments) so it survives refresh and can be linked.
-        const wanted = new URLSearchParams(window.location.search).get('tab') as Tab | null;
-        const allowed = TABS.filter((t) => !t.platformOnly || res.user.role === 'platform_admin').map((t) => t.key);
-        if (wanted && allowed.includes(wanted)) setTab(wanted);
-        else if (res.user.role === 'platform_admin') setTab('care');
-        if (res.user.role === 'admin' || res.user.role === 'platform_admin') load();
+        const allowed = viewsFor(res.user);
+        // The open section lives in the URL (?tab=payments) so it survives refresh and can be linked.
+        const wanted = new URLSearchParams(window.location.search).get('tab') as View | null;
+        setView(wanted && allowed.includes(wanted) ? wanted : allowed[0] || null);
       })
       .catch(() => setUser(null))
       .finally(() => setChecking(false));
-  }, [load]);
+  }, []);
+
+  useEffect(() => { if (view === 'vendors' || view === 'medicines') loadStore(view); }, [view, loadStore]);
+
+  function open(next: View) {
+    setView(next);
+    setError(null);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', next);
+    window.history.replaceState(null, '', url);
+    window.scrollTo({ top: 0 });
+  }
 
   async function sensitive(action: () => Promise<void>) {
     try {
@@ -94,96 +121,138 @@ export default function AdminConsole() {
   }
 
   function setVendorStatus(id: string, status: string) {
-    return sensitive(async () => { await api.adminSetVendorStatus(id, status); await load(); });
+    return sensitive(async () => { await api.adminSetVendorStatus(id, status); await loadStore('vendors'); });
+  }
+
+  async function signOut() {
+    await api.logout().catch(() => undefined);
+    window.location.href = '/admin/login';
   }
 
   if (checking) return <p className="muted" style={{ marginTop: 20 }}>Checking session…</p>;
 
-  if (!isAdmin) {
+  if (!user || views.length === 0) {
     return (
-      <div className="card" style={{ marginTop: 20 }}>
-        <h2 style={{ marginTop: 0 }}>Admin console</h2>
-        <p className="muted">{user ? `Logged in as ${user.role}.` : 'Please log in as an admin.'}</p>
-        <Link href="/admin/login" className="btn">Admin login</Link>
+      <div className="card admin-gate">
+        <h2 style={{ marginTop: 0 }}>Nabz admin</h2>
+        <p className="muted">
+          {user ? `Signed in as ${user.name} (${ROLE_LABEL[user.role] || user.role}). This account has no admin sections yet. Ask the main admin to give you access.` : 'Sign in with your admin account.'}
+        </p>
+        <Link href="/admin/login" className="btn">{user ? 'Switch account' : 'Admin login'}</Link>
       </div>
     );
   }
 
-  return (
-    <>
-      <div className="admin-head">
-        <h1 className="section-title" style={{ margin: 0 }}>Admin panel</h1>
-        <div className="row" style={{ gap: 10 }}>
-          <span className="muted">Signed in as {user?.name}</span>
-          {user?.role === 'platform_admin' && <Link href="/onboarding" className="btn secondary">Onboarding panel</Link>}
-        </div>
-      </div>
-      <nav className="admin-tabs" role="tablist" aria-label="Admin sections">
-        {TABS.filter((t) => !t.platformOnly || user?.role === 'platform_admin').map((t) => (
-          <button key={t.key} role="tab" aria-selected={tab === t.key} className={tab === t.key ? 'on' : ''} onClick={(e) => {
-            setTab(t.key);
-            e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'center' });
-            const url = new URL(window.location.href);
-            url.searchParams.set('tab', t.key);
-            window.history.replaceState(null, '', url);
-          }}>{t.label}</button>
-        ))}
-      </nav>
-      {user?.role === 'platform_admin' && tab === 'payments' && <RevenuePanel />}
-      {error && <div className="notice">{error}</div>}
-      <StepUpDialog
-        open={!!pending}
-        onClose={() => setPending(null)}
-        onConfirmed={() => { const action = pending; setPending(null); if (action) sensitive(action); }}
-      />
+  const current = SECTIONS.find((s) => s.key === view);
+  const groups = SECTIONS.filter((s) => views.includes(s.key)).reduce<Array<{ group: string; items: typeof SECTIONS }>>((out, s) => {
+    const g = out.find((x) => x.group === s.group);
+    if (g) g.items.push(s); else out.push({ group: s.group, items: [s] });
+    return out;
+  }, []);
+  const kinds = user.adminAccess?.partnerKinds;
 
-      {tab === 'vendors' && (
-        <div className="grid cards" style={{ marginTop: 12 }}>
-          {vendors.length === 0 && <p className="muted">No vendors. Seed with <code>npm run db:seed:pharmacy</code>.</p>}
-          {vendors.map((v) => (
-            <div key={v._id} className="card">
-              <div className="row"><h3>{v.name}</h3><span className="pill">{v.status}</span></div>
-              <span className="muted">{v.address?.city || ''} · Rated {v.rating?.average ?? 0}</span>
-              <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                {(VENDOR_ACTIONS[v.status || 'PENDING'] || []).map((s) => (
-                  <button key={s} className={s === 'APPROVED' ? 'btn' : 'btn secondary'} onClick={() => setVendorStatus(v._id, s)}>{s}</button>
-                ))}
-              </div>
+  return (
+    <div className="admin-shell">
+      <aside className="admin-side" aria-label="Admin sections">
+        <div className="admin-brand">
+          <span className="admin-mark" aria-hidden>n</span>
+          <div>
+            <strong>Nabz admin</strong>
+            <small>{ROLE_LABEL[user.role] || user.role}</small>
+          </div>
+        </div>
+        <nav className="admin-nav">
+          {groups.map((g) => (
+            <div key={g.group} className="admin-nav-group">
+              <span className="admin-nav-title">{g.group}</span>
+              {g.items.map((s) => (
+                <button key={s.key} className={`admin-nav-item ${view === s.key ? 'on' : ''}`} aria-current={view === s.key ? 'page' : undefined} onClick={() => open(s.key)}>
+                  <span className="admin-nav-icon" aria-hidden>{s.icon}</span>{s.label}
+                </button>
+              ))}
             </div>
           ))}
-        </div>
-      )}
-
-      {tab === 'tower' && <HeatmapPanel />}
-      {tab === 'care' && <MarketplacePanel sensitive={sensitive} />}
-      {tab === 'ads' && <AdsSettingsPanel sensitive={sensitive} />}
-      {tab === 'posts' && <PostsPanel />}
-      {tab === 'partners' && <ApplicationsPanel sensitive={sensitive} />}
-      {tab === 'withdrawals' && <WithdrawalsPanel sensitive={sensitive} />}
-      {tab === 'users' && <UsersPanel sensitive={sensitive} />}
-      {tab === 'documents' && <DocumentsPanel sensitive={sensitive} />}
-      {tab === 'verification' && <VerificationPanel sensitive={sensitive} />}
-      {tab === 'payments' && <PaymentsPanel />}
-      {tab === 'logs' && <LogsPanel />}
-      {tab === 'campaigns' && <CampaignsPanel sensitive={sensitive} />}
-
-      {tab === 'medicines' && (
-        <>
-          <AddMedicine onAdded={load} onError={setError} />
-          <div className="grid cards" style={{ marginTop: 12 }}>
-            {medicines.map((m) => (
-              <div key={m._id} className="card">
-                <div className="row">
-                  <h3>{m.name}</h3>
-                  {m.requiresPrescription ? <span className="pill rx">Rx</span> : <span className="pill">OTC</span>}
-                </div>
-                <span className="muted">{m.genericName || m.category} · {m.packSize || m.form} · MRP ₹{m.referenceMrp ?? '-'}</span>
-              </div>
-            ))}
+        </nav>
+        <div className="admin-me">
+          <span className="admin-avatar" aria-hidden>{(user.name || '?').slice(0, 1).toUpperCase()}</span>
+          <div style={{ minWidth: 0 }}>
+            <strong className="admin-me-name">{user.name}</strong>
+            <small className="muted">{user.email}</small>
           </div>
-        </>
-      )}
-    </>
+          <button className="linkbtn" onClick={signOut}>Sign out</button>
+        </div>
+      </aside>
+
+      <main className="admin-main">
+        <header className="admin-topbar">
+          <div>
+            <span className="admin-crumb">{current?.group}</span>
+            <h1>{current?.label}</h1>
+            <p className="muted">{current?.hint}</p>
+          </div>
+          {kinds && kinds.length > 0 && ['partners', 'documents', 'verification'].includes(String(view)) && (
+            <span className="admin-scope" title="You only see the partner types the main admin gave you">Your partners: {kinds.length} type{kinds.length === 1 ? '' : 's'}</span>
+          )}
+          {user.adminAccess?.full && <Link href="/onboarding" className="btn secondary">Onboarding panel</Link>}
+        </header>
+
+        {error && <div className="notice bad" role="alert">{error}</div>}
+        <StepUpDialog
+          open={!!pending}
+          onClose={() => setPending(null)}
+          onConfirmed={() => { const action = pending; setPending(null); if (action) sensitive(action); }}
+        />
+
+        <div className="admin-content">
+          {view === 'payments' && <><RevenuePanel /><PaymentsPanel /></>}
+          {view === 'vendors' && (
+            <div className="grid cards">
+              {vendors.length === 0 && <p className="muted">No pharmacies yet.</p>}
+              {vendors.map((v) => (
+                <div key={v._id} className="card admin-card">
+                  <div className="row"><h3>{v.name}</h3><span className="pill">{v.status}</span></div>
+                  <span className="muted">{v.address?.city || ''} · Rated {v.rating?.average ?? 0}</span>
+                  <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    {(VENDOR_ACTIONS[v.status || 'PENDING'] || []).map((s) => (
+                      <button key={s} className={s === 'APPROVED' ? 'btn' : 'btn secondary'} onClick={() => setVendorStatus(v._id, s)}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {view === 'tower' && <HeatmapPanel />}
+          {view === 'care' && <MarketplacePanel sensitive={sensitive} />}
+          {view === 'support' && <CallbacksPanel sensitive={sensitive} />}
+          {view === 'ads' && <AdsSettingsPanel sensitive={sensitive} />}
+          {view === 'posts' && <PostsPanel />}
+          {view === 'partners' && <ApplicationsPanel sensitive={sensitive} />}
+          {view === 'withdrawals' && <WithdrawalsPanel sensitive={sensitive} />}
+          {view === 'users' && <UsersPanel sensitive={sensitive} />}
+          {view === 'documents' && <DocumentsPanel sensitive={sensitive} />}
+          {view === 'verification' && <VerificationPanel sensitive={sensitive} />}
+          {view === 'logs' && <LogsPanel />}
+          {view === 'campaigns' && <CampaignsPanel sensitive={sensitive} />}
+          {view === 'team' && <TeamPanel sensitive={sensitive} />}
+          {view === 'medicines' && (
+            <>
+              <AddMedicine onAdded={() => loadStore('medicines')} onError={setError} />
+              <div className="grid cards" style={{ marginTop: 12 }}>
+                {medicines.map((m) => (
+                  <div key={m._id} className="card admin-card">
+                    <div className="row">
+                      <h3>{m.name}</h3>
+                      {m.requiresPrescription ? <span className="pill rx">Rx</span> : <span className="pill">OTC</span>}
+                    </div>
+                    <span className="muted">{m.genericName || m.category} · {m.packSize || m.form} · MRP ₹{m.referenceMrp ?? '-'}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
 

@@ -12,6 +12,7 @@ const express = require('express');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validation');
 const { protect, authorize, requireRecentAuth } = require('../middleware/auth');
+const { adminSection } = require('../middleware/adminAccess');
 const { protectBoth } = require('../middleware/patientAuth');
 const idempotency = require('../middleware/idempotency');
 const careStoreService = require('../services/careStoreService');
@@ -37,8 +38,9 @@ const wrap = (fn) => async (req, res, next) => {
 
 const patient = [protectBoth, authorize('patient')];
 const partner = [protect, authorize('physiotherapist', 'nurse', 'medical_staff', 'lab_partner')];
-const admin = [protect, authorize('platform_admin')];
-const adminSensitive = [...admin, requireRecentAuth];
+// Admin endpoints: the admin section each belongs to (constants/adminAccess.js).
+const area = (section) => [protect, adminSection(section)];
+const areaSensitive = (section) => [...area(section), requireRecentAuth];
 const id = (name) => param(name).isMongoId().withMessage('Not found');
 const latLng = [
   query('lat').optional().isFloat({ min: -90, max: 90 }),
@@ -242,9 +244,7 @@ router.get('/partner/plans', partner, wrap(async (req, res) => {
 
 // ── Admin ────────────────────────────────────────────────────────────────
 
-router.get(
-  '/admin/stores',
-  admin,
+router.get('/admin/stores', area("care"),
   [query('status').optional().isIn(['PENDING', 'APPROVED', 'SUSPENDED', 'REJECTED']), query('kind').optional().isIn(STORE_KINDS)],
   validate,
   wrap(async (req, res) => {
@@ -252,9 +252,7 @@ router.get(
   })
 );
 
-router.put(
-  '/admin/stores/:id/status',
-  adminSensitive,
+router.put('/admin/stores/:id/status', areaSensitive("care"),
   [id('id'), body('status').isIn(['PENDING', 'APPROVED', 'SUSPENDED', 'REJECTED']), body('reason').optional().isString().isLength({ max: 300 })],
   validate,
   wrap(async (req, res) => {
@@ -262,9 +260,7 @@ router.put(
   })
 );
 
-router.put(
-  '/admin/rate-cards/:id/price-approval',
-  adminSensitive,
+router.put('/admin/rate-cards/:id/price-approval', areaSensitive("care"),
   [id('id'), body('min').isFloat({ min: 1 }), body('max').isFloat({ min: 1 })],
   validate,
   wrap(async (req, res) => {
@@ -272,9 +268,7 @@ router.put(
   })
 );
 
-router.post(
-  '/admin/stores/:id/strikes',
-  adminSensitive,
+router.post('/admin/stores/:id/strikes', areaSensitive("care"),
   [id('id'), body('reason').isString().isLength({ min: 3, max: 200 }), body('bookingId').optional().isMongoId()],
   validate,
   wrap(async (req, res) => {
@@ -536,39 +530,39 @@ router.post('/partner/ads/wallet/verify', partner, [body('orderId').isString().i
 
 // ── Admin: queues, catalog, offers, credit, ads, settings ────────────────
 
-router.get('/admin/overview', admin, wrap(async (req, res) => {
+router.get('/admin/overview', area("care"), wrap(async (req, res) => {
   res.json({ success: true, overview: await careAdminService.overview() });
 }));
 
-router.get('/admin/refunds', admin, wrap(async (req, res) => {
+router.get('/admin/refunds', area("care"), wrap(async (req, res) => {
   res.json({ success: true, refunds: await careAdminService.refundQueue() });
 }));
 
-router.post('/admin/refunds', adminSensitive, [body('type').isIn(['PLAN', 'LAB']), body('id').isMongoId(), body('reference').optional().isString().isLength({ max: 80 })], validate, wrap(async (req, res) => {
+router.post('/admin/refunds', areaSensitive("care"), [body('type').isIn(['PLAN', 'LAB']), body('id').isMongoId(), body('reference').optional().isString().isLength({ max: 80 })], validate, wrap(async (req, res) => {
   res.json({ success: true, ...(await careAdminService.processRefund(req.user._id, req.body)) });
 }));
 
-router.get('/admin/reports', admin, wrap(async (req, res) => {
+router.get('/admin/reports', area("care"), wrap(async (req, res) => {
   res.json({ success: true, reports: await careAdminService.reportQueue() });
 }));
 
-router.post('/admin/reports/:bookingId/resolve', adminSensitive, [id('bookingId'), body('outcome').isIn(['NO_SHOW', 'EXTRA_CASH', 'DISMISS']), body('note').optional().isString().isLength({ max: 200 })], validate, wrap(async (req, res) => {
+router.post('/admin/reports/:bookingId/resolve', areaSensitive("care"), [id('bookingId'), body('outcome').isIn(['NO_SHOW', 'EXTRA_CASH', 'DISMISS']), body('note').optional().isString().isLength({ max: 200 })], validate, wrap(async (req, res) => {
   res.json({ success: true, ...(await carePlanService.resolveReport(req.user._id, req.params.bookingId, req.body)) });
 }));
 
-router.get('/admin/needs-action', admin, wrap(async (req, res) => {
+router.get('/admin/needs-action', area("care"), wrap(async (req, res) => {
   res.json({ success: true, sessions: await careAdminService.needsActionQueue() });
 }));
 
-router.get('/admin/sessions', admin, [query('date').optional().matches(/^\d{4}-\d{2}-\d{2}$/)], validate, wrap(async (req, res) => {
+router.get('/admin/sessions', area("care"), [query('date').optional().matches(/^\d{4}-\d{2}-\d{2}$/)], validate, wrap(async (req, res) => {
   res.json({ success: true, sessions: await careAdminService.sessionsBoard(req.query.date) });
 }));
 
-router.get('/admin/lab-orders', admin, [query('status').optional().isString().isLength({ max: 20 }), query('late').optional().isIn(['true', 'false'])], validate, wrap(async (req, res) => {
+router.get('/admin/lab-orders', area("care"), [query('status').optional().isString().isLength({ max: 20 }), query('late').optional().isIn(['true', 'false'])], validate, wrap(async (req, res) => {
   res.json({ success: true, orders: await careAdminService.labBoard(req.query) });
 }));
 
-router.get('/admin/catalog', admin, [kindQuery], validate, wrap(async (req, res) => {
+router.get('/admin/catalog', area("care"), [kindQuery], validate, wrap(async (req, res) => {
   res.json({ success: true, services: await careAdminService.catalogList(req.query.kind) });
 }));
 
@@ -582,37 +576,35 @@ const catalogBody = [
   body('tests.*').optional().isMongoId()
 ];
 
-router.post('/admin/catalog', adminSensitive, catalogBody, validate, wrap(async (req, res) => {
+router.post('/admin/catalog', areaSensitive("care"), catalogBody, validate, wrap(async (req, res) => {
   res.status(201).json({ success: true, service: await careAdminService.catalogCreate(req.user._id, req.body) });
 }));
 
-router.put('/admin/catalog/:id', adminSensitive, [id('id'), ...catalogBody], validate, wrap(async (req, res) => {
+router.put('/admin/catalog/:id', areaSensitive("care"), [id('id'), ...catalogBody], validate, wrap(async (req, res) => {
   res.json({ success: true, service: await careAdminService.catalogUpdate(req.user._id, req.params.id, req.body) });
 }));
 
-router.get('/admin/offers', admin, [query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED'])], validate, wrap(async (req, res) => {
+router.get('/admin/offers', area("care"), [query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED'])], validate, wrap(async (req, res) => {
   res.json({ success: true, offers: await careStoreService.adminListOffers(req.query.status || 'PENDING') });
 }));
 
-router.put('/admin/offers/:itemId', adminSensitive, [id('itemId'), body('decision').isIn(['APPROVED', 'REJECTED']), body('reason').optional().isString().isLength({ max: 200 })], validate, wrap(async (req, res) => {
+router.put('/admin/offers/:itemId', areaSensitive("care"), [id('itemId'), body('decision').isIn(['APPROVED', 'REJECTED']), body('reason').optional().isString().isLength({ max: 200 })], validate, wrap(async (req, res) => {
   res.json({ success: true, item: await careStoreService.adminReviewOffer(req.user._id, req.params.itemId, req.body) });
 }));
 
-router.post('/admin/customers/:patientId/credit', adminSensitive, [id('patientId'), body('amount').isFloat({ min: 1, max: 5000 }), body('reason').isString().isLength({ min: 5, max: 200 })], validate, wrap(async (req, res) => {
+router.post('/admin/customers/:patientId/credit', areaSensitive("care"), [id('patientId'), body('amount').isFloat({ min: 1, max: 5000 }), body('reason').isString().isLength({ min: 5, max: 200 })], validate, wrap(async (req, res) => {
   res.json({ success: true, ...(await careAdminService.giveCredit(req.user._id, req.params.patientId, req.body)) });
 }));
 
-router.get('/admin/ads', admin, [query('status').optional().isIn(['PENDING_REVIEW', 'ACTIVE', 'PAUSED', 'REJECTED', 'ENDED'])], validate, wrap(async (req, res) => {
+router.get('/admin/ads', area("ads"), [query('status').optional().isIn(['PENDING_REVIEW', 'ACTIVE', 'PAUSED', 'REJECTED', 'ENDED'])], validate, wrap(async (req, res) => {
   res.json({ success: true, campaigns: await adService.adminList(req.query), report: await adService.adminReport({ days: 14 }) });
 }));
 
-router.put('/admin/ads/:id', adminSensitive, [id('id'), body('decision').isIn(['APPROVE', 'REJECT', 'PAUSE', 'RESUME']), body('reason').optional().isString().isLength({ max: 300 })], validate, wrap(async (req, res) => {
+router.put('/admin/ads/:id', areaSensitive("ads"), [id('id'), body('decision').isIn(['APPROVE', 'REJECT', 'PAUSE', 'RESUME']), body('reason').optional().isString().isLength({ max: 300 })], validate, wrap(async (req, res) => {
   res.json({ success: true, campaign: await adService.adminReview(req.user._id, req.params.id, req.body) });
 }));
 
-router.post(
-  '/admin/ads/house',
-  adminSensitive,
+router.post('/admin/ads/house', areaSensitive("ads"),
   [body('product').optional().isIn(['SPOTLIGHT', 'CATEGORY_BANNER']), body('name').isString().isLength({ min: 2, max: 80 }), body('creative.title').isString().isLength({ min: 2, max: 60 }), body('services').optional().isArray({ max: 20 })],
   validate,
   wrap(async (req, res) => {
@@ -620,19 +612,19 @@ router.post(
   })
 );
 
-router.put('/admin/ads/wallets/:ownerId', adminSensitive, [id('ownerId'), body('amount').optional().isFloat({ min: -100000, max: 100000 }), body('trusted').optional().isBoolean(), body('blocked').optional().isBoolean(), body('note').optional().isString().isLength({ max: 200 })], validate, wrap(async (req, res) => {
+router.put('/admin/ads/wallets/:ownerId', areaSensitive("ads"), [id('ownerId'), body('amount').optional().isFloat({ min: -100000, max: 100000 }), body('trusted').optional().isBoolean(), body('blocked').optional().isBoolean(), body('note').optional().isString().isLength({ max: 200 })], validate, wrap(async (req, res) => {
   res.json({ success: true, wallet: await adService.adminWalletAdjust(req.user._id, req.params.ownerId, req.body) });
 }));
 
-router.get('/admin/settings', admin, wrap(async (req, res) => {
+router.get('/admin/settings', area("ads"), wrap(async (req, res) => {
   res.json({ success: true, ...(await settingsService.describe()), history: await settingsService.history(30) });
 }));
 
-router.post('/admin/settings', adminSensitive, [body('key').isIn(['revenue', 'ads']), body('changes').optional().isObject(), body('blockedCities').optional().isArray({ max: 50 }), body('reason').isString().isLength({ min: 5, max: 300 })], validate, wrap(async (req, res) => {
+router.post('/admin/settings', areaSensitive("ads"), [body('key').isIn(['revenue', 'ads']), body('changes').optional().isObject(), body('blockedCities').optional().isArray({ max: 50 }), body('reason').isString().isLength({ min: 5, max: 300 })], validate, wrap(async (req, res) => {
   res.status(201).json({ success: true, change: await settingsService.propose(req.user._id, req.body) });
 }));
 
-router.put('/admin/settings/:id', adminSensitive, [id('id'), body('decision').isIn(['APPROVE', 'REJECT']), body('note').optional().isString().isLength({ max: 300 })], validate, wrap(async (req, res) => {
+router.put('/admin/settings/:id', areaSensitive("ads"), [id('id'), body('decision').isIn(['APPROVE', 'REJECT']), body('note').optional().isString().isLength({ max: 300 })], validate, wrap(async (req, res) => {
   res.json({ success: true, change: await settingsService.review(req.user._id, req.params.id, req.body) });
 }));
 

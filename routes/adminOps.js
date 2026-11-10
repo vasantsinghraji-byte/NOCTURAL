@@ -25,7 +25,13 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validation');
-const { protect, authorize, requireRecentAuth } = require('../middleware/auth');
+const { protect, requireRecentAuth } = require('../middleware/auth');
+const { adminSection } = require('../middleware/adminAccess');
+const { rolesForKinds } = require('../constants/adminAccess');
+const mayVerify = (req, kind) => req.adminKinds === null || (req.adminKinds || []).includes(kind);
+/** Staff checks are medical staff verification: only for reviewers of that partner type. */
+const medicalStaffOnly = (req, res, next) => (mayVerify(req, 'MEDICAL_STAFF') ? next()
+  : res.status(403).json({ success: false, message: 'You can’t verify nurses and physios. Ask the main admin.' }));
 const adminOpsService = require('../services/adminOpsService');
 const campaignService = require('../services/campaignService');
 const securityAuditService = require('../services/securityAuditService');
@@ -33,8 +39,9 @@ const logBuffer = require('../utils/logBuffer');
 const partnerVerificationService = require('../services/partnerVerificationService');
 
 const router = express.Router();
-const admin = [protect, authorize('platform_admin')];
-const adminSensitive = [...admin, requireRecentAuth];
+// Admin endpoints: the admin section each belongs to (constants/adminAccess.js).
+const area = (section) => [protect, adminSection(section)];
+const areaSensitive = (section) => [...area(section), requireRecentAuth];
 const wrap = (fn) => async (req, res, next) => {
   try {
     await fn(req, res);
@@ -45,17 +52,13 @@ const wrap = (fn) => async (req, res, next) => {
 // Admin data must never be cached by browsers or proxies.
 router.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
-router.get(
-  '/logs',
-  admin,
+router.get('/logs', area("logs"),
   [query('after').optional().isInt({ min: 0 }), query('level').optional().isIn(['error', 'warn', 'info', 'http', 'verbose', 'debug']), query('q').optional().isString().isLength({ max: 100 })],
   validate,
   wrap(async (req, res) => res.json({ success: true, ...logBuffer.query({ after: Number(req.query.after) || 0, level: req.query.level, q: req.query.q }) }))
 );
 
-router.get(
-  '/heatmap',
-  admin,
+router.get('/heatmap', area("tower"),
   [query('layer').optional().isIn(['pharmacy', 'care']), query('precision').optional().isInt({ min: 5, max: 7 })],
   validate,
   wrap(async (req, res) => {
@@ -65,9 +68,7 @@ router.get(
   })
 );
 
-router.get(
-  '/payments',
-  admin,
+router.get('/payments', area("payments"),
   [query(['from', 'to']).optional().isISO8601(), query('kind').optional().isIn(adminOpsService.KINDS)],
   validate,
   wrap(async (req, res) => res.json({ success: true, ...(await adminOpsService.paymentLog(req.query)) }))
@@ -75,9 +76,7 @@ router.get(
 
 const userParams = [param('type').isIn(['customers', 'partners']), param('id').isMongoId()];
 
-router.get(
-  '/users',
-  admin,
+router.get('/users', area("users"),
   [
     query('type').optional().isIn(['customers', 'partners']),
     query('q').optional().isString().isLength({ max: 80 }),
@@ -89,40 +88,38 @@ router.get(
   wrap(async (req, res) => res.json({ success: true, ...(await adminOpsService.listUsers(req.query)) }))
 );
 
-router.get('/users/:type/:id', admin, userParams, validate,
+router.get('/users/:type/:id', area("users"), userParams, validate,
   wrap(async (req, res) => res.json({ success: true, user: await adminOpsService.getUser(req.params.type, req.params.id) })));
 
-router.post(
-  '/users/:type/:id/reveal',
-  adminSensitive,
+router.post('/users/:type/:id/reveal', areaSensitive("users"),
   [...userParams, body('reason').isString().trim().isLength({ min: 3, max: 200 }).withMessage('Say why you need the contact details')],
   validate,
   wrap(async (req, res) => res.json({ success: true, contact: await adminOpsService.revealContact(req.params.type, req.params.id, req.user, req, req.body.reason) }))
 );
 
-router.patch(
-  '/users/:type/:id/status',
-  adminSensitive,
+router.patch('/users/:type/:id/status', areaSensitive("users"),
   [...userParams, body('active').isBoolean(), body('reason').isString().trim().isLength({ min: 3, max: 200 }).withMessage('Give a reason')],
   validate,
   wrap(async (req, res) => res.json({ success: true, ...(await adminOpsService.setActive(req.params.type, req.params.id, req.body.active, req.user, req, req.body.reason)) }))
 );
 
-router.get(
-  '/verification',
-  admin,
+router.get('/verification', area("verification"), medicalStaffOnly,
   [query('status').optional().isIn(['pending', 'verified', 'all']), query('q').optional().isString().isLength({ max: 80 })],
   validate,
   wrap(async (req, res) => res.json({ success: true, staff: await adminOpsService.listVerification(req.query) }))
 );
 
-router.get('/documents', admin, [query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED', 'ALL'])], validate,
-  wrap(async (req, res) => res.json({ success: true, documents: await partnerVerificationService.reviewQueue({ status: req.query.status || 'PENDING' }) })));
+router.get('/documents', area("documents"), [query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED', 'ALL'])], validate,
+  wrap(async (req, res) => res.json({ success: true, documents: await partnerVerificationService.reviewQueue({ status: req.query.status || 'PENDING', roles: rolesForKinds(req.adminKinds) }) })));
 
-router.get('/documents/partner/:userId', admin, [param('userId').isMongoId()], validate,
-  wrap(async (req, res) => res.json({ success: true, verification: await partnerVerificationService.getStatus(req.params.userId) })));
+router.get('/documents/partner/:userId', area("documents"), [param('userId').isMongoId()], validate,
+  wrap(async (req, res) => {
+    await partnerVerificationService.assertInScope({ userId: req.params.userId }, rolesForKinds(req.adminKinds));
+    res.json({ success: true, verification: await partnerVerificationService.getStatus(req.params.userId) });
+  }));
 
-router.post('/documents/:id/view', adminSensitive, [param('id').isMongoId()], validate, wrap(async (req, res) => {
+router.post('/documents/:id/view', areaSensitive("documents"), [param('id').isMongoId()], validate, wrap(async (req, res) => {
+  await partnerVerificationService.assertInScope({ docId: req.params.id }, rolesForKinds(req.adminKinds));
   const doc = await partnerVerificationService.fileFor(req.params.id);
   await securityAuditService.record({ event: 'admin_partner_document_viewed', actorId: req.user._id, actorType: 'user', targetType: 'user', targetId: doc.user, req, metadata: { documentId: req.params.id, kind: doc.kind } });
   const link = await partnerVerificationService.fileLink(doc);
@@ -130,12 +127,11 @@ router.post('/documents/:id/view', adminSensitive, [param('id').isMongoId()], va
   return res.json({ success: true, ...link });
 }));
 
-router.patch(
-  '/documents/:id',
-  adminSensitive,
+router.patch('/documents/:id', areaSensitive("documents"),
   [param('id').isMongoId(), body('decision').isIn(['APPROVED', 'REJECTED']), body('note').optional().isString().trim().isLength({ max: 300 }), body('expiresAt').optional({ values: 'falsy' }).isISO8601()],
   validate,
   wrap(async (req, res) => {
+    await partnerVerificationService.assertInScope({ docId: req.params.id }, rolesForKinds(req.adminKinds));
     const result = await partnerVerificationService.review(req.params.id, req.user._id, req.body);
     await securityAuditService.record({
       event: req.body.decision === 'APPROVED' ? 'admin_partner_document_approved' : 'admin_partner_document_rejected',
@@ -146,11 +142,9 @@ router.patch(
   })
 );
 
-router.get('/campaigns', admin, wrap(async (req, res) => res.json({ success: true, campaigns: await campaignService.list() })));
+router.get('/campaigns', area("campaigns"), wrap(async (req, res) => res.json({ success: true, campaigns: await campaignService.list() })));
 
-router.post(
-  '/campaigns',
-  adminSensitive,
+router.post('/campaigns', areaSensitive("campaigns"),
   [
     body('title').isString().trim().isLength({ min: 3, max: 80 }),
     body('body').isString().trim().isLength({ min: 3, max: 300 }),
@@ -172,9 +166,7 @@ router.post(
   })
 );
 
-router.post(
-  '/campaigns/:id/cancel',
-  adminSensitive,
+router.post('/campaigns/:id/cancel', areaSensitive("campaigns"),
   [param('id').isMongoId()],
   validate,
   wrap(async (req, res) => {

@@ -255,6 +255,10 @@ class AuthService {
       profile.bankDetails = user.getDecryptedBankDetails();
     }
 
+    // Admin panel: which sections and partner types this account can open.
+    const { accessSummary, sectionsFor } = require('../constants/adminAccess');
+    if (sectionsFor(profile).length) profile.adminAccess = accessSummary(profile);
+
     return profile;
   }
 

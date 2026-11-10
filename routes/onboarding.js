@@ -23,6 +23,8 @@ const express = require('express');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validation');
 const { protect, authorize, requireRecentAuth } = require('../middleware/auth');
+const { adminSection } = require('../middleware/adminAccess');
+const { rolesForKinds } = require('../constants/adminAccess');
 const partnerApplicationService = require('../services/partnerApplicationService');
 const partnerVerificationService = require('../services/partnerVerificationService');
 const onboardingTeamService = require('../services/onboardingTeamService');
@@ -30,8 +32,9 @@ const securityAuditService = require('../services/securityAuditService');
 const PartnerApplication = require('../models/partnerApplication');
 
 const router = express.Router();
-const reviewer = [protect, authorize('onboarding_reviewer', 'platform_admin')];
-const reviewerSensitive = [...reviewer, requireRecentAuth];
+// Reviewers: the onboarding team, admin team members with these sections, the main admin.
+const reviewerFor = (section) => [protect, adminSection(section)];
+const reviewerSensitiveFor = (section) => [...reviewerFor(section), requireRecentAuth];
 const admin = [protect, authorize('platform_admin')];
 const adminSensitive = [...admin, requireRecentAuth];
 
@@ -46,19 +49,19 @@ const wrap = (fn) => async (req, res, next) => {
 router.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
 // ── Applications ───────────────────────────────────────────────────────────
-router.get('/applications/counts', reviewer,
-  wrap(async (req, res) => res.json({ success: true, counts: await partnerApplicationService.pendingCounts(), createsLogin: partnerApplicationService.PROVISIONED_KINDS })));
+router.get('/applications/counts', reviewerFor('partners'),
+  wrap(async (req, res) => res.json({ success: true, counts: await partnerApplicationService.pendingCounts(req.adminKinds), createsLogin: partnerApplicationService.PROVISIONED_KINDS })));
 
-router.get('/applications', reviewer,
+router.get('/applications', reviewerFor('partners'),
   [query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED']), query('kind').optional().isIn(PartnerApplication.PARTNER_KINDS)],
   validate,
-  wrap(async (req, res) => res.json({ success: true, applications: await partnerApplicationService.list(req.query) })));
+  wrap(async (req, res) => res.json({ success: true, applications: await partnerApplicationService.list({ ...req.query, kinds: req.adminKinds }) })));
 
-router.patch('/applications/:id', reviewerSensitive,
+router.patch('/applications/:id', reviewerSensitiveFor('partners'),
   [param('id').isMongoId(), body('status').isIn(['APPROVED', 'REJECTED']), body('note').optional().isString().isLength({ max: 300 }), body('email').optional().isEmail().isLength({ max: 160 })],
   validate,
   wrap(async (req, res) => {
-    const application = await partnerApplicationService.review(req.params.id, req.user._id, req.body);
+    const application = await partnerApplicationService.review(req.params.id, req.user._id, req.body, { kinds: req.adminKinds });
     await securityAuditService.record({
       event: req.body.status === 'APPROVED' ? 'onboarding_application_approved' : 'onboarding_application_rejected',
       actorId: req.user._id, actorType: 'user', targetType: 'partner_application', targetId: req.params.id, req,
@@ -68,13 +71,17 @@ router.patch('/applications/:id', reviewerSensitive,
   }));
 
 // ── Documents ──────────────────────────────────────────────────────────────
-router.get('/documents', reviewer, [query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED', 'ALL'])], validate,
-  wrap(async (req, res) => res.json({ success: true, documents: await partnerVerificationService.reviewQueue({ status: req.query.status || 'PENDING' }) })));
+router.get('/documents', reviewerFor('documents'), [query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED', 'ALL'])], validate,
+  wrap(async (req, res) => res.json({ success: true, documents: await partnerVerificationService.reviewQueue({ status: req.query.status || 'PENDING', roles: rolesForKinds(req.adminKinds) }) })));
 
-router.get('/documents/partner/:userId', reviewer, [param('userId').isMongoId()], validate,
-  wrap(async (req, res) => res.json({ success: true, verification: await partnerVerificationService.getStatus(req.params.userId) })));
+router.get('/documents/partner/:userId', reviewerFor('documents'), [param('userId').isMongoId()], validate,
+  wrap(async (req, res) => {
+    await partnerVerificationService.assertInScope({ userId: req.params.userId }, rolesForKinds(req.adminKinds));
+    res.json({ success: true, verification: await partnerVerificationService.getStatus(req.params.userId) });
+  }));
 
-router.post('/documents/:id/view', reviewerSensitive, [param('id').isMongoId()], validate, wrap(async (req, res) => {
+router.post('/documents/:id/view', reviewerSensitiveFor('documents'), [param('id').isMongoId()], validate, wrap(async (req, res) => {
+  await partnerVerificationService.assertInScope({ docId: req.params.id }, rolesForKinds(req.adminKinds));
   const doc = await partnerVerificationService.fileFor(req.params.id);
   await securityAuditService.record({ event: 'onboarding_partner_document_viewed', actorId: req.user._id, actorType: 'user', targetType: 'user', targetId: doc.user, req, metadata: { documentId: req.params.id, kind: doc.kind } });
   const link = await partnerVerificationService.fileLink(doc);
@@ -82,10 +89,11 @@ router.post('/documents/:id/view', reviewerSensitive, [param('id').isMongoId()],
   return res.json({ success: true, ...link });
 }));
 
-router.patch('/documents/:id', reviewerSensitive,
+router.patch('/documents/:id', reviewerSensitiveFor('documents'),
   [param('id').isMongoId(), body('decision').isIn(['APPROVED', 'REJECTED']), body('note').optional().isString().trim().isLength({ max: 300 }), body('expiresAt').optional({ values: 'falsy' }).isISO8601()],
   validate,
   wrap(async (req, res) => {
+    await partnerVerificationService.assertInScope({ docId: req.params.id }, rolesForKinds(req.adminKinds));
     const result = await partnerVerificationService.review(req.params.id, req.user._id, req.body);
     await securityAuditService.record({
       event: req.body.decision === 'APPROVED' ? 'onboarding_partner_document_approved' : 'onboarding_partner_document_rejected',
@@ -99,12 +107,19 @@ router.patch('/documents/:id', reviewerSensitive,
 router.get('/team', admin, wrap(async (req, res) => res.json({ success: true, ...(await onboardingTeamService.list()) })));
 
 router.post('/team', adminSensitive,
-  [body('name').isString().trim().isLength({ min: 2, max: 80 }), body('email').isEmail().isLength({ max: 160 })],
+  [body('name').isString().trim().isLength({ min: 2, max: 80 }), body('email').isEmail().isLength({ max: 160 }),
+    body('access.sections').isArray({ min: 1, max: 30 }), body('access.partnerKinds').optional().isArray({ max: 20 })],
   validate,
   wrap(async (req, res) => res.status(201).json({ success: true, ...(await onboardingTeamService.create(req.user, req.body, req)) })));
 
 router.patch('/team/:id', adminSensitive, [param('id').isMongoId(), body('active').isBoolean()], validate,
   wrap(async (req, res) => res.json({ success: true, ...(await onboardingTeamService.setActive(req.user, req.params.id, req.body.active, req)) })));
+
+// What a team member can open: admin sections and partner types (fresh 2FA, audited).
+router.put('/team/:id/access', adminSensitive,
+  [param('id').isMongoId(), body('access.sections').isArray({ min: 1, max: 30 }), body('access.partnerKinds').optional().isArray({ max: 20 })],
+  validate,
+  wrap(async (req, res) => res.json({ success: true, ...(await onboardingTeamService.setAccess(req.user, req.params.id, req.body.access, req)) })));
 
 router.post('/team/:id/invite', adminSensitive, [param('id').isMongoId()], validate,
   wrap(async (req, res) => res.json({ success: true, ...(await onboardingTeamService.resendInvite(req.user, req.params.id, req)) })));

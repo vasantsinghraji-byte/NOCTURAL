@@ -20,6 +20,7 @@ const multer = require('multer');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validation');
 const { protect, authorize } = require('../middleware/auth');
+const { adminSection } = require('../middleware/adminAccess');
 const storageConfig = require('../config/storage');
 const posts = require('../services/partnerPostService');
 
@@ -33,7 +34,8 @@ const wrap = (fn) => async (req, res, next) => {
 };
 
 const partner = [protect, authorize(...posts.PARTNER_ROLES)];
-const admin = [protect, authorize('admin', 'platform_admin')];
+// Admin endpoints: partner posts section (the older 'admin' role keeps access).
+const area = () => [protect, adminSection('posts', { legacyAdmin: true })];
 // In memory so the type can be checked from the bytes before anything is stored.
 const media = multer({ storage: multer.memoryStorage(), limits: { fileSize: posts.MAX_UPLOAD_BYTES, files: 1, fields: 4 } }).single('media');
 const id = (name) => param(name).isMongoId().withMessage('Invalid id');
@@ -62,12 +64,12 @@ router.get('/mine', ...partner, wrap(async (req, res) => res.json({ success: tru
 
 router.get('/mine/:id/media', ...partner, [id('id')], validate, wrap(async (req, res) => sendMedia(res, await posts.ownMediaLink(req.params.id, req.user._id))));
 
-router.get('/admin', ...admin, [query('status').optional().isIn(['VISIBLE', 'HIDDEN'])], validate,
+router.get('/admin', ...area("posts"), [query('status').optional().isIn(['VISIBLE', 'HIDDEN'])], validate,
   wrap(async (req, res) => res.json({ success: true, posts: await posts.adminList(req.query) })));
 
-router.get('/admin/:id/media', ...admin, [id('id')], validate, wrap(async (req, res) => sendMedia(res, await posts.mediaLink(req.params.id, req.user))));
+router.get('/admin/:id/media', ...area("posts"), [id('id')], validate, wrap(async (req, res) => sendMedia(res, await posts.mediaLink(req.params.id, req.user))));
 
-router.patch('/admin/:id', ...admin, [id('id'), body('hidden').isBoolean(), body('reason').optional().isString().isLength({ max: 200 })], validate,
+router.patch('/admin/:id', ...area("posts"), [id('id'), body('hidden').isBoolean(), body('reason').optional().isString().isLength({ max: 200 })], validate,
   wrap(async (req, res) => res.json({ success: true, post: await posts.adminSetHidden(req.params.id, req.user._id, req.body) })));
 
 router.delete('/:id', ...partner, [id('id')], validate, wrap(async (req, res) => {

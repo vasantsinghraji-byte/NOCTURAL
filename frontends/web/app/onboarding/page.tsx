@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ApiError, type AuthUser, type OnboardingReviewer, type PartnerKind } from '@medrush/shared';
+import { ApiError, type AuthUser, type PartnerKind } from '@medrush/shared';
 import { api } from '@/lib/api';
 import { StepUpDialog } from '../_components/AdminMfa';
 import ApplicationsPanel, { KIND_LABEL } from '../admin/ApplicationsPanel';
 import DocumentsPanel from '../admin/DocumentsPanel';
+// The same Team & access screen as the admin console (sections and partner types).
+import TeamPanel from '../admin/TeamPanel';
 
 /** One tab per partner kind; the documents shown are those of the roles that kind becomes. */
 const KINDS: Array<{ kind: PartnerKind; roles: string[] }> = [
@@ -150,92 +152,3 @@ export default function OnboardingPanel() {
 }
 
 /** Platform admin: who can sign in to the onboarding panel. */
-function TeamPanel({ sensitive }: { sensitive: (action: () => Promise<void>) => Promise<void> }) {
-  const [reviewers, setReviewers] = useState<OnboardingReviewer[] | null>(null);
-  const [domains, setDomains] = useState<string[]>([]);
-  const [form, setForm] = useState({ name: '', email: '' });
-  const [notice, setNotice] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    api.onboardingTeam().then((r) => { setReviewers(r.reviewers); setDomains(r.allowedDomains); }).catch((e) => setError(e.message));
-  }, []);
-  useEffect(load, [load]);
-
-  const inviteNotice = (who: string, invite: { sent: boolean; link?: string }) => (invite.sent
-    ? `${who}: set-password link emailed. They set up their authenticator app the first time they sign in.`
-    : `${who}: email isn't set up here. Send this one-time link privately: ${invite.link || '(not available in production)'}`);
-
-  function add(e: React.FormEvent) {
-    e.preventDefault();
-    setNotice(null);
-    setError(null);
-    return sensitive(async () => {
-      const r = await api.onboardingAddReviewer({ name: form.name.trim(), email: form.email.trim() });
-      setNotice(inviteNotice(r.reviewer.name, r.invite));
-      setForm({ name: '', email: '' });
-      load();
-    });
-  }
-
-  const setActive = (r: OnboardingReviewer, active: boolean) => sensitive(async () => {
-    await api.onboardingSetReviewerActive(r._id, active);
-    setNotice(`${r.name}: ${active ? 'restored' : 'suspended, and signed out everywhere'}.`);
-    load();
-  });
-
-  const resend = (r: OnboardingReviewer) => sensitive(async () => {
-    const res = await api.onboardingResendInvite(r._id);
-    setNotice(inviteNotice(r.name, res.invite));
-  });
-
-  return (
-    <section style={{ marginTop: 12 }}>
-      {notice && <div className="notice good" role="status" style={{ wordBreak: 'break-all' }}>{notice}</div>}
-      {error && <div className="notice bad" role="alert">{error}</div>}
-      <form className="card" onSubmit={add} style={{ marginBottom: 12 }}>
-        <h3 style={{ marginTop: 0 }}>Add a reviewer</h3>
-        <p className="muted" style={{ marginTop: 0 }}>
-          You choose their login ID. They get a one-time link to set their own password, then set up an authenticator app at first sign-in.
-          {domains.length ? ` Login IDs must be on ${domains.map((d) => `@${d}`).join(' or ')}.` : ' Any email domain is allowed until ONBOARDING_LOGIN_DOMAINS is set (do this once the Nabz domain is live).'}
-        </p>
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-          <div>
-            <label htmlFor="rv-name">Full name</label>
-            <input id="rv-name" className="input" autoComplete="off" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required minLength={2} />
-          </div>
-          <div>
-            <label htmlFor="rv-email">Login ID (email)</label>
-            <input id="rv-email" className="input" type="email" autoComplete="off" spellCheck={false} value={form.email}
-              placeholder={domains[0] ? `name@${domains[0]}` : 'name@company.com'} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
-          </div>
-        </div>
-        <button className="btn" type="submit" style={{ marginTop: 12 }}>Add reviewer & send link</button>
-      </form>
-
-      {reviewers && reviewers.length === 0 && <p className="muted">No reviewers yet.</p>}
-      <div className="grid cards">
-        {reviewers?.map((r) => (
-          <article key={r._id} className="card review-card">
-            <div className="row">
-              <h3>{r.name}</h3>
-              <span className={`pill ${r.isActive ? 'mint' : 'rx'}`}>{r.isActive ? 'Active' : 'Suspended'}</span>
-            </div>
-            <span className="muted mono">{r.email}</span>
-            <dl className="kv compact">
-              <dt>Authenticator</dt><dd>{r.mfaEnrolled ? 'Set up' : 'Not set up yet'}</dd>
-              <dt>Added</dt><dd>{new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</dd>
-              {domains.length > 0 && !domains.includes((r.email.split('@')[1] || '').toLowerCase()) && <><dt>Domain</dt><dd>Not allowed: can’t sign in</dd></>}
-            </dl>
-            <div className="review-actions">
-              {r.isActive && <button className="btn secondary" onClick={() => resend(r)}>Send new link</button>}
-              {r.isActive
-                ? <button className="btn secondary danger" onClick={() => setActive(r, false)}>Suspend</button>
-                : <button className="btn" onClick={() => setActive(r, true)}>Restore</button>}
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}

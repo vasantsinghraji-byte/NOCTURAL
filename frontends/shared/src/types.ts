@@ -16,7 +16,21 @@ export type Role =
   | 'delivery_partner'
   | 'medical_staff'
   | 'phlebotomist'
-  | 'lab_partner';
+  | 'lab_partner'
+  | 'onboarding_reviewer'
+  | 'ops_admin';
+
+/** Admin panel sections (constants/adminAccess.js on the server). */
+export type AdminSection =
+  | 'tower' | 'care' | 'support' | 'users' | 'partners' | 'documents' | 'verification'
+  | 'vendors' | 'medicines' | 'payments' | 'withdrawals' | 'campaigns' | 'ads' | 'posts' | 'logs';
+
+/** What an admin account can open: full = the main admin; partnerKinds null = every partner type. */
+export interface AdminAccess {
+  full: boolean;
+  sections: AdminSection[];
+  partnerKinds: string[] | null;
+}
 
 export type MedicineForm =
   | 'TABLET' | 'CAPSULE' | 'SYRUP' | 'SUSPENSION' | 'INJECTION' | 'DROPS'
@@ -530,6 +544,8 @@ export interface AuthUser {
   email: string;
   role: Role;
   pharmacyVendor?: string;
+  /** Admin accounts only: the sections and partner types they can open. */
+  adminAccess?: AdminAccess;
 }
 
 export interface RegisterPatientInput {
@@ -673,6 +689,8 @@ export interface OnboardingReviewer {
   _id: string;
   name: string;
   email: string;
+  role: 'ops_admin' | 'onboarding_reviewer';
+  access: AdminAccess;
   isActive: boolean;
   /** Has set up their authenticator app (they can't sign in until they do). */
   mfaEnrolled: boolean;

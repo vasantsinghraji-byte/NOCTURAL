@@ -9,12 +9,13 @@
 const express = require('express');
 const { query } = require('express-validator');
 const { validate } = require('../middleware/validation');
-const { protect, authorize } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
+const { adminSection } = require('../middleware/adminAccess');
 const settlementService = require('../services/settlementService');
 const { getRevenuePolicy } = require('../config/revenue');
 
 const router = express.Router();
-router.use(protect, authorize('platform_admin'));
+router.use(protect, adminSection('payments'));
 
 router.get(
   '/summary',

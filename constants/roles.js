@@ -20,7 +20,10 @@ const ROLES = {
   PHLEBOTOMIST: 'phlebotomist', // lab sample collection
   LAB_PARTNER: 'lab_partner', // path-lab staff, scoped to a partner lab
   // Nabz onboarding team: reviews partner applications and documents only.
-  ONBOARDING_REVIEWER: 'onboarding_reviewer'
+  ONBOARDING_REVIEWER: 'onboarding_reviewer',
+  // Admin team member: only the admin sections / partner types the main admin
+  // gave them (User.adminAccess, constants/adminAccess.js).
+  OPS_ADMIN: 'ops_admin'
 };
 
 // Array of all valid roles for validation

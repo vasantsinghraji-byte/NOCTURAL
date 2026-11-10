@@ -18,6 +18,11 @@ const express = require('express');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validation');
 const { protect, authorize, requireRecentAuth } = require('../middleware/auth');
+const { adminSection } = require('../middleware/adminAccess');
+const mayVerify = (req, kind) => req.adminKinds === null || (req.adminKinds || []).includes(kind);
+/** Staff checks are medical staff verification: only for reviewers of that partner type. */
+const medicalStaffOnly = (req, res, next) => (mayVerify(req, 'MEDICAL_STAFF') ? next()
+  : res.status(403).json({ success: false, message: 'You can’t verify nurses and physios. Ask the main admin.' }));
 const partnerApplicationService = require('../services/partnerApplicationService');
 const staffDashboardService = require('../services/staffDashboardService');
 const PartnerApplication = require('../models/partnerApplication');
@@ -30,9 +35,10 @@ const storageConfig = require('../config/storage');
 const { DOCUMENT_KINDS } = require('../config/partnerDocuments');
 
 const router = express.Router();
-const admin = [protect, authorize('platform_admin')];
+// Admin endpoints: the admin section each belongs to (constants/adminAccess.js).
+const area = (section) => [protect, adminSection(section)];
+const areaSensitive = (section) => [...area(section), requireRecentAuth];
 // Approving partners / setting trust badges needs a fresh authenticator code.
-const adminSensitive = [...admin, requireRecentAuth];
 const wrap = (fn) => async (req, res, next) => {
   try {
     await fn(req, res);
@@ -125,60 +131,44 @@ router.put(
 );
 router.post('/me/withdrawals', partner, wrap(async (req, res) => res.status(201).json({ success: true, withdrawal: await payoutService.requestWithdrawal(req.user._id) })));
 
-router.get(
-  '/admin/withdrawals',
-  admin,
+router.get('/admin/withdrawals', area("withdrawals"),
   [query('status').optional().isIn(['REQUESTED', 'PAID', 'REJECTED'])],
   validate,
   wrap(async (req, res) => res.json({ success: true, withdrawals: await payoutService.listRequests(req.query) }))
 );
-router.get(
-  '/admin/withdrawals/:id/destination',
-  adminSensitive,
+router.get('/admin/withdrawals/:id/destination', areaSensitive("withdrawals"),
   [param('id').isMongoId()],
   validate,
   wrap(async (req, res) => { res.set('Cache-Control', 'no-store'); res.json({ success: true, destination: await payoutService.revealDestination(req.params.id, req.user._id) }); })
 );
-router.post(
-  '/admin/withdrawals/:id/paid',
-  adminSensitive,
+router.post('/admin/withdrawals/:id/paid', areaSensitive("withdrawals"),
   [param('id').isMongoId(), body('utr').isString().trim().isLength({ min: 6, max: 40 }), body('note').optional().isString().isLength({ max: 300 })],
   validate,
   wrap(async (req, res) => res.json({ success: true, withdrawal: await payoutService.markPaid(req.params.id, req.user._id, req.body) }))
 );
-router.post(
-  '/admin/withdrawals/:id/reject',
-  adminSensitive,
+router.post('/admin/withdrawals/:id/reject', areaSensitive("withdrawals"),
   [param('id').isMongoId(), body('note').optional().isString().isLength({ max: 300 })],
   validate,
   wrap(async (req, res) => res.json({ success: true, withdrawal: await payoutService.reject(req.params.id, req.user._id, req.body) }))
 );
 
-router.get(
-  '/admin/staff-mix',
-  admin,
+router.get('/admin/staff-mix', area("users"),
   wrap(async (req, res) => res.json({ success: true, mix: await partnerApplicationService.staffMix() }))
 );
 
-router.get(
-  '/admin/applications',
-  admin,
+router.get('/admin/applications', area("partners"),
   [query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED']), query('kind').optional().isIn(PartnerApplication.PARTNER_KINDS)],
   validate,
-  wrap(async (req, res) => res.json({ success: true, applications: await partnerApplicationService.list(req.query) }))
+  wrap(async (req, res) => res.json({ success: true, applications: await partnerApplicationService.list({ ...req.query, kinds: req.adminKinds }) }))
 );
 
-router.patch(
-  '/admin/applications/:id',
-  adminSensitive,
+router.patch('/admin/applications/:id', areaSensitive("partners"),
   [param('id').isMongoId(), body('status').isIn(['APPROVED', 'REJECTED']), body('note').optional().isString().isLength({ max: 300 }), body('email').optional().isEmail().isLength({ max: 160 })],
   validate,
-  wrap(async (req, res) => res.json({ success: true, application: await partnerApplicationService.review(req.params.id, req.user._id, req.body) }))
+  wrap(async (req, res) => res.json({ success: true, application: await partnerApplicationService.review(req.params.id, req.user._id, req.body, { kinds: req.adminKinds }) }))
 );
 
-router.patch(
-  '/admin/staff/:id/verification',
-  adminSensitive,
+router.patch('/admin/staff/:id/verification', areaSensitive("verification"), medicalStaffOnly,
   [param('id').isMongoId(), body(['id', 'police', 'council', 'vaccinated']).optional().isBoolean()],
   validate,
   wrap(async (req, res) => {

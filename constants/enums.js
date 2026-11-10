@@ -17,8 +17,8 @@
 const STAFF_ROLES = [
   'doctor', 'nurse', 'physiotherapist', 'admin', 'platform_admin',
   'pharmacy_vendor', 'delivery_partner', 'medical_staff', 'phlebotomist', 'lab_partner',
-  // Onboarding team (created by a platform admin, never self-registered).
-  'onboarding_reviewer'
+  // Onboarding team and admin team (created by a platform admin, never self-registered).
+  'onboarding_reviewer', 'ops_admin'
 ];
 
 /** Staff roles allowed during /auth/register self-registration (no admin). Patients use /patients/register. */

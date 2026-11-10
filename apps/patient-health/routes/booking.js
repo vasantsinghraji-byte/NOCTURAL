@@ -10,6 +10,7 @@ const router = express.Router();
 const { body, param } = require('express-validator');
 const { validate } = require('@nocturnal/shared').validation;
 const { authorize } = require('@nocturnal/shared').auth;
+const { adminSection } = require('@nocturnal/shared').adminAccess;
 const { protectBoth } = require('../middleware/patientAuth');
 const idempotency = require('@nocturnal/shared').idempotency;
 const { queryCache } = require('@nocturnal/shared').queryCache;
@@ -320,7 +321,7 @@ router.get(
 
 router.get(
   '/providers/assignable',
-  authorize('admin', 'platform_admin'),
+  adminSection('care', { legacyAdmin: true }),
   queryCache({ ttl: CACHE_TTL.SHORT }),
   getAssignableProviders
 );
@@ -493,7 +494,7 @@ router.put(
 // Admin routes
 router.get(
   '/',
-  authorize('admin', 'platform_admin'),
+  adminSection('care', { legacyAdmin: true }),
   queryCache({ ttl: CACHE_TTL.SHORT }),
   getAllBookings
 );
@@ -503,7 +504,7 @@ router.put(
   mongoIdValidation,
   assignProviderValidation,
   validate,
-  authorize('admin', 'platform_admin'),
+  adminSection('care', { legacyAdmin: true }),
   assignProvider
 );
 
@@ -518,7 +519,7 @@ router.put(
 
 router.get(
   '/stats/overview',
-  authorize('admin', 'platform_admin'),
+  adminSection('care', { legacyAdmin: true }),
   queryCache({ ttl: CACHE_TTL.MEDIUM }),
   getBookingStats
 );

@@ -16,7 +16,7 @@ const mongoose = require('mongoose');
 const PartnerDocument = require('../models/partnerDocument');
 const User = require('../models/user');
 const { KINDS, REQUIREMENTS, EXPIRY_REMINDER_DAYS } = require('../config/partnerDocuments');
-const { ValidationError, NotFoundError, ConflictError } = require('../utils/errors');
+const { ValidationError, NotFoundError, ConflictError, AuthorizationError } = require('../utils/errors');
 const logger = require('../utils/logger');
 
 const STAFF_ROLES = ['nurse', 'physiotherapist', 'medical_staff'];
@@ -204,9 +204,34 @@ async function review(docId, adminId, { decision, note, expiresAt }, now = new D
 }
 
 /** Documents waiting for review (oldest first), with who sent them. */
-async function reviewQueue({ status = 'PENDING', limit = 100 } = {}) {
+/**
+ * Partners a reviewer may see: roles = account roles of their partner types
+ * (null = everyone; constants/adminAccess.js rolesForKinds).
+ */
+async function partnersInScope(roles) {
+  if (roles === null) return null;
+  return User.find({ role: { $in: roles } }).distinct('_id');
+}
+
+/** Throws unless this partner (or this document's partner) is one the reviewer may verify. */
+async function assertInScope({ userId, docId }, roles) {
+  if (roles === null) return;
+  let ownerId = userId;
+  if (docId) {
+    if (!mongoose.isValidObjectId(docId)) throw new NotFoundError('Document not found');
+    const doc = await PartnerDocument.findById(docId).select('user').lean();
+    if (!doc) throw new NotFoundError('Document not found');
+    ownerId = doc.user;
+  }
+  const owner = await User.findById(ownerId).select('role').lean();
+  if (!owner || !roles.includes(owner.role)) throw new AuthorizationError('You can’t verify this type of partner. Ask the main admin.');
+}
+
+async function reviewQueue({ status = 'PENDING', limit = 100, roles = null } = {}) {
   const filter = { superseded: false };
   if (status !== 'ALL') filter.status = status;
+  const allowed = await partnersInScope(roles);
+  if (allowed !== null) filter.user = { $in: allowed };
   const rows = await PartnerDocument.find(filter)
     .sort({ createdAt: status === 'PENDING' ? 1 : -1 })
     .limit(Math.min(Number(limit) || 100, 300))
@@ -311,6 +336,7 @@ function namesMatch(a, b) {
 }
 
 module.exports = {
+  assertInScope,
   requirementsFor,
   getStatus,
   submitDocument,

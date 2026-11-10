@@ -22,7 +22,7 @@ const logger = require('../utils/logger');
 
 // Every role here needs the authenticator app to sign in (and for step-up).
 // The onboarding team is included: it approves partners who enter homes.
-const ADMIN_ROLES = Object.freeze(['platform_admin', 'admin', 'onboarding_reviewer']);
+const ADMIN_ROLES = Object.freeze(['platform_admin', 'admin', 'onboarding_reviewer', 'ops_admin']);
 const CHALLENGE_AUDIENCE = 'nabz:admin-mfa';
 const CHALLENGE_TTL = '5m';
 const MAX_FAILED = 5;

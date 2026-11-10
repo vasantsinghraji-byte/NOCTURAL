@@ -98,8 +98,10 @@ exports.login = async (req, res, next) => {
 
     // Onboarding team IDs sign in only to the onboarding panel, and only from
     // the Nabz domain once ONBOARDING_LOGIN_DOMAINS is set.
-    if (role === onboardingTeam.ROLE) {
-      if (portal !== 'onboarding') {
+    // Team accounts (onboarding reviewers, admin team members): Nabz-domain
+    // login IDs only; older onboarding reviewers sign in from the onboarding panel.
+    if (onboardingTeam.TEAM_ROLES.includes(role)) {
+      if (role === 'onboarding_reviewer' && portal !== 'onboarding') {
         logger.logSecurity('login_wrong_portal', { email: req.body.email, portal: portal || null, role });
         return responseHelper.sendForbidden(res, 'Onboarding team accounts sign in from the onboarding panel.');
       }

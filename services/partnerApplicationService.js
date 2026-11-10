@@ -14,7 +14,7 @@ const User = require('../models/user');
 const PharmacyVendor = require('../models/pharmacyVendor');
 const passwordResetService = require('./passwordResetService');
 const logger = require('../utils/logger');
-const { ValidationError, NotFoundError, ConflictError } = require('../utils/errors');
+const { ValidationError, NotFoundError, ConflictError, AuthorizationError } = require('../utils/errors');
 
 const TERMS_VERSION = '0.9-2026-09-27';
 const clean = (v, max = 120) => (v === undefined || v === null ? undefined : String(v).trim().slice(0, max));
@@ -51,22 +51,26 @@ async function apply(input, applicant = { kind: 'ANONYMOUS' }) {
   return { id: app._id, status: app.status, createdAt: app.createdAt };
 }
 
-async function list({ status = 'PENDING', kind, limit = 50 } = {}) {
+/** kinds: partner types the reviewer may see (null = all; constants/adminAccess.js). */
+async function list({ status = 'PENDING', kind, limit = 50, kinds = null } = {}) {
   const q = {};
   if (status) q.status = status;
+  if (kinds !== null && kind && !kinds.includes(kind)) return [];
   if (kind) q.kind = kind;
+  else if (kinds !== null) q.kind = { $in: kinds };
   return PartnerApplication.find(q).sort({ createdAt: -1 }).limit(Math.min(Number(limit) || 50, 200)).lean();
 }
 
 /** Pending applications per partner kind (tab badges in the onboarding panel). */
-async function pendingCounts() {
+async function pendingCounts(kinds = null) {
   const rows = await PartnerApplication.aggregate([
     { $match: { status: 'PENDING' } },
     { $group: { _id: '$kind', count: { $sum: 1 } } }
   ]);
   const counts = Object.fromEntries(PartnerApplication.PARTNER_KINDS.map((k) => [k, 0]));
   for (const r of rows) if (r._id in counts) counts[r._id] = r.count;
-  return counts;
+  if (kinds === null) return counts;
+  return Object.fromEntries(Object.entries(counts).filter(([k]) => kinds.includes(k)));
 }
 
 const PROVISIONED_KINDS =['MEDICAL_STAFF', 'PHARMACY', 'DELIVERY', 'PATH_LAB', 'PHLEBOTOMIST'];
@@ -135,10 +139,11 @@ async function provision(app, email, adminId) {
   return { user, vendor, invite };
 }
 
-async function review(id, adminId, { status, note, email }) {
+async function review(id, adminId, { status, note, email }, { kinds = null } = {}) {
   if (!['APPROVED', 'REJECTED'].includes(status)) throw new ValidationError('status must be APPROVED or REJECTED');
   const pending = await PartnerApplication.findOne({ _id: id, status: 'PENDING' }).lean();
   if (!pending) throw new NotFoundError('Pending application');
+  if (kinds !== null && !kinds.includes(pending.kind)) throw new AuthorizationError('You can’t review this type of partner. Ask the main admin.');
 
   const provisionNeeded = status === 'APPROVED' && PROVISIONED_KINDS.includes(pending.kind);
   const loginEmail = String(email || pending.email || '').trim().toLowerCase();

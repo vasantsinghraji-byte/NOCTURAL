@@ -8,6 +8,7 @@ const express = require('express');
 const router = express.Router();
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validation');
+const { adminSection } = require('../middleware/adminAccess');
 const { protect, authorize, requireRecentAuth } = require('../middleware/auth');
 const { protectPatient } = require('../middleware/patientAuth');
 const idempotency = require('../middleware/idempotency');
@@ -258,21 +259,21 @@ router.patch('/vendor/profile', protect, authorize('pharmacy_vendor'), vendorPro
 
 // ══ Admin (role: admin / platform_admin) ══════════════════════════════════
 
-router.get('/admin/vendors', protect, authorize('admin', 'platform_admin'), ctrl.adminListVendors);
-router.post('/admin/vendors', protect, authorize('admin', 'platform_admin'), requireRecentAuth, ctrl.adminCreateVendor);
-router.patch('/admin/vendors/:id/status', protect, authorize('admin', 'platform_admin'), requireRecentAuth, mongoIdParam('id'), vendorStatusValidation, validate, ctrl.adminSetVendorStatus);
-router.get('/admin/orders/:id/prescription', protect, authorize('admin', 'platform_admin'), mongoIdParam('id'), validate, ctrl.getPrescription);
-router.get('/admin/zones', protect, authorize('admin', 'platform_admin'), ctrl.adminListZones);
-router.post('/admin/zones', protect, authorize('admin', 'platform_admin'), createZoneValidation, validate, ctrl.adminCreateZone);
-router.patch('/admin/zones/:id', protect, authorize('admin', 'platform_admin'), mongoIdParam('id'), updateZoneValidation, validate, ctrl.adminUpdateZone);
-router.get('/admin/medicines', protect, authorize('admin', 'platform_admin'), ctrl.adminListMedicines);
-router.post('/admin/medicines', protect, authorize('admin', 'platform_admin'), medicineValidation, validate, ctrl.adminCreateMedicine);
-router.patch('/admin/medicines/:id', protect, authorize('admin', 'platform_admin'), mongoIdParam('id'), validate, ctrl.adminUpdateMedicine);
-router.post('/admin/medicines/:id/merge', protect, authorize('admin', 'platform_admin'), requireRecentAuth, mongoIdParam('id'), body('intoId').isMongoId(), body('force').optional().isBoolean(), validate, ctrl.adminMergeMedicine);
-router.post('/admin/recalls', protect, authorize('admin', 'platform_admin'), requireRecentAuth, body('medicineId').isMongoId(), body('batchNumber').isString().trim().isLength({ min: 1, max: 40 }), body('reason').optional().isString().isLength({ max: 200 }), body('notifyPatients').optional().isBoolean(), validate, ctrl.adminRecallBatch);
-router.get('/admin/demand', protect, authorize('admin', 'platform_admin'), query('days').optional().isInt({ min: 1, max: 90 }), query('geohash').optional().isString().isLength({ max: 6 }), validate, ctrl.adminDemand);
-router.get('/admin/orders/flagged', protect, authorize('admin', 'platform_admin'), ctrl.adminFlaggedOrders);
-router.get('/admin/register/h1', protect, authorize('admin', 'platform_admin'), registerValidation, query('vendorId').optional().isMongoId(), validate, ctrl.adminH1Register);
+router.get('/admin/vendors', protect, adminSection('vendors', { legacyAdmin: true }), ctrl.adminListVendors);
+router.post('/admin/vendors', protect, adminSection('vendors', { legacyAdmin: true }), requireRecentAuth, ctrl.adminCreateVendor);
+router.patch('/admin/vendors/:id/status', protect, adminSection('vendors', { legacyAdmin: true }), requireRecentAuth, mongoIdParam('id'), vendorStatusValidation, validate, ctrl.adminSetVendorStatus);
+router.get('/admin/orders/:id/prescription', protect, adminSection('vendors', { legacyAdmin: true }), mongoIdParam('id'), validate, ctrl.getPrescription);
+router.get('/admin/zones', protect, adminSection('vendors', { legacyAdmin: true }), ctrl.adminListZones);
+router.post('/admin/zones', protect, adminSection('vendors', { legacyAdmin: true }), createZoneValidation, validate, ctrl.adminCreateZone);
+router.patch('/admin/zones/:id', protect, adminSection('vendors', { legacyAdmin: true }), mongoIdParam('id'), updateZoneValidation, validate, ctrl.adminUpdateZone);
+router.get('/admin/medicines', protect, adminSection('medicines', { legacyAdmin: true }), ctrl.adminListMedicines);
+router.post('/admin/medicines', protect, adminSection('medicines', { legacyAdmin: true }), medicineValidation, validate, ctrl.adminCreateMedicine);
+router.patch('/admin/medicines/:id', protect, adminSection('medicines', { legacyAdmin: true }), mongoIdParam('id'), validate, ctrl.adminUpdateMedicine);
+router.post('/admin/medicines/:id/merge', protect, adminSection('medicines', { legacyAdmin: true }), requireRecentAuth, mongoIdParam('id'), body('intoId').isMongoId(), body('force').optional().isBoolean(), validate, ctrl.adminMergeMedicine);
+router.post('/admin/recalls', protect, adminSection('medicines', { legacyAdmin: true }), requireRecentAuth, body('medicineId').isMongoId(), body('batchNumber').isString().trim().isLength({ min: 1, max: 40 }), body('reason').optional().isString().isLength({ max: 200 }), body('notifyPatients').optional().isBoolean(), validate, ctrl.adminRecallBatch);
+router.get('/admin/demand', protect, adminSection('tower', { legacyAdmin: true }), query('days').optional().isInt({ min: 1, max: 90 }), query('geohash').optional().isString().isLength({ max: 6 }), validate, ctrl.adminDemand);
+router.get('/admin/orders/flagged', protect, adminSection('vendors', { legacyAdmin: true }), ctrl.adminFlaggedOrders);
+router.get('/admin/register/h1', protect, adminSection('vendors', { legacyAdmin: true }), registerValidation, query('vendorId').optional().isMongoId(), validate, ctrl.adminH1Register);
 
 // ══ Patient orders (role: patient) ════════════════════════════════════════
 

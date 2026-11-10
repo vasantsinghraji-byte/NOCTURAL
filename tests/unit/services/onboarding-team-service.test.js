@@ -53,27 +53,35 @@ describe('onboardingTeamService', () => {
       passwordResetService.invite.mockResolvedValue({ sent: true });
     });
 
-    it('creates the reviewer with an unusable password and emails a set-password link', async () => {
-      const out = await team.create(ADMIN, { name: 'Asha Verma', email: 'Asha@Nabz.in' });
+    const RIDERS_ONLY = { sections: ['partners', 'documents'], partnerKinds: ['DELIVERY'] };
+
+    it('creates the team member with an unusable password and emails a set-password link', async () => {
+      const out = await team.create(ADMIN, { name: 'Asha Verma', email: 'Asha@Nabz.in', access: RIDERS_ONLY });
 
       const created = User.create.mock.calls[0][0];
-      expect(created).toMatchObject({ name: 'Asha Verma', email: 'asha@nabz.in', role: 'onboarding_reviewer' });
+      expect(created).toMatchObject({ name: 'Asha Verma', email: 'asha@nabz.in', role: 'ops_admin', adminAccess: { ...RIDERS_ONLY, updatedBy: ADMIN._id } });
       expect(created.password.length).toBeGreaterThan(30); // random, never shown to anyone
       expect(passwordResetService.invite).toHaveBeenCalledWith(expect.objectContaining({ _id: REVIEWER_ID }), { team: true });
       expect(securityAuditService.record).toHaveBeenCalledWith(expect.objectContaining({ event: 'admin_onboarding_reviewer_created', actorId: ADMIN._id }));
       expect(out.invite).toEqual({ sent: true });
-      expect(out.reviewer).toMatchObject({ email: 'asha@nabz.in', mfaEnrolled: false });
+      expect(out.reviewer).toMatchObject({ email: 'asha@nabz.in', mfaEnrolled: false, access: { full: false, sections: ['partners', 'documents'], partnerKinds: ['DELIVERY'] } });
+    });
+
+    it('needs at least one section, and partner types for verification sections', async () => {
+      await expect(team.create(ADMIN, { name: 'Asha Verma', email: 'asha@nabz.in', access: { sections: [] } })).rejects.toThrow(/at least one section/);
+      await expect(team.create(ADMIN, { name: 'Asha Verma', email: 'asha@nabz.in', access: { sections: ['documents'] } })).rejects.toThrow(/partner types/);
+      expect(User.create).not.toHaveBeenCalled();
     });
 
     it('refuses a login ID outside the allowed domains', async () => {
       process.env.ONBOARDING_LOGIN_DOMAINS = 'nabz.in';
-      await expect(team.create(ADMIN, { name: 'Asha Verma', email: 'asha@gmail.com' })).rejects.toThrow(/@nabz\.in/);
+      await expect(team.create(ADMIN, { name: 'Asha Verma', email: 'asha@gmail.com', access: RIDERS_ONLY })).rejects.toThrow(/@nabz\.in/);
       expect(User.create).not.toHaveBeenCalled();
     });
 
     it('refuses an email that already has an account', async () => {
       User.exists.mockResolvedValue({ _id: 'x' });
-      await expect(team.create(ADMIN, { name: 'Asha Verma', email: 'asha@nabz.in' })).rejects.toThrow(/already exists/);
+      await expect(team.create(ADMIN, { name: 'Asha Verma', email: 'asha@nabz.in', access: RIDERS_ONLY })).rejects.toThrow(/already exists/);
     });
   });
 
@@ -85,7 +93,7 @@ describe('onboardingTeamService', () => {
       await team.setActive(ADMIN, REVIEWER_ID, false);
 
       expect(User.updateOne).toHaveBeenCalledWith(
-        { _id: REVIEWER_ID, role: 'onboarding_reviewer' },
+        { _id: REVIEWER_ID, role: { $in: ['ops_admin', 'onboarding_reviewer'] } },
         { $set: { isActive: false }, $inc: { sessionVersion: 1 } }
       );
     });
