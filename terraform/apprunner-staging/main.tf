@@ -77,6 +77,13 @@ data "aws_secretsmanager_secret" "mongodb_uri" {
   name = var.mongodb_uri_secret_name
 }
 
+# Razorpay TEST-mode keys (STAGING): created by hand in Secrets Manager, never in git.
+# Looked up only when razorpay_test_mode is on, so a plan works before they exist.
+data "aws_secretsmanager_secret" "razorpay" {
+  for_each = var.razorpay_test_mode ? toset(["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"]) : toset([])
+  name     = "${var.razorpay_secret_prefix}${each.key}"
+}
+
 # ── Container registries ─────────────────────────────────────────────────────
 resource "aws_ecr_repository" "repo" {
   for_each             = toset(["api", "web"])
@@ -347,7 +354,7 @@ resource "aws_iam_role_policy" "api_instance" {
       {
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
-        Resource = concat([for s in aws_secretsmanager_secret.generated : s.arn], [data.aws_secretsmanager_secret.mongodb_uri.arn, local.realtime.realtime_token_secret_arn, local.realtime.turn_secret_arn])
+        Resource = concat([for s in aws_secretsmanager_secret.generated : s.arn], [data.aws_secretsmanager_secret.mongodb_uri.arn, local.realtime.realtime_token_secret_arn, local.realtime.turn_secret_arn], [for s in data.aws_secretsmanager_secret.razorpay : s.arn])
       },
       { Effect = "Allow", Action = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"], Resource = "${aws_s3_bucket.uploads.arn}/*" },
       { Effect = "Allow", Action = ["s3:ListBucket"], Resource = aws_s3_bucket.uploads.arn }
@@ -394,7 +401,7 @@ resource "aws_apprunner_service" "api" {
           S3_UPLOADS_BUCKET = aws_s3_bucket.uploads.id
           AWS_REGION        = var.region
           REDIS_ENABLED     = "false"
-          RAZORPAY_ENABLED  = "false"
+          RAZORPAY_ENABLED  = var.razorpay_test_mode ? "true" : "false"
           LOG_LEVEL         = "info"
           DEPLOYMENT_ENV    = var.environment
           # STAGING ONLY: test stores deliver India-wide so testers anywhere can order supplies.
@@ -415,7 +422,8 @@ resource "aws_apprunner_service" "api" {
             MONGODB_URI           = data.aws_secretsmanager_secret.mongodb_uri.arn
             REALTIME_TOKEN_SECRET = local.realtime.realtime_token_secret_arn
             TURN_SECRET           = local.realtime.turn_secret_arn
-          }
+          },
+          { for k, s in data.aws_secretsmanager_secret.razorpay : k => s.arn }
         )
       }
     }

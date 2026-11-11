@@ -13,6 +13,18 @@ variable "environment" {
   default = "staging"
 }
 
+variable "razorpay_test_mode" {
+  description = "STAGING: take online payments with Razorpay TEST-mode keys (no real money). Needs the two secrets under razorpay_secret_prefix."
+  type        = bool
+  default     = false
+}
+
+variable "razorpay_secret_prefix" {
+  description = "Secrets Manager name prefix for RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET (test-mode keys only on staging)"
+  type        = string
+  default     = "nabz/staging/"
+}
+
 variable "mongodb_uri_secret_name" {
   description = "Secrets Manager secret holding the Atlas connection string (created by hand, never in git)"
   type        = string
