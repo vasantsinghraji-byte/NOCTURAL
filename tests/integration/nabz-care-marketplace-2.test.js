@@ -224,6 +224,53 @@ describe('Care marketplace part 2 (real MongoDB)', () => {
       expect(link.body.url).toMatch(/^data:application\/pdf|^https:/);
     });
 
+    it('a report sent straight to S3 is checked before use: real PDF accepted, disguised file and someone else’s upload refused', async () => {
+      if (!db) return;
+      const storageConfig = require('../../config/storage');
+      const saved = { USE_S3: storageConfig.USE_S3, getS3Client: storageConfig.getS3Client };
+      const objects = new Map();
+      const fake = {
+        send: async (cmd) => {
+          const name = cmd.constructor.name;
+          const key = cmd.input.Key;
+          if (name === 'HeadObjectCommand') { if (!objects.has(key)) throw new Error('NotFound'); return { ContentLength: objects.get(key).length }; }
+          if (name === 'GetObjectCommand') return { Body: { transformToByteArray: async () => objects.get(key).subarray(0, 4100) } };
+          if (name === 'CopyObjectCommand') { objects.set(key, objects.get(cmd.input.CopySource.split('/').slice(1).join('/'))); return {}; }
+          if (name === 'DeleteObjectCommand') { objects.delete(key); return {}; }
+          return {};
+        }
+      };
+      storageConfig.USE_S3 = true;
+      storageConfig.getS3Client = () => fake;
+      const crypto = require('crypto');
+      const labId = String(users.lab._id);
+      const pending = (ext) => `lab-reports-pending/${labId}/${order._id}/${crypto.randomUUID()}.${ext}`;
+      const complete = (key) => api('post', `/partner/lab/orders/${order._id}/report/complete`, 'lab', { key, fileName: 'TSH report.pdf' });
+      try {
+        const disguised = pending('pdf');
+        objects.set(disguised, Buffer.from([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00])); // a Windows program, named .pdf
+        const bad = await complete(disguised);
+        expect(bad.status).toBe(400);
+        expect(bad.body.message).toMatch(/real PDF/);
+        expect(objects.has(disguised)).toBe(false); // thrown away
+
+        const someoneElses = `lab-reports-pending/${String(new mongoose.Types.ObjectId())}/${order._id}/${crypto.randomUUID()}.pdf`;
+        expect((await complete(someoneElses)).status).toBe(400);
+
+        const real = pending('pdf');
+        objects.set(real, Buffer.from('%PDF-1.4\n%nabz direct upload\n'));
+        const ok = await complete(real);
+        expect(ok.status).toBe(200);
+        expect(ok.body.order.status).toBe('REPORT_READY');
+        const stored = await LabOrder.findById(order._id).lean();
+        expect(stored.report.key).toMatch(new RegExp(`^lab-reports/${order._id}/`));
+        expect(stored.report.mimeType).toBe('application/pdf');
+      } finally {
+        storageConfig.USE_S3 = saved.USE_S3;
+        storageConfig.getS3Client = saved.getS3Client;
+      }
+    });
+
     it('pay at collection: the bill is PAID only when the full amount is collected', async () => {
       if (!db) return;
       const book = async (time) => (await api('post', '/labs/orders', 'c1', { storeId: String(stores.lab._id), serviceIds: [String(svc.cbc._id)], mode: 'CLINIC', slot: { date: ist(6), time } })).body.order;

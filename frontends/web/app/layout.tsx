@@ -1,5 +1,6 @@
 import RevealOnScroll from './_components/RevealOnScroll';
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import { Outfit, Manrope } from 'next/font/google';
 import './globals.css';
 import './nabz.css';
@@ -41,7 +42,10 @@ export const viewport: Viewport = {
   initialScale: 1
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// Every page renders per request so it can carry that request's CSP nonce
+// (middleware.ts). Reading the headers is what opts the app into that.
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  await headers();
   return (
     <html lang="en" className={`${manrope.variable} ${outfit.variable}`}>
       <body>

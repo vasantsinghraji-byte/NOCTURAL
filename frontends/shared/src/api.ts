@@ -323,6 +323,40 @@ export class MedRushApi {
     return this.request<{ success: true; user: AuthUser; tokens?: SessionTokens }>('POST', '/auth/admin-mfa/step-up', { body: { code } });
   }
 
+  // Passkeys (WebAuthn) instead of a 6-digit code. `options` go to the browser's
+  // WebAuthn API; its answer comes back here with the challengeId.
+  adminMfaPasskeyOptions(mfaToken: string) {
+    return this.request<{ success: true; options: unknown; challengeId: string }>('POST', '/auth/admin-mfa/passkey/options', { body: { mfaToken } });
+  }
+
+  adminMfaPasskeyVerify(mfaToken: string, challengeId: string, response: unknown) {
+    return this.request<{ success: true; user: AuthUser; tokens?: SessionTokens }>('POST', '/auth/admin-mfa/passkey/verify', { body: { mfaToken, challengeId, response } });
+  }
+
+  adminMfaStepUpPasskeyOptions() {
+    return this.request<{ success: true; options: unknown; challengeId: string }>('POST', '/auth/admin-mfa/step-up/passkey/options');
+  }
+
+  adminMfaStepUpPasskey(challengeId: string, response: unknown) {
+    return this.request<{ success: true; user: AuthUser; tokens?: SessionTokens }>('POST', '/auth/admin-mfa/step-up/passkey', { body: { challengeId, response } });
+  }
+
+  passkeys() {
+    return this.request<{ success: true; credentials: Array<{ credentialId: string; name?: string; createdAt?: string; lastUsedAt?: string }> }>('GET', '/webauthn/credentials');
+  }
+
+  passkeyRegistrationOptions() {
+    return this.request<{ success: true; options: unknown; challengeId: string }>('POST', '/webauthn/registration/options');
+  }
+
+  passkeyRegistrationVerify(challengeId: string, response: unknown, name?: string) {
+    return this.request<{ success: true; verified: boolean }>('POST', '/webauthn/registration/verify', { body: { challengeId, response, name } });
+  }
+
+  removePasskey(credentialId: string) {
+    return this.request<{ success: true }>('DELETE', `/webauthn/credentials/${encodeURIComponent(credentialId)}`);
+  }
+
   adminMfaStatus() {
     return this.request<{ success: true; enrolled: boolean; enabledAt: string | null; recoveryCodesLeft: number }>('GET', '/auth/admin-mfa/status');
   }
@@ -1096,6 +1130,11 @@ export class MedRushApi {
   }
 
   /** The admin team, plus the sections and partner types the main admin can hand out. */
+  /** Security alerts about admin accounts (main admin only). */
+  onboardingTeamAlerts() {
+    return this.request<{ success: true; alerts: Array<{ _id: string; title: string; message: string; createdAt: string; read?: boolean }> }>('GET', '/onboarding/team/alerts');
+  }
+
   onboardingTeam() {
     return this.request<{
       success: true; reviewers: OnboardingReviewer[]; allowedDomains: string[];
@@ -1546,7 +1585,24 @@ export class MedRushApi {
     return this.request<{ success: true; order: M.LabOrderForLab }>('POST', `/marketplace/partner/lab/orders/${id}/reject`, { body: { reason } });
   }
 
+  /**
+   * Lab report upload. With S3 the file goes straight to storage on a signed
+   * link (never through the API or its firewall) and the server then checks it
+   * is a real PDF / JPG / PNG; without S3 (local development) it is posted to
+   * the API. `file` is a browser File, or { uri, name, type } in the app.
+   */
   async uploadLabReport(id: string, file: unknown, filename = 'report.pdf'): Promise<{ success: true; order: M.LabOrderForLab }> {
+    const native = !!file && typeof file === 'object' && 'uri' in (file as Record<string, unknown>);
+    const blob: Blob = native ? await (await fetch((file as { uri: string }).uri)).blob() : (file as Blob);
+    const mime = (native ? (file as { type?: string }).type : (file as Blob).type) || blob.type || 'application/pdf';
+    const { upload } = await this.request<{ success: true; upload: { mode: 's3' | 'direct'; url?: string; key?: string; headers?: Record<string, string> } }>(
+      'POST', `/marketplace/partner/lab/orders/${id}/report/upload-url`, { body: { mime, size: blob.size } }
+    );
+    if (upload.mode === 's3' && upload.url && upload.key) {
+      const put = await fetch(upload.url, { method: 'PUT', headers: upload.headers, body: blob });
+      if (!put.ok) throw new ApiError(put.status, 'The upload didn’t finish. Please try again');
+      return this.request<{ success: true; order: M.LabOrderForLab }>('POST', `/marketplace/partner/lab/orders/${id}/report/complete`, { body: { key: upload.key, fileName: filename } });
+    }
     const form = new FormData();
     form.append('report', file as any, filename);
     const res = await this.send(`/marketplace/partner/lab/orders/${id}/report`, { method: 'POST', headers: { Accept: 'application/json' }, body: form });

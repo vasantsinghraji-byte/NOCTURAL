@@ -249,6 +249,22 @@ function validateEnvironment(options = {}) {
       if (process.env[flag]) errors.push(`${flag} is a staging-only setting and must not be set in production`);
     }
   }
+  // Payment keys in the right place: real money only in production, never test
+  // keys there (customers would "pay" and nothing would be collected).
+  const rzpKey = String(process.env.RAZORPAY_KEY_ID || '');
+  if (rzpKey && process.env.RAZORPAY_ENABLED !== 'false') {
+    if (process.env.DEPLOYMENT_ENV === 'production' && rzpKey.startsWith('rzp_test_')) {
+      errors.push('RAZORPAY_KEY_ID is a TEST key: production needs the live key (rzp_live_...)');
+    }
+    if (process.env.DEPLOYMENT_ENV && process.env.DEPLOYMENT_ENV !== 'production' && rzpKey.startsWith('rzp_live_')) {
+      errors.push(`RAZORPAY_KEY_ID is a LIVE key on ${process.env.DEPLOYMENT_ENV}: only production may take real money (use rzp_test_...)`);
+    }
+  }
+  // Admin backup codes should have their own key (rotating JWT_SECRET must not
+  // break them). A warning, not an error: without it they fall back to JWT_SECRET.
+  if (process.env.DEPLOYMENT_ENV === 'production' && !process.env.MFA_RECOVERY_KEY) {
+    warnings.push('MFA_RECOVERY_KEY is not set: admin backup codes use JWT_SECRET, so rotating JWT_SECRET would break them');
+  }
   if (process.env.CRON_SECRET && process.env.CRON_SECRET.length < 32) {
     errors.push('CRON_SECRET must be at least 32 characters');
   }

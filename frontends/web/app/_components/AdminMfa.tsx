@@ -3,7 +3,26 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { KeyRound, ShieldCheck, Smartphone } from 'lucide-react';
+import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser';
 import { api } from '@/lib/api';
+
+/** Ask the browser for a passkey answer; friendly errors for the usual cases. */
+export async function passkeyAnswer(get: () => Promise<{ options: unknown; challengeId: string }>) {
+  let opts;
+  try {
+    opts = await get();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : '';
+    throw new Error(/No WebAuthn credential/i.test(msg) ? 'No passkey on this account yet. Use your authenticator code, then add a passkey from the admin menu.' : msg || 'Could not start passkey sign-in');
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await startAuthentication({ optionsJSON: opts.options as any });
+    return { challengeId: opts.challengeId, response };
+  } catch (e) {
+    throw new Error(e instanceof Error && e.name === 'NotAllowedError' ? 'Passkey cancelled.' : 'This device could not use a passkey for this site.');
+  }
+}
 
 type Stage = 'setup' | 'code' | 'recovery' | 'saveCodes';
 
@@ -148,6 +167,13 @@ export default function AdminMfa({ mfaToken, enrolled, onDone, onRestart }: {
           {note && <div className="notice good" style={{ marginTop: 12 }}>{note}</div>}
           <button className="btn block" type="submit" disabled={busy} style={{ marginTop: 16 }}>{busy ? 'Checking…' : 'Verify'}</button>
           <p className="muted" style={{ marginTop: 14, marginBottom: 0, display: 'flex', justifyContent: 'space-between' }}>
+            {stage === 'code' && browserSupportsWebAuthn() && (
+              <button type="button" className="linkish" disabled={busy} onClick={() => run(async () => {
+                const a = await passkeyAnswer(() => api.adminMfaPasskeyOptions(mfaToken));
+                await api.adminMfaPasskeyVerify(mfaToken, a.challengeId, a.response);
+                onDone();
+              })}>Use a passkey</button>
+            )}
             <button type="button" className="linkish" onClick={() => { setError(null); setStage(stage === 'code' ? 'recovery' : 'code'); }}>
               {stage === 'code' ? 'Lost your phone? Use a recovery code' : 'Use the authenticator app'}
             </button>
@@ -187,9 +213,24 @@ export function StepUpDialog({ open, onClose, onConfirmed }: { open: boolean; on
         <input className="input mfa-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus required placeholder="123456"
           value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} aria-label="6-digit code" />
         {error && <div className="notice bad" style={{ marginTop: 12 }}>{error}</div>}
-        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
           <button className="btn secondary" type="button" onClick={onClose}>Cancel</button>
           <button className="btn" type="submit" disabled={busy || code.length !== 6}>{busy ? 'Checking…' : 'Confirm'}</button>
+          {browserSupportsWebAuthn() && (
+            <button className="btn secondary" type="button" disabled={busy} onClick={async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                const a = await passkeyAnswer(() => api.adminMfaStepUpPasskeyOptions());
+                await api.adminMfaStepUpPasskey(a.challengeId, a.response);
+                onConfirmed();
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Could not confirm');
+              } finally {
+                setBusy(false);
+              }
+            }}>Use a passkey</button>
+          )}
         </div>
       </form>
     </div>

@@ -112,5 +112,9 @@ describe('Partner identities are refused by the customer app (real MongoDB)', ()
     expect(reg.status).toBe(201);
     const login = await request(app).post('/api/v1/patients/login').set(MOBILE).send({ email, password: PASSWORD });
     expect(login.status).toBe(200);
+    // Proof of consent (DPDP): which Terms & Privacy version, and when.
+    const { TERMS_VERSION } = require('../../constants/legal');
+    const saved = await Patient.findOne({ email }).lean();
+    expect(saved.consent).toMatchObject({ version: TERMS_VERSION, acceptedAt: expect.any(Date) });
   });
 });

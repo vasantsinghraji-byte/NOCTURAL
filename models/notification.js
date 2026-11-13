@@ -45,7 +45,8 @@ const notificationSchema = new mongoose.Schema({
       'CARE_VISIT_REQUEST',
       'CARE_VISIT_MATCHED',
       'CARE_SOS',
-      'CARE_VISIT_UPDATE'
+      'CARE_VISIT_UPDATE',
+      'ADMIN_SECURITY' // services/adminAlertService.js
     ],
     required: true
   },

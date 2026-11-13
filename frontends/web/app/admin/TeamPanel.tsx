@@ -26,6 +26,8 @@ export default function TeamPanel({ sensitive }: { sensitive: (action: () => Pro
   const [editing, setEditing] = useState<{ id: string; access: Access } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [alerts, setAlerts] = useState<Awaited<ReturnType<typeof api.onboardingTeamAlerts>>['alerts']>([]);
+  useEffect(() => { api.onboardingTeamAlerts().then((r) => setAlerts(r.alerts)).catch(() => setAlerts([])); }, []);
 
   const load = useCallback(() => {
     api.onboardingTeam().then((r) => {
@@ -80,6 +82,18 @@ export default function TeamPanel({ sensitive }: { sensitive: (action: () => Pro
           <p className="muted">Give each person only the parts of the admin panel they need, for example one person to verify delivery partners and another for nurses.</p>
         </div>
       </header>
+      {alerts.length > 0 && (
+        <details className="card admin-card" open={alerts.some((a) => Date.now() - new Date(a.createdAt).getTime() < 7 * 86400000)}>
+          <summary style={{ cursor: 'pointer' }}><strong>Security alerts</strong> <span className="muted">({alerts.length})</span></summary>
+          <p className="muted" style={{ margin: '6px 0' }}>Changes to admin sign-ins: new authenticators, backup codes used, lockouts and team changes. If one wasn&apos;t expected, suspend that account below.</p>
+          {alerts.map((a) => (
+            <div key={a._id} className="row" style={{ padding: '6px 0', borderTop: '1px solid var(--border)', alignItems: 'flex-start', gap: 12 }}>
+              <span style={{ flex: 1 }}><strong>{a.title}</strong><br /><span className="muted">{a.message}</span></span>
+              <span className="muted" style={{ whiteSpace: 'nowrap' }}>{new Date(a.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span>
+            </div>
+          ))}
+        </details>
+      )}
       {notice && <div className="notice good" role="status" style={{ wordBreak: 'break-all' }}>{notice}</div>}
       {error && <div className="notice bad" role="alert">{error}</div>}
 

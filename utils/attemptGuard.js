@@ -35,11 +35,12 @@ async function reserveAttempt(Model, filter, counterPath, max, { lockPath, lockM
 
 /** After a wrong guess: lock once the limit is reached (no-op without lockPath). */
 async function lockIfExhausted(Model, filter, counterPath, max, { lockPath, lockMs } = {}) {
-  if (!lockPath) return;
-  await Model.updateOne(
+  if (!lockPath) return false;
+  const res = await Model.updateOne(
     { ...filter, [counterPath]: { $gte: max }, ...unset(lockPath) },
     { $set: { [lockPath]: new Date(Date.now() + lockMs) } }
   );
+  return res.modifiedCount === 1; // true only for the attempt that set the lock
 }
 
 /** After a right guess: the reservation wasn't a failure, start over. */

@@ -11,6 +11,7 @@ const logger = require('../utils/logger');
 const passwordSecurityService = require('./passwordSecurityService');
 const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
 const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
+const { TERMS_VERSION } = require('../constants/legal');
 const { AuthenticationError } = require('../utils/errors');
 const compromisedPasswordService = require('./compromisedPasswordService');
 const partnerAccountGuard = require('./partnerAccountGuard');
@@ -68,7 +69,9 @@ class PatientService {
         name,
         email,
         password,
-        phone
+        phone,
+        // Signing up requires ticking "I agree" to the current Terms & Privacy Policy.
+        consent: { version: TERMS_VERSION, acceptedAt: new Date() }
       });
     } catch (error) {
       logger.error('Patient creation error', { email, error: error.message, stack: error.stack });

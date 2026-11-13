@@ -60,6 +60,7 @@ describe('Admin two-step login (real MongoDB)', () => {
   afterAll(async () => {
     if (!db) return;
     await User.deleteMany({ _id: { $in: [admin._id, nurse._id] } });
+    await require('../../models/notification').deleteMany({ type: 'ADMIN_SECURITY', message: new RegExp(RUN) });
     await mongoose.disconnect();
   });
 
@@ -133,6 +134,53 @@ describe('Admin two-step login (real MongoDB)', () => {
     expect(first.status).toBe(200);
     expect(first.body.recoveryCodesLeft).toBe(9);
     expect((await use()).status).toBe(401);
+  });
+
+  it('backup codes have their own key; codes issued before it still work', async () => {
+    if (skip()) return;
+    const { hashRecoveryCode } = require('../../services/adminMfaService');
+    const jwtHash = (c) => require('crypto').createHmac('sha256', process.env.JWT_SECRET).update(`admin-recovery:${c}`).digest('hex');
+    process.env.MFA_RECOVERY_KEY = 'r'.repeat(64);
+    try {
+      // New codes no longer depend on JWT_SECRET (rotating it can't break them).
+      expect(hashRecoveryCode('ABCDE-FGHJK')).not.toBe(jwtHash('ABCDEFGHJK'));
+      // A code enrolled before the key existed (hashed with JWT_SECRET) still signs in.
+      const res = await request(app).post('/api/v1/auth/admin-mfa/verify').set(MOBILE)
+        .send({ mfaToken: (await password()).body.mfaToken, recoveryCode: recoveryCodes[1] });
+      expect(res.status).toBe(200);
+    } finally {
+      delete process.env.MFA_RECOVERY_KEY;
+    }
+  });
+
+  it('a passkey can replace the code: no passkey is refused, a verified one signs in, a bad one counts as a failure', async () => {
+    if (skip()) return;
+    const webAuthn = require('../../services/webAuthnService');
+    const none = await request(app).post('/api/v1/auth/admin-mfa/passkey/options').set(MOBILE).send({ mfaToken: (await password()).body.mfaToken });
+    expect(none.status).toBe(400);
+    expect(none.body.message).toMatch(/No WebAuthn credential/);
+
+    // The browser ceremony can't run here: stand in for the WebAuthn library's verdict.
+    const verify = jest.spyOn(webAuthn, 'verifyAuthentication').mockResolvedValueOnce({ verified: true });
+    const answer = { challengeId: String(new mongoose.Types.ObjectId()), response: { id: 'credential-id-123', type: 'public-key' } };
+    const ok = await request(app).post('/api/v1/auth/admin-mfa/passkey/verify').set(MOBILE).send({ mfaToken: (await password()).body.mfaToken, ...answer });
+    expect(ok.status).toBe(200);
+    expect(ok.body.tokens.accessToken).toEqual(expect.any(String));
+    expect(verify).toHaveBeenCalledWith(expect.objectContaining({ purpose: 'ADMIN_SIGN_IN', identityType: 'user' }));
+
+    verify.mockRejectedValueOnce(new Error('signature mismatch'));
+    const bad = await request(app).post('/api/v1/auth/admin-mfa/passkey/verify').set(MOBILE).send({ mfaToken: (await password()).body.mfaToken, ...answer });
+    expect(bad.status).toBe(401);
+    expect((await User.findById(admin._id).select('+adminMfa.failedAttempts').lean()).adminMfa.failedAttempts).toBe(1);
+    verify.mockRestore();
+    await User.updateOne({ _id: admin._id }, { $set: { 'adminMfa.failedAttempts': 0 } });
+  });
+
+  it('main admins are alerted about new authenticators and backup codes used', async () => {
+    if (skip()) return;
+    const Notification = require('../../models/notification');
+    const titles = (await Notification.find({ type: 'ADMIN_SECURITY', message: new RegExp(admin.email.replace(/[.+]/g, '\\$&')) }).lean()).map((n) => n.title);
+    expect(titles).toEqual(expect.arrayContaining(['New authenticator set up', 'Backup code used']));
   });
 
   it('sensitive actions need a fresh code (step-up)', async () => {

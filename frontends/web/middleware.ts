@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { contentSecurityPolicy } from './lib/csp.mjs';
 
 /**
  * The website proxies /api/* to the API (next.config.mjs rewrites), so the API
@@ -10,6 +11,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  * entry, so that's the one we trust (earlier entries can be forged).
  */
 export function middleware(req: NextRequest) {
+  if (!req.nextUrl.pathname.startsWith('/api/')) return withNonce(req);
   const headers = new Headers(req.headers);
   // Never pass through values a visitor sent themselves.
   headers.delete('x-nabz-client-ip');
@@ -25,4 +27,21 @@ export function middleware(req: NextRequest) {
   return NextResponse.next({ request: { headers } });
 }
 
-export const config = { matcher: '/api/:path*' };
+/**
+ * Pages: a fresh nonce per request. Next.js reads the policy from the request
+ * headers and stamps the nonce on its own scripts; the browser gets the same
+ * policy on the response. Pages render per request (app/layout.tsx reads headers).
+ */
+function withNonce(req: NextRequest) {
+  const nonce = btoa(crypto.randomUUID());
+  const csp = contentSecurityPolicy(nonce, { dev: process.env.NODE_ENV === 'development' });
+  const headers = new Headers(req.headers);
+  headers.set('x-nonce', nonce);
+  headers.set('content-security-policy', csp);
+  const res = NextResponse.next({ request: { headers } });
+  res.headers.set('Content-Security-Policy', csp);
+  return res;
+}
+
+// API calls (signed visitor IP) and every page; not static files or images.
+export const config = { matcher: ['/api/:path*', '/((?!_next/static|_next/image|favicon|brand/|.*\\.(?:png|jpg|jpeg|svg|webp|ico|txt|xml|json|webmanifest)$).*)'] };

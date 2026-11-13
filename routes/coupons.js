@@ -50,6 +50,7 @@ const couponBody = (creating) => [
   body('totalLimit').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1, max: 1000000 }).toInt(),
   body('perCustomerLimit').optional().isInt({ min: 1, max: 100 }).toInt(),
   body('firstOrderOnly').optional().isBoolean().toBoolean(),
+  body('requireVerifiedPhone').optional().isBoolean().toBoolean(),
   body('active').optional().isBoolean().toBoolean()
 ];
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, FlatList, Image, Linking, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Redirect } from 'expo-router';
+import { useSecureView } from '@/lib/secureView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { PharmacyOrder, PharmacyRejectionReason } from '@medrush/shared';
 import { api, describeNetworkError, getAuthToken } from '@/lib/api';
@@ -65,6 +66,8 @@ function RxPanel({ order, busy, onVerify }: {
   const [reg, setReg] = useState('');
   const [date, setDate] = useState('');
   const token = getAuthToken();
+  // A patient's prescription: no screenshots while the check panel is open.
+  useSecureView(`vendor-rx-${order._id}`);
   const valid = name.trim().length >= 3 && reg.trim().length >= 3 && /^\d{4}-\d{2}-\d{2}$/.test(date.trim());
   return (
     <View style={styles.rxBox}>

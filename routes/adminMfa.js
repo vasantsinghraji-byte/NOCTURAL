@@ -69,12 +69,43 @@ router.post(
   })
 );
 
-router.post('/step-up', protect, adminOnly, [code], validate, wrap(async (req, res) => {
-  const session = await adminMfa.stepUp(req.user._id, req.body.code);
-  // Replace the current refresh session with the fresh one.
+// Passkey instead of a code (phishing-resistant). The browser runs WebAuthn with
+// the options; the answer comes back as `response` with its `challengeId`.
+const passkeyAnswer = [
+  body('challengeId').isMongoId().withMessage('Start again'),
+  body('response').isObject().withMessage('Passkey answer missing'),
+  body('response.id').isString().isLength({ min: 8, max: 1024 })
+];
+
+router.post('/passkey/options', [mfaToken], validate, wrap(async (req, res) => {
+  res.json({ success: true, ...(await adminMfa.passkeyOptions(req.body.mfaToken)) });
+}));
+
+router.post('/passkey/verify', [mfaToken, ...passkeyAnswer], validate, wrap(async (req, res) => {
+  const { session } = await adminMfa.verifyPasskey(req.body.mfaToken, { challengeId: req.body.challengeId, response: req.body.response });
+  return startSession(req, res, session);
+}));
+
+/** Replace the current refresh session with the fresh one after a step-up. */
+async function revokeCurrent(req) {
   const current = parseCookieHeader(req.headers.cookie)[REFRESH_TOKEN_COOKIE]
     || (req.body && typeof req.body.refreshToken === 'string' ? req.body.refreshToken : null);
   if (current) await refreshSessionService.revoke(current).catch(() => undefined);
+}
+
+router.post('/step-up', protect, adminOnly, [code], validate, wrap(async (req, res) => {
+  const session = await adminMfa.stepUp(req.user._id, req.body.code);
+  await revokeCurrent(req);
+  return startSession(req, res, session);
+}));
+
+router.post('/step-up/passkey/options', protect, adminOnly, wrap(async (req, res) => {
+  res.json({ success: true, ...(await adminMfa.stepUpPasskeyOptions(req.user._id)) });
+}));
+
+router.post('/step-up/passkey', protect, adminOnly, passkeyAnswer, validate, wrap(async (req, res) => {
+  const session = await adminMfa.stepUpPasskey(req.user._id, { challengeId: req.body.challengeId, response: req.body.response });
+  await revokeCurrent(req);
   return startSession(req, res, session);
 }));
 

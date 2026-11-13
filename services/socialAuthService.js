@@ -20,6 +20,7 @@ const Patient = require('../models/patient');
 const OtpChallenge = require('../models/otpChallenge');
 const authTokens = require('../utils/authTokens');
 const logger = require('../utils/logger');
+const { TERMS_VERSION } = require('../constants/legal');
 const { ValidationError, AuthenticationError, ConflictError, ServiceError, RateLimitError } = require('../utils/errors');
 const partnerAccountGuard = require('./partnerAccountGuard');
 
@@ -112,7 +113,9 @@ async function createPatient({ name, email, phone, googleId, phoneVerified, emai
     googleId: googleId || undefined,
     phoneVerified: !!phoneVerified,
     emailVerified: !!emailVerified,
-    isVerified: !!(phoneVerified || emailVerified)
+    isVerified: !!(phoneVerified || emailVerified),
+    // Google / mobile sign-up also requires ticking "I agree" first.
+    consent: { version: TERMS_VERSION, acceptedAt: new Date() }
   });
   return Patient.findById(patient._id).select('+sessionVersion');
 }

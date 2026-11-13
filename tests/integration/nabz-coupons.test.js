@@ -76,7 +76,8 @@ describe('Discount coupons on medicine orders (real MongoDB)', () => {
     tokens.money = await staff(money.email);
     tokens.other = await staff(other.email);
     for (const [i, key] of ['a', 'b', 'c'].entries()) {
-      patients[key] = await Patient.create({ name: `Buyer ${key}`, email: `${key}.${RUN}@nabz.test`, password: PASSWORD, phone: phone(10 + i) });
+      // a and b signed in with mobile + OTP once; c only by email (unverified number).
+      patients[key] = await Patient.create({ name: `Buyer ${key}`, email: `${key}.${RUN}@nabz.test`, password: PASSWORD, phone: phone(10 + i), phoneVerified: key !== 'c' });
       tokens[key] = (await request(app).post('/api/v1/patients/login').set(MOBILE).send({ email: patients[key].email, password: PASSWORD })).body.tokens.accessToken;
     }
   }, 90000); // index builds + five sign-ins can pass 30 s on a busy machine
@@ -192,6 +193,11 @@ describe('Discount coupons on medicine orders (real MongoDB)', () => {
     const returning = await order('b', first.body.coupon.code);
     expect(returning.status).toBe(400);
     expect(returning.body.message).toMatch(/first/);
+    // First-order codes need a verified mobile number (one number = one account).
+    const unverified = await order('c', first.body.coupon.code);
+    expect(unverified.status).toBe(400);
+    expect(unverified.body.message).toMatch(/Verify your mobile number/);
+    await Patient.updateOne({ _id: patients.c._id }, { $set: { phoneVerified: true } });
     expect((await order('c', first.body.coupon.code)).status).toBe(201); // c has no orders yet
 
     const split = await request(app).post('/api/v1/pharmacy/checkouts').set(auth(tokens.c)).send({

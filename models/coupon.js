@@ -32,6 +32,10 @@ const CouponSchema = new mongoose.Schema({
   perCustomerLimit: { type: Number, default: 1, min: 1, max: 100 },
   // Only for a customer's first order of that service on Nabz.
   firstOrderOnly: { type: Boolean, default: false },
+  // Only customers whose mobile number is verified (OTP). One number = one
+  // account, so one person can't collect the offer on many email accounts.
+  // Always applies to first-order codes.
+  requireVerifiedPhone: { type: Boolean, default: false },
   active: { type: Boolean, default: true },
   // Live uses (reserved or used); a cancelled order gives its use back.
   usedCount: { type: Number, default: 0, min: 0 },

@@ -4,6 +4,7 @@ const RedisStore = require('rate-limit-redis');
 const logger = require('../utils/logger');
 const monitoring = require('../utils/monitoring');
 const { getRedisClient, scanKeys } = require('../config/redis');
+const { MongoRateLimitStore } = require('../middleware/mongoRateLimitStore');
 
 // Parse and validate whitelisted IPs at startup
 const whitelistedIPs = (() => {
@@ -342,8 +343,13 @@ const createMonitoredLimiter = (options) => {
     });
 
     logger.info(`Rate limiter for ${type} using Redis store (distributed)`);
+  } else if (process.env.NODE_ENV !== 'test') {
+    // No Redis: count in MongoDB so every server instance shares the limit
+    // (falls back to memory by itself while the database is unreachable).
+    limiterConfig.store = new MongoRateLimitStore({ prefix: `rate-limit:${type}:` });
+    logger.info(`Rate limiter for ${type} using MongoDB store (shared)`);
   } else {
-    logger.info(`Rate limiter for ${type} using memory store (single instance only)`);
+    logger.info(`Rate limiter for ${type} using memory store (tests)`);
   }
 
   return rateLimit(limiterConfig);

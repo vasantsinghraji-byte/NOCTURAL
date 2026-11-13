@@ -39,6 +39,7 @@ async function main() {
     $set: { 'adminMfa.failedAttempts': 0 },
     $inc: { sessionVersion: 1 } // sign out everywhere
   });
+  await require('../services/adminAlertService').aboutAccount('admin_mfa_reset', user._id, 'Authenticator reset', 'two-step sign-in was reset from the server; they set it up again at their next sign-in.');
   console.log('Two-step verification reset. All sessions signed out. The admin sets it up again at next sign-in.');
   await mongoose.disconnect();
 }

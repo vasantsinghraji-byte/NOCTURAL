@@ -7,19 +7,19 @@ import { api } from '@/lib/api';
 type Sensitive = (action: () => Promise<void>) => Promise<void>;
 type Draft = {
   code: string; description: string; kind: 'PERCENT' | 'FLAT'; value: string; maxDiscount: string; minOrder: string;
-  services: CouponService[]; startsAt: string; endsAt: string; totalLimit: string; perCustomerLimit: string; firstOrderOnly: boolean; active: boolean;
+  services: CouponService[]; startsAt: string; endsAt: string; totalLimit: string; perCustomerLimit: string; firstOrderOnly: boolean; requireVerifiedPhone: boolean; active: boolean;
 };
 
 const toLocal = (d: Date | string) => { const x = new Date(d); return new Date(x.getTime() - x.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 const day = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const emptyDraft = (): Draft => ({
   code: '', description: '', kind: 'PERCENT', value: '10', maxDiscount: '100', minOrder: '0', services: ['PHARMACY'],
-  startsAt: toLocal(new Date()), endsAt: toLocal(new Date(Date.now() + 30 * 86400000)), totalLimit: '', perCustomerLimit: '1', firstOrderOnly: false, active: true
+  startsAt: toLocal(new Date()), endsAt: toLocal(new Date(Date.now() + 30 * 86400000)), totalLimit: '', perCustomerLimit: '1', firstOrderOnly: false, requireVerifiedPhone: true, active: true
 });
 const toDraft = (c: AdminCoupon): Draft => ({
   code: c.code, description: c.description, kind: c.kind, value: String(c.value), maxDiscount: c.maxDiscount ? String(c.maxDiscount) : '', minOrder: String(c.minOrder || 0),
   services: c.services, startsAt: toLocal(c.startsAt), endsAt: toLocal(c.endsAt), totalLimit: c.totalLimit ? String(c.totalLimit) : '', perCustomerLimit: String(c.perCustomerLimit || 1),
-  firstOrderOnly: !!c.firstOrderOnly, active: c.active !== false
+  firstOrderOnly: !!c.firstOrderOnly, requireVerifiedPhone: !!c.requireVerifiedPhone || !!c.firstOrderOnly, active: c.active !== false
 });
 const STATUS: Record<AdminCoupon['status'], { label: string; cls: string }> = {
   LIVE: { label: 'Live', cls: 'mint' }, SCHEDULED: { label: 'Starts later', cls: '' }, ENDED: { label: 'Ended', cls: '' }, USED_UP: { label: 'Used up', cls: 'rx' }, OFF: { label: 'Off', cls: 'rx' }
@@ -57,7 +57,7 @@ export default function CouponsPanel({ sensitive }: { sensitive: Sensitive }) {
       minOrder: Number(d.minOrder) || 0, services: d.services,
       startsAt: new Date(d.startsAt).toISOString(), endsAt: new Date(d.endsAt).toISOString(),
       totalLimit: d.totalLimit ? Number(d.totalLimit) : null, perCustomerLimit: Number(d.perCustomerLimit) || 1,
-      firstOrderOnly: d.firstOrderOnly, active: d.active
+      firstOrderOnly: d.firstOrderOnly, requireVerifiedPhone: d.requireVerifiedPhone || d.firstOrderOnly, active: d.active
     };
     return sensitive(async () => {
       if (editingId) {
@@ -161,8 +161,12 @@ export default function CouponsPanel({ sensitive }: { sensitive: Sensitive }) {
             {!draft.services.length && <p className="muted" style={{ margin: '6px 0 0' }}>Pick at least one.</p>}
           </fieldset>
           <label className="check-row" htmlFor="cp-first" style={{ marginTop: 8 }}>
-            <input id="cp-first" type="checkbox" checked={draft.firstOrderOnly} onChange={(e) => set('firstOrderOnly', e.target.checked)} />
+            <input id="cp-first" type="checkbox" checked={draft.firstOrderOnly} onChange={(e) => setDraft({ ...draft, firstOrderOnly: e.target.checked, requireVerifiedPhone: e.target.checked || draft.requireVerifiedPhone })} />
             <span><strong>First order only</strong><small>Only for a customer&apos;s first order of that service on Nabz.</small></span>
+          </label>
+          <label className="check-row" htmlFor="cp-phone">
+            <input id="cp-phone" type="checkbox" checked={draft.requireVerifiedPhone || draft.firstOrderOnly} disabled={draft.firstOrderOnly} onChange={(e) => set('requireVerifiedPhone', e.target.checked)} />
+            <span><strong>Verified mobile only</strong><small>Only customers who signed in with their mobile number and OTP. Stops one person using many email accounts. Always on for first-order codes.</small></span>
           </label>
           <label className="check-row" htmlFor="cp-active">
             <input id="cp-active" type="checkbox" checked={draft.active} onChange={(e) => set('active', e.target.checked)} />
@@ -191,7 +195,7 @@ export default function CouponsPanel({ sensitive }: { sensitive: Sensitive }) {
               <dt>Discount</dt><dd>{c.offer}{c.minOrder ? ` on orders from ₹${c.minOrder}` : ''}</dd>
               <dt>Works on</dt><dd>{c.services.map(labelOf).join(', ')}</dd>
               <dt>Runs</dt><dd>{day(c.startsAt)} – {day(c.endsAt)}</dd>
-              <dt>Used</dt><dd>{c.uses}{c.totalLimit ? ` of ${c.totalLimit}` : ''} · {c.perCustomerLimit} per customer{c.firstOrderOnly ? ' · first order only' : ''}</dd>
+              <dt>Used</dt><dd>{c.uses}{c.totalLimit ? ` of ${c.totalLimit}` : ''} · {c.perCustomerLimit} per customer{c.firstOrderOnly ? ' · first order only' : ''}{c.requireVerifiedPhone || c.firstOrderOnly ? ' · verified mobile only' : ''}</dd>
               <dt>Discount given</dt><dd>₹{c.discountGiven}</dd>
             </dl>
             <div className="review-actions">

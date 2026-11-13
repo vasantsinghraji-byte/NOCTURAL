@@ -420,8 +420,21 @@ module.exports = {
   getSignedUrl: async (key, expiresIn = 3600) => {
     if (USE_S3) {
       try {
-        const { GetObjectCommand } = require('@aws-sdk/client-s3');
+        const { GetObjectCommand, GetObjectTaggingCommand } = require('@aws-sdk/client-s3');
         const { getSignedUrl: presign } = require('@aws-sdk/s3-request-presigner');
+        // Malware scanning (GuardDuty, terraform malware.tf) tags each new upload.
+        // A file found to be malicious is never handed out. If the tag can't be
+        // read (scan still running, scanning off), the file is served as before.
+        try {
+          const tags = await getS3Client().send(new GetObjectTaggingCommand({ Bucket: S3_BUCKET, Key: normalizeStorageKey(key) }));
+          const verdict = (tags.TagSet || []).find((t) => t.Key === 'GuardDutyMalwareScanStatus');
+          if (verdict && verdict.Value === 'THREATS_FOUND') {
+            logger.logSecurity('malware_download_blocked', { key: normalizeStorageKey(key) });
+            return null;
+          }
+        } catch (tagError) {
+          logger.warn('Could not read the malware scan tag', { error: tagError.message });
+        }
         return await presign(
           getS3Client(),
           new GetObjectCommand({ Bucket: S3_BUCKET, Key: normalizeStorageKey(key) }),

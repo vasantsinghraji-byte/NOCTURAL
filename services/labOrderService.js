@@ -595,6 +595,66 @@ async function advance(user, orderId, status) {
 }
 
 /** Report uploaded: REPORT_READY, the customer is told, the lab is paid. */
+// ── Report upload straight to S3 (signed link), then checked here ─────────────
+// The file never passes through the API (or the web firewall's body rules):
+// the lab gets a link signed for one type and size, uploads, and we then read
+// the first bytes to be sure it really is a PDF / JPG / PNG before using it.
+const REPORT_TYPES = Object.freeze({
+  'application/pdf': { ext: 'pdf', max: 15 * 1024 * 1024 },
+  'image/jpeg': { ext: 'jpg', max: 10 * 1024 * 1024 },
+  'image/png': { ext: 'png', max: 10 * 1024 * 1024 }
+});
+const PENDING_REPORT = /^lab-reports-pending\/([a-f0-9]{24})\/([a-f0-9]{24})\/([0-9a-f-]{36})\.(pdf|jpg|png)$/;
+
+async function createReportUploadUrl(user, orderId, { mime, size } = {}) {
+  const type = REPORT_TYPES[String(mime || '').toLowerCase()];
+  if (!type) throw new ValidationError('Upload the report as a PDF, JPG or PNG');
+  const bytes = Number(size);
+  if (!Number.isInteger(bytes) || bytes < 1) throw new ValidationError('File size is missing');
+  if (bytes > type.max) throw new ValidationError(`The report can be up to ${Math.round(type.max / 1048576)} MB`);
+  const { order } = await labOrderForLab(user, orderId);
+  if (!['COLLECTED', 'AT_LAB', 'PROCESSING', 'REPORT_READY'].includes(order.status)) throw coded(ConflictError, 'Collect the sample before uploading a report', 'BAD_STATE');
+  const storageConfig = require('../config/storage');
+  if (!storageConfig.USE_S3) return { mode: 'direct' };
+  const { PutObjectCommand } = require('@aws-sdk/client-s3');
+  const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+  const key = `lab-reports-pending/${user._id || user.id}/${order._id}/${crypto.randomUUID()}.${type.ext}`;
+  const url = await getSignedUrl(storageConfig.getS3Client(),
+    new PutObjectCommand({ Bucket: storageConfig.S3_BUCKET, Key: key, ContentType: String(mime).toLowerCase(), ContentLength: bytes }),
+    { expiresIn: 900 });
+  return { mode: 's3', url, key, method: 'PUT', headers: { 'Content-Type': String(mime).toLowerCase() } };
+}
+
+async function completeReportUpload(user, orderId, { key, fileName } = {}) {
+  const m = PENDING_REPORT.exec(String(key || ''));
+  if (!m || m[1] !== String(user._id || user.id) || m[2] !== String(orderId)) throw new ValidationError('That upload can’t be found. Please try again');
+  const storageConfig = require('../config/storage');
+  if (!storageConfig.USE_S3) throw new ValidationError('Uploads aren’t available right now');
+  const { HeadObjectCommand, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+  const s3 = storageConfig.getS3Client();
+  const Bucket = storageConfig.S3_BUCKET;
+  let head;
+  try {
+    head = await s3.send(new HeadObjectCommand({ Bucket, Key: key }));
+  } catch {
+    throw new ValidationError('The upload didn’t finish. Please try again');
+  }
+  const discard = () => s3.send(new DeleteObjectCommand({ Bucket, Key: key })).catch(() => undefined);
+  const first = await s3.send(new GetObjectCommand({ Bucket, Key: key, Range: 'bytes=0-4099' }));
+  const detected = await require('../utils/fileTypeDetector').detectFileTypeFromBuffer(Buffer.from(await first.Body.transformToByteArray()));
+  const type = detected && REPORT_TYPES[detected.mime];
+  if (!type || type.ext !== m[4]) {
+    await discard();
+    logger.logSecurity('lab_report_rejected_type', { userId: String(user._id || user.id), orderId: String(orderId), detected: detected && detected.mime });
+    throw new ValidationError('That file isn’t a real PDF, JPG or PNG. Export the report again and upload it.');
+  }
+  if (Number(head.ContentLength) > type.max) { await discard(); throw new ValidationError('That file is too large'); }
+  const finalKey = `lab-reports/${orderId}/${m[3]}.${type.ext}`;
+  await s3.send(new CopyObjectCommand({ Bucket, Key: finalKey, CopySource: `${Bucket}/${key}`, ContentType: detected.mime, MetadataDirective: 'REPLACE', ServerSideEncryption: 'AES256' }));
+  await discard();
+  return uploadReport(user, orderId, { key: finalKey, mimeType: detected.mime, originalName: String(fileName || `report.${type.ext}`).slice(0, 120), size: Number(head.ContentLength) });
+}
+
 async function uploadReport(user, orderId, storedFile) {
   if (!storedFile || !storedFile.key) throw new ValidationError('Attach the report (PDF or image)');
   const { store, order } = await labOrderForLab(user, orderId);
@@ -758,6 +818,8 @@ module.exports = {
   markCollected,
   advance,
   uploadReport,
+  createReportUploadUrl,
+  completeReportUpload,
   rejectSample,
   expireUnpaid,
   creditLateReports,

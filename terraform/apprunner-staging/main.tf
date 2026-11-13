@@ -26,7 +26,7 @@ locals {
   registry  = "${local.account}.dkr.ecr.${var.region}.amazonaws.com"
   web_url   = var.create_web ? "https://${aws_apprunner_service.web[0].service_url}" : ""
   api_url   = var.create_api ? "https://${aws_apprunner_service.api[0].service_url}" : ""
-  generated = ["JWT_SECRET", "JWT_REFRESH_SECRET", "ENCRYPTION_KEY", "CRON_SECRET", "PROXY_SHARED_SECRET"]
+  generated = ["JWT_SECRET", "JWT_REFRESH_SECRET", "ENCRYPTION_KEY", "CRON_SECRET", "PROXY_SHARED_SECRET", "MFA_RECOVERY_KEY"]
 }
 
 # ── Secrets: generated here (never shown), plus the Atlas string stored by hand ──
@@ -51,6 +51,13 @@ resource "random_password" "proxy" {
   special = false
 }
 
+# Admin backup codes (services/adminMfaService.js): its own key, so rotating JWT_SECRET
+# can't silently break every admin's backup codes. Rotating THIS key does that.
+resource "random_password" "mfa_recovery" {
+  length  = 64
+  special = false
+}
+
 resource "random_id" "encryption_key" {
   byte_length = 32 # 64 hex chars (AES-256)
 }
@@ -70,6 +77,7 @@ resource "aws_secretsmanager_secret_version" "generated" {
     ENCRYPTION_KEY      = random_id.encryption_key.hex
     CRON_SECRET         = random_password.cron.result
     PROXY_SHARED_SECRET = random_password.proxy.result
+    MFA_RECOVERY_KEY    = random_password.mfa_recovery.result
   }[each.key]
 }
 
@@ -172,6 +180,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "uploads" {
     status = "Enabled"
     filter {
       prefix = "partner-posts-pending/"
+    }
+    expiration {
+      days = 1
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = 1
+    }
+  }
+  rule {
+    id     = "expire-unconfirmed-lab-reports"
+    status = "Enabled"
+    filter {
+      prefix = "lab-reports-pending/"
     }
     expiration {
       days = 1
@@ -356,7 +377,7 @@ resource "aws_iam_role_policy" "api_instance" {
         Action   = ["secretsmanager:GetSecretValue"]
         Resource = concat([for s in aws_secretsmanager_secret.generated : s.arn], [data.aws_secretsmanager_secret.mongodb_uri.arn, local.realtime.realtime_token_secret_arn, local.realtime.turn_secret_arn], [for s in data.aws_secretsmanager_secret.razorpay : s.arn])
       },
-      { Effect = "Allow", Action = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"], Resource = "${aws_s3_bucket.uploads.arn}/*" },
+      { Effect = "Allow", Action = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:GetObjectTagging"], Resource = "${aws_s3_bucket.uploads.arn}/*" },
       { Effect = "Allow", Action = ["s3:ListBucket"], Resource = aws_s3_bucket.uploads.arn }
     ]
   })
@@ -402,8 +423,13 @@ resource "aws_apprunner_service" "api" {
           AWS_REGION        = var.region
           REDIS_ENABLED     = "false"
           RAZORPAY_ENABLED  = var.razorpay_test_mode ? "true" : "false"
-          LOG_LEVEL         = "info"
-          DEPLOYMENT_ENV    = var.environment
+          # Passkeys: browsers reach the API through the website (same origin), so the
+          # passkey "site" is the website's host.
+          WEBAUTHN_RP_NAME = "Nabz"
+          WEBAUTHN_RP_ID   = var.create_web ? replace(local.web_url, "https://", "") : "localhost"
+          WEBAUTHN_ORIGIN  = var.create_web ? local.web_url : "http://localhost:3000"
+          LOG_LEVEL        = "info"
+          DEPLOYMENT_ENV   = var.environment
           # STAGING ONLY: test stores deliver India-wide so testers anywhere can order supplies.
           SERVICEABILITY_TEST_RADIUS_KM = tostring(var.test_store_radius_km)
           # Testers need time to open the partner app; production default is 180s.

@@ -25,6 +25,7 @@ const passwordResetService = require('./passwordResetService');
 const securityAuditService = require('./securityAuditService');
 const { ValidationError, NotFoundError, ConflictError } = require('../utils/errors');
 const logger = require('../utils/logger');
+const alerts = () => require('./adminAlertService');
 const { ADMIN_SECTIONS, VERIFY_KINDS, accessSummary, sanitizeAccess } = require('../constants/adminAccess');
 
 const ROLE = 'ops_admin';
@@ -107,6 +108,7 @@ async function create(admin, { name, email, access } = {}, req) {
     metadata: { email: loginId, inviteEmailed: invite.sent, access: adminAccess }
   });
   logger.info('Admin team member created', { userId: String(user._id), by: String(admin._id) });
+  await alerts().alertMainAdmins('admin_team_member_created', { title: 'New admin team member', message: `${admin.name || 'A main admin'} added ${user.name} (${loginId}) with: ${(adminAccess.sections || []).join(', ')}.` });
   return { reviewer: publicReviewer(user.toObject()), invite };
 }
 
@@ -121,6 +123,7 @@ async function setActive(admin, id, active, req) {
     event: active ? 'admin_onboarding_reviewer_restored' : 'admin_onboarding_reviewer_suspended',
     actorId: admin._id, actorType: 'user', targetType: 'user', targetId: id, req, metadata: {}
   });
+  await alerts().aboutAccount(active ? 'admin_team_member_restored' : 'admin_team_member_suspended', id, active ? 'Team member restored' : 'Team member suspended', `${active ? 'restored' : 'suspended'} by ${admin.name || 'a main admin'}.`);
   return { active: !!active };
 }
 
@@ -152,6 +155,7 @@ async function setAccess(admin, id, access, req) {
   await securityAuditService.record({
     event: 'admin_team_access_changed', actorId: admin._id, actorType: 'user', targetType: 'user', targetId: id, req, metadata: { access: adminAccess }
   });
+  await alerts().aboutAccount('admin_team_access_changed', user, 'Admin access changed', `access changed by ${admin.name || 'a main admin'} to: ${(adminAccess.sections || []).join(', ')}.`);
   return { reviewer: publicReviewer(user) };
 }
 

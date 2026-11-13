@@ -19,6 +19,17 @@ process.env.JWT_EXPIRE = process.env.JWT_EXPIRE || '1h';
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
   || require('crypto').createHash('sha256').update('nabz-test-fixture-field-encryption').digest('hex');
 
+// MongoDB driver 7.8 loads Node's `os` with a dynamic import(), which Jest's CommonJS sandbox
+// can't run (it needs --experimental-vm-modules). The import fails silently, the handshake goes
+// out without its required `driver` block and every connection is refused. Hand the driver `os`
+// through its own `runtimeAdapters` option instead. Tests only; real servers load it normally.
+{
+  const runtimeAdapters = require('mongodb/lib/runtime_adapters');
+  const resolve = runtimeAdapters.resolveRuntimeAdapters;
+  runtimeAdapters.resolveRuntimeAdapters = (options = {}) =>
+    resolve({ ...options, runtimeAdapters: { os: require('os'), ...options.runtimeAdapters } });
+}
+
 // A developer .env may send legacy pages to the Nabz website; tests check the pages themselves.
 process.env.WEB_REDIRECT_URL = '';
 

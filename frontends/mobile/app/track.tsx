@@ -4,6 +4,7 @@ import { Text } from '@/lib/T';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useSecureView } from '@/lib/secureView';
 import { ChatPreview } from '@/lib/ChatPreview';
 import * as Location from 'expo-location';
 import {
@@ -46,6 +47,8 @@ export default function Track() {
   const { t } = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [tracking, setTracking] = useState<VisitTracking | null>(null);
+  // The door code is a secret: no screenshots / recent-apps preview while it shows.
+  useSecureView('visit-code', !!tracking?.visitCode && tracking?.status !== 'COMPLETED');
   const [error, setError] = useState<string | null>(null);
   const [stars, setStars] = useState(0);
   const [tags, setTags] = useState<string[]>([]);

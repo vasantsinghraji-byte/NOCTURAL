@@ -106,6 +106,9 @@ router.patch('/documents/:id', reviewerSensitiveFor('documents'),
 // ── Team (platform admin) ──────────────────────────────────────────────────
 router.get('/team', admin, wrap(async (req, res) => res.json({ success: true, ...(await onboardingTeamService.list()) })));
 
+// Security alerts about admin accounts (new authenticators, backup codes used, lockouts, team changes).
+router.get('/team/alerts', admin, wrap(async (req, res) => res.json({ success: true, alerts: await require('../services/adminAlertService').recentFor(req.user._id) })));
+
 router.post('/team', adminSensitive,
   [body('name').isString().trim().isLength({ min: 2, max: 80 }), body('email').isEmail().isLength({ max: 160 }),
     body('access.sections').isArray({ min: 1, max: 30 }), body('access.partnerKinds').optional().isArray({ max: 20 })],

@@ -9,31 +9,11 @@ import { fileURLToPath } from 'node:url';
 //   API_ORIGIN=https://<api-host>   NEXT_PUBLIC_API_BASE_URL=   (empty = same origin)
 const API_ORIGIN = (process.env.API_ORIGIN || '').replace(/\/+$/, '');
 
-// Browser security headers for every page (security bot finding: the website
-// sent none, so it could be framed for clickjacking). Allowed third parties:
-// Razorpay checkout (script, frames, telemetry), the OpenStreetMap embed and
-// Google sign-in (accounts.google.com/gsi only).
-// Scripts keep 'unsafe-inline' because Next.js hydration uses inline scripts;
-// a nonce-based policy is the next step.
-const CSP = [
-  "default-src 'self'",
-  // Development only: React Fast Refresh needs eval. Production stays strict.
-  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''} https://checkout.razorpay.com https://accounts.google.com/gsi/client`,
-  "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
-  "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com https://accounts.google.com/gsi/ https://*.s3.ap-south-1.amazonaws.com wss://*.appsync-realtime-api.ap-south-1.amazonaws.com",
-  "media-src 'self' blob: https://*.s3.ap-south-1.amazonaws.com",
-  "frame-src https://www.openstreetmap.org https://api.razorpay.com https://checkout.razorpay.com https://accounts.google.com/gsi/",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-  'upgrade-insecure-requests'
-].join('; ');
+// Browser security headers for every response (security bot finding: the website
+// sent none, so it could be framed for clickjacking). The Content Security Policy
+// is set per request by middleware.ts (it needs a fresh nonce): lib/csp.mjs.
 
 const SECURITY_HEADERS = [
-  { key: 'Content-Security-Policy', value: CSP },
   { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },

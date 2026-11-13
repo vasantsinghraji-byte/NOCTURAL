@@ -46,9 +46,23 @@ const nowSeconds = () => Math.floor(Date.now() / 1000);
 
 const secretKey = () => process.env.JWT_SECRET;
 
+/**
+ * Backup codes are HMACed with their own key (MFA_RECOVERY_KEY), so rotating
+ * the sign-in token key (JWT_SECRET) no longer breaks every admin's backup
+ * codes. Codes issued before MFA_RECOVERY_KEY existed were hashed with
+ * JWT_SECRET; they still work (legacyRecoveryHash) until they are replaced.
+ */
+const recoveryKey = () => process.env.MFA_RECOVERY_KEY || secretKey();
+const normalizeRecovery = (code) => String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
 function hashRecoveryCode(code) {
-  const normalized = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return crypto.createHmac('sha256', secretKey()).update(`admin-recovery:${normalized}`).digest('hex');
+  return crypto.createHmac('sha256', recoveryKey()).update(`admin-recovery:${normalizeRecovery(code)}`).digest('hex');
+}
+
+/** The hash an older code would have (JWT_SECRET), or null when it is the same key. */
+function legacyRecoveryHash(code) {
+  if (!process.env.MFA_RECOVERY_KEY || process.env.MFA_RECOVERY_KEY === secretKey()) return null;
+  return crypto.createHmac('sha256', secretKey()).update(`admin-recovery:${normalizeRecovery(code)}`).digest('hex');
 }
 
 function newRecoveryCodes() {
@@ -109,10 +123,13 @@ async function reserveCodeAttempt(user) {
   }
 }
 
+const alerts = () => require('./adminAlertService');
+
 async function recordFailure(user, reason) {
   const { lockIfExhausted } = require('../utils/attemptGuard');
-  await lockIfExhausted(User, { _id: user._id }, 'adminMfa.failedAttempts', MAX_FAILED, GUARD);
+  const lockedNow = await lockIfExhausted(User, { _id: user._id }, 'adminMfa.failedAttempts', MAX_FAILED, GUARD);
   logger.logSecurity('admin_mfa_failed', { userId: String(user._id), reason });
+  if (lockedNow) await alerts().aboutAccount('admin_mfa_locked', user._id, 'Admin locked out', `${MAX_FAILED} wrong authenticator codes; locked for ${LOCK_MINUTES} minutes.`);
 }
 
 /** Issue an admin session that proves the second factor. */
@@ -169,21 +186,25 @@ async function completeEnrollment(mfaToken, code) {
     $unset: { 'adminMfa.pendingSecret': 1, 'adminMfa.pendingCreatedAt': 1, 'adminMfa.lockUntil': 1 }
   });
   logger.logSecurity('admin_mfa_enrolled', { userId: String(user._id) });
+  await alerts().aboutAccount('admin_mfa_enrolled', user._id, 'New authenticator set up', 'set up an authenticator app and got new backup codes.');
   return { session: issueSession(user), recoveryCodes: codes };
 }
 
 /** Check an authenticator code (with replay protection) or a one-time recovery code. */
 async function checkFactor(user, { code, recoveryCode }) {
   if (recoveryCode) {
-    const hash = hashRecoveryCode(recoveryCode);
-    // Compare-and-set: a recovery code can be used exactly once, even in parallel.
-    const res = await User.updateOne(
-      { _id: user._id, 'adminMfa.recoveryCodes': { $elemMatch: { hash, usedAt: null } } },
-      { $set: { 'adminMfa.recoveryCodes.$.usedAt': new Date() } }
-    );
-    if (res.modifiedCount === 1) {
-      logger.logSecurity('admin_mfa_recovery_code_used', { userId: String(user._id) });
-      return true;
+    // Current key first, then the pre-MFA_RECOVERY_KEY hash of older codes.
+    for (const hash of [hashRecoveryCode(recoveryCode), legacyRecoveryHash(recoveryCode)].filter(Boolean)) {
+      // Compare-and-set: a recovery code can be used exactly once, even in parallel.
+      const res = await User.updateOne(
+        { _id: user._id, 'adminMfa.recoveryCodes': { $elemMatch: { hash, usedAt: null } } },
+        { $set: { 'adminMfa.recoveryCodes.$.usedAt': new Date() } }
+      );
+      if (res.modifiedCount === 1) {
+        logger.logSecurity('admin_mfa_recovery_code_used', { userId: String(user._id) });
+        await alerts().aboutAccount('admin_mfa_recovery_code_used', user._id, 'Backup code used', 'signed in with a one-time backup code instead of the authenticator app.');
+        return true;
+      }
     }
     return false;
   }
@@ -217,6 +238,62 @@ async function verifyChallenge(mfaToken, factor) {
 }
 
 /** Signed-in admin re-confirms with a fresh code before a sensitive action. */
+// ── Passkeys (WebAuthn) as the second step: phishing-resistant ───────────────
+// A passkey only works on the site it was made for, so a fake login page can't
+// relay it the way it can relay a 6-digit code. Registered while signed in
+// (/webauthn/registration/*); wrong answers count towards the same lockout.
+const webAuthn = () => require('./webAuthnService');
+
+async function passkeyGate(user) {
+  assertNotLocked(user);
+  if (!user.adminMfa || !user.adminMfa.enabledAt) throw new ValidationError('Set up two-step verification first.');
+}
+
+/** Sign-in step 2 with a passkey: the browser challenge. */
+async function passkeyOptions(mfaToken) {
+  const user = await readChallenge(mfaToken);
+  await passkeyGate(user);
+  return webAuthn().authenticationOptions({ identityId: user._id, identityType: 'user', purpose: 'ADMIN_SIGN_IN' });
+}
+
+async function checkPasskey(user, { challengeId, response }, reason) {
+  await reserveCodeAttempt(user);
+  try {
+    await webAuthn().verifyAuthentication({ identityId: user._id, identityType: 'user', challengeId, response, purpose: 'ADMIN_SIGN_IN' });
+  } catch (err) {
+    logger.logSecurity('admin_passkey_rejected', { userId: String(user._id), error: err.message });
+    await recordFailure(user, reason);
+    throw new AuthenticationError('That passkey could not be checked. Try again or use your authenticator code.');
+  }
+  await User.updateOne({ _id: user._id }, { $set: { 'adminMfa.failedAttempts': 0, lastActive: new Date() }, $unset: { 'adminMfa.lockUntil': 1 } });
+}
+
+/** Sign-in step 2 with a passkey: the answer → admin session. */
+async function verifyPasskey(mfaToken, answer) {
+  const user = await readChallenge(mfaToken);
+  await passkeyGate(user);
+  await checkPasskey(user, answer, 'wrong_passkey');
+  logger.logSecurity('admin_signed_in', { userId: String(user._id), method: 'passkey' });
+  return { session: issueSession(user) };
+}
+
+/** Fresh confirmation for a sensitive action with a passkey (signed in). */
+async function stepUpPasskeyOptions(userId) {
+  const user = await User.findById(userId).select(SECRET_FIELDS);
+  if (!user || !isAdminRole(user.role)) throw new AuthenticationError('Not an admin session');
+  await passkeyGate(user);
+  return webAuthn().authenticationOptions({ identityId: user._id, identityType: 'user', purpose: 'ADMIN_SIGN_IN' });
+}
+
+async function stepUpPasskey(userId, answer) {
+  const user = await User.findById(userId).select(SECRET_FIELDS);
+  if (!user || !isAdminRole(user.role)) throw new AuthenticationError('Not an admin session');
+  await passkeyGate(user);
+  await checkPasskey(user, answer, 'step_up_wrong_passkey');
+  logger.logSecurity('admin_step_up', { userId: String(user._id), method: 'passkey' });
+  return issueSession(user);
+}
+
 async function stepUp(userId, code) {
   const user = await User.findById(userId).select(SECRET_FIELDS);
   if (!user || !isAdminRole(user.role)) throw new AuthenticationError('Not an admin session');
@@ -241,6 +318,7 @@ async function regenerateRecoveryCodes(userId, code) {
   const codes = newRecoveryCodes();
   await User.updateOne({ _id: user._id }, { $set: { 'adminMfa.recoveryCodes': codes.map((c) => ({ hash: hashRecoveryCode(c) })), 'adminMfa.failedAttempts': 0 } });
   logger.logSecurity('admin_mfa_recovery_codes_regenerated', { userId: String(user._id) });
+  await alerts().aboutAccount('admin_mfa_recovery_codes_regenerated', user._id, 'New backup codes', 'made new backup codes (the old ones stopped working).');
   return codes;
 }
 
@@ -276,6 +354,10 @@ module.exports = {
   completeEnrollment,
   verifyChallenge,
   stepUp,
+  passkeyOptions,
+  verifyPasskey,
+  stepUpPasskeyOptions,
+  stepUpPasskey,
   regenerateRecoveryCodes,
   status,
   sessionProblem,

@@ -760,6 +760,8 @@ export interface CouponInput {
   totalLimit?: number | null;
   perCustomerLimit?: number;
   firstOrderOnly?: boolean;
+  /** Only customers with a verified mobile number (always on for first-order codes). */
+  requireVerifiedPhone?: boolean;
   active?: boolean;
 }
 

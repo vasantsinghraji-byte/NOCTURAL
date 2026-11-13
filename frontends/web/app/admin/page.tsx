@@ -20,6 +20,7 @@ import PlansPanel from './PlansPanel';
 import CouponsPanel from './CouponsPanel';
 import PharmacyOpsPanel from './PharmacyOpsPanel';
 import MedicinesPanel from './MedicinesPanel';
+import PasskeysDialog from './PasskeysDialog';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { ApiError, type AdminSection, type AuthUser, type PharmacyVendor } from '@medrush/shared';
@@ -78,6 +79,7 @@ export default function AdminConsole() {
   const [error, setError] = useState<string | null>(null);
   // Sensitive actions need a fresh authenticator code: park the action, ask, retry.
   const [pending, setPending] = useState<(() => Promise<void>) | null>(null);
+  const [passkeysOpen, setPasskeysOpen] = useState(false);
 
   const views = useMemo(() => viewsFor(user), [user]);
 
@@ -183,6 +185,7 @@ export default function AdminConsole() {
             <strong className="admin-me-name">{user.name}</strong>
             <small className="muted">{user.email}</small>
           </div>
+          <button className="linkbtn" onClick={() => setPasskeysOpen(true)}>Passkeys</button>
           <button className="linkbtn" onClick={signOut}>Sign out</button>
         </div>
       </aside>
@@ -201,6 +204,7 @@ export default function AdminConsole() {
         </header>
 
         {error && <div className="notice bad" role="alert">{error}</div>}
+        {passkeysOpen && <PasskeysDialog sensitive={sensitive} onClose={() => setPasskeysOpen(false)} />}
         <StepUpDialog
           open={!!pending}
           onClose={() => setPending(null)}

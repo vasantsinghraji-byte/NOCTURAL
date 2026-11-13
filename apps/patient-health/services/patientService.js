@@ -11,6 +11,7 @@ const logger = require('@nocturnal/shared').logger;
 const passwordSecurityService = require('@nocturnal/shared').passwordSecurityService;
 const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('@nocturnal/shared').queryUpdateOptions;
 const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
+const { TERMS_VERSION } = require('../constants/legal');
 const { AuthenticationError } = require('@nocturnal/shared').errors;
 const compromisedPasswordService = require('@nocturnal/shared').compromisedPasswordService;
 const partnerAccountGuard = require('@nocturnal/shared').partnerAccountGuard;
@@ -68,7 +69,9 @@ class PatientService {
         name,
         email,
         password,
-        phone
+        phone,
+        // Signing up requires ticking "I agree" to the current Terms & Privacy Policy.
+        consent: { version: TERMS_VERSION, acceptedAt: new Date() }
       });
     } catch (error) {
       logger.error('Patient creation error', { email, error: error.message, stack: error.stack });

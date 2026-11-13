@@ -44,6 +44,10 @@ AWS account `554433963412`, region `ap-south-1`. Always use the AWS CLI profile 
 |---|---|
 | MongoDB connection string | AWS Secrets Manager `nabz/staging/MONGODB_URI` (pipe it into a process; never print it) |
 | Generated app secrets (JWT etc.) | Secrets Manager, created by Terraform |
+| Admin backup-code key | Secrets Manager `nabz/staging/MFA_RECOVERY_KEY`, created by Terraform. **Rotating it invalidates every admin's backup codes** (they make new ones in the admin panel). |
+| Razorpay TEST keys (staging) | Secrets Manager `nabz/staging/RAZORPAY_KEY_ID` and `nabz/staging/RAZORPAY_KEY_SECRET`, created by hand; used only when Terraform `razorpay_test_mode = true`. Staging refuses `rzp_live_` keys, production refuses `rzp_test_` keys (config/validateEnv.js). |
+| Staging QA admin | `C:mrb
+abz-qa-admin.json` (local only): `qa-admin@nabz-staging.test`, its authenticator key and backup codes. Kept **suspended** between test runs. |
 | Android release key file | `C:\mrb\keys\nabz-release.jks`, backed up in Secrets Manager `nabz/android/release-keystore` |
 | Android key password | Secrets Manager `nabz/android/release-keystore-password` |
 | Staging test accounts | `C:\mrb\nabz-test-accounts.txt` (local only, not in git) |
@@ -84,6 +88,20 @@ Google Cloud project: **Nabz**. The app is in Testing mode, so only accounts lis
 - **Website** uses Google Identity Services in a popup. The Content Security Policy allows `accounts.google.com/gsi` only.
 - **Before launch:** move the consent screen to production. That needs a real domain, a support email and a privacy-policy URL.
 - **Pending:** rotate the web client secret that was exposed in a screenshot. Nabz doesn't use it, but rotate it anyway.
+
+## Security controls (where they live)
+
+- **Admin sign-in:** password + authenticator code, or a passkey (Admin menu, Passkeys). Sensitive actions ask for a fresh code or passkey (`requireRecentAuth`). Five wrong codes lock the account for 15 minutes.
+- **Admin alerts:** main admins get an alert (Team & access, Security alerts; email where configured) for new authenticators, passkeys, backup codes used or renewed, lockouts, authenticator resets and team changes (`services/adminAlertService.js`).
+- **Lost authenticator:** `RESET_ADMIN_EMAIL=<email> CONFIRM_RESET=yes node scripts/resetAdminMfa.js` with the staging `MONGODB_URI` piped in and `MONGODB_DB_NAME=nabz`. Confirm the person's identity first; the main admins are alerted.
+- **Rate limits:** sign-in, password reset and other sensitive limits are shared across instances in MongoDB (`middleware/mongoRateLimitStore.js`); Redis is used instead when configured.
+- **Uploads:** lab reports go straight to S3 on a signed link and are checked (real PDF / JPG / PNG) before use; unconfirmed uploads expire after a day. GuardDuty Malware Protection scans `lab-reports/`, `prescriptions/` and `partner-posts/` (`terraform/apprunner-staging/malware.tf`); a file tagged `THREATS_FOUND` never gets a download link (`config/storage.js`).
+- **Website:** a fresh Content Security Policy nonce per request (`frontends/web/middleware.ts`, `lib/csp.mjs`); every page renders per request.
+- **Android app:** no Android backup of app data; screenshots and the recent-apps preview are blocked while a prescription, visit code or lab order is on screen.
+- **Coupons:** first-order codes (and any code with "Verified mobile only") need a mobile number verified by OTP.
+- **Consent:** each new customer account stores the Terms & Privacy version agreed to and when (`constants/legal.js`; keep it in step with the terms page).
+- **Secret scanning:** gitleaks runs in the pre-commit hook (installed with `scoop install gitleaks`).
+- **Accepted:** 5 moderate `npm audit` items in `swagger-jsdoc` (never loaded in production) and `google-gax` (its own temp files only).
 
 ## Tests
 

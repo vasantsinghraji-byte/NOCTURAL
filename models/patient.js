@@ -206,6 +206,11 @@ const PatientSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Which Terms & Privacy Policy version they agreed to at sign-up, and when (constants/legal.js).
+  consent: {
+    version: String,
+    acceptedAt: Date
+  },
   // Linked Google account (Continue with Google). Sparse-unique: one Nabz
   // account per Google identity.
   googleId: {

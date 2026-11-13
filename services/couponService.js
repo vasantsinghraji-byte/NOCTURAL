@@ -142,6 +142,13 @@ async function checkRules(coupon, { patientId, service, amount, orderId, now = n
   await releaseStale({ coupon: coupon._id, patient: patientId });
   const mine = await CouponRedemption.countDocuments({ coupon: coupon._id, patient: patientId, status: 'RESERVED', ...(orderId ? { 'order.id': { $ne: orderId } } : {}) });
   if (mine >= coupon.perCustomerLimit) nope(coupon.perCustomerLimit === 1 ? 'You have already used this code' : `You can use this code ${coupon.perCustomerLimit} times`);
+  if (coupon.requireVerifiedPhone || coupon.firstOrderOnly) {
+    const Patient = require('../models/patient');
+    const who = await Patient.findById(patientId).select('phoneVerified').lean();
+    if (!who || who.phoneVerified !== true) {
+      nope('Verify your mobile number to use this code: sign out, then sign in with your mobile number and the OTP we send');
+    }
+  }
   if (coupon.firstOrderOnly) {
     const def = SERVICES[service];
     const earlier = await def.model().exists({ patient: patientId, ...def.live(), ...(orderId ? { _id: { $ne: orderId } } : {}) });
@@ -212,7 +219,7 @@ async function reserve({ code, patientId, service, amount, orderId }) {
 
 // ── Admin panel ─────────────────────────────────────────────────────────────
 
-const ADMIN_FIELDS = ['description', 'kind', 'value', 'maxDiscount', 'minOrder', 'services', 'startsAt', 'endsAt', 'totalLimit', 'perCustomerLimit', 'firstOrderOnly', 'active'];
+const ADMIN_FIELDS = ['description', 'kind', 'value', 'maxDiscount', 'minOrder', 'services', 'startsAt', 'endsAt', 'totalLimit', 'perCustomerLimit', 'firstOrderOnly', 'requireVerifiedPhone', 'active'];
 
 function cleanInput(input, existing) {
   const out = {};
@@ -257,6 +264,7 @@ function cleanInput(input, existing) {
   if (description.length < 3 || description.length > 120) nope('Description: 3-120 characters');
   out.description = description;
   out.firstOrderOnly = next.firstOrderOnly === true;
+  out.requireVerifiedPhone = next.requireVerifiedPhone === true || out.firstOrderOnly;
   out.active = next.active !== false;
   return out;
 }

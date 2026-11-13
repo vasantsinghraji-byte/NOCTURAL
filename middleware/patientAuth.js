@@ -164,6 +164,8 @@ exports.protectBoth = async (req, res, next) => {
     // Attach user to request
     req.user = normalizeAuthenticatedUser(user);
     req.userType = userType;
+    // When the second step happened (admin "fresh code" checks, middleware/auth.js#requireRecentAuth).
+    req.authContext = { mfa: decoded.mfa === true, authTime: decoded.authTime || null };
 
     if (userType === 'patient') {
       req.patient = req.user;

@@ -115,6 +115,8 @@ module.exports = {
     },
     android: {
       package: variant.id, // keep until the Play Store listing is created (changing it = a new app)
+      // No Android backup / adb backup of app data (sessions, recipients, health details).
+      allowBackup: false,
       adaptiveIcon: { foregroundImage: variant.adaptive, backgroundColor: variant.color },
       versionCode: 1,
       googleServicesFile,

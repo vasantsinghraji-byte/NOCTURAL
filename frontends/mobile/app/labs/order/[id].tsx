@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, View } from 'react-native';
 import { Text } from '@/lib/T';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useSecureView } from '@/lib/secureView';
 import * as WebBrowser from 'expo-web-browser';
 import { Building2, CheckCircle2, Droplets, FileText, FlaskConical, Home, Timer, Wallet } from 'lucide-react-native';
 import type { LabOrderView, SlotDay } from '@medrush/shared';
@@ -28,6 +29,8 @@ export default function LabOrderDetail() {
   const { id, fresh } = useLocalSearchParams<{ id: string; fresh?: string }>();
   const { me } = useMe();
   const [order, setOrder] = useState<LabOrderView | null>(null);
+  // Collection code and test details: private.
+  useSecureView('lab-order', !!order);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
   const [picker, setPicker] = useState<'move' | 'recollect' | null>(null);

@@ -3,6 +3,7 @@ import { ActivityIndicator, Animated, AppState, Easing, Image, Linking, Modal, P
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Redirect, router } from 'expo-router';
+import { useSecureView } from '@/lib/secureView';
 import * as Location from 'expo-location';
 import {
   BadgeCheck, Circle, Flame, IndianRupee, MapPin, Navigation, Package, Phone, ShieldAlert, Star, Store, UserRound, Wallet, Sparkles, ClipboardList, FileText
@@ -64,6 +65,8 @@ export default function StaffHome() {
   const [codeFor, setCodeFor] = useState<Visit | null>(null);
   // Prescription viewer (the image is private: loaded with the sign-in token).
   const [rxFor, setRxFor] = useState<string | null>(null);
+  // A patient's prescription: no screenshots while it is open.
+  useSecureView('staff-rx', !!rxFor);
   const [proposeFor, setProposeFor] = useState<string | null>(null);
   const [completeFor, setCompleteFor] = useState<Visit | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);

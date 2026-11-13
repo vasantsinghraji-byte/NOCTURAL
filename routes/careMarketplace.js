@@ -488,6 +488,16 @@ router.post('/partner/lab/orders/:id/status', labStaff, [id('id'), body('status'
   res.json({ success: true, order: await labOrderService.advance(req.user, req.params.id, req.body.status) });
 }));
 
+// Report straight to S3: 1) a link signed for this type and size, 2) confirm (the server checks the file).
+router.post('/partner/lab/orders/:id/report/upload-url', labStaff, [id('id'), body('mime').isString().isLength({ max: 60 }), body('size').isInt({ min: 1, max: 50 * 1024 * 1024 }).toInt()], validate, wrap(async (req, res) => {
+  res.json({ success: true, upload: await labOrderService.createReportUploadUrl(req.user, req.params.id, req.body) });
+}));
+
+router.post('/partner/lab/orders/:id/report/complete', labStaff, [id('id'), body('key').isString().isLength({ min: 10, max: 300 }), body('fileName').optional().isString().isLength({ max: 120 })], validate, wrap(async (req, res) => {
+  res.json({ success: true, order: await labOrderService.completeReportUpload(req.user, req.params.id, req.body) });
+}));
+
+// Through the API (local development without S3, and older app versions).
 router.post('/partner/lab/orders/:id/report', labStaff, [id('id')], validate, uploadLabReport, wrap(async (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'Attach the report (PDF or image)' });
   return res.json({ success: true, order: await labOrderService.uploadReport(req.user, req.params.id, storageConfig.toStoredFile(req.file)) });
