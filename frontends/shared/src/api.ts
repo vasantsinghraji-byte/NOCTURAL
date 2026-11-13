@@ -22,6 +22,7 @@ import type {
   StorefrontItem,
   Medicine,
   PharmacyOrder,
+  PrescriptionLink,
   CreateOrderInput,
   Pagination,
   PatientProfile,
@@ -477,6 +478,13 @@ export class MedRushApi {
     return this.buildUrl(`/pharmacy${scope}/orders/${orderId}/prescription`);
   }
 
+  /** The prescription as a link the app can open (signed S3 link: no sign-in header needed). */
+  async prescriptionFile(orderId: string, as: 'patient' | 'vendor' = 'patient'): Promise<PrescriptionLink> {
+    const r = await this.request<{ success: true } & PrescriptionLink>('GET', `/pharmacy${as === 'vendor' ? '/vendor' : ''}/orders/${orderId}/prescription/link`);
+    // Local storage answers with an API path: make it absolute for the app.
+    return { url: r.needsAuth ? this.buildUrl(r.url.replace(/^\/api\/v\d+/, '')) : r.url, kind: r.kind, needsAuth: r.needsAuth, expiresInSeconds: r.expiresInSeconds };
+  }
+
   // ── Pharmacy: public browse ──────────────────────────────────────────────
   getNearbyVendors(params: { lat: number; lng: number; radiusKm?: number; limit?: number }) {
     return this.request<{ success: true; vendors: PharmacyVendor[]; serviceability: Serviceability }>('GET', '/pharmacy/vendors/nearby', { query: params });
@@ -516,6 +524,11 @@ export class MedRushApi {
 
   getOrder(id: string) {
     return this.request<{ success: true; order: PharmacyOrder }>('GET', `/pharmacy/orders/${id}`);
+  }
+
+  /** Add medicines to a fresh cash order while order.changeWindowEndsAt hasn't passed. */
+  addOrderItems(id: string, items: Array<{ medicineId: string; quantity: number }>, prescriptionKey?: string) {
+    return this.request<{ success: true; order: PharmacyOrder }>('POST', `/pharmacy/orders/${id}/items`, { body: { items, ...(prescriptionKey ? { prescriptionKey } : {}) } });
   }
 
   cancelOrder(id: string, reason?: string) {

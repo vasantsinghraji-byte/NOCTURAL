@@ -45,24 +45,35 @@ function describeOrder(order) {
 }
 
 async function notifyVendorNewOrder(order) {
+  return notifyStore(order, { type: NEW_ORDER_TYPE, title: `New order ${order.orderNumber || ''}`.trim(), message: describeOrder(order) });
+}
+
+/** The customer added items inside the change window: the store must pack them too. */
+async function notifyVendorItemsAdded(order, addedLines) {
+  return notifyStore(order, {
+    type: 'PHARMACY_ORDER_UPDATE',
+    title: `Items added to ${order.orderNumber || 'an order'}`.trim(),
+    message: `Customer added ${addedLines} item(s). Now ${describeOrder(order)}`
+  });
+}
+
+async function notifyStore(order, { type, title, message }) {
   try {
     const { userIds } = await getVendorRecipientIds(order.vendor);
     if (userIds.length === 0) {
-      logger.warn('New pharmacy order has no vendor staff to notify', {
-        orderId: String(order._id), vendorId: String(order.vendor)
+      logger.warn('Pharmacy order has no vendor staff to notify', {
+        orderId: String(order._id), vendorId: String(order.vendor), type
       });
       return { notified: 0 };
     }
 
-    const title = `New order ${order.orderNumber || ''}`.trim();
-    const message = describeOrder(order);
-    const data = { type: NEW_ORDER_TYPE, orderId: String(order._id), orderNumber: order.orderNumber };
+    const data = { type, orderId: String(order._id), orderNumber: order.orderNumber };
 
     await Promise.all(userIds.map(async (userId) => {
       const notification = await Notification.create({
         user: userId,
         recipientModel: 'User',
-        type: NEW_ORDER_TYPE,
+        type,
         title,
         message,
         priority: 'URGENT',
@@ -90,13 +101,13 @@ async function notifyVendorNewOrder(order) {
       });
     }));
 
-    logger.info('Vendor notified of new pharmacy order', {
-      orderId: String(order._id), recipients: userIds.length
+    logger.info('Vendor notified about pharmacy order', {
+      orderId: String(order._id), recipients: userIds.length, type
     });
     return { notified: userIds.length };
   } catch (err) {
-    logger.error('Failed to notify vendor of new pharmacy order', {
-      orderId: order && String(order._id), error: err.message
+    logger.error('Failed to notify vendor about pharmacy order', {
+      orderId: order && String(order._id), error: err.message, type
     });
     return { notified: 0, error: err.message };
   }
@@ -104,5 +115,6 @@ async function notifyVendorNewOrder(order) {
 
 module.exports = {
   NEW_ORDER_TYPE,
-  notifyVendorNewOrder
+  notifyVendorNewOrder,
+  notifyVendorItemsAdded
 };

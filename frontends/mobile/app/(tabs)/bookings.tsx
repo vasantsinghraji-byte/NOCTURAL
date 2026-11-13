@@ -106,6 +106,8 @@ export default function Bookings() {
     load();
   }
 
+  const openOrder = (id: string) => router.push({ pathname: '/order/[id]', params: { id } });
+
   function cancel(b: CareBooking) {
     confirmCancelVisit(b._id, 'Cancelled by patient', load, setError);
   }
@@ -213,10 +215,12 @@ export default function Bookings() {
       ) : (
         orders.length === 0 ? (error ? null : <Empty text="No medicine orders yet." />) : orders.map((o) => (
           <View key={o._id} style={{ gap: 8 }}>
-            <View style={[styles.item, { backgroundColor: C.card }]}>
+            <Pressable style={[styles.item, { backgroundColor: C.card }]} onPress={() => openOrder(o._id)}
+              accessibilityRole="button" accessibilityLabel={`Order ${o.orderNumber}, ${o.status.replace(/_/g, ' ').toLowerCase()}. Open details`}>
               <IconTile icon={o.fulfilment === 'STAFF_PICKUP' ? Stethoscope : Bike} size={50} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={ui.h3}>{o.orderNumber}</Text>
+                {typeof o.vendor === 'object' && o.vendor?.name ? <Text style={ui.muted} numberOfLines={1}>{o.vendor.name}</Text> : null}
                 <Text style={ui.muted}>{o.items.length} item(s) · {inr(o.amounts.total)}{o.amounts.discount > 0 ? ` · saved ${inr(o.amounts.discount)}${o.coupon?.code ? ` with ${o.coupon.code}` : ''}` : ''}</Text>
                 {o.fulfilment === 'STAFF_PICKUP' && <Text style={ui.muted}>Brought by your nurse</Text>}
                 {(() => {
@@ -244,9 +248,13 @@ export default function Bookings() {
                     <Text style={styles.code}>{o.deliveryOtp.code}</Text>
                   </View>
                 )}
+                <Pressable style={[styles.track, { alignSelf: 'flex-start', marginTop: 6 }]} onPress={() => openOrder(o._id)} accessibilityRole="button">
+                  <Navigation size={14} color={C.onNight} />
+                  <Text style={styles.trackText}>{['DELIVERED', 'CANCELLED', 'REJECTED'].includes(o.status) ? 'Order details' : 'Track order'}</Text>
+                </Pressable>
               </View>
               <View style={styles.status}><Text style={styles.statusText}>{o.status.replace(/_/g, ' ')}</Text></View>
-            </View>
+            </Pressable>
             {['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(o.status) ? <ChatButton kind="PHARMACY" refId={o._id} label="Chat or Call the Pharmacy" compact /> : null}
             {o.items.filter((it) => it.substitution?.status === 'PENDING').map((it) => (
               <SubstituteCard key={String(it.medicine)} orderId={o._id} item={it} paymentMode={o.paymentMode} onAnswered={load} />

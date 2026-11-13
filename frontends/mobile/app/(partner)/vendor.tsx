@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, FlatList, Image, Linking, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Redirect } from 'expo-router';
-import { useSecureView } from '@/lib/secureView';
+import { OrderPrescription } from '@/lib/PrescriptionView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { PharmacyOrder, PharmacyRejectionReason } from '@medrush/shared';
-import { api, describeNetworkError, getAuthToken } from '@/lib/api';
+import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { C, F } from '@/lib/theme';
 import { notifyLocal, registerForServerPush, requestNotificationPermission } from '@/lib/notifications';
@@ -65,22 +65,13 @@ function RxPanel({ order, busy, onVerify }: {
   const [name, setName] = useState('');
   const [reg, setReg] = useState('');
   const [date, setDate] = useState('');
-  const token = getAuthToken();
-  // A patient's prescription: no screenshots while the check panel is open.
-  useSecureView(`vendor-rx-${order._id}`);
   const valid = name.trim().length >= 3 && reg.trim().length >= 3 && /^\d{4}-\d{2}-\d{2}$/.test(date.trim());
   return (
     <View style={styles.rxBox}>
       <Text style={styles.reasonTitle}>Check the prescription</Text>
-      {order.prescription?.key ? (
-        <Image
-          source={{ uri: api.prescriptionLink(order._id, 'vendor'), headers: token ? { Authorization: `Bearer ${token}` } : undefined }}
-          style={styles.rxImage}
-          resizeMode="contain"
-          accessibilityLabel="Prescription photo"
-        />
-      ) : <Text style={styles.reasonHint}>No prescription uploaded. Reject with "Prescription not valid".</Text>}
-      <Text style={styles.reasonHint}>PDF prescriptions open on the website dashboard.</Text>
+      {order.prescription?.key
+        ? <OrderPrescription orderId={order._id} as="vendor" />
+        : <Text style={styles.reasonHint}>No prescription uploaded. Reject with "Prescription not valid".</Text>}
       <TextInput style={styles.input} placeholder="Doctor's name" placeholderTextColor={C.muted} value={name} onChangeText={setName} />
       <TextInput style={styles.input} placeholder="Doctor's registration no." placeholderTextColor={C.muted} value={reg} onChangeText={setReg} autoCapitalize="characters" />
       <TextInput style={styles.input} placeholder="Date on prescription (YYYY-MM-DD)" placeholderTextColor={C.muted} value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" maxLength={10} />
@@ -88,6 +79,19 @@ function RxPanel({ order, busy, onVerify }: {
         style={[styles.action, { alignSelf: 'flex-start' }, (!valid || busy) && { opacity: 0.5 }]}>
         <Text style={styles.actionText}>Prescription is valid</Text>
       </Pressable>
+    </View>
+  );
+}
+
+/** Any order the customer attached a prescription to: the pharmacist can always open it. */
+function RxView({ order }: { order: PharmacyOrder }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ marginTop: 6, gap: 6 }}>
+      <Pressable onPress={() => setOpen((v) => !v)} hitSlop={6} accessibilityRole="button" accessibilityState={{ expanded: open }}>
+        <Text style={[styles.muted, { color: C.brand, fontFamily: F.bold }]}>{open ? 'Hide prescription' : 'View prescription'}</Text>
+      </Pressable>
+      {open ? <OrderPrescription orderId={order._id} as="vendor" /> : null}
     </View>
   );
 }
@@ -325,6 +329,7 @@ export default function VendorOrders() {
                 {o.requiresPrescription && o.prescription?.verified && (
                   <Text style={styles.rxOk}>Prescription verified{o.prescription.prescriber?.name ? ` · ${o.prescription.prescriber.name}` : ''}</Text>
                 )}
+                {o.prescription?.key && !needsRxCheck(o) ? <RxView order={o} /> : null}
 
                 {declining === o._id ? (
                   <View style={styles.reasons}>
@@ -408,7 +413,6 @@ const styles = StyleSheet.create({
   risk: { backgroundColor: C.amberSoft, color: C.amber, padding: 8, borderRadius: 10, fontFamily: F.bold, fontSize: 12, overflow: 'hidden' },
   batch: { color: C.muted, fontFamily: F.medium, fontSize: 12 },
   rxBox: { marginTop: 8, gap: 6, padding: 10, borderRadius: 12, backgroundColor: C.cardAlt },
-  rxImage: { width: '100%', height: 220, borderRadius: 10, backgroundColor: C.card },
   rxOk: { color: C.brand, fontFamily: F.bold, fontSize: 12, marginTop: 4 },
   input: { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, paddingLeft: 14, paddingRight: 14, paddingVertical: 10, color: C.ink, fontFamily: F.medium }
 });

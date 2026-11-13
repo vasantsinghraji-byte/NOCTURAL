@@ -17,6 +17,8 @@ test('money routes are recognised; reads and other writes are not', () => {
   assert.equal(isMoneyRequest('POST', '/pharmacy/orders'), true);
   assert.equal(isMoneyRequest('POST', '/pharmacy/orders/abc/payment'), true);
   assert.equal(isMoneyRequest('POST', '/pharmacy/orders/abc/payment/verify'), true);
+  // Adding items changes what the customer pays: one request per double tap.
+  assert.equal(isMoneyRequest('POST', '/pharmacy/orders/abc/items'), true);
   assert.equal(isMoneyRequest('POST', '/bookings'), true);
   assert.equal(isMoneyRequest('PUT', '/bookings/abc/cancel'), true);
   assert.equal(isMoneyRequest('POST', '/marketplace/labs/orders/abc/payment/order'), true);

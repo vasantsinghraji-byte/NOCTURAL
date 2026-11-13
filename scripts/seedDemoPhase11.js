@@ -18,10 +18,15 @@ const PharmacyVendor = require('../models/pharmacyVendor');
 const VendorInventory = require('../models/vendorInventory');
 const User = require('../models/user');
 
+// Distinct names so customers can tell the demo stores apart. Older databases still
+// carry the first slugs, so both spellings map to the same name.
 const STORE_NAMES = {
-  'apollo-c-scheme-jaipur': 'Nabz Demo Pharmacy · C-Scheme',
-  'medplus-malviya-nagar-jaipur': 'Nabz Demo Pharmacy · Malviya Nagar',
-  'wellness-vaishali-nagar-jaipur': 'Nabz Demo Pharmacy · Vaishali Nagar'
+  'gulab-chemists-c-scheme-jaipur': 'Gulab Chemists · C-Scheme',
+  'shree-ram-medicos-malviya-nagar-jaipur': 'Shree Ram Medicos · Malviya Nagar',
+  'pink-city-pharmacy-vaishali-nagar-jaipur': 'Pink City Pharmacy · Vaishali Nagar',
+  'apollo-c-scheme-jaipur': 'Gulab Chemists · C-Scheme',
+  'medplus-malviya-nagar-jaipur': 'Shree Ram Medicos · Malviya Nagar',
+  'wellness-vaishali-nagar-jaipur': 'Pink City Pharmacy · Vaishali Nagar'
 };
 
 const STAFF_GENDER = { 'nurse@nabz-staging.test': 'FEMALE', 'physio@nabz-staging.test': 'FEMALE' };

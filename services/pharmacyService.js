@@ -15,6 +15,7 @@ const Medicine = require('../models/medicine');
 const VendorInventory = require('../models/vendorInventory');
 const PharmacyOrder = require('../models/pharmacyOrder');
 const InventoryMovement = require('../models/inventoryMovement');
+const User = require('../models/user');
 const serviceability = require('./serviceabilityService');
 const {
   ValidationError,
@@ -36,6 +37,7 @@ const batchService = require('./pharmacyBatchService');
 const compliance = require('./pharmacyComplianceService');
 const stockAlerts = require('./pharmacyStockAlertService');
 const { getPharmacyOps, minExpiryDate } = require('../config/pharmacyOps');
+const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('../utils/queryUpdateOptions');
 
 // pharmacyAssignmentService requires this module (reserveStock), so load lazily.
 const assignment = () => require('./pharmacyAssignmentService');
@@ -490,7 +492,38 @@ async function getOrderById(orderId, requester) {
     // Unpaid prepaid orders don't exist yet as far as the store is concerned.
     if (pharmacyPaymentService.isAwaitingPayment(order)) throw new NotFoundError('Order', orderId);
   }
+  if (isPatient) {
+    order.changeWindowEndsAt = changeWindowEndsAt(order);
+    order.riderContact = await riderContactFor(order);
+  }
   return order;
+}
+
+// Statuses where the customer may need to reach the rider (assigned → handed over).
+const RIDER_CONTACT_STATUSES = ['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY'];
+
+/**
+ * The rider's name for the customer, and their number only while the delivery is
+ * live (nobody keeps a rider's phone after the drop).
+ */
+async function riderContactFor(order) {
+  if (!order.rider) return null;
+  const rider = await User.findById(order.rider).select('name phone').lean();
+  if (!rider) return null;
+  const live = RIDER_CONTACT_STATUSES.includes(order.status);
+  return { name: rider.name, phone: live ? rider.phone : undefined };
+}
+
+/**
+ * Until when the customer may add items: N seconds after the order went live for
+ * the store (placed for cash, paid for online), while the store hasn't started packing.
+ */
+function changeWindowEndsAt(order) {
+  const start = order.paymentMode === 'PREPAID'
+    ? (order.milestones && order.milestones.paidAt)
+    : ((order.milestones && order.milestones.placedAt) || order.createdAt);
+  if (!start) return null;
+  return new Date(new Date(start).getTime() + getPharmacyOps().customerChangeSeconds * 1000);
 }
 
 async function getPatientOrders(patientId, { status, page = 1, limit = 20 } = {}) {
@@ -549,6 +582,118 @@ async function cancelOrderByPatient(orderId, patientId, reason) {
 
   await restockOrder(cancelled, { kind: 'PATIENT', id: patientId, reason: 'Cancelled by patient' });
   return pharmacyPaymentService.refundOrderPayment(cancelled, note);
+}
+
+/**
+ * "Forgot something?": add medicines to a cash-on-delivery order from the same
+ * store within the change window, before the store starts packing. Same product
+ * rules and stock reservation as a new order; the delivery fee is re-quoted and a
+ * coupon discount stays as applied. Paid orders can't be topped up (new order instead).
+ */
+async function addItemsByPatient(orderId, patientId, { items: rawItems, prescriptionKey } = {}) {
+  const order = await PharmacyOrder.findById(orderId);
+  if (!order) throw new NotFoundError('Order', orderId);
+  if (String(order.patient) !== String(patientId)) throw new AuthorizationError('You can only change your own orders');
+  if (!['PLACED', 'ACCEPTED'].includes(order.status)) throw new ConflictError('The pharmacy has started packing this order. Place a new order for anything else');
+  const endsAt = changeWindowEndsAt(order);
+  const now = new Date();
+  if (!endsAt || now > endsAt) throw new ConflictError('Items can only be added in the first few minutes. Place a new order for anything else');
+  if (order.paymentMode !== 'COD') throw new ConflictError('Paid orders can’t be changed. Place a new order for anything else');
+  if (order.fulfilment !== 'DELIVERY' || order.checkout) throw new ConflictError('This order can’t be changed. Place a new order for anything else');
+  if (order.items.some((i) => (i.status || 'AVAILABLE') !== 'AVAILABLE' || (i.substitution && i.substitution.status === 'PENDING'))) {
+    throw new ConflictError('The pharmacy is updating this order. Try again in a moment');
+  }
+  if (prescriptionKey !== undefined && !isOwnPrescriptionKey(prescriptionKey, patientId)) {
+    throw new AuthorizationError('That prescription file does not belong to you');
+  }
+
+  const items = availability.normalizeCartItems(rawItems);
+  const vendor = await PharmacyVendor.findById(order.vendor);
+  if (!vendor) throw new NotFoundError('Pharmacy vendor', order.vendor);
+  const medicines = await Medicine.find({ _id: { $in: items.map((i) => i.medicineId) } }).lean();
+  const medById = new Map(medicines.map((m) => [String(m._id), m]));
+  const existingQty = new Map(order.items.map((i) => [String(i.medicine), i.quantity]));
+  for (const item of items) {
+    const med = medById.get(String(item.medicineId));
+    const reason = Medicine.onlineSaleBlockReason(med);
+    if (reason === 'SCHEDULE_X') throw new ValidationError(`${med.name} is a Schedule X drug and can't be ordered online`);
+    if (reason === 'BANNED') throw new ValidationError(`${med.name} is banned and can't be sold`);
+    if (reason) throw new ConflictError(`${med ? med.name : 'An item'} is no longer available`);
+    const total = item.quantity + (existingQty.get(String(item.medicineId)) || 0);
+    if (med.maxQtyPerOrder && total > med.maxQtyPerOrder) throw new ValidationError(`${med.name}: at most ${med.maxQtyPerOrder} per order`);
+    if (med.coldChain && !vendor.hasColdStorage) throw new ConflictError(`${med.name} needs refrigeration and this pharmacy can't store it`);
+    if (med.requiresPrescription && vendor.acceptsPrescriptionOrders === false) throw new ConflictError('This pharmacy does not take prescription orders');
+  }
+  const needsRx = items.some((i) => medById.get(String(i.medicineId)).requiresPrescription);
+  const hasRx = Boolean((order.prescription && order.prescription.key) || prescriptionKey);
+  if (needsRx && !hasRx) throw new ValidationError('A prescription is needed for this medicine. Attach one and try again', 'prescriptionKey');
+  const riskFlags = await compliance.checkPatientLimits(
+    patientId, items.map((i) => ({ medicine: medById.get(String(i.medicineId)), quantity: i.quantity })), order.vendor, now
+  );
+
+  const reserved = await reserveStock(order.vendor, items, { now });
+  try {
+    const lines = order.items.map((l) => (l.toObject ? l.toObject() : { ...l }));
+    for (const { inventory, quantity, batches } of reserved) {
+      const med = inventory.medicine;
+      const line = lines.find((l) => String(l.medicine) === String(med._id));
+      if (line) {
+        // Same medicine again: one line, at the price on screen now.
+        line.quantity += quantity;
+        line.unitPrice = inventory.sellingPrice;
+        line.mrp = inventory.mrp;
+        line.lineTotal = Math.round(inventory.sellingPrice * line.quantity * 100) / 100;
+        line.batches = [...(line.batches || []), ...(batches || [])];
+      } else {
+        lines.push({
+          medicine: med._id, name: med.name, form: med.form, packSize: med.packSize, quantity,
+          unitPrice: inventory.sellingPrice, mrp: inventory.mrp,
+          lineTotal: Math.round(inventory.sellingPrice * quantity * 100) / 100,
+          requiresPrescription: !!med.requiresPrescription, scheduleType: med.scheduleType, batches: batches || []
+        });
+      }
+    }
+    const itemsSubtotal = Math.round(lines.reduce((sum, l) => sum + l.lineTotal, 0) * 100) / 100;
+    const ServiceZone = require('../models/serviceZone');
+    const zone = order.zone ? await ServiceZone.findById(order.zone).lean() : null;
+    const fee = pricingService.quoteDeliveryFee({
+      vendor, zone, itemsSubtotal, distanceKm: order.distanceKm, isMember: await membershipService.isMember(patientId), now
+    });
+    const { total, discount } = pricingService.pharmacyTotals({
+      itemsSubtotal, deliveryFee: fee.deliveryFee, tax: order.amounts.tax || 0, discount: order.amounts.discount || 0
+    });
+    const added = reserved.reduce((n, r) => n + r.quantity, 0);
+    const note = `Customer added ${added} item(s)`;
+    const updated = await PharmacyOrder.findOneAndUpdate(
+      // Unchanged since we read it: same status, same lines, same store turn.
+      { _id: order._id, patient: patientId, status: order.status, 'amounts.total': order.amounts.total, items: { $size: order.items.length }, ...assignment().attemptsGuard(order) },
+      {
+        $set: {
+          items: lines,
+          requiresPrescription: lines.some((l) => l.requiresPrescription),
+          ...(prescriptionKey && !(order.prescription && order.prescription.key) ? { prescription: { key: prescriptionKey, uploadedAt: now } } : {}),
+          'amounts.itemsSubtotal': itemsSubtotal,
+          'amounts.deliveryFee': fee.deliveryFee,
+          'amounts.discount': discount,
+          'amounts.total': total,
+          'amounts.originalTotal': total,
+          feeBreakdown: fee.breakdown
+        },
+        $push: { timeline: { status: order.status, at: now, note }, ...(riskFlags && riskFlags.length ? { riskFlags: { $each: riskFlags } } : {}) }
+      },
+      VALIDATED_QUERY_UPDATE_OPTIONS
+    );
+    if (!updated) throw new ConflictError('This order just changed. Refresh and try again');
+    await recordMovements(reserved.map(({ inventory, quantity }) => ({
+      vendor: order.vendor, medicine: inventory.medicine._id, type: 'ORDER_RESERVED', delta: -quantity,
+      balanceAfter: inventory.stockQty, order: order._id, actor: { kind: 'PATIENT', id: patientId }
+    })));
+    pharmacyNotificationService.notifyVendorItemsAdded(updated, added);
+    return getOrderById(order._id, { id: patientId, type: 'patient' });
+  } catch (err) {
+    await rollbackReservation(order.vendor, reserved);
+    throw err;
+  }
 }
 
 /**
@@ -858,6 +1003,8 @@ module.exports = {
   getOrderById,
   getPatientOrders,
   cancelOrderByPatient,
+  addItemsByPatient,
+  changeWindowEndsAt,
   listVendorOrders,
   updateOrderStatus,
   upsertInventoryItem,

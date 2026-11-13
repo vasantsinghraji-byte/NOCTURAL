@@ -210,6 +210,41 @@ exports.getPrescription = async (req, res, next) => {
   }
 };
 
+/**
+ * The same prescription as a short-lived link the app can open directly.
+ * (An image request with the sign-in header can't follow the redirect to S3:
+ * S3 refuses a request that carries both a signature and an Authorization header.)
+ * Local storage has no signed links, so the app is told to call the file route with its token.
+ */
+exports.getPrescriptionLink = async (req, res, next) => {
+  try {
+    const requester = { id: req.user.id, type: req.userType, role: req.user.role, vendorId: req.user.pharmacyVendor };
+    const order = await pharmacyService.getOrderById(req.params.id, requester);
+    const key = order.prescription && order.prescription.key;
+    if (!key) return responseHelper.sendError(res, 'This order has no prescription', 404);
+    const kind = /\.pdf$/i.test(key) ? 'pdf' : 'image';
+    res.set('Cache-Control', 'private, no-store');
+    if (storageConfig.USE_CLOUD) {
+      const url = await storageConfig.getSignedUrl(key, 300);
+      if (!url) return responseHelper.sendError(res, 'Prescription file not found', 404);
+      return responseHelper.sendSuccess(res, { url, kind, needsAuth: false, expiresInSeconds: 300 }, 'Prescription link');
+    }
+    return responseHelper.sendSuccess(res, { url: req.originalUrl.replace(/\/link(\?.*)?$/, ''), kind, needsAuth: true }, 'Prescription link');
+  } catch (error) {
+    return responseHelper.handleServiceError(error, res, next);
+  }
+};
+
+// Customer adds items to a fresh cash order (inside the change window).
+exports.addItems = async (req, res, next) => {
+  try {
+    const order = await pharmacyService.addItemsByPatient(req.params.id, req.user.id, req.body);
+    responseHelper.sendSuccess(res, { order }, 'Items added');
+  } catch (error) {
+    responseHelper.handleServiceError(error, res, next);
+  }
+};
+
 // Patient uploads a prescription image/PDF; returns the key to pass to createOrder.
 exports.uploadPrescription = async (req, res, next) => {
   try {

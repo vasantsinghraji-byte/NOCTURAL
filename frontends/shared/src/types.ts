@@ -463,8 +463,18 @@ export interface PharmacyOrder {
   acceptBy?: string;
   assignmentAttempts?: AssignmentAttempt[];
   refunds?: Array<{ amount: number; reason?: string; status: 'PENDING' | 'DONE' | 'FAILED'; doneAt?: string }>;
+  /** When each stage was first reached. */
+  milestones?: Partial<Record<'placedAt' | 'paidAt' | 'acceptedAt' | 'readyAt' | 'riderAssignedAt' | 'pickedUpAt' | 'deliveredAt' | 'cancelledAt', string>>;
+  deliveryStatus?: string;
+  /** Customer view only: the rider's name, and their number while the delivery is live. */
+  riderContact?: { name: string; phone?: string } | null;
+  /** Customer view only: items can be added (cash orders, before packing) until this time. */
+  changeWindowEndsAt?: string | null;
   createdAt?: string;
 }
+
+/** A prescription the app can open: a short-lived link, or (local dev) the file route plus sign-in. */
+export interface PrescriptionLink { url: string; kind: 'image' | 'pdf'; needsAuth: boolean; expiresInSeconds?: number }
 
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUND_PENDING' | 'REFUNDED';
 

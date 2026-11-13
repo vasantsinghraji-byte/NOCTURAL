@@ -7,7 +7,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useTabBarSpace } from '@/lib/PillTabBar';
 import { api, describeNetworkError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { pickAndUploadPrescription } from '@/lib/prescription';
+import { pickAndUploadPrescription, type UploadedPrescription } from '@/lib/prescription';
+import { LocalPrescription } from '@/lib/PrescriptionView';
 import type { DeliveryQuote, PayMethod, PharmacyVendor, StorefrontItem } from '@medrush/shared';
 import { CouponField, type AppliedCoupon } from '@/lib/CouponField';
 import { C, F, R, depth } from '@/lib/theme';
@@ -29,7 +30,7 @@ export default function Pharmacy() {
   const { session } = useAuth();
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [address, setAddress] = useState({ line1: '', pincode: '' });
-  const [rx, setRx] = useState<{ uri: string; key?: string } | null>(null);
+  const [rx, setRx] = useState<UploadedPrescription | null>(null);
   const [placing, setPlacing] = useState(false);
   const [paySheet, setPaySheet] = useState(false);
   // Ordering medicines for someone else (e.g. parents in another city).
@@ -204,7 +205,7 @@ export default function Pharmacy() {
 
   async function attachPrescription() {
     const up = await pickAndUploadPrescription();
-    if (up) setRx({ uri: up.uri, key: up.key });
+    if (up) setRx(up);
   }
 
   useEffect(() => {
@@ -264,13 +265,15 @@ export default function Pharmacy() {
       setCoupon(null);
       if (refillId) { api.refillOrdered(refillId, res.order._id).catch(() => undefined); setRefillId(null); }
       if (forOther) rememberRecipient(recipient).catch(() => undefined);
+      // Straight to the live order: status, store, rider, and 90 s to cancel or add items.
+      const openOrder = () => router.push({ pathname: '/order/[id]', params: { id: res.order._id } });
       if (!prepaid) {
-        appAlert('Order placed', `${res.order.orderNumber}: the pharmacy has been notified.`);
+        openOrder();
         return;
       }
       try {
         await payOrderOnline(res.order._id, method, { name: session?.name, email: session?.email });
-        appAlert('Paid', `${res.order.orderNumber}: payment received and the pharmacy has been notified.`);
+        openOrder();
       } catch (payErr) {
         const mins = res.order.paymentExpiresAt ? Math.max(1, Math.round((new Date(res.order.paymentExpiresAt).getTime() - Date.now()) / 60000)) : 15;
         appAlert(
@@ -461,15 +464,21 @@ export default function Pharmacy() {
               value={address.pincode} onChangeText={(pincode) => setAddress((a) => ({ ...a, pincode }))} />
           </View>
 
-          {needsRx && (
+          {/* Shown for every cart: required for Rx items, optional otherwise. */}
+          <View style={styles.group}>
+            <Text style={styles.groupTitle}>{needsRx ? 'Prescription (required)' : 'Prescription (optional)'}</Text>
+            <Text style={styles.tileMeta}>
+              {needsRx ? 'Some items need one. A pharmacist checks it before packing.' : 'Have one? Attach it and the pharmacist will see it with your order.'}
+            </Text>
+            {rx?.key ? <LocalPrescription uri={rx.uri} kind={rx.kind} name={rx.name} /> : null}
             <Pressable style={styles.rxRow} onPress={attachPrescription} accessibilityRole="button">
               <View style={{ flex: 1 }}>
-                <Text style={styles.lineName}>{rx?.key ? 'Prescription attached' : 'Prescription required'}</Text>
-                <Text style={styles.tileMeta}>A pharmacist checks it before packing</Text>
+                <Text style={styles.lineName}>{rx?.key ? 'Prescription attached' : 'Attach prescription'}</Text>
+                <Text style={styles.tileMeta}>Photo, gallery or PDF (JPG, PNG, PDF)</Text>
               </View>
               <Text style={styles.rxLink}>{rx?.key ? 'Change' : 'Attach'}</Text>
             </Pressable>
-          )}
+          </View>
         </ScrollView>
 
         <Pressable style={({ pressed }) => [styles.placeBtn, (placing || pressed) && { opacity: 0.85 }]} disabled={placing} onPress={placeOrder} accessibilityRole="button">

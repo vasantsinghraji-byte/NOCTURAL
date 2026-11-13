@@ -262,7 +262,8 @@ describe('Care marketplace part 2 (real MongoDB)', () => {
         const ok = await complete(real);
         expect(ok.status).toBe(200);
         expect(ok.body.order.status).toBe('REPORT_READY');
-        const stored = await LabOrder.findById(order._id).lean();
+        // report.key is hidden by default (select: false): ask for it.
+        const stored = await LabOrder.findById(order._id).select('+report.key').lean();
         expect(stored.report.key).toMatch(new RegExp(`^lab-reports/${order._id}/`));
         expect(stored.report.mimeType).toBe('application/pdf');
       } finally {

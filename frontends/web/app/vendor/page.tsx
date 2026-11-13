@@ -252,9 +252,10 @@ export default function VendorDashboard() {
                   {o.careVisit ? ` on ${String(o.careVisit.scheduledDate).slice(0, 10)} at ${o.careVisit.scheduledTime}` : ''}. Pack it and hand it to the nurse.
                 </div>
               )}
-              {o.requiresPrescription && (
+              {(o.requiresPrescription || o.prescription?.key) && (
                 <div style={{ marginTop: 4 }}>
-                  <span className="pill rx">Rx</span>{' '}
+                  {o.requiresPrescription ? <><span className="pill rx">Rx</span>{' '}</> : null}
+                  {/* Any prescription the customer attached, required or not. */}
                   {o.prescription?.key && <a href={api.prescriptionLink(o._id, 'vendor')} target="_blank" rel="noreferrer" style={{ color: 'var(--brand)' }}>View prescription</a>}
                 </div>
               )}

@@ -35,41 +35,46 @@ const DEMO_PATIENT = { name: 'Demo Patient', email: 'customer@nabz-staging.test'
 const DEMO_PARTNERS = [
   { name: 'Demo Nurse', email: 'nurse@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500077', role: 'nurse' },
   { name: 'Demo Physio', email: 'physio@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500055', role: 'physiotherapist' },
-  { name: 'Demo Path Lab', email: 'lab@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500066', role: 'lab_partner' }
+  { name: 'Demo Path Lab', email: 'lab@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500066', role: 'lab_partner' },
+  // Pre-verified so test orders get a rider (riders go online in the Partner app).
+  { name: 'Ravi Kumar (Demo Rider)', email: 'rider@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500044', role: 'delivery_partner' }
 ];
 
 // Jaipur launch-area demo stores ([lng, lat]). Nabz launches in Jaipur first.
+// Each has its own name and its own store login, so every order reaches someone.
 const VENDORS = [
   {
-    name: 'Nabz Demo Pharmacy · C-Scheme',
-    slug: 'apollo-c-scheme-jaipur',
+    name: 'Gulab Chemists · C-Scheme',
+    slug: 'gulab-chemists-c-scheme-jaipur',
     contactPhone: '9876500011',
     address: { line1: 'Ashok Marg, C-Scheme', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
     location: { type: 'Point', coordinates: [75.8000, 26.9100] },
     serviceRadiusKm: 6,
     deliveryFee: 25,
     minOrderValue: 99,
-    owner: { name: 'C-Scheme Store Manager', email: 'pharmacy@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500011' }
+    owner: { name: 'Gulab Chemists Manager', email: 'pharmacy@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500011' }
   },
   {
-    name: 'Nabz Demo Pharmacy · Malviya Nagar',
-    slug: 'medplus-malviya-nagar-jaipur',
+    name: 'Shree Ram Medicos · Malviya Nagar',
+    slug: 'shree-ram-medicos-malviya-nagar-jaipur',
     contactPhone: '9876500022',
     address: { line1: 'Gaurav Tower, Malviya Nagar', city: 'Jaipur', state: 'Rajasthan', pincode: '302017' },
     location: { type: 'Point', coordinates: [75.8243, 26.8549] },
     serviceRadiusKm: 5,
     deliveryFee: 20,
-    minOrderValue: 149
+    minOrderValue: 149,
+    owner: { name: 'Shree Ram Medicos Manager', email: 'pharmacy2@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500022' }
   },
   {
-    name: 'Nabz Demo Pharmacy · Vaishali Nagar',
-    slug: 'wellness-vaishali-nagar-jaipur',
+    name: 'Pink City Pharmacy · Vaishali Nagar',
+    slug: 'pink-city-pharmacy-vaishali-nagar-jaipur',
     contactPhone: '9876500033',
     address: { line1: 'Amrapali Marg, Vaishali Nagar', city: 'Jaipur', state: 'Rajasthan', pincode: '302021' },
     location: { type: 'Point', coordinates: [75.7430, 26.9130] },
     serviceRadiusKm: 7,
     deliveryFee: 0,
-    minOrderValue: 199
+    minOrderValue: 199,
+    owner: { name: 'Pink City Pharmacy Manager', email: 'pharmacy3@nabz-staging.test', password: DEMO_PASSWORD, phone: '9876500033' }
   }
 ];
 
@@ -128,7 +133,7 @@ async function seed() {
     const supplyDocs = await Medicine.insertMany(CARE_SUPPLIES.map((m) => ({ ...m, slug: toSlug(m.name) })));
     console.log(`✅ Inserted ${medicineDocs.length} medicines + ${supplyDocs.length} home-care supplies`);
 
-    // Vendors (+ optional owner login for the first vendor)
+    // Vendors, each with its owner login
     let inventoryCount = 0;
     for (const [i, v] of VENDORS.entries()) {
       const vendor = await PharmacyVendor.create({

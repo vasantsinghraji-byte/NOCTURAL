@@ -47,6 +47,13 @@ const createOrderValidation = [
   body('couponCode').optional({ nullable: true }).isString().trim().isLength({ max: 30 }).withMessage('That code is not valid')
 ];
 
+const addItemsValidation = [
+  body('items').isArray({ min: 1, max: 50 }).withMessage('Add at least one item'),
+  body('items.*.medicineId').isMongoId().withMessage('Each item needs a valid medicineId'),
+  body('items.*.quantity').isInt({ min: 1, max: 100 }).withMessage('Each item needs quantity 1-100'),
+  body('prescriptionKey').optional().isString().trim().isLength({ min: 1, max: 512 }).withMessage('prescriptionKey must be the key returned by POST /prescriptions')
+];
+
 const availabilityValidation = [
   query('lat').notEmpty().withMessage('lat is required').isFloat({ min: -90, max: 90 }),
   query('lng').notEmpty().withMessage('lng is required').isFloat({ min: -180, max: 180 }),
@@ -219,6 +226,7 @@ router.get('/payment-options', ctrl.getPaymentOptions);
 router.get('/vendor/orders', protect, authorize('pharmacy_vendor'), ctrl.listVendorOrders);
 router.get('/vendor/orders/:id', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), validate, ctrl.getOrder);
 router.get('/vendor/orders/:id/prescription', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), validate, ctrl.getPrescription);
+router.get('/vendor/orders/:id/prescription/link', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), validate, ctrl.getPrescriptionLink);
 router.patch('/vendor/orders/:id/status', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), orderStatusValidation, validate, ctrl.updateOrderStatus);
 router.post('/vendor/orders/:id/items/unavailable', protect, authorize('pharmacy_vendor'), mongoIdParam('id'), markUnavailableValidation, validate, ctrl.markItemsUnavailable);
 // Substitution with the customer's consent (services/pharmacySubstitutionService.js).
@@ -293,7 +301,9 @@ router.delete('/medicines/:id/notify-me', protectPatient, mongoIdParam('id'), va
 router.get('/orders', protectPatient, ctrl.getMyOrders);
 router.get('/orders/:id', protectPatient, mongoIdParam('id'), validate, ctrl.getOrder);
 router.get('/orders/:id/prescription', protectPatient, mongoIdParam('id'), validate, ctrl.getPrescription);
+router.get('/orders/:id/prescription/link', protectPatient, mongoIdParam('id'), validate, ctrl.getPrescriptionLink);
 router.post('/orders/:id/cancel', protectPatient, mongoIdParam('id'), validate, ctrl.cancelOrder);
+router.post('/orders/:id/items', protectPatient, mongoIdParam('id'), addItemsValidation, validate, idempotency({ route: 'pharmacy/orders/items' }), ctrl.addItems);
 router.post('/orders/:id/payment', protectPatient, mongoIdParam('id'), validate, idempotency({ route: 'pharmacy/orders/payment' }), ctrl.createPaymentOrder);
 router.post('/orders/:id/payment/verify', protectPatient, mongoIdParam('id'), verifyPaymentValidation, validate, idempotency({ route: 'pharmacy/orders/payment/verify' }), ctrl.verifyPayment);
 router.post('/orders/:id/payment/failure', protectPatient, mongoIdParam('id'), paymentFailureValidation, validate, ctrl.reportPaymentFailure);

@@ -72,6 +72,7 @@ export default function RootLayout() {
             <Stack.Screen name="labs/index" options={{ headerShown: false }} />
             <Stack.Screen name="labs/orders" options={{ headerShown: false }} />
             <Stack.Screen name="labs/order/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="order/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="addresses" options={{ headerShown: false }} />
             <Stack.Screen name="map" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
             <Stack.Screen name="chat/index" options={{ headerShown: false }} />

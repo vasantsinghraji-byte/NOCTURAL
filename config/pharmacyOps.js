@@ -17,6 +17,9 @@ const getPharmacyOps = () => ({
   // A store must accept (or reject) a new order within this window, else the
   // order moves to the next best store (Zomato-style order inaction).
   acceptSlaSeconds: num('PHARMACY_ACCEPT_SLA_SECONDS', 180, { min: 30 }),
+  // After placing (or paying for) an order the customer may add items for this
+  // long, while the store has not started packing.
+  customerChangeSeconds: num('PHARMACY_CUSTOMER_CHANGE_SECONDS', 90),
   // Stores an order may be offered to before we cancel and refund.
   maxAssignmentAttempts: num('PHARMACY_MAX_ASSIGNMENT_ATTEMPTS', 3, { min: 1 }),
   // Consecutive missed/timed-out orders that auto-pause a store, and for how long.

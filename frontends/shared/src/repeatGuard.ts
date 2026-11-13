@@ -20,7 +20,7 @@ export const REPEAT_WINDOW_MS = 2 * 60 * 1000;
 export const MONEY_ROUTES: RegExp[] = [
   /^\/pharmacy\/orders$/,
   /^\/pharmacy\/checkouts$/,
-  /^\/pharmacy\/orders\/[^/]+\/(payment|payment\/verify|cancel)$/,
+  /^\/pharmacy\/orders\/[^/]+\/(payment|payment\/verify|cancel|items)$/,
   /^\/bookings$/,
   /^\/bookings\/package$/,
   /^\/bookings\/[^/]+\/(cancel|offer\/accept)$/,

@@ -53,10 +53,10 @@ export function ActiveOrderProvider({ children }: { children: ReactNode }) {
 
 export const useActiveOrder = () => useContext(Ctx);
 
-/** Opens the full screen for the item: live tracking for a visit, the order in Bookings. */
+/** Opens the full screen for the item: live tracking for a visit, the medicine order's tracking screen. */
 export function openActive(item: ActiveItem) {
   if (item.kind === 'VISIT') router.push({ pathname: '/track', params: { id: item.id } });
-  else router.push({ pathname: '/bookings', params: { tab: 'orders' } });
+  else router.push({ pathname: '/order/[id]', params: { id: item.id } });
 }
 
 export type { ActiveItem };
