@@ -19,46 +19,6 @@ describe('app CORS preflight handling', () => {
     process.env.ALLOWED_ORIGINS = originalAllowedOrigins;
   });
 
-  it('allows production same-origin Render API preflight requests', async () => {
-    process.env.NODE_ENV = 'production';
-    process.env.ALLOWED_ORIGINS = 'http://localhost:5000';
-
-    const app = express();
-    const corsOptions = corsConfig();
-    app.use(cors(corsOptions));
-    app.options(/.*/, cors(corsOptions));
-
-    const response = await request(app)
-      .options('/api/v1/auth/login')
-      .set('Origin', 'https://nocturnal-api.onrender.com')
-      .set('Access-Control-Request-Method', 'POST')
-      .set('Access-Control-Request-Headers', 'content-type')
-      .expect(204);
-
-    expect(response.headers['access-control-allow-origin']).toBe('https://nocturnal-api.onrender.com');
-    expect(response.headers['access-control-allow-credentials']).toBe('true');
-  });
-
-  it('allows the deployed noctural.onrender.com origin even when ALLOWED_ORIGINS is incomplete', async () => {
-    process.env.NODE_ENV = 'production';
-    process.env.ALLOWED_ORIGINS = '';
-
-    const app = express();
-    const corsOptions = corsConfig();
-    app.use(cors(corsOptions));
-    app.options(/.*/, cors(corsOptions));
-
-    const response = await request(app)
-      .options('/api/v1/auth/login')
-      .set('Origin', 'https://noctural.onrender.com')
-      .set('Access-Control-Request-Method', 'POST')
-      .set('Access-Control-Request-Headers', 'content-type')
-      .expect(204);
-
-    expect(response.headers['access-control-allow-origin']).toBe('https://noctural.onrender.com');
-    expect(response.headers['access-control-allow-credentials']).toBe('true');
-  });
-
   it('allows the packaged Capacitor Android origin and mobile auth header', async () => {
     process.env.NODE_ENV = 'production';
     process.env.ALLOWED_ORIGINS = '';

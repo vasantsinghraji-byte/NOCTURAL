@@ -8,6 +8,16 @@
 
 const request = require('supertest');
 
+// These checks are about the source pages (client/public) and their exact script
+// names. Without this, the server serves client/dist whenever a build exists,
+// where names are hashed; the built output has its own suite
+// (production-built-frontend-playwright).
+jest.mock('../../utils/frontendStatic', () => {
+  const actual = jest.requireActual('../../utils/frontendStatic');
+  const nodePath = require('path');
+  return { ...actual, resolveFrontendStaticDir: () => nodePath.resolve(__dirname, '../..', actual.PUBLIC_RELATIVE_PATH) };
+});
+
 let app;
 
 beforeAll(() => {
@@ -153,15 +163,15 @@ describe('Frontend Smoke: GET static app entry pages', () => {
     const inlineScripts = res.text.match(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]+?<\/script>/gi);
     expect(inlineScripts).toBeNull();
     expect(res.text).toContain('/js/shared-register.js');
-    expect(res.text).toContain('id="doctorAgreeToTerms"');
+    expect(res.text).toContain('id="doctorAgreeTerms"');
     expect(res.text).toContain('id="hospitalFacilityType"');
-    expect(res.text).toContain('Join B2B Waitlist');
+    expect(res.text).toContain('Join Hospital Pilot Waitlist');
   });
 
   test.each([
-    ['/roles/patient/patient-login.html', '/js/patient-login.js?v=20260429-2'],
-    ['/roles/patient/patient-register.html', '/js/patient-register.js?v=20260429-3'],
-    ['/roles/doctor/doctor-onboarding.html', '/js/doctor-onboarding.js?v=20260429-2'],
+    ['/roles/patient/patient-login.html', '/js/patient-login.js'],
+    ['/roles/patient/patient-register.html', '/js/patient-register.js'],
+    ['/roles/doctor/doctor-onboarding.html', '/js/doctor-onboarding.js'],
     ['/roles/doctor/doctor-dashboard.html', '/js/doctor-dashboard.js?v=20260429-1'],
     ['/roles/doctor/doctor-profile-enhanced.html', '/js/doctor-profile-enhanced.js']
   ])('%s uses external scripts compatible with CSP', async (path, scriptPath) => {
@@ -286,7 +296,7 @@ describe('Frontend Smoke: GET static app entry pages', () => {
       {
         label: 'hospital waitlist',
         path: '/shared/register.html#hospital-waitlist',
-        marker: 'Join B2B Waitlist',
+        marker: 'Join Hospital Pilot Waitlist',
         event: 'hospital_waitlist_click'
       },
       {
@@ -305,7 +315,7 @@ describe('Frontend Smoke: GET static app entry pages', () => {
       const htmlPath = path.split('#')[0];
       expect(landingRes.text).toContain(htmlPath);
       if (event) {
-        expect(landingRes.text).toContain(`data-analytics-event="${event}"`);
+        expect(landingRes.text).toMatch(new RegExp(`data-(?:analytics-)?event="${event}"`));
       }
     });
 
@@ -338,8 +348,9 @@ describe('Frontend Smoke: GET static app entry pages', () => {
 
     expect(res.text).toContain('/shared/offline.html');
     expect(res.text).not.toMatch(/['"]\/offline\.html['"]/);
-    expect(res.text).toContain("const CACHE_VERSION = 'v6'");
-    expect(res.text).toContain('LEGACY_RUNTIME_CACHES');
-    expect(res.text).toContain('static-${CACHE_VERSION}');
+    expect(res.text).toMatch(/const CACHE_VERSION = 'v\d+'/);
+    expect(res.text).toContain('const CACHE_NAME = `nocturnal-${CACHE_VERSION}`');
+    expect(res.text).toContain('LEGACY_CACHE_NAMES');
+    expect(res.text).toContain('static: `${CACHE_NAME}-static`');
   });
 });

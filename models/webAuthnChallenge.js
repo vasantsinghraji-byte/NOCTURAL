@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const webAuthnChallengeSchema = new mongoose.Schema({
   identityId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
   identityType: { type: String, enum: ['user', 'patient'], required: true },
-  purpose: { type: String, enum: ['REGISTRATION', 'PASSWORD_CHANGE'], required: true },
+  purpose: { type: String, enum: ['REGISTRATION', 'PASSWORD_CHANGE', 'ADMIN_SIGN_IN'], required: true },
   challenge: { type: String, required: true },
   expiresAt: { type: Date, required: true },
   recoveryCodeId: { type: mongoose.Schema.Types.ObjectId, ref: 'WebAuthnRecoveryCode' },

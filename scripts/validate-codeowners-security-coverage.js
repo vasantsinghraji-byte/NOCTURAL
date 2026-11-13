@@ -10,7 +10,6 @@ const REQUIRED_SECURITY_GOVERNANCE_PATHS = [
   '.github/pull_request_template.md',
   '.github/workflows/ci.yml',
   '.github/workflows/codeql.yml',
-  '.github/workflows/render-smoke.yml',
   '.github/workflows/security-governance-drift-audit.yml',
   '.github/workflows/security-governance-key-rotation-reminder.yml',
   '.github/workflows/security-governance-protection-bootstrap.yml',

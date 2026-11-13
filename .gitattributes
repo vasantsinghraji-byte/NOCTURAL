@@ -1,0 +1,4 @@
+
+# Shell templates run on Linux servers: always LF
+*.tftpl text eol=lf
+*.sh text eol=lf

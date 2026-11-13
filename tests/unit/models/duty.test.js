@@ -22,6 +22,7 @@ beforeAll(async () => {
 afterEach(async () => {
   await clearCollection('duties');
   await clearCollection('users');
+  await clearCollection('hospitals');
 });
 
 // Disconnect after all tests

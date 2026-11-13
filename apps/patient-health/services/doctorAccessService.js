@@ -168,6 +168,53 @@ class DoctorAccessService {
   }
 
   /**
+   * Automatic, visit-scoped access for the nurse/physio doing a home visit
+   * (dispatch accept or admin assignment). Expires by itself; revoked when
+   * the visit is cancelled or handed to someone else. No admin check: the
+   * booking itself is the authority, and only internal callers use this.
+   */
+  async grantForVisit({ patientId, providerId, bookingId, expiresAt, grantedBy }) {
+    const safePatientId = normalizeObjectId(patientId, 'patient id');
+    const safeProviderId = normalizeObjectId(providerId, 'provider id');
+    const safeBookingId = normalizeObjectId(bookingId, 'booking id');
+    const [patient, provider] = await Promise.all([
+      Patient.findById(safePatientId).select('name').lean(),
+      User.findById(safeProviderId).select('name role').lean()
+    ]);
+    if (!patient) throw new NotFoundError('Patient', patientId);
+    if (!provider) throw new NotFoundError('User', providerId);
+    const role = provider.role === 'physiotherapist' ? 'physiotherapist' : provider.role === 'doctor' ? 'doctor' : 'nurse';
+    const tokenData = await HealthAccessToken.generateToken({
+      grantedTo: safeProviderId,
+      grantedToRole: role,
+      grantedToName: provider.name,
+      patient: safePatientId,
+      patientName: patient.name,
+      booking: safeBookingId,
+      accessLevel: 'READ_WRITE',
+      allowedResources: [ALLOWED_RESOURCES.HEALTH_RECORD, ALLOWED_RESOURCES.HEALTH_METRIC, 'DOCTOR_NOTE'],
+      grantedBy: grantedBy ? normalizeObjectId(grantedBy, 'granted by') : safeProviderId,
+      grantedByName: 'Nabz visit',
+      grantReason: `Home visit ${safeBookingId}`,
+      expiresAt
+    });
+    logger.info('Visit access granted', { bookingId: String(safeBookingId), providerId: String(safeProviderId), expiresAt });
+    return tokenData;
+  }
+
+  /** Revoke every active visit grant for a booking (cancel / reassignment). Never throws. */
+  async revokeForBooking(bookingId, reason = 'Visit ended') {
+    try {
+      const tokens = await HealthAccessToken.find({ booking: bookingId, isActive: true });
+      await Promise.all(tokens.map((t) => t.revoke(t.grantedTo, 'SYSTEM', reason)));
+      return tokens.length;
+    } catch (err) {
+      logger.error('Visit access revoke failed', { bookingId: String(bookingId), error: err.message });
+      return 0;
+    }
+  }
+
+  /**
    * Revoke access by admin
    */
   async revokeAccessByAdmin(tokenId, adminId, reason) {

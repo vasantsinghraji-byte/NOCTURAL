@@ -1,6 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const { protectBoth } = require('../middleware/patientAuth');
+const { requireRecentAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
 const controller = require('../controllers/webAuthnController');
 const {
@@ -22,10 +23,13 @@ const verificationValidation = [
 
 router.use(protectBoth);
 router.get('/credentials', controller.listCredentials);
-router.delete('/credentials/:credentialId', controller.revokeCredential);
-router.post('/registration/options', controller.registrationOptions);
+// Adding or removing a passkey changes how an admin signs in: admins need a
+// fresh code first (requireRecentAuth lets everyone else straight through).
+router.delete('/credentials/:credentialId', requireRecentAuth, controller.revokeCredential);
+router.post('/registration/options', requireRecentAuth, controller.registrationOptions);
 router.post(
   '/registration/verify',
+  requireRecentAuth,
   [
     ...verificationValidation.slice(0, -1),
     body('name').optional().trim().isLength({ max: 100 }),

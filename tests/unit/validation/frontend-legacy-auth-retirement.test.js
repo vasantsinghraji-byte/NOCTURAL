@@ -32,7 +32,6 @@ const productionAuthPages = [
 const webpackConfigSrc = readProjectFile('client/webpack.config.js');
 const webpackSimpleConfigSrc = readProjectFile('client/webpack.config.simple.js');
 const buildConfigSrc = readProjectFile('client/build.config.js');
-const renderYamlSrc = readProjectFile('render.yaml');
 const environmentsSrc = readProjectFile('config/environments.js');
 const testSetupSrc = readProjectFile('tests/setup.js');
 const envExampleSrc = readProjectFile('.env.example');
@@ -57,10 +56,6 @@ describe('Frontend Legacy Auth Retirement', () => {
       expect(source).not.toContain('getIdToken(');
       expect(source).not.toContain('signInWithEmailAndPassword');
     });
-  });
-
-  it('should not advertise retired auth deployment defaults in render config', () => {
-    expect(renderYamlSrc).not.toContain(retiredEnvToggle);
   });
 
   it('should keep runtime configuration off retired auth environment switches', () => {

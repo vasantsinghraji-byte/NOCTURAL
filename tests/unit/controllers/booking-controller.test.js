@@ -227,7 +227,8 @@ describe('Booking Controller', () => {
       'IN_PROGRESS',
       'provider123',
       'Service started',
-      'nurse'
+      'nurse',
+      { visitCode: undefined }
     );
   });
 

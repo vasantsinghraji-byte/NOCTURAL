@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" role="img" aria-label="Nabz"><rect width="900" height="260" rx="28" fill="#2a2523"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d9556b"/>
+      <stop offset="1" stop-color="#a82f45"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(20,20) scale(0.4297)">
+    <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+    <path d="M256 84c-86 0-156 67-156 150 0 108 156 196 156 196s156-88 156-196c0-83-70-150-156-150z" fill="#fff"/>
+    <polyline points="146,238 204,238 228,186 262,292 290,214 306,238 350,238" fill="none" stroke="#b83a50" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="366" cy="238" r="15" fill="#ff5a3c"/>
+  </g>
+  <text x="270" y="172" font-family="'Plus Jakarta Sans','Poppins','Segoe UI',sans-serif" font-size="150" font-weight="800" letter-spacing="-6" fill="#ffffff">nabz<tspan fill="#ff5a3c">.</tspan></text>
+  <text x="274" y="222" font-family="'Plus Jakarta Sans','Poppins','Segoe UI',sans-serif" font-size="30" font-weight="600" letter-spacing="1" fill="#f8d7dc">CARE AT YOUR DOORSTEP</text>
+</svg>

@@ -12,6 +12,8 @@ const passwordSecurityService = require('./passwordSecurityService');
 const compromisedPasswordService = require('./compromisedPasswordService');
 const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
 const { AuthenticationError, AuthorizationError } = require('../utils/errors');
+const LOGIN_GUARD = { lockPath: 'loginGuard.lockUntil', lockMs: 15 * 60 * 1000 };
+const LOGIN_MAX_FAILURES = Number(process.env.LOGIN_MAX_FAILURES) || 10;
 
 const COMMON_PROFILE_FIELDS = [
   'name',
@@ -130,6 +132,21 @@ class AuthService {
    * @param {Object} credentials - Login credentials
    * @returns {Promise<Object>} User and token
    */
+  /**
+   * A store login whose pharmacyVendor points at a store that no longer exists
+   * (e.g. stores re-created by a seed) is re-linked to the store it owns, so
+   * the dashboard doesn't say "Pharmacy vendor not found" and orders show up.
+   */
+  async repairPharmacyLink(user) {
+    const PharmacyVendor = require('../models/pharmacyVendor');
+    if (user.pharmacyVendor && await PharmacyVendor.exists({ _id: user.pharmacyVendor })) return;
+    const owned = await PharmacyVendor.findOne({ owner: user._id }).select('_id').lean();
+    if (!owned) return;
+    await User.updateOne({ _id: user._id }, { $set: { pharmacyVendor: owned._id } });
+    user.pharmacyVendor = owned._id;
+    logger.warn('Re-linked a pharmacy login to the store it owns', { userId: String(user._id), vendorId: String(owned._id) });
+  }
+
   async login(credentials) {
     const email = normalizeEmail(credentials.email);
     const { password } = credentials;
@@ -153,10 +170,17 @@ class AuthService {
       };
     }
 
-    // Check password
+    // Check password. Each try first reserves an attempt atomically: at most
+    // LOGIN_MAX_FAILURES guesses per 15 minutes, even when sent in parallel.
+    const attemptGuard = require('../utils/attemptGuard');
+    if (!(await attemptGuard.reserveAttempt(User, { _id: user._id }, 'loginGuard.failed', LOGIN_MAX_FAILURES, LOGIN_GUARD))) {
+      logger.logSecurity('login_locked', { id: String(user._id) });
+      throw { statusCode: 429, message: 'Too many sign-in attempts. Try again in 15 minutes, or reset your password.' };
+    }
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
+      await attemptGuard.lockIfExhausted(User, { _id: user._id }, 'loginGuard.failed', LOGIN_MAX_FAILURES, LOGIN_GUARD);
       logger.logAuth('login', email, false, 'Invalid password');
       logger.logSecurity('failed_login_attempt', { email, reason: 'Invalid password' });
       throw {
@@ -164,6 +188,9 @@ class AuthService {
         message: ERROR_MESSAGE.INVALID_CREDENTIALS
       };
     }
+
+    await attemptGuard.resetAttempts(User, { _id: user._id }, 'loginGuard.failed', LOGIN_GUARD);
+    if (user.role === 'pharmacy_vendor') await this.repairPharmacyLink(user);
 
     // Generate short-lived access token and refresh token for cookie-backed sessions.
     const token = generateAccessToken(user._id, undefined, user.sessionVersion);
@@ -227,6 +254,10 @@ class AuthService {
     if (typeof user.getDecryptedBankDetails === 'function' && user.bankDetails) {
       profile.bankDetails = user.getDecryptedBankDetails();
     }
+
+    // Admin panel: which sections and partner types this account can open.
+    const { accessSummary, sectionsFor } = require('../constants/adminAccess');
+    if (sectionsFor(profile).length) profile.adminAccess = accessSummary(profile);
 
     return profile;
   }

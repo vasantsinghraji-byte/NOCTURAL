@@ -205,6 +205,13 @@ const verifyRegistration = async ({ identityId, identityType, challengeId, respo
   if (!result.modifiedCount) throw new ConflictError('WebAuthn credential is already enrolled', 'credentialId');
   challenge.consumedAt = new Date();
   await challenge.save();
+  // A new way into an admin account: tell the main admins.
+  if (identityType === 'user') {
+    const owner = await User.findById(identityId).select('name email role').lean().catch(() => null);
+    if (owner && require('./adminMfaService').isAdminRole(owner.role)) {
+      await require('./adminAlertService').aboutAccount('admin_passkey_added', owner, 'Passkey added', `added a passkey${name ? ` ("${String(name).slice(0, 40)}")` : ''} for signing in.`);
+    }
+  }
   return { verified: true };
 };
 
@@ -222,14 +229,14 @@ const authenticationOptions = async ({ identityId, identityType, purpose = 'PASS
   return { options, challengeId: record._id };
 };
 
-const verifyAuthentication = async ({ identityId, identityType, challengeId, response }) => {
+const verifyAuthentication = async ({ identityId, identityType, challengeId, response, purpose = 'PASSWORD_CHANGE' }) => {
   const normalizedIdentityId = normalizeObjectId(identityId, 'identity id');
   const normalizedChallengeId = normalizeObjectId(challengeId, 'challenge id');
   const challenge = await WebAuthnChallenge.findOne({
     _id: normalizedChallengeId,
     identityId: normalizedIdentityId,
     identityType,
-    purpose: 'PASSWORD_CHANGE',
+    purpose,
     consumedAt: null,
     verifiedAt: null,
     expiresAt: { $gt: new Date() }
@@ -256,6 +263,8 @@ const verifyAuthentication = async ({ identityId, identityType, challengeId, res
   stored.counter = verification.authenticationInfo.newCounter;
   stored.lastUsedAt = new Date();
   challenge.verifiedAt = new Date();
+  // An admin sign-in passkey answer is used up at once (no later confirmation step).
+  if (purpose === 'ADMIN_SIGN_IN') challenge.consumedAt = challenge.verifiedAt;
   await Promise.all([identity.save(), challenge.save()]);
   return { verified: true, confirmationId: challenge._id };
 };

@@ -25,6 +25,7 @@ afterEach(async () => {
   await clearCollection('applications');
   await clearCollection('duties');
   await clearCollection('users');
+  await clearCollection('hospitals');
 });
 
 // Disconnect after all tests

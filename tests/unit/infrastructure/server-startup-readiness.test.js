@@ -25,6 +25,10 @@ function loadServerWithMocks(connectResult) {
     startRefundOutboxWorker: jest.fn(),
     stopRefundOutboxWorker: jest.fn()
   };
+  const pharmacyPaymentService = {
+    startExpiryWorker: jest.fn(),
+    stopExpiryWorker: jest.fn()
+  };
   const securityNotificationOutboxService = {
     start: jest.fn(),
     stop: jest.fn()
@@ -60,6 +64,7 @@ function loadServerWithMocks(connectResult) {
     cleanup: jest.fn()
   }));
   jest.doMock('../../../services/paymentService', () => paymentService);
+  jest.doMock('../../../services/pharmacyPaymentService', () => pharmacyPaymentService);
   jest.doMock('../../../config/database', () => database);
   jest.doMock('../../../config/rateLimit', () => ({
     cleanup: jest.fn()
@@ -78,6 +83,7 @@ function loadServerWithMocks(connectResult) {
     app,
     database,
     paymentService,
+    pharmacyPaymentService,
     securityNotificationOutboxService,
     auditExportCleanupScheduler,
     auditLifecycleReportCleanupScheduler,
@@ -110,6 +116,7 @@ describe('server startup database readiness', () => {
       app,
       database,
       paymentService,
+      pharmacyPaymentService,
       securityNotificationOutboxService
     } = loadServerWithMocks(dbReady.promise);
 
@@ -123,15 +130,18 @@ describe('server startup database readiness', () => {
     expect(database.connectDB).toHaveBeenCalledWith({ failFast: true });
     expect(app.listen).not.toHaveBeenCalled();
     expect(paymentService.startRefundOutboxWorker).not.toHaveBeenCalled();
+    expect(pharmacyPaymentService.startExpiryWorker).not.toHaveBeenCalled();
 
     dbReady.resolve(true);
     await startPromise;
 
     expect(app.listen).toHaveBeenCalledTimes(1);
     expect(paymentService.startRefundOutboxWorker).toHaveBeenCalledTimes(1);
+    expect(pharmacyPaymentService.startExpiryWorker).toHaveBeenCalledTimes(1);
     expect(securityNotificationOutboxService.start).toHaveBeenCalledTimes(1);
 
     await serverModule.stopServer();
+    expect(pharmacyPaymentService.stopExpiryWorker).toHaveBeenCalledTimes(1);
   });
 
   it('rejects startup without listening or starting workers when database readiness fails', async () => {
@@ -140,6 +150,7 @@ describe('server startup database readiness', () => {
       serverModule,
       app,
       paymentService,
+      pharmacyPaymentService,
       reconciliationScheduler
     } = loadServerWithMocks(Promise.reject(startupError));
 
@@ -150,6 +161,7 @@ describe('server startup database readiness', () => {
 
     expect(app.listen).not.toHaveBeenCalled();
     expect(paymentService.startRefundOutboxWorker).not.toHaveBeenCalled();
+    expect(pharmacyPaymentService.startExpiryWorker).not.toHaveBeenCalled();
     expect(reconciliationScheduler.start).not.toHaveBeenCalled();
   });
 
@@ -159,6 +171,7 @@ describe('server startup database readiness', () => {
       app,
       database,
       paymentService,
+      pharmacyPaymentService,
       securityNotificationOutboxService,
       auditExportCleanupScheduler,
       auditLifecycleReportCleanupScheduler,
@@ -174,6 +187,7 @@ describe('server startup database readiness', () => {
     expect(database.connectDB).not.toHaveBeenCalled();
     expect(app.listen).toHaveBeenCalledTimes(1);
     expect(paymentService.startRefundOutboxWorker).not.toHaveBeenCalled();
+    expect(pharmacyPaymentService.startExpiryWorker).not.toHaveBeenCalled();
     expect(securityNotificationOutboxService.start).not.toHaveBeenCalled();
     expect(auditExportCleanupScheduler.start).not.toHaveBeenCalled();
     expect(auditLifecycleReportCleanupScheduler.start).not.toHaveBeenCalled();

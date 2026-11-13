@@ -11,13 +11,22 @@ const logger = require('@nocturnal/shared').logger;
 const passwordSecurityService = require('@nocturnal/shared').passwordSecurityService;
 const { VALIDATED_QUERY_UPDATE_OPTIONS } = require('@nocturnal/shared').queryUpdateOptions;
 const { HTTP_STATUS, ERROR_MESSAGE } = require('../constants');
+const { TERMS_VERSION } = require('../constants/legal');
 const { AuthenticationError } = require('@nocturnal/shared').errors;
 const compromisedPasswordService = require('@nocturnal/shared').compromisedPasswordService;
+const partnerAccountGuard = require('@nocturnal/shared').partnerAccountGuard;
+const LOGIN_GUARD = { lockPath: 'loginGuard.lockUntil', lockMs: 15 * 60 * 1000 };
+const LOGIN_MAX_FAILURES = Number(process.env.LOGIN_MAX_FAILURES) || 10;
 
 const generateAccessToken = authTokens.generateAccessToken || authTokens.generateToken;
 const generateRefreshToken = authTokens.generateRefreshToken || authTokens.generateToken;
 const normalizeEmail = email => String(email || '').trim().toLowerCase();
 const normalizePhone = phone => String(phone || '').trim();
+/** "98765 43210", "+91 9876543210" → "9876543210"; null when it isn't an Indian mobile number. */
+const mobileFrom = (value) => {
+  const digits = String(value || '').replace(/[\s-]/g, '').replace(/^\+?91(?=\d{10}$)/, '');
+  return /^[6-9]\d{9}$/.test(digits) ? digits : null;
+};
 
 class PatientService {
   /**
@@ -30,6 +39,8 @@ class PatientService {
     const email = normalizeEmail(patientData.email);
     const phone = normalizePhone(patientData.phone);
     await compromisedPasswordService.assertPasswordNotCompromised(password);
+    // Partners use the Nabz Partner app, not a customer account.
+    await partnerAccountGuard.assertCustomerIdentity({ email, phone });
 
     // Check if patient exists by email
     const existingPatientByEmail = await Patient.findOne({ email });
@@ -58,7 +69,9 @@ class PatientService {
         name,
         email,
         password,
-        phone
+        phone,
+        // Signing up requires ticking "I agree" to the current Terms & Privacy Policy.
+        consent: { version: TERMS_VERSION, acceptedAt: new Date() }
       });
     } catch (error) {
       logger.error('Patient creation error', { email, error: error.message, stack: error.stack });
@@ -100,7 +113,11 @@ class PatientService {
    * @returns {Promise<Object>} Patient and token
    */
   async login(credentials) {
-    const email = normalizeEmail(credentials.email);
+    // The sign-in field takes an email or the account's mobile number (every
+    // customer account has a unique one), so phone users sign in without SMS.
+    const mobile = mobileFrom(credentials.email);
+    // `email` is also what the auth logs record: never the full number.
+    const email = mobile ? `mobile:******${mobile.slice(-4)}` : normalizeEmail(credentials.email);
     const { password } = credentials;
 
     if (!email || !password) {
@@ -111,7 +128,7 @@ class PatientService {
     }
 
     // Find patient and include password
-    const patient = await Patient.findOne({ email }).select('+password +sessionVersion');
+    const patient = await Patient.findOne(mobile ? { phone: mobile } : { email }).select('+password +sessionVersion');
 
     if (!patient) {
       logger.logAuth('patient_login', email, false, ERROR_MESSAGE.USER_NOT_FOUND);
@@ -131,10 +148,17 @@ class PatientService {
       };
     }
 
-    // Check password
+    // Check password. Each try first reserves an attempt atomically: at most
+    // LOGIN_MAX_FAILURES guesses per 15 minutes, even when sent in parallel.
+    const attemptGuard = require('@nocturnal/shared').attemptGuard;
+    if (!(await attemptGuard.reserveAttempt(Patient, { _id: patient._id }, 'loginGuard.failed', LOGIN_MAX_FAILURES, LOGIN_GUARD))) {
+      logger.logSecurity('login_locked', { id: String(patient._id) });
+      throw { statusCode: 429, message: 'Too many sign-in attempts. Try again in 15 minutes, or reset your password.' };
+    }
     const isPasswordValid = await patient.comparePassword(password);
 
     if (!isPasswordValid) {
+      await attemptGuard.lockIfExhausted(Patient, { _id: patient._id }, 'loginGuard.failed', LOGIN_MAX_FAILURES, LOGIN_GUARD);
       logger.logAuth('patient_login', email, false, 'Invalid password');
       logger.logSecurity('failed_patient_login', { email, reason: 'Invalid password' });
       throw {
@@ -142,6 +166,10 @@ class PatientService {
         message: ERROR_MESSAGE.INVALID_CREDENTIALS
       };
     }
+
+    await attemptGuard.resetAttempts(Patient, { _id: patient._id }, 'loginGuard.failed', LOGIN_GUARD);
+    // Partners sign in with the Nabz Partner app (checked only after the password is right).
+    await partnerAccountGuard.assertCustomerIdentity({ email: patient.email, phone: patient.phone });
 
     // Generate short-lived access token and refresh token for cookie-backed sessions.
     const token = generateAccessToken(patient._id, authTokens.IDENTITY_TYPES.PATIENT, patient.sessionVersion);
