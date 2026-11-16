@@ -6,6 +6,7 @@ import { Bike, FlaskConical, Stethoscope, Store, type LucideIcon } from 'lucide-
 import { homeForRole, useAuth, type AccountKind } from '@/lib/auth';
 import { ALLOW_SERVER_OVERRIDE, api, describeNetworkError, saveServerUrl } from '@/lib/api';
 import { IconTile } from '@/lib/icons';
+import { NabzMark } from '@/lib/Brand';
 import { PressScale } from '@/lib/motion';
 import { IS_PARTNER_APP } from '@/lib/variant';
 import { PasswordInput } from '@/lib/fields';
@@ -42,6 +43,9 @@ export default function Login() {
   const [serverStatus, setServerStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Customers sign in with their email or their 10-digit Indian mobile number.
+  const [idType, setIdType] = useState<'email' | 'phone'>(params.use === 'phone' ? 'phone' : 'email');
+  const [fieldErrors, setFieldErrors] = useState<{ id?: string; password?: string; name?: string; phone?: string }>({});
 
   async function testServer() {
     setServerStatus('Checking…');
@@ -55,18 +59,42 @@ export default function Login() {
     }
   }
 
+  /** Checks the form before anything is sent; returns false and shows the reasons. */
+  function validate(): boolean {
+    const next: typeof fieldErrors = {};
+    const usePhone = customerSignIn && idType === 'phone';
+    if (usePhone) {
+      if (!/^[6-9]\d{9}$/.test(digitsOnly(email))) next.id = 'Enter your 10-digit mobile number (starts with 6, 7, 8 or 9).';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      next.id = 'Enter the email address on your account.';
+    }
+    if (isRegister) {
+      if (name.trim().length < 2) next.name = 'Enter your full name.';
+      if (!/^[6-9]\d{9}$/.test(phone)) next.phone = 'Enter a 10-digit mobile number.';
+      if (password.length < 8) next.password = 'Use at least 8 characters.';
+    } else if (!password) {
+      next.password = 'Enter your password.';
+    }
+    setFieldErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
   async function submit() {
-    setBusy(true);
+    if (busy) return;
     setError(null);
+    if (!validate()) return;
+    setBusy(true);
     try {
       if (ALLOW_SERVER_OVERRIDE) await saveServerUrl(server);
+      // A mobile number is sent as its 10 digits; the server finds the account by it.
+      const identifier = customerSignIn && idType === 'phone' ? digitsOnly(email) : email.trim();
       const session = mode === 'register'
-        ? await register({ name, email, phone, password })
-        : await login(kind, email, password);
+        ? await register({ name: name.trim(), email: email.trim(), phone, password })
+        : await login(kind, identifier, password);
       if (router.canDismiss()) router.dismissAll();
       router.replace(homeForRole(session.role));
     } catch (e) {
-      setError(describeNetworkError(e));
+      setError(signInProblem(e, isRegister));
     } finally {
       setBusy(false);
     }
@@ -78,8 +106,19 @@ export default function Login() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={ui.screen} contentContainerStyle={{ padding: 20, gap: 14 }} keyboardShouldPersistTaps="handled">
-        <Text style={ui.display}>{isRegister ? 'Create account' : IS_PARTNER_APP ? 'Partner sign in' : 'Welcome back'}</Text>
+      {/* flexGrow: the content always fills the screen, so it can't stay scrolled under the top bar after the keyboard closes. */}
+      <ScrollView style={ui.screen} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+        {IS_PARTNER_APP ? (
+          <Text style={ui.display}>{isRegister ? 'Create account' : 'Partner sign in'}</Text>
+        ) : (
+          <View style={styles.hero}>
+            <View style={styles.mark}><NabzMark size={30} pulse={C.brand} /></View>
+            <Text style={ui.display} accessibilityRole="header">{isRegister ? 'Create your account' : 'Welcome back'}</Text>
+            <Text style={styles.subtitle}>
+              {isRegister ? 'Order medicines and book trusted home care for your family.' : 'Sign in to order medicines, book home care and track your orders.'}
+            </Text>
+          </View>
+        )}
 
         {IS_PARTNER_APP && (
           <View style={styles.grid}>
@@ -124,22 +163,49 @@ export default function Login() {
             <>
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Full name</Text>
-                <TextInput style={ui.input} placeholder={tr("As on your ID")} placeholderTextColor={C.faint} value={name} onChangeText={setName} autoComplete="name" />
+                <TextInput style={[ui.input, fieldErrors.name && styles.inputError]} placeholder={tr("As on your ID")} placeholderTextColor={C.muted} value={name}
+                  onChangeText={(v) => { setName(v); setFieldErrors((e) => ({ ...e, name: undefined })); }} autoComplete="name" accessibilityLabel="Full name" />
+                {fieldErrors.name ? <Text style={styles.fieldError}>{fieldErrors.name}</Text> : null}
               </View>
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Mobile number</Text>
-                <TextInput style={ui.input} placeholder={tr("10 digits")} placeholderTextColor={C.faint} keyboardType="phone-pad" value={phone} onChangeText={setPhone} maxLength={10} />
+                <View style={styles.phoneRow}>
+                  <View style={styles.prefix}><Text style={styles.prefixText}>+91</Text></View>
+                  <TextInput style={[ui.input, { flex: 1 }, fieldErrors.phone && styles.inputError]} placeholder="98765 43210" placeholderTextColor={C.muted} keyboardType="phone-pad"
+                    value={formatIndianMobile(phone)} onChangeText={(v) => { setPhone(digitsOnly(v).slice(0, 10)); setFieldErrors((e) => ({ ...e, phone: undefined })); }}
+                    maxLength={11} autoComplete="tel" accessibilityLabel="Mobile number, 10 digits" />
+                </View>
+                {fieldErrors.phone ? <Text style={styles.fieldError}>{fieldErrors.phone}</Text> : null}
               </View>
             </>
           )}
           <View style={styles.field}>
-            {/* Customers can type their mobile number here too (signs in with the account's password). */}
-            <Text style={styles.fieldLabel}>{customerSignIn ? 'Email or mobile number' : 'Email'}</Text>
-            <TextInput style={ui.input} placeholder={customerSignIn ? (params.use === 'phone' ? '10-digit mobile number' : 'you@example.com or mobile number') : 'you@example.com'}
-              placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false}
-              keyboardType={customerSignIn && params.use === 'phone' ? 'phone-pad' : 'email-address'} autoFocus={params.use === 'phone'}
-              autoComplete={customerSignIn && params.use === 'phone' ? 'tel' : 'email'} value={email} onChangeText={setEmail}
-              accessibilityLabel={customerSignIn ? 'Email or mobile number' : 'Email'} />
+            {/* Customers sign in with their email or their mobile number (same password either way). */}
+            <Text style={styles.fieldLabel}>{customerSignIn ? 'Sign in with email or mobile number' : 'Email'}</Text>
+            {customerSignIn ? (
+              <View style={styles.seg} accessibilityRole="radiogroup">
+                {([['email', 'Email'], ['phone', 'Mobile number']] as const).map(([v, label]) => (
+                  <Pressable key={v} onPress={() => { setIdType(v); setEmail(''); setFieldErrors({}); setError(null); }}
+                    style={[styles.segBtn, idType === v && styles.segOn]} accessibilityRole="radio" accessibilityState={{ checked: idType === v }}>
+                    <Text style={[styles.segText, idType === v && styles.segTextOn]}>{label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            {customerSignIn && idType === 'phone' ? (
+              <View style={styles.phoneRow}>
+                <View style={styles.prefix}><Text style={styles.prefixText}>+91</Text></View>
+                <TextInput style={[ui.input, { flex: 1 }, fieldErrors.id && styles.inputError]} placeholder="98765 43210" placeholderTextColor={C.muted}
+                  keyboardType="phone-pad" autoComplete="tel" maxLength={11} autoFocus={params.use === 'phone'}
+                  value={formatIndianMobile(digitsOnly(email))} onChangeText={(v) => { setEmail(digitsOnly(v).slice(0, 10)); setFieldErrors((e) => ({ ...e, id: undefined })); }}
+                  accessibilityLabel="Mobile number, 10 digits" />
+              </View>
+            ) : (
+              <TextInput style={[ui.input, fieldErrors.id && styles.inputError]} placeholder="you@example.com" placeholderTextColor={C.muted}
+                autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="emailAddress"
+                value={email} onChangeText={(v) => { setEmail(v); setFieldErrors((e) => ({ ...e, id: undefined })); }} accessibilityLabel="Email" />
+            )}
+            {fieldErrors.id ? <Text style={styles.fieldError} accessibilityLiveRegion="polite">{fieldErrors.id}</Text> : null}
           </View>
           <View style={styles.field}>
             <View style={styles.labelRow}>
@@ -150,13 +216,18 @@ export default function Login() {
                 </Pressable>
               )}
             </View>
-            <PasswordInput placeholder={isRegister ? 'At least 8 characters' : 'Your password'} autoComplete="password" value={password} onChangeText={setPassword} />
+            <PasswordInput placeholder={isRegister ? 'At least 8 characters' : 'Your password'} placeholderTextColor={C.muted} autoComplete={isRegister ? 'password-new' : 'password'}
+              value={password} onChangeText={(v) => { setPassword(v); setFieldErrors((e) => ({ ...e, password: undefined })); }}
+              onSubmitEditing={submit} returnKeyType="go" accessibilityLabel="Password" />
+            {fieldErrors.password ? <Text style={styles.fieldError} accessibilityLiveRegion="polite">{fieldErrors.password}</Text> : null}
           </View>
 
           {error && <Text style={ui.error} accessibilityLiveRegion="polite">{error}</Text>}
 
           <PressScale style={[ui.btnDark, styles.submit, busy && { opacity: 0.6 }]} onPress={submit} disabled={busy}>
-            {busy ? <ActivityIndicator color={C.onBrand} /> : <Text style={ui.btnText}>{isRegister ? 'Create account' : 'Sign in'}</Text>}
+            {busy
+              ? <View style={styles.busyRow}><ActivityIndicator color={C.onBrand} /><Text style={ui.btnText}>{isRegister ? 'Creating account…' : 'Signing in…'}</Text></View>
+              : <Text style={ui.btnText}>{isRegister ? 'Create account' : 'Sign in'}</Text>}
           </PressScale>
 
           {IS_PARTNER_APP ? (
@@ -169,7 +240,7 @@ export default function Login() {
           ) : (
             <View style={styles.altRow}>
               <Text style={styles.altText}>{isRegister ? 'Have an account?' : 'New to Nabz?'}</Text>
-              <Pressable onPress={() => setMode(isRegister ? 'login' : 'register')} hitSlop={10} accessibilityRole="link">
+              <Pressable onPress={() => { setMode(isRegister ? 'login' : 'register'); setFieldErrors({}); setError(null); if (!isRegister) setIdType('email'); }} hitSlop={10} accessibilityRole="link">
                 <Text style={styles.inlineLink}>{isRegister ? 'Sign in' : 'Create an account'}</Text>
               </Pressable>
             </View>
@@ -181,7 +252,7 @@ export default function Login() {
           <View style={[ui.card, { gap: 8 }]}>
             <Text style={ui.h3}>Server (testing builds only)</Text>
             <TextInput style={ui.input} autoCapitalize="none" autoCorrect={false} keyboardType="url"
-              value={server} onChangeText={setServer} placeholder={tr("http://10.0.2.2:5000")} placeholderTextColor={C.faint} />
+              value={server} onChangeText={setServer} placeholder={tr("http://10.0.2.2:5000")} placeholderTextColor={C.muted} />
             <Text style={ui.muted}>Emulator: http://10.0.2.2:5000 · USB phone: http://localhost:5000 (adb reverse) · Wi-Fi phone: http://&lt;laptop IP&gt;:5000</Text>
             <Pressable style={ui.btnOutline} onPress={testServer}>
               <Text style={ui.btnOutlineText}>Test connection</Text>
@@ -194,7 +265,34 @@ export default function Login() {
   );
 }
 
+const digitsOnly = (v: string) => v.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '');
+/** Indian mobile shown as "98765 43210" while typing. */
+const formatIndianMobile = (d: string) => (d.length > 5 ? `${d.slice(0, 5)} ${d.slice(5, 10)}` : d);
+
+/** Sign-in failures in plain words; network problems keep their own explanation. */
+function signInProblem(e: unknown, isRegister: boolean): string {
+  const status = (e as { status?: number })?.status;
+  if (!isRegister && (status === 401 || status === 400)) return 'That email or mobile number and password don’t match. Check them, or tap “Forgot password?”.';
+  if (status === 429) return 'Too many tries. Wait a minute and try again.';
+  return describeNetworkError(e);
+}
+
 const styles = StyleSheet.create({
+  scroll: { flexGrow: 1, padding: 20, paddingBottom: 32, gap: 14 },
+  hero: { gap: 8, paddingTop: 8, paddingBottom: 4 },
+  mark: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: C.brandSoft },
+  subtitle: { fontFamily: F.medium, fontSize: 15, lineHeight: 22, color: C.inkSoft },
+  seg: { flexDirection: 'row', backgroundColor: C.cardAlt, borderRadius: 12, padding: 3, gap: 3 },
+  segBtn: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
+  segOn: { backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
+  segText: { fontFamily: F.semi, fontSize: 14, color: C.muted },
+  segTextOn: { fontFamily: F.bold, color: C.ink },
+  phoneRow: { flexDirection: 'row', gap: 8, alignItems: 'stretch' },
+  prefix: { minWidth: 56, borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  prefixText: { fontFamily: F.bold, fontSize: 15, color: C.ink },
+  inputError: { borderColor: C.rose },
+  fieldError: { fontFamily: F.semi, fontSize: 12.5, color: C.roseInk },
+  busyRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   portal: { width: '48%', flexGrow: 1, borderRadius: 16, padding: 12, gap: 4, borderWidth: 2, borderColor: C.border, backgroundColor: C.card },
   stepDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center', marginTop: 1 },

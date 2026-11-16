@@ -83,15 +83,13 @@ function RxPanel({ order, busy, onVerify }: {
   );
 }
 
-/** Any order the customer attached a prescription to: the pharmacist can always open it. */
-function RxView({ order }: { order: PharmacyOrder }) {
-  const [open, setOpen] = useState(false);
+/** A screen error shows a way back instead of a blank screen. */
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
   return (
-    <View style={{ marginTop: 6, gap: 6 }}>
-      <Pressable onPress={() => setOpen((v) => !v)} hitSlop={6} accessibilityRole="button" accessibilityState={{ expanded: open }}>
-        <Text style={[styles.muted, { color: C.brand, fontFamily: F.bold }]}>{open ? 'Hide prescription' : 'View prescription'}</Text>
-      </Pressable>
-      {open ? <OrderPrescription orderId={order._id} as="vendor" /> : null}
+    <View style={[styles.center, { gap: 12, backgroundColor: C.bg }]}>
+      <Text style={styles.orderNo}>Orders couldn’t be shown</Text>
+      <Text style={[styles.muted, { textAlign: 'center' }]}>{error.message}</Text>
+      <Pressable style={styles.action} onPress={retry} accessibilityRole="button"><Text style={styles.actionText}>Try again</Text></Pressable>
     </View>
   );
 }
@@ -108,6 +106,10 @@ export default function VendorOrders() {
   const [pushInfo, setPushInfo] = useState<string>('Checking notifications…');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [declining, setDeclining] = useState<string | null>(null);
+  // Which order cards are open: new orders open by default (they need action), others on tap.
+  const [openOverride, setOpenOverride] = useState<Record<string, boolean>>({});
+  const isOpen = (o: PharmacyOrder) => openOverride[o._id] ?? o.status === 'PLACED';
+  const toggle = (o: PharmacyOrder) => setOpenOverride((m) => ({ ...m, [o._id]: !isOpen(o) }));
   const seen = useRef<Set<string> | null>(null);
 
   const load = useCallback(async () => {
@@ -253,7 +255,13 @@ export default function VendorOrders() {
       {error && <Text style={styles.error} onPress={() => setError(null)}>{error}</Text>}
       {notice && <Text style={styles.good} onPress={() => setNotice(null)}>{notice}</Text>}
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={C.brand} /></View>
+        <View style={[styles.center, { gap: 10 }]}><ActivityIndicator color={C.brand} /><Text style={styles.muted}>Loading orders…</Text></View>
+      ) : error && orders.length === 0 ? (
+        <View style={[styles.center, { gap: 12 }]}>
+          <Text style={styles.orderNo}>Orders couldn’t load</Text>
+          <Text style={[styles.muted, { textAlign: 'center' }]}>{error}</Text>
+          <Pressable style={styles.action} onPress={() => { setLoading(true); load(); }} accessibilityRole="button"><Text style={styles.actionText}>Try again</Text></Pressable>
+        </View>
       ) : (
         <FlatList
           data={orders}
@@ -261,17 +269,30 @@ export default function VendorOrders() {
           contentContainerStyle={{ padding: 12, gap: 10, paddingBottom: tabSpace }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
           ListHeaderComponent={<UpdatesFeed audience="partner" title="Updates from Nabz" />}
-          ListEmptyComponent={<Text style={styles.muted}>No orders yet. New orders ring this phone and show up here.</Text>}
+          ListEmptyComponent={<View style={[styles.card, { alignItems: 'center', gap: 6, paddingVertical: 24 }]}><Text style={styles.orderNo}>No orders yet</Text><Text style={[styles.muted, { textAlign: 'center' }]}>New orders ring this phone and show up here. Pull down to refresh.</Text></View>}
           renderItem={({ item: o }) => {
             const busy = busyId === o._id;
             const editable = CAN_EDIT_ITEMS.includes(o.status);
+            const open = isOpen(o);
+            const units = o.items.reduce((n, it) => n + (it.status === 'UNAVAILABLE' ? 0 : it.quantity), 0);
             return (
               <View style={[styles.card, o.status === 'PLACED' && styles.cardNew]}>
-                <View style={styles.row}>
-                  <Text style={styles.orderNo}>{o.orderNumber}</Text>
-                  <Text style={styles.status}>{o.status.replace(/_/g, ' ')}</Text>
-                </View>
+                <Pressable onPress={() => toggle(o)} accessibilityRole="button" accessibilityState={{ expanded: open }}
+                  accessibilityLabel={`Order ${o.orderNumber}, ${o.status.replace(/_/g, ' ').toLowerCase()}${o.requiresPrescription ? ', prescription required' : ''}. ${open ? 'Hide' : 'Show'} details`}>
+                  <View style={styles.row}>
+                    <Text style={styles.orderNo}>{o.orderNumber}</Text>
+                    <Text style={styles.status}>{o.status.replace(/_/g, ' ')}</Text>
+                  </View>
+                  <View style={[styles.row, { marginTop: 4, alignItems: 'center' }]}>
+                    <Text style={styles.muted}>{units} item(s) · ₹{o.amounts.total} · {o.paymentMode === 'COD' ? 'Cash' : 'Paid online'}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      {o.requiresPrescription ? <Text style={o.prescription?.verified ? styles.rxBadgeOk : styles.rxBadge}>{o.prescription?.verified ? 'Rx checked' : 'Rx required'}</Text> : null}
+                      <Text style={styles.link}>{open ? 'Hide' : 'Details'}</Text>
+                    </View>
+                  </View>
+                </Pressable>
                 {o.status === 'PLACED' && <Countdown acceptBy={o.acceptBy} />}
+                {open ? (<>
                 {['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(o.status) ? <ChatButton kind="PHARMACY" refId={o._id} label="Chat or Call Customer" compact /> : null}
                 {o.riskFlags && o.riskFlags.length > 0 && (
                   <Text style={styles.risk}>Check before dispensing: {o.riskFlags.map((f) => f.detail || f.code).join(' · ')}</Text>
@@ -329,7 +350,7 @@ export default function VendorOrders() {
                 {o.requiresPrescription && o.prescription?.verified && (
                   <Text style={styles.rxOk}>Prescription verified{o.prescription.prescriber?.name ? ` · ${o.prescription.prescriber.name}` : ''}</Text>
                 )}
-                {o.prescription?.key && !needsRxCheck(o) ? <RxView order={o} /> : null}
+                {o.prescription?.key && !needsRxCheck(o) ? <OrderPrescription orderId={o._id} as="vendor" /> : null}
 
                 {declining === o._id ? (
                   <View style={styles.reasons}>
@@ -365,6 +386,7 @@ export default function VendorOrders() {
                     )}
                   </View>
                 )}
+                </>) : null}
               </View>
             );
           }}
@@ -414,5 +436,7 @@ const styles = StyleSheet.create({
   batch: { color: C.muted, fontFamily: F.medium, fontSize: 12 },
   rxBox: { marginTop: 8, gap: 6, padding: 10, borderRadius: 12, backgroundColor: C.cardAlt },
   rxOk: { color: C.brand, fontFamily: F.bold, fontSize: 12, marginTop: 4 },
+  rxBadge: { backgroundColor: C.amberSoft, color: C.amber, fontFamily: F.heavy, fontSize: 11, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, overflow: 'hidden' },
+  rxBadgeOk: { backgroundColor: C.mintSoft, color: C.mint, fontFamily: F.heavy, fontSize: 11, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, overflow: 'hidden' },
   input: { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, paddingLeft: 14, paddingRight: 14, paddingVertical: 10, color: C.ink, fontFamily: F.medium }
 });

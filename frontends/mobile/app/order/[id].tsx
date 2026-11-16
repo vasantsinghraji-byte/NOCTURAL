@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Bike, CheckCircle2, Clock, MapPin, Minus, Phone, Plus, Store, Undo2 } from 'lucide-react-native';
+import { Bike, CheckCircle2, Clock, Eye, EyeOff, MapPin, Minus, Phone, Plus, Store, Undo2 } from 'lucide-react-native';
 import type { PharmacyOrder, PharmacyVendor, StorefrontItem } from '@medrush/shared';
 import { Text } from '@/lib/T';
 import { api } from '@/lib/api';
@@ -38,6 +38,17 @@ function useNow(ms = 1000) {
   return now;
 }
 
+/** A screen error shows a way back instead of a blank screen. */
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+  return (
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <TopBar title="Medicine order" />
+      <Empty title="This order couldn’t be shown" text={`${error.message}. Your order is saved; you can also find it in Bookings → Medicine orders.`}
+        action={<View style={{ gap: 8 }}><Btn label="Try again" onPress={retry} /><Btn variant="ghost" label="Go to Bookings" onPress={() => router.replace({ pathname: '/bookings', params: { tab: 'orders' } })} /></View>} />
+    </View>
+  );
+}
+
 /** One medicine order: live progress, store and rider, door code, bill, prescription, and 90 s to change it. */
 export default function OrderDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -46,6 +57,8 @@ export default function OrderDetail() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
   const [adding, setAdding] = useState(false);
+  // The door code stays hidden until the customer taps to see it.
+  const [codeShown, setCodeShown] = useState(false);
   const now = useNow();
 
   const load = useCallback(() => api.getOrder(String(id)).then((r) => { setOrder(r.order); setError(''); }).catch((e) => setError(problem(e).message)), [id]);
@@ -58,11 +71,20 @@ export default function OrderDetail() {
     return () => clearInterval(t);
   }, [live, load]);
 
-  // The door code is a secret: no screenshots while it shows.
+  // The door code is a secret: no screenshots while it is shown (only then, so the
+  // rest of the order screen can still be captured for support).
   const showCode = !!order?.deliveryOtp?.code && !order.deliveryOtp.verifiedAt && live;
-  useSecureView('order-code', showCode);
+  useSecureView('order-code', showCode && codeShown);
 
-  if (error && !order) return <View style={{ flex: 1, backgroundColor: C.bg }}><TopBar title="Medicine order" /><Empty title={error} action={<Btn variant="ghost" label="Retry" onPress={load} />} /></View>;
+  if (error && !order) {
+    return (
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
+        <TopBar title="Medicine order" />
+        <Empty title="Couldn’t load your order" text={`${error}. If you just placed it, it is saved: try again or open Bookings → Medicine orders.`}
+          action={<View style={{ gap: 8 }}><Btn label="Try again" onPress={load} /><Btn variant="ghost" label="Go to Bookings" onPress={() => router.replace({ pathname: '/bookings', params: { tab: 'orders' } })} /></View>} />
+      </View>
+    );
+  }
   if (!order) return <View style={{ flex: 1, backgroundColor: C.bg }}><TopBar title="Medicine order" /><View style={{ padding: 16, gap: 12 }}><Skeleton height={180} radius={24} /><Skeleton height={240} radius={24} /></View></View>;
 
   const vendor = (typeof order.vendor === 'object' ? order.vendor : null) as (PharmacyVendor & { contactPhone?: string }) | null;
@@ -150,12 +172,21 @@ export default function OrderDetail() {
 
       {showCode ? (
         <Card tone="red" style={{ gap: 10 }}>
-          <Text style={{ fontFamily: F.display, fontSize: 17, color: C.onNight }}>Delivery code</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }} accessibilityLabel={`Delivery code ${order.deliveryOtp!.code!.split('').join(' ')}`}>
-            {order.deliveryOtp!.code!.split('').map((c, i) => (
-              <View key={i} style={styles.codeBox}><Text style={styles.codeDigit}>{c}</Text></View>
-            ))}
+          <View style={mk.row}>
+            <Text style={{ flex: 1, fontFamily: F.display, fontSize: 17, color: C.onNight }}>Delivery code</Text>
+            <Btn small variant="light" icon={codeShown ? EyeOff : Eye} label={codeShown ? 'Hide' : 'Show code'} onPress={() => setCodeShown((v) => !v)} />
           </View>
+          {codeShown ? (
+            <View style={{ flexDirection: 'row', gap: 8 }} accessibilityLabel={`Delivery code ${order.deliveryOtp!.code!.split('').join(' ')}`}>
+              {order.deliveryOtp!.code!.split('').map((c, i) => (
+                <View key={i} style={styles.codeBox}><Text style={styles.codeDigit}>{c}</Text></View>
+              ))}
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 8 }} accessibilityLabel="Delivery code hidden">
+              {[0, 1, 2, 3].map((i) => <View key={i} style={styles.codeBox}><Text style={styles.codeDigit}>•</Text></View>)}
+            </View>
+          )}
           <Meta onDark>Tell it to the rider only when you have your medicines.</Meta>
         </Card>
       ) : null}

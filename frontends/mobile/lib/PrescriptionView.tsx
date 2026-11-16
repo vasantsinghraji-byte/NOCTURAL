@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { FileText, Maximize2, X } from 'lucide-react-native';
+import * as FileSystem from 'expo-file-system';
+import * as IntentLauncher from 'expo-intent-launcher';
+import { Eye, FileText, Maximize2, X } from 'lucide-react-native';
 import type { PrescriptionLink } from '@medrush/shared';
 import { Text } from '@/lib/T';
 import { api, describeNetworkError, getAuthToken } from './api';
@@ -11,24 +13,57 @@ import { C, F, R } from './theme';
 
 type Source = { uri: string; headers?: Record<string, string> };
 
+const FLAG_GRANT_READ_URI_PERMISSION = 1;
+
+/**
+ * Show a PDF in the phone's PDF viewer. Android: a browser tab can't render a
+ * local file (it shows a blank page), so the file is handed to the viewer app
+ * with a content:// link and read-only permission. iOS: the in-app browser shows PDFs.
+ * Resolves when the viewer is closed (Android) so a temporary copy can be deleted.
+ */
+async function showPdfFile(fileUri: string): Promise<void> {
+  if (Platform.OS !== 'android') {
+    await WebBrowser.openBrowserAsync(fileUri);
+    return;
+  }
+  const contentUri = await FileSystem.getContentUriAsync(fileUri);
+  await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+    data: contentUri, type: 'application/pdf', flags: FLAG_GRANT_READ_URI_PERMISSION
+  });
+}
+
+/** A PDF couldn't be shown: say why and offer to try again. */
+function pdfProblem(err: unknown, retry: () => void) {
+  const msg = err instanceof Error ? err.message : String(err);
+  const noViewer = /No Activity found|ActivityNotFound|no app/i.test(msg);
+  appAlert(
+    noViewer ? 'No PDF viewer on this phone' : 'Couldn’t open the PDF',
+    noViewer
+      ? 'Install a PDF viewer (for example Google Drive or Adobe Acrobat) and tap Try again. A photo of the prescription works too.'
+      : `${describeNetworkError(err)}\n\nCheck your connection and try again.`,
+    [{ text: 'Try again', onPress: retry }, { text: 'OK', style: 'cancel' }]
+  );
+}
+
 /**
  * One prescription, the same way everywhere: a photo you can tap to read full
- * screen, or a PDF tile that opens the file. No screenshots while it's visible.
+ * screen, or a PDF tile that opens the phone's PDF viewer. `secure` blocks
+ * screenshots while it is on screen (order and store views).
  */
-function PrescriptionTile({ id, source, kind, name, height, onOpenPdf }: {
-  id: string; source: Source; kind: 'image' | 'pdf'; name?: string; height: number; onOpenPdf: () => void;
+function PrescriptionTile({ id, source, kind, name, height, onOpenPdf, secure, opening }: {
+  id: string; source: Source; kind: 'image' | 'pdf'; name?: string; height: number; onOpenPdf: () => void; secure: boolean; opening?: boolean;
 }) {
   const [full, setFull] = useState(false);
-  useSecureView(`rx-${id}`);
+  useSecureView(`rx-${id}`, secure);
   if (kind === 'pdf') {
     return (
-      <Pressable style={styles.pdf} onPress={onOpenPdf} accessibilityRole="button" accessibilityLabel="Open prescription PDF">
+      <Pressable style={styles.pdf} onPress={onOpenPdf} disabled={opening} accessibilityRole="button" accessibilityLabel="Open prescription PDF">
         <FileText size={26} color={C.brand} />
         <View style={{ flex: 1 }}>
           <Text style={styles.pdfTitle}>Prescription (PDF)</Text>
-          {name ? <Text style={styles.meta} numberOfLines={1}>{name}</Text> : null}
+          <Text style={styles.meta} numberOfLines={1}>{name || 'Opens in your PDF viewer'}</Text>
         </View>
-        <Text style={styles.link}>Open</Text>
+        {opening ? <ActivityIndicator color={C.brand} /> : <Text style={styles.link}>Open</Text>}
       </Pressable>
     );
   }
@@ -50,16 +85,45 @@ function PrescriptionTile({ id, source, kind, name, height, onOpenPdf }: {
   );
 }
 
-/** The file the customer just picked, before the order is placed. */
+/**
+ * The file the customer just picked, before the order is placed. It is their own
+ * file in the cart sheet, so no screenshot block (it would only black out the screen behind the sheet).
+ */
 export function LocalPrescription({ uri, kind, name, height = 160 }: { uri: string; kind: 'image' | 'pdf'; name?: string; height?: number }) {
-  const openPdf = () => WebBrowser.openBrowserAsync(uri).catch(() => appAlert('Attached', 'Your PDF is attached. The pharmacist will read it.'));
-  return <PrescriptionTile id={`local-${uri}`} source={{ uri }} kind={kind} name={name} height={height} onOpenPdf={openPdf} />;
+  const open = () => { showPdfFile(uri).catch((e) => pdfProblem(e, open)); };
+  return <PrescriptionTile id={`local-${uri}`} source={{ uri }} kind={kind} name={name} height={height} onOpenPdf={open} secure={false} />;
 }
 
-/** An order's prescription, fetched as a short-lived link (customer or the order's store). */
-export function OrderPrescription({ orderId, as, height = 220 }: { orderId: string; as: 'patient' | 'vendor'; height?: number }) {
+/**
+ * An order's prescription (customer or the order's store). Hidden behind
+ * "View prescription" so the rest of the screen stays usable and capturable;
+ * screenshots are blocked only while it is shown.
+ */
+export function OrderPrescription({ orderId, as, height = 220, startOpen = false }: { orderId: string; as: 'patient' | 'vendor'; height?: number; startOpen?: boolean }) {
+  const [open, setOpen] = useState(startOpen);
+  if (!open) {
+    return (
+      <Pressable style={styles.reveal} onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel="View prescription">
+        <Eye size={18} color={C.brand} />
+        <Text style={[styles.link, { flex: 1 }]}>View prescription</Text>
+        <Text style={styles.meta}>Private</Text>
+      </Pressable>
+    );
+  }
+  return (
+    <View style={{ gap: 8 }}>
+      <LoadedPrescription orderId={orderId} as={as} height={height} />
+      <Pressable onPress={() => setOpen(false)} hitSlop={8} accessibilityRole="button" style={{ alignSelf: 'flex-start' }}>
+        <Text style={styles.link}>Hide prescription</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function LoadedPrescription({ orderId, as, height }: { orderId: string; as: 'patient' | 'vendor'; height: number }) {
   const [link, setLink] = useState<PrescriptionLink | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -80,14 +144,24 @@ export function OrderPrescription({ orderId, as, height = 220 }: { orderId: stri
   const token = getAuthToken();
   const source: Source = { uri: link.url, headers: link.needsAuth && token ? { Authorization: `Bearer ${token}` } : undefined };
   const openPdf = async () => {
-    if (link.needsAuth) { appAlert('Open on the website', 'This server keeps files locally; open the order on the website to read the PDF.'); return; }
-    // Links last a few minutes: get a fresh one each time.
+    setOpening(true);
+    // A private copy in the app's cache, removed as soon as the viewer closes.
+    const file = `${FileSystem.cacheDirectory}rx-${as}-${orderId}.pdf`;
     try {
-      const fresh = await api.prescriptionFile(orderId, as);
-      await WebBrowser.openBrowserAsync(fresh.url);
-    } catch (e) { appAlert('Couldn’t open the PDF', describeNetworkError(e)); }
+      const fresh = link.needsAuth ? link : await api.prescriptionFile(orderId, as); // links last a few minutes
+      await FileSystem.deleteAsync(file, { idempotent: true });
+      const res = await FileSystem.downloadAsync(fresh.url, file, fresh.needsAuth && token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
+      if (res.status !== 200) throw new Error(`The file could not be downloaded (HTTP ${res.status})`);
+      setOpening(false);
+      await showPdfFile(res.uri);
+    } catch (e) {
+      setOpening(false);
+      pdfProblem(e, openPdf);
+    } finally {
+      FileSystem.deleteAsync(file, { idempotent: true }).catch(() => undefined);
+    }
   };
-  return <PrescriptionTile id={`${as}-${orderId}`} source={source} kind={link.kind} height={height} onOpenPdf={openPdf} />;
+  return <PrescriptionTile id={`${as}-${orderId}`} source={source} kind={link.kind} height={height} onOpenPdf={openPdf} secure opening={opening} />;
 }
 
 const styles = StyleSheet.create({
@@ -95,6 +169,7 @@ const styles = StyleSheet.create({
   zoom: { position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
   zoomText: { color: C.onBrand, fontFamily: F.semi, fontSize: 11 },
   pdf: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: R.md, backgroundColor: C.cardAlt, borderWidth: 1, borderColor: C.border },
+  reveal: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, minHeight: 48, borderRadius: R.md, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
   pdfTitle: { fontFamily: F.bold, fontSize: 14, color: C.ink },
   meta: { fontFamily: F.medium, fontSize: 12, color: C.muted },
   link: { fontFamily: F.bold, fontSize: 14, color: C.brand },
