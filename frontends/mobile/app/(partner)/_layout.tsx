@@ -28,6 +28,9 @@ export default function PartnerTabs() {
   return (
     <Tabs
       initialRouteName={initialPartnerTab(session.role)}
+      // Android Back goes to this role's home tab, never the first tab in the list
+      // (pharmacy Today), which riders, staff and labs must not open.
+      backBehavior="initialRoute"
       tabBar={(props) => <PillTabBar {...props} icons={ICONS} />}
       screenOptions={{ headerShown: false }}
     >
