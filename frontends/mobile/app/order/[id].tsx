@@ -110,7 +110,7 @@ export default function OrderDetail() {
 
   return (
     <Screen header={<TopBar title={order.orderNumber} />} refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={C.brand} />}>
-      {cancelled ? <Note>{why ? `Cancelled: ${why}` : 'This order was cancelled.'}{order.paymentStatus === 'REFUND_PENDING' || order.paymentStatus === 'REFUNDED' ? ' Your refund is on its way.' : ''}</Note> : null}
+      {cancelled ? <Note>{`${why ? `Cancelled: ${why}` : 'This order was cancelled.'}${order.paymentStatus === 'REFUND_PENDING' || order.paymentStatus === 'REFUNDED' ? ' Your refund is on its way.' : ''}`}</Note> : null}
 
       {/* 90 seconds to change your mind */}
       {inWindow ? (
@@ -137,7 +137,7 @@ export default function OrderDetail() {
               <Badge tone={order.status === 'DELIVERED' ? 'green' : cancelled ? 'red' : 'neutral'} label={STATUS_LABEL[order.status] || order.status} />
             </View>
             {vendor?.address?.line1 ? <Meta>{vendor.address.line1}</Meta> : null}
-            {live && etaMin ? <View style={mk.row}><Clock size={13} color={C.muted} /><Meta>Usually arrives about {etaMin} min after the store accepts</Meta></View> : null}
+            {live && etaMin ? <View style={[mk.row, { gap: 6 }]}><Clock size={13} color={C.muted} /><Meta style={{ flex: 1 }}>Usually arrives about {etaMin} min after the store accepts</Meta></View> : null}
           </View>
         </View>
         {!cancelled ? (
@@ -231,9 +231,9 @@ export default function OrderDetail() {
             ...(order.amounts.discount > 0 ? [{ label: order.coupon?.code ? `Coupon ${order.coupon.code}` : 'Discount', amount: -order.amounts.discount }] : [])
           ]}
           total={order.amounts.total}
-          totalLabel={order.paymentMode === 'COD' ? 'Pay on delivery' : order.paymentStatus === 'PAID' ? 'Paid' : 'To pay'}
+          totalLabel={cancelled ? (order.paymentStatus === 'REFUND_PENDING' || order.paymentStatus === 'REFUNDED' ? 'Being refunded' : 'Cancelled · nothing to pay') : order.paymentMode === 'COD' ? 'Pay on delivery' : order.paymentStatus === 'PAID' ? 'Paid' : 'To pay'}
         />
-        <Meta>{order.paymentMode === 'COD' ? 'Cash or UPI to the rider' : `Paid online${order.paymentStatus === 'PAID' ? '' : ` (${order.paymentStatus.toLowerCase().replace('_', ' ')})`}`}</Meta>
+        {cancelled ? null : <Meta>{order.paymentMode === 'COD' ? 'Cash or UPI to the rider' : `Paid online${order.paymentStatus === 'PAID' ? '' : ` (${order.paymentStatus.toLowerCase().replace('_', ' ')})`}`}</Meta>}
       </Card>
 
       {order.deliveryAddress ? (
