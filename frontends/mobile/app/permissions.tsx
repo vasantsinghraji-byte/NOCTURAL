@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useTopBarSpace } from '@/lib/topBarSpace';
 import { Text } from '@/lib/T';
 import { APP_PERMISSIONS, type PermissionStatus } from '@/lib/permissions';
 import { C, F } from '@/lib/theme';
@@ -9,7 +9,7 @@ const LABEL: Record<PermissionStatus, string> = { granted: 'Allowed', denied: 'B
 
 export default function Permissions() {
   // Content starts below the translucent gradient top bar.
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useTopBarSpace();
   const [status, setStatus] = useState<Record<string, PermissionStatus>>({});
 
   const refresh = useCallback(async () => {

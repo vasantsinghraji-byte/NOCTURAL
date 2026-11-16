@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Text, useTr } from '@/lib/T';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useTopBarSpace } from '@/lib/topBarSpace';
 import { Bike, FlaskConical, Stethoscope, Store, type LucideIcon } from 'lucide-react-native';
 import { homeForRole, useAuth, type AccountKind } from '@/lib/auth';
 import { ALLOW_SERVER_OVERRIDE, api, describeNetworkError, saveServerUrl } from '@/lib/api';
@@ -33,7 +33,7 @@ export default function Login() {
   const { login, register } = useAuth();
   // The stack's gradient top bar is drawn over the screen (a custom header background makes
   // react-navigation's header translucent), so content starts below its measured height.
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useTopBarSpace();
   const tr = useTr();
   const params = useLocalSearchParams<{ kind?: AccountKind; use?: 'phone' }>();
   const [kind, setKind] = useState<AccountKind>(IS_PARTNER_APP ? (params.kind || 'staff') : 'patient');
