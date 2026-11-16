@@ -133,10 +133,12 @@ export default function OrderDetail() {
           <View style={mk.tile}><Store size={22} color={C.brand} /></View>
           <View style={{ flex: 1, gap: 3 }}>
             <Title size={19}>{vendor?.name || 'Your pharmacy'}</Title>
+            <View style={{ alignSelf: 'flex-start', marginVertical: 2 }}>
+              <Badge tone={order.status === 'DELIVERED' ? 'green' : cancelled ? 'red' : 'neutral'} label={STATUS_LABEL[order.status] || order.status} />
+            </View>
             {vendor?.address?.line1 ? <Meta>{vendor.address.line1}</Meta> : null}
             {live && etaMin ? <View style={mk.row}><Clock size={13} color={C.muted} /><Meta>Usually arrives about {etaMin} min after the store accepts</Meta></View> : null}
           </View>
-          <Badge tone={order.status === 'DELIVERED' ? 'green' : cancelled ? 'red' : 'neutral'} label={STATUS_LABEL[order.status] || order.status} />
         </View>
         {!cancelled ? (
           <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>

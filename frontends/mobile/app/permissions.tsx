@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { Text } from '@/lib/T';
 import { APP_PERMISSIONS, type PermissionStatus } from '@/lib/permissions';
 import { C, F } from '@/lib/theme';
@@ -7,6 +8,8 @@ import { C, F } from '@/lib/theme';
 const LABEL: Record<PermissionStatus, string> = { granted: 'Allowed', denied: 'Blocked', undetermined: 'Not asked yet' };
 
 export default function Permissions() {
+  // Content starts below the translucent gradient top bar.
+  const headerHeight = useHeaderHeight();
   const [status, setStatus] = useState<Record<string, PermissionStatus>>({});
 
   const refresh = useCallback(async () => {
@@ -29,7 +32,7 @@ export default function Permissions() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ padding: 16, gap: 10 }}>
+    <ScrollView style={styles.screen} contentContainerStyle={{ padding: 16, paddingTop: headerHeight + 16, gap: 10 }}>
       <Pressable style={styles.primary} onPress={requestAll}>
         <Text style={styles.primaryText}>Allow all permissions</Text>
       </Pressable>

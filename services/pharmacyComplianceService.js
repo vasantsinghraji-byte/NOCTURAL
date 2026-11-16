@@ -115,7 +115,8 @@ async function verifyPrescription(orderId, { vendorId, actorUserId, prescriberNa
         'prescription.prescriber': { name: name.slice(0, 120), registrationNumber: reg.slice(0, 60), address: String(prescriberAddress || '').trim().slice(0, 200) || undefined },
         'prescription.prescribedOn': date
       },
-      $push: { timeline: { status: order.status, at: now, note: `Prescription verified (Dr ${name.slice(0, 60)})`, by: actorUserId } }
+      // Pharmacists often type "Dr ..." themselves: don't show "Dr Dr".
+      $push: { timeline: { status: order.status, at: now, note: `Prescription verified (Dr ${name.replace(/^dr\.?\s+/i, '').slice(0, 60)})`, by: actorUserId } }
     },
     { new: true }
   );

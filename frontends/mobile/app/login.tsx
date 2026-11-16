@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Text, useTr } from '@/lib/T';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { Bike, FlaskConical, Stethoscope, Store, type LucideIcon } from 'lucide-react-native';
 import { homeForRole, useAuth, type AccountKind } from '@/lib/auth';
 import { ALLOW_SERVER_OVERRIDE, api, describeNetworkError, saveServerUrl } from '@/lib/api';
@@ -30,6 +31,9 @@ const WAITLIST: Array<{ role: WaitlistRole; icon: LucideIcon; title: string; hin
 /** Email sign-in. Customer app: customers only. Nabz Partner: medical staff, pharmacy, delivery and path lab. */
 export default function Login() {
   const { login, register } = useAuth();
+  // The stack's gradient top bar is drawn over the screen (a custom header background makes
+  // react-navigation's header translucent), so content starts below its measured height.
+  const headerHeight = useHeaderHeight();
   const tr = useTr();
   const params = useLocalSearchParams<{ kind?: AccountKind; use?: 'phone' }>();
   const [kind, setKind] = useState<AccountKind>(IS_PARTNER_APP ? (params.kind || 'staff') : 'patient');
@@ -107,7 +111,7 @@ export default function Login() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* flexGrow: the content always fills the screen, so it can't stay scrolled under the top bar after the keyboard closes. */}
-      <ScrollView style={ui.screen} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      <ScrollView style={ui.screen} contentContainerStyle={[styles.scroll, { paddingTop: headerHeight + 16 }]} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         {IS_PARTNER_APP ? (
           <Text style={ui.display}>{isRegister ? 'Create account' : 'Partner sign in'}</Text>
         ) : (

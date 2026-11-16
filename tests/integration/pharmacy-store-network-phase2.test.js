@@ -214,7 +214,9 @@ describe('Pharmacy store network phase 2 (real MongoDB)', () => {
       .rejects.toThrow(/older than/);
 
     await compliance.verifyPrescription(order._id, { vendorId: s1._id, actorUserId, prescriberName: 'Dr A Sharma', prescriberRegistrationNumber: 'RMC-5521', prescribedOn: inDays(-2) });
-    const { deliveryOtp } = await PharmacyOrder.findById(order._id).select('+deliveryOtp.code').lean();
+    const { deliveryOtp, timeline } = await PharmacyOrder.findById(order._id).select('+deliveryOtp.code timeline').lean();
+    // The pharmacist typed "Dr ..." themselves: the customer's timeline doesn't say "Dr Dr".
+    expect(timeline.map((t) => t.note)).toContain('Prescription verified (Dr A Sharma)');
     for (const status of ['PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED']) {
       await pharmacyService.updateOrderStatus(order._id, { vendorId: s1._id, actorUserId, status, deliveryCode: deliveryOtp.code });
     }

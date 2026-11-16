@@ -106,9 +106,10 @@ export default function VendorOrders() {
   const [pushInfo, setPushInfo] = useState<string>('Checking notifications…');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [declining, setDeclining] = useState<string | null>(null);
-  // Which order cards are open: new orders open by default (they need action), others on tap.
+  // Which order cards are open: orders still needing the store's action open by default
+  // (so accepting doesn't fold the card mid-work); finished ones on tap.
   const [openOverride, setOpenOverride] = useState<Record<string, boolean>>({});
-  const isOpen = (o: PharmacyOrder) => openOverride[o._id] ?? o.status === 'PLACED';
+  const isOpen = (o: PharmacyOrder) => openOverride[o._id] ?? ['PLACED', 'ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP'].includes(o.status);
   const toggle = (o: PharmacyOrder) => setOpenOverride((m) => ({ ...m, [o._id]: !isOpen(o) }));
   const seen = useRef<Set<string> | null>(null);
 
