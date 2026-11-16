@@ -231,7 +231,8 @@ export default function Pharmacy() {
       return;
     }
     if (quote?.belowMinimum) {
-      appAlert('Add a little more', `${active.name} takes orders from ${inr(quote.minOrderValue)}.`);
+      // The minimum counts medicines only (delivery is extra), so show both numbers.
+      appAlert('Add a little more', `Your items total ${inr(subtotal)}. ${active.name} takes orders from ${inr(quote.minOrderValue)} of items (delivery not included). Add ${inr(Math.max(0, quote.minOrderValue - subtotal))} more.`);
       return;
     }
     // One sheet at a time: close the cart before the payment sheet slides up.

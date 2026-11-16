@@ -390,7 +390,8 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
     });
     const deliveryFee = fee.deliveryFee;
     if (!isStaffPickup && vendor.minOrderValue && itemsSubtotal < vendor.minOrderValue) {
-      throw new ValidationError(`Minimum order value for this pharmacy is ₹${vendor.minOrderValue}`);
+      // Delivery is extra, so say what the items come to and how much more is needed.
+      throw new ValidationError(`Your items total ₹${itemsSubtotal}. This pharmacy takes orders from ₹${vendor.minOrderValue} of items (delivery not included). Add ₹${Math.round((vendor.minOrderValue - itemsSubtotal) * 100) / 100} more`);
     }
     const tax = 0; // GST computed at settlement for MVP
     // The customer confirmed an items total on screen; if the store changed a

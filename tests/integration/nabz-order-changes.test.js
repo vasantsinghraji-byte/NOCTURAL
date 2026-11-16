@@ -176,6 +176,18 @@ describe('Customer order changes, rider contact and prescription links (real Mon
     expect(done.body.order.riderContact.phone).toBeUndefined();
   });
 
+  it('below the store minimum, the refusal says what the items total and how much more is needed', async () => {
+    if (!db) return;
+    await PharmacyVendor.updateOne({ _id: vendor._id }, { $set: { minOrderValue: 199 } });
+    try {
+      const res = await place(); // 2 × ₹50 = ₹100 of items
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Your items total ₹100. This pharmacy takes orders from ₹199 of items (delivery not included). Add ₹99 more');
+    } finally {
+      await PharmacyVendor.updateOne({ _id: vendor._id }, { $unset: { minOrderValue: 1 } });
+    }
+  });
+
   it('customer and store get the prescription as an openable link; others don’t', async () => {
     if (!db) return;
     const id = (await place('patient', {

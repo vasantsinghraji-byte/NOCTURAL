@@ -198,7 +198,9 @@ export default function CheckoutPage() {
           </div>
         )}
         {quote?.belowMinimum && (
-          <div className="notice bad" style={{ marginTop: 10 }}>{cart.vendorName} takes orders from {rupees(quote.minOrderValue)}.</div>
+          <div className="notice bad" style={{ marginTop: 10 }}>
+            Your items total {rupees(cart.subtotal)}. {cart.vendorName} takes orders from {rupees(quote.minOrderValue)} of items (delivery not included). Add {rupees(Math.max(0, quote.minOrderValue - cart.subtotal))} more.
+          </div>
         )}
       </div>
 

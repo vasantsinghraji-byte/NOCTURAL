@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, Modal, Platform, Pressable, StyleSheet, View 
 import * as WebBrowser from 'expo-web-browser';
 import * as FileSystem from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
+import { router } from 'expo-router';
 import { Eye, FileText, Maximize2, X } from 'lucide-react-native';
 import type { PrescriptionLink } from '@medrush/shared';
 import { Text } from '@/lib/T';
@@ -50,8 +51,10 @@ function pdfProblem(err: unknown, retry: () => void) {
  * screen, or a PDF tile that opens the phone's PDF viewer. `secure` blocks
  * screenshots while it is on screen (order and store views).
  */
-function PrescriptionTile({ id, source, kind, name, height, onOpenPdf, secure, opening }: {
+function PrescriptionTile({ id, source, kind, name, height, onOpenPdf, secure, opening, onZoom }: {
   id: string; source: Source; kind: 'image' | 'pdf'; name?: string; height: number; onOpenPdf: () => void; secure: boolean; opening?: boolean;
+  /** Open the zoomed photo as a full screen (covered by the screenshot block) instead of a pop-up. */
+  onZoom?: () => void;
 }) {
   const [full, setFull] = useState(false);
   useSecureView(`rx-${id}`, secure);
@@ -69,7 +72,7 @@ function PrescriptionTile({ id, source, kind, name, height, onOpenPdf, secure, o
   }
   return (
     <>
-      <Pressable onPress={() => setFull(true)} accessibilityRole="imagebutton" accessibilityLabel="Prescription photo. Tap to see it full screen">
+      <Pressable onPress={() => (onZoom ? onZoom() : setFull(true))} accessibilityRole="imagebutton" accessibilityLabel="Prescription photo. Tap to see it full screen">
         <Image source={source} style={[styles.image, { height }]} resizeMode="contain" />
         <View style={styles.zoom}><Maximize2 size={14} color={C.onBrand} /><Text style={styles.zoomText}>Tap to zoom</Text></View>
       </Pressable>
@@ -161,7 +164,9 @@ function LoadedPrescription({ orderId, as, height }: { orderId: string; as: 'pat
       FileSystem.deleteAsync(file, { idempotent: true }).catch(() => undefined);
     }
   };
-  return <PrescriptionTile id={`${as}-${orderId}`} source={source} kind={link.kind} height={height} onOpenPdf={openPdf} secure opening={opening} />;
+  // Pop-up windows aren't covered by the screenshot block, so the zoomed photo is a full screen.
+  const zoom = () => router.push({ pathname: '/rx/[id]', params: { id: orderId, as } });
+  return <PrescriptionTile id={`${as}-${orderId}`} source={source} kind={link.kind} height={height} onOpenPdf={openPdf} secure opening={opening} onZoom={zoom} />;
 }
 
 const styles = StyleSheet.create({
