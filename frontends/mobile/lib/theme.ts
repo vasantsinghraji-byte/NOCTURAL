@@ -85,6 +85,50 @@ export const IS_DARK = Appearance.getColorScheme() === 'dark';
 export const C = palette(IS_DARK ? FAMILY.dark : FAMILY.light, IS_DARK);
 
 /**
+ * Colour families for product art, category chips and offer cards: a soft
+ * surface (`bg`) with its strong partner (`fg`). Built only from palette tokens.
+ */
+export const ART_TONES = {
+  rose: { bg: C.brandSoft, fg: C.brand },
+  mint: { bg: C.mintSoft, fg: C.mint },
+  sky: { bg: C.skySoft, fg: C.sky },
+  amber: { bg: C.amberSoft, fg: C.amber },
+  violet: { bg: C.violetSoft, fg: C.violet },
+  coral: { bg: C.coralSoft, fg: C.coralInk }
+} as const;
+export type ArtTone = keyof typeof ART_TONES;
+
+/**
+ * Offer-card gradients (white text on all of them: each end is dark enough for
+ * bold 20pt+ text). Kept here so Home and any future offer surface match.
+ */
+export const OFFER_GRADIENTS = {
+  plus: { from: '#2a2523', to: '#5b4330', accent: C.plus },
+  brand: { from: C.brandLight, to: C.brandDark, accent: '#ffffff' },
+  mint: { from: '#0b7a44', to: '#13915a', accent: '#ffffff' },
+  coral: { from: '#b42318', to: '#d9482b', accent: '#ffffff' }
+} as const;
+
+/** Which colour family each medicine category wears (shelf colours, like a real store). */
+const CATEGORY_TONE: Record<string, ArtTone> = {
+  PAIN_RELIEF: 'coral', PEDIATRIC: 'coral',
+  COLD_FLU: 'sky', RESPIRATORY: 'sky', OPHTHALMOLOGY: 'sky', DEVICES: 'sky',
+  ANTIBIOTIC: 'violet', DERMATOLOGY: 'violet', PERSONAL_CARE: 'violet',
+  ANTACID: 'mint', GASTRO: 'mint', AYURVEDA: 'mint',
+  DIABETES: 'amber', VITAMINS_SUPPLEMENTS: 'amber',
+  CARDIAC: 'rose', FIRST_AID: 'rose', GYNAECOLOGY: 'rose'
+};
+const TONE_ORDER: ArtTone[] = ['rose', 'mint', 'sky', 'amber', 'violet', 'coral'];
+
+/** A medicine's colour family: by category, else a stable pick from its name. */
+export function artTone(category?: string, name = ''): ArtTone {
+  if (category && CATEGORY_TONE[category]) return CATEGORY_TONE[category];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return TONE_ORDER[h % TONE_ORDER.length];
+}
+
+/**
  * Embedded font families (loaded in app/_layout.tsx before first render).
  * Headings are semibold and text tops out at bold: extra-bold everywhere
  * reads as shouting, so `heavy` / `displayHeavy` resolve to bold.

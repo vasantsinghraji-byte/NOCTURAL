@@ -21,6 +21,34 @@ export function LightStatusBar() {
 }
 
 /**
+ * A two-colour diagonal gradient with the same soft highlight as the brand
+ * header, for offer cards. Fills its parent; put it first inside a View.
+ */
+export function Gradient({ from, to, radius = 0 }: { from: string; to: string; radius?: number }) {
+  const id = useId().replace(/:/g, '');
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  return (
+    <View style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]} pointerEvents="none"
+      onLayout={(e) => { const { width: w, height: h } = e.nativeEvent.layout; setSize((p) => (p && p.w === w && p.h === h ? p : { w, h })); }}>
+      {size ? <Svg width={size.w} height={size.h} preserveAspectRatio="none">
+        <Defs>
+          <LinearGradient id={`g${id}`} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={from} />
+            <Stop offset="1" stopColor={to} />
+          </LinearGradient>
+          <RadialGradient id={`h${id}`} cx="90%" cy="0%" r="70%">
+            <Stop offset="0" stopColor="#ffffff" stopOpacity="0.20" />
+            <Stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill={`url(#g${id})`} />
+        <Rect width="100%" height="100%" fill={`url(#h${id})`} />
+      </Svg> : null}
+    </View>
+  );
+}
+
+/**
  * The logo gradient (raspberry in the Nabz app, green in Nabz Partner) with a
  * soft highlight top-right and a deeper glow bottom-left, so the surface reads
  * as gently moulded. Fills its parent; put it first inside a View.

@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Text } from '@/lib/T';
-import { ChevronRight, Clock, Minus, Pill, Plus, Truck } from 'lucide-react-native';
+import {
+  Baby, Bandage, ChevronRight, Clock, Droplets, Flame, HeartPulse, LayoutGrid, Leaf, Minus, Pill, PillBottle, Plus, Search,
+  ShieldCheck, Sparkles, Sun, Thermometer, Truck, Wallet, Wind, X, Zap, type LucideIcon
+} from 'lucide-react-native';
+import { MedicineArt } from '@/lib/MedicineArt';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTabBarSpace } from '@/lib/PillTabBar';
@@ -11,7 +15,7 @@ import { pickAndUploadPrescription, type UploadedPrescription } from '@/lib/pres
 import { LocalPrescription } from '@/lib/PrescriptionView';
 import type { DeliveryQuote, PayMethod, PharmacyVendor, StorefrontItem } from '@medrush/shared';
 import { CouponField, type AppliedCoupon } from '@/lib/CouponField';
-import { C, F, R, depth } from '@/lib/theme';
+import { ART_TONES, C, F, R, artTone, depth } from '@/lib/theme';
 import { BrandHeader } from '@/lib/BrandHeader';
 import { Gloss } from '@/lib/Skeuo';
 import { BottomSheet } from '@/lib/marketUI';
@@ -22,6 +26,26 @@ import { RecipientPicker, rememberRecipient } from '@/lib/recipients';
 import { PaymentDismissedError, payOrderOnline } from '@/lib/payments';
 
 const FALLBACK = { lat: 26.9110, lng: 75.8010 }; // launch city demo area (C-Scheme, Jaipur)
+
+/** Shelf names and icons for the category chips, in the order customers shop them. */
+const SHELVES: Array<{ key: string; label: string; icon: LucideIcon }> = [
+  { key: 'PAIN_RELIEF', label: 'Pain & fever', icon: Zap },
+  { key: 'COLD_FLU', label: 'Cold & flu', icon: Wind },
+  { key: 'GASTRO', label: 'Stomach', icon: Leaf },
+  { key: 'ANTACID', label: 'Acidity', icon: Flame },
+  { key: 'DIABETES', label: 'Diabetes', icon: Droplets },
+  { key: 'VITAMINS_SUPPLEMENTS', label: 'Vitamins', icon: Sun },
+  { key: 'FIRST_AID', label: 'First aid', icon: Bandage },
+  { key: 'DEVICES', label: 'Devices', icon: Thermometer },
+  { key: 'ANTIBIOTIC', label: 'Antibiotics', icon: Pill },
+  { key: 'RESPIRATORY', label: 'Breathing', icon: Wind },
+  { key: 'CARDIAC', label: 'Heart', icon: HeartPulse },
+  { key: 'DERMATOLOGY', label: 'Skin', icon: Sparkles },
+  { key: 'PERSONAL_CARE', label: 'Personal care', icon: Sparkles },
+  { key: 'PEDIATRIC', label: 'Kids', icon: Baby },
+  { key: 'AYURVEDA', label: 'Ayurveda', icon: Leaf },
+  { key: 'OTHER', label: 'More', icon: PillBottle }
+];
 
 export default function Pharmacy() {
   const params = useLocalSearchParams<{ refill?: string; store?: string; add?: string }>();
@@ -41,6 +65,8 @@ export default function Pharmacy() {
   const [active, setActive] = useState<PharmacyVendor | null>(null);
   const [items, setItems] = useState<StorefrontItem[]>([]);
   const [cart, setCart] = useState<Record<string, number>>({});
+  const [query, setQuery] = useState('');
+  const [shelf, setShelf] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +105,7 @@ export default function Pharmacy() {
 
   async function selectVendor(v: PharmacyVendor) {
     setActive(v);
+    setShelf(null);
     setItems([]);
     setCart({});
     try {
@@ -177,6 +204,15 @@ export default function Pharmacy() {
       appAlert('Could not check other stores', describeNetworkError(e));
     }
   }
+  const shelves = useMemo(() => {
+    const present = new Set<string>(items.map((it) => it.medicine.category || 'OTHER'));
+    return SHELVES.filter((x) => present.has(x.key));
+  }, [items]);
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((it) => (!shelf || (it.medicine.category || 'OTHER') === shelf)
+      && (!q || [it.medicine.name, it.medicine.genericName, it.medicine.brand].some((v) => (v || '').toLowerCase().includes(q))));
+  }, [items, query, shelf]);
   const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
   const cartItems = items.filter((it) => cart[it.medicine._id]);
   const cartTotal = cartItems.reduce((sum, it) => sum + it.sellingPrice * cart[it.medicine._id], 0);
@@ -328,19 +364,50 @@ export default function Pharmacy() {
 
       {/* Three products per row, like quick-commerce apps */}
       <FlatList
-        data={items}
+        data={shown}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={items.length ? (
+          <View style={{ gap: 10, paddingBottom: 4 }}>
+            <View style={styles.search}>
+              <Search size={18} color={C.muted} />
+              <TextInput style={styles.searchInput} placeholder={active ? `Search medicines at ${active.name.split(' · ')[0]}` : 'Search medicines'}
+                placeholderTextColor={C.muted} value={query} onChangeText={setQuery} returnKeyType="search" autoCorrect={false} accessibilityLabel="Search medicines" />
+              {query ? <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Clear search"><X size={18} color={C.muted} /></Pressable> : null}
+            </View>
+            {shelves.length > 1 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -12 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 12 }}>
+                {[{ key: '', label: 'All', icon: LayoutGrid }, ...shelves].map((x) => {
+                  const on = (shelf || '') === x.key;
+                  const tone = ART_TONES[x.key ? artTone(x.key) : 'rose'];
+                  return (
+                    <Pressable key={x.key || 'all'} onPress={() => setShelf(x.key || null)} accessibilityRole="button" accessibilityState={{ selected: on }}
+                      style={[styles.shelf, { backgroundColor: on ? tone.fg : tone.bg }]}>
+                      <x.icon size={15} color={on ? '#ffffff' : tone.fg} strokeWidth={2.2} />
+                      <Text style={[styles.shelfText, { color: on ? '#ffffff' : tone.fg }]}>{x.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
+            <View style={styles.trust}>
+              <View style={styles.trustItem}><ShieldCheck size={14} color={C.mint} /><Text style={styles.trustText}>Licensed pharmacies</Text></View>
+              <View style={styles.trustItem}><Pill size={14} color={C.mint} /><Text style={styles.trustText}>Pharmacist checks every Rx</Text></View>
+              <View style={styles.trustItem}><Wallet size={14} color={C.mint} /><Text style={styles.trustText}>Cash or UPI on delivery</Text></View>
+            </View>
+          </View>
+        ) : null}
         keyExtractor={(it) => it.inventoryId}
         numColumns={3}
         columnWrapperStyle={{ gap: 8 }}
         contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 4, gap: 8, paddingBottom: tabSpace + (cartCount > 0 ? 72 : 0) }}
-        ListEmptyComponent={<Text style={[styles.muted, { padding: 16 }]}>{active ? 'This pharmacy has no medicines listed yet.' : 'No pharmacy delivers here yet.'}</Text>}
+        ListEmptyComponent={<Text style={[styles.muted, { padding: 16 }]}>{items.length ? (query ? `Nothing matches "${query}" here. Try another name or salt.` : 'Nothing on this shelf right now.') : active ? 'This pharmacy has no medicines listed yet.' : 'No pharmacy delivers here yet.'}</Text>}
         renderItem={({ item: it }) => {
           const off = it.mrp > it.sellingPrice ? Math.round(((it.mrp - it.sellingPrice) / it.mrp) * 100) : 0;
           const qty = cart[it.medicine._id] || 0;
           return (
             <View style={styles.tile}>
               <View style={styles.tileImage}>
-                <Pill size={26} color={C.faint} strokeWidth={1.6} />
+                <MedicineArt name={it.medicine.name} form={it.medicine.form} category={it.medicine.category} height={76} style={StyleSheet.absoluteFill} />
                 {off >= 5 ? <Text style={styles.off}>{off}% OFF</Text> : null}
                 {it.medicine.requiresPrescription ? <Text style={styles.rxTag}>Rx</Text> : null}
               </View>
@@ -539,7 +606,14 @@ const styles = StyleSheet.create({
   muted: { color: C.muted, fontSize: 13, fontFamily: F.medium },
   error: { backgroundColor: C.roseSoft, color: C.roseInk, padding: 10, marginHorizontal: 16, marginTop: 10, borderRadius: R.md, fontFamily: F.semi },
   tile: { flexGrow: 1, flexBasis: 0, maxWidth: '32.4%', minHeight: 232, backgroundColor: C.card, borderRadius: R.lg, padding: 8, gap: 3, ...depth.card },
-  tileImage: { height: 76, borderRadius: R.md, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 6, boxShadow: `inset 0 -6px 12px rgba(${C.tint},0.06)` },
+  tileImage: { height: 76, borderRadius: R.md, overflow: 'hidden', marginBottom: 6 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, minHeight: 48, ...depth.card },
+  searchInput: { flex: 1, color: C.ink, fontFamily: F.medium, fontSize: 15, paddingVertical: 10 },
+  shelf: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, minHeight: 36, borderRadius: R.full },
+  shelfText: { fontFamily: F.bold, fontSize: 13 },
+  trust: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 14, rowGap: 6, paddingHorizontal: 2 },
+  trustItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  trustText: { fontFamily: F.semi, fontSize: 12, color: C.inkSoft },
   off: { position: 'absolute', top: 0, left: 0, backgroundColor: C.mint, color: '#ffffff', fontFamily: F.bold, fontSize: 9.5, paddingHorizontal: 5, paddingVertical: 2, borderTopLeftRadius: R.sm, borderBottomRightRadius: 6, overflow: 'hidden' },
   rxTag: { position: 'absolute', top: 4, right: 4, backgroundColor: C.card, color: C.brand, fontFamily: F.bold, fontSize: 9.5, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: C.border },
   tileName: { fontSize: 12.5, lineHeight: 16, fontFamily: F.semi, color: C.ink },

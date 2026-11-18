@@ -19,8 +19,9 @@ import { IconTile, serviceIcon } from '@/lib/icons';
 import { inr as money } from '@/lib/market';
 import { BottomSheet } from '@/lib/marketUI';
 import { PressScale, Rise, Skeleton } from '@/lib/motion';
-import { C, F, R, depth, ui } from '@/lib/theme';
-import { BrandHeader } from '@/lib/BrandHeader';
+import { C, F, OFFER_GRADIENTS, R, depth, ui } from '@/lib/theme';
+import { BrandHeader, Gradient } from '@/lib/BrandHeader';
+import { MedicineArt } from '@/lib/MedicineArt';
 import { EmbossTile, Gloss } from '@/lib/Skeuo';
 import { appAlert } from '@/lib/dialog';
 import { UpdatesFeed } from '@/lib/updatesFeed';
@@ -32,11 +33,11 @@ const DEMO_AREA_KEY = 'nabz.demoArea';
 // Services shown on Home before "See all" (two rows of four).
 const GRID_MAX = 8;
 const ACTIVE = ['REQUESTED', 'ASSIGNED', 'CONFIRMED', 'EN_ROUTE', 'IN_PROGRESS'];
-const BANNER_LOOK: Record<HomeBanner['kind'], { icon: LucideIcon; bg: string; fg: string; ink: string }> = {
-  PLUS: { icon: Crown, bg: C.wine2, fg: C.plus, ink: '#ffffff' },
-  SUPPLIES: { icon: PackageCheck, bg: C.night, fg: C.brand, ink: C.onNight },
-  PHARMACY: { icon: Truck, bg: C.mintSoft, fg: C.mint, ink: C.ink },
-  TRUST: { icon: ShieldCheck, bg: C.amberSoft, fg: C.amber, ink: C.ink }
+const BANNER_LOOK: Record<HomeBanner['kind'], { icon: LucideIcon; tone: keyof typeof OFFER_GRADIENTS }> = {
+  PLUS: { icon: Crown, tone: 'plus' },
+  SUPPLIES: { icon: PackageCheck, tone: 'brand' },
+  PHARMACY: { icon: Truck, tone: 'mint' },
+  TRUST: { icon: ShieldCheck, tone: 'coral' }
 };
 const STATUS_LINE: Record<string, string> = {
   REQUESTED: 'Finding a professional',
@@ -139,13 +140,13 @@ function BookHome() {
   // Medicines bought before (no prescription items: those need a fresh upload).
   const buyAgain = useMemo(() => {
     const seen = new Set<string>();
-    const out: { medicine: string; name: string; pack?: string; price: number; mrp?: number; store: string }[] = [];
+    const out: { medicine: string; name: string; pack?: string; form?: string; price: number; mrp?: number; store: string }[] = [];
     for (const o of orders) {
       const store = typeof o.vendor === 'string' ? o.vendor : o.vendor?._id;
       for (const it of o.items || []) {
         if (!store || it.requiresPrescription || seen.has(String(it.medicine))) continue;
         seen.add(String(it.medicine));
-        out.push({ medicine: String(it.medicine), name: it.name, pack: it.packSize, price: it.unitPrice, mrp: it.mrp, store: String(store) });
+        out.push({ medicine: String(it.medicine), name: it.name, pack: it.packSize, form: it.form, price: it.unitPrice, mrp: it.mrp, store: String(store) });
       }
     }
     return out.slice(0, 8);
@@ -277,8 +278,32 @@ function BookHome() {
           <NeedTile icon={Pill} label="Pharmacy" badge={etaMinutes ? `${etaMinutes} min` : '30 min'} onPress={() => router.push('/pharmacy')} />
           <NeedTile icon={FlaskConical} label="Lab tests" tone="green" onPress={() => router.push('/labs')} />
           <NeedTile icon={Syringe} label="Nurse at home" tone="coral" badge={nearby.count ? `${nearby.count} online` : undefined} onPress={() => setAllOpen(true)} />
-          <NeedTile icon={Activity} label="Physio & care" tone="ink" onPress={() => router.push('/care')} />
+          <NeedTile icon={Activity} label="Physio & care" tone="violet" onPress={() => router.push('/care')} />
         </View>
+
+        {/* Offers, right under the service tiles (server sends only offers that are actually live) */}
+        {feed?.banners?.length ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={292} decelerationRate="fast" style={{ marginHorizontal: -18 }} contentContainerStyle={{ gap: 12, paddingTop: 20, paddingHorizontal: 18 }}>
+            {feed.banners.map((b) => {
+              const look = BANNER_LOOK[b.kind] || BANNER_LOOK.TRUST;
+              const g = OFFER_GRADIENTS[look.tone];
+              return (
+                <PressScale key={b.id} style={styles.banner} onPress={() => onBanner(b)} accessibilityRole="button" accessibilityLabel={`${b.title}. ${b.subtitle}. ${b.cta}`}>
+                  <Gradient from={g.from} to={g.to} radius={18} />
+                  {/* Big faint icon as artwork, bottom right */}
+                  <View style={styles.bannerArt} pointerEvents="none"><look.icon size={96} color="#ffffff" strokeWidth={1.4} /></View>
+                  <View style={styles.bannerIcon}><look.icon size={18} color={g.accent} /></View>
+                  <Text style={styles.bannerTitle}>{b.title}</Text>
+                  <Text style={styles.bannerSub} numberOfLines={2}>{b.subtitle}</Text>
+                  <View style={styles.bannerCta}>
+                    <Text style={styles.bannerCtaText}>{b.cta}</Text>
+                    <ChevronRight size={14} color={C.ink} />
+                  </View>
+                </PressScale>
+              );
+            })}
+          </ScrollView>
+        ) : null}
 
         {buyAgain.length > 0 && (
           <>
@@ -292,7 +317,7 @@ function BookHome() {
                 return (
                   <View key={m.medicine} style={styles.prod}>
                     <View style={styles.prodImg}>
-                      <Pill size={28} color={C.faint} strokeWidth={1.6} />
+                      <MedicineArt name={m.name} form={m.form} height={84} style={StyleSheet.absoluteFill} />
                       {off >= 5 ? <Text style={styles.prodOff}>{off}% OFF</Text> : null}
                     </View>
                     <Text style={styles.prodName} numberOfLines={2}>{m.name}</Text>
@@ -334,26 +359,6 @@ function BookHome() {
             ) : null}
           </View>
         )}
-
-        {/* Offers (server sends only offers that are actually live) */}
-        {feed?.banners?.length ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={292} decelerationRate="fast" style={{ marginHorizontal: -18 }} contentContainerStyle={{ gap: 12, paddingTop: 22, paddingHorizontal: 18 }}>
-            {feed.banners.map((b) => {
-              const look = BANNER_LOOK[b.kind] || BANNER_LOOK.TRUST;
-              return (
-                <PressScale key={b.id} style={[styles.banner, { backgroundColor: look.bg }]} onPress={() => onBanner(b)}>
-                  <look.icon size={22} color={look.fg} />
-                  <Text style={[styles.bannerTitle, { color: look.ink }]}>{b.title}</Text>
-                  <Text style={[styles.bannerSub, { color: look.ink, opacity: 0.75 }]} numberOfLines={2}>{b.subtitle}</Text>
-                  <View style={styles.bannerCta}>
-                    <Text style={[styles.bannerCtaText, { color: look.ink }]}>{b.cta}</Text>
-                    <ChevronRight size={14} color={look.ink} />
-                  </View>
-                </PressScale>
-              );
-            })}
-          </ScrollView>
-        ) : null}
 
         {session?.kind === 'patient' && <UpdatesFeed audience="customer" />}
 
@@ -454,8 +459,8 @@ function ServiceTile({ service, onPress }: { service: CareService; onPress: () =
 }
 
 /** The four big "What do you need?" tiles: embossed icon, label, optional badge. */
-function NeedTile({ icon: Icon, label, badge, tone = 'brand', onPress }: { icon: LucideIcon; label: string; badge?: string; tone?: 'brand' | 'green' | 'coral' | 'ink'; onPress: () => void }) {
-  const look = { brand: { fg: C.brand, tint: C.brandSoft }, green: { fg: C.mint, tint: C.mintSoft }, coral: { fg: C.coralInk, tint: C.coralSoft }, ink: { fg: C.ink, tint: C.cardAlt } }[tone];
+function NeedTile({ icon: Icon, label, badge, tone = 'brand', onPress }: { icon: LucideIcon; label: string; badge?: string; tone?: 'brand' | 'green' | 'coral' | 'violet' | 'ink'; onPress: () => void }) {
+  const look = { brand: { fg: C.brand, tint: C.brandSoft }, green: { fg: C.mint, tint: C.mintSoft }, coral: { fg: C.coralInk, tint: C.coralSoft }, violet: { fg: C.violet, tint: C.violetSoft }, ink: { fg: C.ink, tint: C.cardAlt } }[tone];
   return (
     <PressScale onPress={onPress} style={styles.need} accessibilityRole="button" accessibilityLabel={badge ? `${label}, ${badge}` : label}>
       <EmbossTile size={72} radius={22} tint={look.tint}><Icon size={30} color={look.fg} strokeWidth={1.8} /></EmbossTile>
@@ -497,7 +502,7 @@ const styles = StyleSheet.create({
   needBadgeText: { fontFamily: F.heavy, fontSize: 10, color: C.ink },
   needText: { fontFamily: F.bold, fontSize: 12.5, lineHeight: 16, color: C.ink, textAlign: 'center' },
   prod: { width: 132, backgroundColor: C.card, borderRadius: R.lg, padding: 8, ...depth.card },
-  prodImg: { height: 84, borderRadius: R.md, backgroundColor: C.cardAlt, alignItems: 'center', justifyContent: 'center', boxShadow: `inset 0 -6px 12px rgba(${C.tint},0.06)` },
+  prodImg: { height: 84, borderRadius: R.md, overflow: 'hidden' },
   prodOff: { position: 'absolute', top: 0, left: 0, backgroundColor: C.mint, color: '#ffffff', fontFamily: F.heavy, fontSize: 10, paddingHorizontal: 6, paddingVertical: 3, borderTopLeftRadius: R.md, borderBottomRightRadius: 8, overflow: 'hidden' },
   prodName: { fontFamily: F.bold, fontSize: 13, lineHeight: 17, color: C.ink, marginTop: 8, minHeight: 34 },
   prodPack: { fontFamily: F.medium, fontSize: 11.5, color: C.muted, marginTop: 2 },
@@ -534,10 +539,12 @@ const styles = StyleSheet.create({
   when: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, minHeight: 72, borderWidth: 1.5, borderColor: C.border },
   whenIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
   sheetGroup: { fontFamily: F.bold, fontSize: 14, color: C.inkSoft, marginTop: 6 },
-  banner: { width: 280, borderRadius: 16, padding: 16, gap: 6, minHeight: 150 },
-  bannerTitle: { fontFamily: F.display, fontSize: 24, lineHeight: 27, marginTop: 4 },
-  bannerSub: { fontFamily: F.medium, fontSize: 12, lineHeight: 17 },
-  bannerCta: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 'auto' },
-  bannerCtaText: { fontFamily: F.heavy, fontSize: 12 },
+  banner: { width: 280, borderRadius: 18, padding: 16, gap: 6, minHeight: 156, overflow: 'hidden', ...depth.raised },
+  bannerArt: { position: 'absolute', right: -14, bottom: -18, opacity: 0.16, transform: [{ rotate: '-12deg' }] },
+  bannerIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' },
+  bannerTitle: { fontFamily: F.display, fontSize: 22, lineHeight: 26, marginTop: 4, color: '#ffffff', maxWidth: '88%' },
+  bannerSub: { fontFamily: F.medium, fontSize: 12.5, lineHeight: 17, color: '#ffffff', opacity: 0.88, maxWidth: '85%' },
+  bannerCta: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 'auto', alignSelf: 'flex-start', backgroundColor: '#ffffff', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  bannerCtaText: { fontFamily: F.heavy, fontSize: 12, color: C.ink },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 16, padding: 12, ...depth.card }
 });
