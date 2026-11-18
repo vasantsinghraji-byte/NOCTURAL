@@ -50,7 +50,8 @@ function MedicineArtInner({ name, form, category, height = 76, style }: {
             <Rect x="42" y="12" width="50" height="62" rx="6" fill="#ffffff" stroke={tone.fg} strokeOpacity={0.25} />
             <Rect x="42" y="12" width="50" height="15" rx="6" fill={tone.fg} />
             <Rect x="42" y="22" width="50" height="5" fill={tone.fg} />
-            {text(67, 46, tone.fg)}
+            {/* Right of centre, so the tilted strip in front never covers the brand name */}
+            {text(71, 44, tone.fg, label.length > 6 ? 6.5 : label.length > 4 ? 8 : 9.5)}
             <Rect x="52" y="54" width="30" height="3" rx="1.5" fill={tone.fg} opacity={0.25} />
             <Rect x="56" y="60" width="22" height="3" rx="1.5" fill={tone.fg} opacity={0.18} />
             {/* Blister strip, tilted in front */}
