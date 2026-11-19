@@ -106,7 +106,8 @@ describe('User Model - Schema Validation', () => {
       const validRoles = ['doctor', 'nurse', 'physiotherapist', 'admin'];
 
       for (const role of validRoles) {
-        const userData = userFactory({ role });
+        // Hospital admins are tenant-scoped: the model requires their hospital.
+        const userData = userFactory(role === 'admin' ? { role, hospitalId: new (require('mongoose').Types.ObjectId)() } : { role });
         const user = new User(userData);
         await expect(user.validate()).resolves.not.toThrow();
       }

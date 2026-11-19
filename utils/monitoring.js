@@ -70,6 +70,8 @@ if (process.env.NODE_ENV !== 'test') {
       errorCounts[key] = 0;
     });
   }, RESET_INTERVAL);
+  // Housekeeping only: never keep the process alive (the HTTP server does that).
+  if (typeof _resetInterval.unref === 'function') _resetInterval.unref();
 }
 
 const monitoring = {

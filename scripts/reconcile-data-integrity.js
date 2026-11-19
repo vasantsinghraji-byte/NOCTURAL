@@ -41,11 +41,8 @@ const findOrphanedUploads = async () => {
   patients.forEach(patient => add(patient.profilePhoto?.publicId));
   reports.forEach(report => (report.files || []).forEach(file => add(file.publicId)));
 
-  let storedKeys;
-  if (storageConfig.USE_GCS && storageConfig.gcsBucket) {
-    const [files] = await storageConfig.gcsBucket.getFiles();
-    storedKeys = files.map(file => file.name);
-  } else {
+  let storedKeys = await storageConfig.listObjectKeys();
+  if (!storedKeys) {
     const root = path.resolve(__dirname, '../uploads');
     storedKeys = (await walkLocalFiles(root))
       .map(file => path.relative(root, file).replace(/\\/g, '/'));

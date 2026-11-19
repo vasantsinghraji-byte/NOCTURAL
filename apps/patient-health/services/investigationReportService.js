@@ -26,7 +26,7 @@ const UPLOADS_BASE_DIR = path.resolve('./uploads');
 
 const getAnalysisFile = async (file) => {
   const key = file.publicId || file.fileName;
-  const url = storageConfig.USE_GCS
+  const url = storageConfig.USE_CLOUD
     ? await storageConfig.getSignedUrl(key)
     : storageConfig.resolveLocalFile(key);
 

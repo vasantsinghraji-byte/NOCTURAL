@@ -80,7 +80,7 @@ function getBackfilledFileFields(file, fallbackFolder) {
   }
 
   const nextUrl = storageConfig.getFileUrl(key);
-  const storageProvider = storageConfig.USE_GCS ? 'gcs' : 'local';
+  const storageProvider = storageConfig.USE_GCS ? 'gcs' : (storageConfig.USE_S3 ? 's3' : 'local');
   const next = {};
 
   if (file.publicId !== key) {

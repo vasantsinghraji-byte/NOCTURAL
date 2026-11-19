@@ -7,10 +7,10 @@
 # Usage:
 #   cd terraform/bootstrap
 #   terraform init
-#   terraform apply -var="aws_region=us-east-1"
+#   terraform apply   # defaults: ap-south-1, medrush-terraform-state
 #
-# After apply, the main terraform config (../main.tf) can use:
-#   terraform init
+# Then, per environment:
+#   cd .. && terraform init -backend-config=backend/production.hcl
 
 terraform {
   required_version = ">= 1.0"
@@ -28,7 +28,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project   = "Noctural"
+      Project   = "MedRush"
       ManagedBy = "Terraform-Bootstrap"
     }
   }
@@ -37,19 +37,19 @@ provider "aws" {
 variable "aws_region" {
   description = "AWS region for state resources"
   type        = string
-  default     = "us-east-1"
+  default     = "ap-south-1"
 }
 
 variable "state_bucket_name" {
   description = "S3 bucket name for Terraform state"
   type        = string
-  default     = "noctural-terraform-state"
+  default     = "medrush-terraform-state"
 }
 
 variable "lock_table_name" {
   description = "DynamoDB table name for state locking"
   type        = string
-  default     = "terraform-state-lock"
+  default     = "medrush-terraform-lock"
 }
 
 # S3 bucket for Terraform state

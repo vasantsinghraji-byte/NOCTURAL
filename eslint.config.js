@@ -66,6 +66,9 @@ module.exports = [
       'android/app/build/**',
       'android/app/src/main/assets/public/**',
       'node_modules/**',
+      // MedRush Next.js/Expo frontends have their own TS/React lint tooling
+      // and dependency trees; keep them out of the backend `eslint .` pass.
+      'frontends/**',
       'docs/**',
       'terraform/**',
       'grafana/**',

@@ -1,0 +1,52 @@
+#!/bin/bash
+# coturn for Nabz voice calls. The shared secret is read from Secrets Manager
+# at boot (never written into user data). Relaying into private networks and
+# the instance metadata address is denied.
+set -euo pipefail
+
+apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get install -y coturn curl
+snap install aws-cli --classic
+
+SECRET=$(/snap/bin/aws secretsmanager get-secret-value --region ${region} --secret-id ${secret_arn} --query SecretString --output text)
+IMDS=$(curl -sX PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+PRIVATE_IP=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS" http://169.254.169.254/latest/meta-data/local-ipv4)
+
+umask 027
+cat > /etc/turnserver.conf <<CONF
+listening-port=3478
+listening-ip=$PRIVATE_IP
+relay-ip=$PRIVATE_IP
+external-ip=${public_ip}/$PRIVATE_IP
+min-port=${min_port}
+max-port=${max_port}
+fingerprint
+use-auth-secret
+static-auth-secret=$SECRET
+realm=nabz
+no-tls
+no-dtls
+no-cli
+no-multicast-peers
+no-loopback-peers
+denied-peer-ip=0.0.0.0-0.255.255.255
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=100.64.0.0-100.127.255.255
+denied-peer-ip=127.0.0.0-127.255.255.255
+denied-peer-ip=169.254.0.0-169.254.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+user-quota=12
+total-quota=1200
+stale-nonce=600
+simple-log
+syslog
+CONF
+chown root:turnserver /etc/turnserver.conf
+chmod 640 /etc/turnserver.conf
+
+if [ -f /etc/default/coturn ]; then
+  sed -i 's/^#\?TURNSERVER_ENABLED=.*/TURNSERVER_ENABLED=1/' /etc/default/coturn
+fi
+systemctl enable coturn
+systemctl restart coturn

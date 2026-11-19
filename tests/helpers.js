@@ -80,10 +80,14 @@ async function createTestUsers(count = 3, role = 'doctor') {
   return users;
 }
 
+// Hospital names are unique (models/hospital.js), and these helpers run before every test.
+let hospitalSeq = 0;
+const uniqueHospitalName = (base) => `${base} ${process.pid}-${Date.now()}-${++hospitalSeq}`;
+
 // Create admin user
 async function createAdminUser() {
   const hospital = await Hospital.create({
-    name: 'Admin Test Hospital',
+    name: uniqueHospitalName('Admin Test Hospital'),
     location: 'Test City'
   });
 
@@ -99,7 +103,7 @@ async function createAdminUser() {
 // Create hospital user
 async function createHospitalUser() {
   const hospital = await Hospital.create({
-    name: 'Test Hospital',
+    name: uniqueHospitalName('Test Hospital'),
     location: 'Test City'
   });
 

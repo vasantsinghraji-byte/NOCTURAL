@@ -13,6 +13,12 @@ const services = [
   // NURSING SERVICES
   {
     name: 'INJECTION_IM',
+    supplies: [
+      { key: 'medicine', name: 'Prescribed injection', kind: 'MEDICINE', defaultSource: 'PATIENT_HAS', note: 'Keep your prescribed injection ready' },
+      { key: 'syringe', name: 'Disposable syringe 2ml', medicineSlug: 'dispovan-syringe-2ml', quantity: 2 },
+      { key: 'swabs', name: 'Alcohol swabs', medicineSlug: 'alcohol-swabs' },
+      { key: 'gloves', name: 'Sterile gloves', medicineSlug: 'surgical-gloves' }
+    ],
     slug: 'injection-intramuscular',
     category: 'NURSING',
     subCategory: 'Injection Services',
@@ -31,7 +37,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
       availableHours: { start: '06:00', end: '22:00' },
       availableDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     },
@@ -53,6 +59,14 @@ const services = [
 
   {
     name: 'IV_DRIP',
+    supplies: [
+      { key: 'fluid', name: 'Normal saline 500ml', medicineSlug: 'normal-saline-500ml', kind: 'MEDICINE', note: 'Prescription needed' },
+      { key: 'cannula', name: 'IV cannula 20G', medicineSlug: 'iv-cannula-20g' },
+      { key: 'set', name: 'IV infusion set', medicineSlug: 'iv-infusion-set' },
+      { key: 'tape', name: 'Micropore tape', medicineSlug: 'micropore-surgical-tape' },
+      { key: 'swabs', name: 'Alcohol swabs', medicineSlug: 'alcohol-swabs' },
+      { key: 'gloves', name: 'Sterile gloves', medicineSlug: 'surgical-gloves' }
+    ],
     slug: 'iv-drip-infusion',
     category: 'NURSING',
     subCategory: 'IV Services',
@@ -71,7 +85,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
       availableHours: { start: '06:00', end: '22:00' }
     },
     requirements: {
@@ -87,6 +101,13 @@ const services = [
 
   {
     name: 'WOUND_DRESSING',
+    supplies: [
+      { key: 'gauze', name: 'Sterile gauze swabs', medicineSlug: 'sterile-gauze-swabs', quantity: 2 },
+      { key: 'antiseptic', name: 'Betadine antiseptic', medicineSlug: 'betadine-antiseptic-solution', kind: 'MEDICINE' },
+      { key: 'bandage', name: 'Crepe bandage', medicineSlug: 'crepe-bandage-10cm' },
+      { key: 'tape', name: 'Micropore tape', medicineSlug: 'micropore-surgical-tape' },
+      { key: 'gloves', name: 'Sterile gloves', medicineSlug: 'surgical-gloves' }
+    ],
     slug: 'wound-dressing-care',
     category: 'NURSING',
     subCategory: 'Wound Care',
@@ -104,7 +125,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
       availableHours: { start: '06:00', end: '22:00' }
     },
     requirements: {
@@ -120,6 +141,11 @@ const services = [
 
   {
     name: 'CATHETER_CARE',
+    supplies: [
+      { key: 'catheter', name: 'Foley catheter kit 16Fr', medicineSlug: 'foley-catheter-kit-16fr' },
+      { key: 'antiseptic', name: 'Betadine antiseptic', medicineSlug: 'betadine-antiseptic-solution', kind: 'MEDICINE' },
+      { key: 'gloves', name: 'Sterile gloves', medicineSlug: 'surgical-gloves', quantity: 2 }
+    ],
     slug: 'catheter-insertion-care',
     category: 'NURSING',
     subCategory: 'Critical Care',
@@ -136,7 +162,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
       availableHours: { start: '06:00', end: '22:00' }
     },
     requirements: {
@@ -150,6 +176,12 @@ const services = [
 
   {
     name: 'POST_SURGERY_CARE',
+    supplies: [
+      { key: 'gauze', name: 'Sterile gauze swabs', medicineSlug: 'sterile-gauze-swabs', quantity: 2 },
+      { key: 'antiseptic', name: 'Betadine antiseptic', medicineSlug: 'betadine-antiseptic-solution', kind: 'MEDICINE' },
+      { key: 'tape', name: 'Micropore tape', medicineSlug: 'micropore-surgical-tape' },
+      { key: 'gloves', name: 'Sterile gloves', medicineSlug: 'surgical-gloves' }
+    ],
     slug: 'post-surgery-nursing-care',
     category: 'NURSING',
     subCategory: 'Post-Operative Care',
@@ -166,7 +198,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
       availableHours: { start: '06:00', end: '22:00' }
     },
     requirements: {
@@ -181,6 +213,10 @@ const services = [
 
   {
     name: 'ELDERLY_CARE_DAILY',
+    supplies: [
+      { key: 'thermometer', name: 'Digital thermometer', medicineSlug: 'digital-thermometer', defaultSource: 'PATIENT_HAS' },
+      { key: 'gloves', name: 'Disposable gloves', medicineSlug: 'surgical-gloves', quantity: 2 }
+    ],
     slug: 'elderly-care-daily-visit',
     category: 'NURSING',
     subCategory: 'Elderly Care',
@@ -197,7 +233,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
       availableHours: { start: '06:00', end: '22:00' }
     },
     requirements: {
@@ -230,7 +266,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
       availableHours: { start: '06:00', end: '21:00' }
     },
     requirements: {
@@ -262,7 +298,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune'],
       availableHours: { start: '06:00', end: '21:00' }
     },
     included: ['Pain assessment', 'Manual therapy', 'Stretching exercises', 'Strengthening program', 'Posture correction'],
@@ -289,7 +325,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune']
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune']
     },
     included: ['Joint assessment', 'Pain relief therapy', 'Strengthening exercises', 'Mobility training', 'Home exercise program'],
     isPopular: true,
@@ -315,7 +351,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune']
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune']
     },
     requirements: {
       prescriptionRequired: true,
@@ -345,7 +381,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune']
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune']
     },
     requirements: {
       prescriptionRequired: true,
@@ -380,7 +416,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune']
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune']
     },
     included: ['10 physiotherapy sessions', 'Personalized treatment plan', 'Exercise sheets', 'Progress tracking', 'WhatsApp support'],
     isFeatured: true,
@@ -412,7 +448,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai']
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai']
     },
     requirements: {
       advanceBookingHours: 24,
@@ -447,7 +483,7 @@ const services = [
     },
     availability: {
       isActive: true,
-      availableCities: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune']
+      availableCities: ['Jaipur', 'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Chennai', 'Pune']
     },
     requirements: {
       prescriptionRequired: true,
