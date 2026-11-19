@@ -6,6 +6,10 @@ import {
   ShieldCheck, Sparkles, Sun, Thermometer, Truck, Wallet, Wind, X, Zap, type LucideIcon
 } from 'lucide-react-native';
 import { MedicineArt } from '@/lib/MedicineArt';
+import { AddToCart } from '@/lib/AddToCart';
+import { useCart } from '@/lib/cart';
+import { Skeleton } from '@/lib/motion';
+import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTabBarSpace } from '@/lib/PillTabBar';
@@ -48,7 +52,7 @@ const SHELVES: Array<{ key: string; label: string; icon: LucideIcon }> = [
 ];
 
 export default function Pharmacy() {
-  const params = useLocalSearchParams<{ refill?: string; store?: string; add?: string }>();
+  const params = useLocalSearchParams<{ refill?: string; store?: string; add?: string; openCart?: string }>();
   const [refillId, setRefillId] = useState<string | null>(null);
   const tabSpace = useTabBarSpace();
   const { session } = useAuth();
@@ -64,8 +68,8 @@ export default function Pharmacy() {
   const [vendors, setVendors] = useState<PharmacyVendor[]>([]);
   const [active, setActive] = useState<PharmacyVendor | null>(null);
   const [items, setItems] = useState<StorefrontItem[]>([]);
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [query, setQuery] = useState('');
+  // The cart is shared with the search and product screens (lib/cart.tsx).
+  const { cart, setCart, add, remove, selectStore } = useCart();
   const [shelf, setShelf] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +111,7 @@ export default function Pharmacy() {
     setActive(v);
     setShelf(null);
     setItems([]);
-    setCart({});
+    selectStore(v._id); // a different store empties the cart (orders are per store)
     try {
       const res = await api.getVendorStorefront(v._id);
       setItems(res.items);
@@ -116,12 +120,14 @@ export default function Pharmacy() {
     }
   }
 
-  const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
-  const remove = (id: string) => setCart((c) => {
-    const next = { ...c };
-    if ((next[id] || 0) <= 1) delete next[id]; else next[id] -= 1;
-    return next;
-  });
+  const openProduct = (medicineId: string) => {
+    if (!active) return;
+    router.push({ pathname: '/product/[id]', params: { id: medicineId, store: active._id, storeName: active.name } });
+  };
+  const openSearch = () => {
+    if (!active) return;
+    router.push({ pathname: '/pharmacy-search', params: { store: active._id, storeName: active.name } });
+  };
 
   // "Order again" from a refill reminder: same store, same medicines, ready to check out.
   useEffect(() => {
@@ -208,11 +214,7 @@ export default function Pharmacy() {
     const present = new Set<string>(items.map((it) => it.medicine.category || 'OTHER'));
     return SHELVES.filter((x) => present.has(x.key));
   }, [items]);
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return items.filter((it) => (!shelf || (it.medicine.category || 'OTHER') === shelf)
-      && (!q || [it.medicine.name, it.medicine.genericName, it.medicine.brand].some((v) => (v || '').toLowerCase().includes(q))));
-  }, [items, query, shelf]);
+  const shown = useMemo(() => items.filter((it) => !shelf || (it.medicine.category || 'OTHER') === shelf), [items, shelf]);
   const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
   const cartItems = items.filter((it) => cart[it.medicine._id]);
   const cartTotal = cartItems.reduce((sum, it) => sum + it.sellingPrice * cart[it.medicine._id], 0);
@@ -220,6 +222,8 @@ export default function Pharmacy() {
   const subtotal = Math.round(cartTotal * 100) / 100;
   const etaMinutes = active?.eta ? Math.max(active.eta.prepMinutes, active.eta.assignmentMinutes) + active.eta.lastMileMinutes : null;
   const [cartOpen, setCartOpen] = useState(false);
+  // "View cart" on the search or product screen lands here with the cart open.
+  useEffect(() => { if (params.openCart && cartCount > 0) setCartOpen(true); }, [params.openCart]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The delivery fee for this basket from this store (distance-based below the
   // free-delivery amount), refreshed as the cart changes. Signed-in customers only.
@@ -303,7 +307,7 @@ export default function Pharmacy() {
       if (refillId) { api.refillOrdered(refillId, res.order._id).catch(() => undefined); setRefillId(null); }
       if (forOther) rememberRecipient(recipient).catch(() => undefined);
       // Straight to the live order: status, store, rider, and 90 s to cancel or add items.
-      const openOrder = () => router.push({ pathname: '/order/[id]', params: { id: res.order._id } });
+      const openOrder = () => router.push({ pathname: '/order/[id]', params: { id: res.order._id, fresh: '1' } });
       if (!prepaid) {
         openOrder();
         return;
@@ -330,7 +334,20 @@ export default function Pharmacy() {
   }
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color={C.brand} /><Text style={styles.muted}>Finding pharmacies near you…</Text></View>;
+    return (
+      <View style={styles.screen}>
+        <BrandHeader style={{ paddingBottom: 16 }}>
+          <Text style={styles.title}>Pharmacy</Text>
+          <Text style={styles.headerSub} numberOfLines={1}>Finding pharmacies near you…</Text>
+        </BrandHeader>
+        <View style={{ padding: 12, gap: 10 }}>
+          <Skeleton height={40} width="70%" radius={20} />
+          <Skeleton height={48} radius={16} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>{[0, 1, 2].map((i) => <Skeleton key={i} height={220} radius={16} style={{ flex: 1 }} />)}</View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>{[0, 1, 2].map((i) => <Skeleton key={i} height={220} radius={16} style={{ flex: 1 }} />)}</View>
+        </View>
+      </View>
+    );
   }
 
   const fee = quote?.deliveryFee;
@@ -368,12 +385,10 @@ export default function Pharmacy() {
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={items.length ? (
           <View style={{ gap: 10, paddingBottom: 4 }}>
-            <View style={styles.search}>
+            <Pressable style={({ pressed }) => [styles.search, pressed && { opacity: 0.85 }]} onPress={openSearch} accessibilityRole="search" accessibilityLabel="Search medicines">
               <Search size={18} color={C.muted} />
-              <TextInput style={styles.searchInput} placeholder={active ? `Search medicines at ${active.name.split(' · ')[0]}` : 'Search medicines'}
-                placeholderTextColor={C.muted} value={query} onChangeText={setQuery} returnKeyType="search" autoCorrect={false} accessibilityLabel="Search medicines" />
-              {query ? <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Clear search"><X size={18} color={C.muted} /></Pressable> : null}
-            </View>
+              <Text style={styles.searchPlaceholder} numberOfLines={1}>{active ? `Search ${active.name.split(' · ')[0]}: name or salt` : 'Search medicines'}</Text>
+            </Pressable>
             {shelves.length > 1 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -12 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 12 }}>
                 {[{ key: '', label: 'All', icon: LayoutGrid }, ...shelves].map((x) => {
@@ -400,12 +415,13 @@ export default function Pharmacy() {
         numColumns={3}
         columnWrapperStyle={{ gap: 8 }}
         contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 4, gap: 8, paddingBottom: tabSpace + (cartCount > 0 ? 72 : 0) }}
-        ListEmptyComponent={<Text style={[styles.muted, { padding: 16 }]}>{items.length ? (query ? `Nothing matches "${query}" here. Try another name or salt.` : 'Nothing on this shelf right now.') : active ? 'This pharmacy has no medicines listed yet.' : 'No pharmacy delivers here yet.'}</Text>}
+        ListEmptyComponent={<Text style={[styles.muted, { padding: 16 }]}>{items.length ? 'Nothing on this shelf right now.' : active ? 'This pharmacy has no medicines listed yet.' : 'No pharmacy delivers here yet.'}</Text>}
         renderItem={({ item: it }) => {
           const off = it.mrp > it.sellingPrice ? Math.round(((it.mrp - it.sellingPrice) / it.mrp) * 100) : 0;
           const qty = cart[it.medicine._id] || 0;
           return (
-            <View style={styles.tile}>
+            <Animated.View entering={FadeIn.duration(220)} style={styles.tile}>
+              <Pressable onPress={() => openProduct(it.medicine._id)} accessibilityRole="button" accessibilityLabel={`${it.medicine.name}, ${inr(it.sellingPrice)}. Open details`} style={{ gap: 3 }}>
               <View style={styles.tileImage}>
                 <MedicineArt name={it.medicine.name} form={it.medicine.form} category={it.medicine.category} height={76} style={StyleSheet.absoluteFill} />
                 {off >= 5 ? <Text style={styles.off}>{off}% OFF</Text> : null}
@@ -413,6 +429,7 @@ export default function Pharmacy() {
               </View>
               <Text style={styles.tileName} numberOfLines={2}>{it.medicine.name}</Text>
               <Text style={styles.tileMeta} numberOfLines={1}>{it.medicine.packSize || it.medicine.form}</Text>
+              </Pressable>
               <View style={{ marginTop: 'auto', gap: 6 }}>
                 <View>
                   <Text style={styles.tilePrice}>{inr(it.sellingPrice)}</Text>
@@ -422,23 +439,18 @@ export default function Pharmacy() {
                   <Pressable style={styles.findBtn} onPress={() => findElsewhere(it.medicine._id, it.medicine.name)} accessibilityRole="button" accessibilityLabel={`${it.medicine.name} is out of stock. Find it nearby`}>
                     <Text style={styles.findBtnText}>Find nearby</Text>
                   </Pressable>
-                ) : qty ? (
-                  <Stepper qty={qty} name={it.medicine.name} onAdd={() => add(it.medicine._id)} onRemove={() => remove(it.medicine._id)} />
                 ) : (
-                  <Pressable style={({ pressed }) => [styles.addBtn, pressed ? { backgroundColor: C.brandSoft, boxShadow: 'none' } : null]} onPress={() => add(it.medicine._id)}
-                    accessibilityRole="button" accessibilityLabel={`Add ${it.medicine.name}`}>
-                    <Text style={styles.addBtnText}>ADD</Text>
-                  </Pressable>
+                  <AddToCart qty={qty} name={it.medicine.name} onAdd={() => add(it.medicine._id)} onRemove={() => remove(it.medicine._id)} />
                 )}
               </View>
-            </View>
+            </Animated.View>
           );
         }}
       />
 
       {/* Cart bar: what's in the bag and what it costs, one tap to the bill */}
       {cartCount > 0 && (
-        <View style={[styles.cartDock, { bottom: tabSpace - 4 }]}>
+        <Animated.View entering={SlideInDown.springify().damping(18).stiffness(220)} style={[styles.cartDock, { bottom: tabSpace - 4 }]}>
           {toFree > 0 ? (
             <View style={styles.nudge}>
               <Truck size={14} color={C.mint} />
@@ -460,7 +472,7 @@ export default function Pharmacy() {
             <Text style={styles.cartCta}>View cart</Text>
             <ChevronRight size={18} color={C.onBrand} />
           </Pressable>
-        </View>
+        </Animated.View>
       )}
 
       <BottomSheet visible={cartOpen} onClose={() => setCartOpen(false)} title={active ? `Your cart · ${active.name}` : 'Your cart'}>
@@ -473,7 +485,7 @@ export default function Pharmacy() {
                   <Text style={styles.tileMeta}>{it.medicine.packSize || it.medicine.form}</Text>
                 </View>
                 <View style={{ width: 96 }}>
-                  <Stepper qty={cart[it.medicine._id]} name={it.medicine.name} onAdd={() => add(it.medicine._id)} onRemove={() => remove(it.medicine._id)} />
+                  <AddToCart qty={cart[it.medicine._id]} name={it.medicine.name} onAdd={() => add(it.medicine._id)} onRemove={() => remove(it.medicine._id)} />
                 </View>
                 <Text style={styles.linePrice}>{inr(it.sellingPrice * cart[it.medicine._id])}</Text>
               </View>
@@ -564,20 +576,6 @@ export default function Pharmacy() {
   );
 }
 
-function Stepper({ qty, name, onAdd, onRemove }: { qty: number; name: string; onAdd: () => void; onRemove: () => void }) {
-  return (
-    <View style={styles.stepper} accessibilityLabel={`${name}, ${qty} in cart`}>
-      <Gloss radius={R.sm} />
-      <Pressable onPress={onRemove} hitSlop={6} style={styles.stepBtn} accessibilityRole="button" accessibilityLabel={`Remove one ${name}`}>
-        <Minus size={16} color={C.onBrand} strokeWidth={2.4} />
-      </Pressable>
-      <Text style={styles.stepQty}>{qty}</Text>
-      <Pressable onPress={onAdd} hitSlop={6} style={styles.stepBtn} accessibilityRole="button" accessibilityLabel={`Add one more ${name}`}>
-        <Plus size={16} color={C.onBrand} strokeWidth={2.4} />
-      </Pressable>
-    </View>
-  );
-}
 
 function BillRow({ label, value, strong, good }: { label: string; value: string; strong?: boolean; good?: boolean }) {
   return (
@@ -608,7 +606,7 @@ const styles = StyleSheet.create({
   tile: { flexGrow: 1, flexBasis: 0, maxWidth: '32.4%', minHeight: 232, backgroundColor: C.card, borderRadius: R.lg, padding: 8, gap: 3, ...depth.card },
   tileImage: { height: 76, borderRadius: R.md, overflow: 'hidden', marginBottom: 6 },
   search: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, minHeight: 48, ...depth.card },
-  searchInput: { flex: 1, color: C.ink, fontFamily: F.medium, fontSize: 15, paddingVertical: 10 },
+  searchPlaceholder: { flex: 1, color: C.muted, fontFamily: F.medium, fontSize: 15 },
   shelf: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, minHeight: 36, borderRadius: R.full },
   shelfText: { fontFamily: F.bold, fontSize: 13 },
   trust: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 14, rowGap: 6, paddingHorizontal: 2 },

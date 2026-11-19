@@ -16,6 +16,7 @@ import { OrderPrescription } from '@/lib/PrescriptionView';
 import { pickAndUploadPrescription, type UploadedPrescription } from '@/lib/prescription';
 import { useActiveOrder } from '@/lib/activeOrder';
 import { C, F, R } from '@/lib/theme';
+import { Celebrate } from '@/lib/Celebrate';
 
 const POLL_MS = 10_000;
 const FINISHED = ['DELIVERED', 'CANCELLED', 'REJECTED'];
@@ -50,7 +51,20 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Pro
 }
 
 /** One medicine order: live progress, store and rider, door code, bill, prescription, and 90 s to change it. */
-export default function OrderDetail() {
+/** Straight after checkout (fresh=1) a short "Order placed" moment plays over the live order. */
+export default function OrderScreen() {
+  const { fresh } = useLocalSearchParams<{ fresh?: string }>();
+  const [celebrate, setCelebrate] = useState(fresh === '1');
+  const done = useCallback(() => { setCelebrate(false); router.setParams({ fresh: undefined }); }, []);
+  return (
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <OrderDetail />
+      {celebrate ? <Celebrate title="Order placed" subtitle="The pharmacy has it now. Track it live here." onDone={done} /> : null}
+    </View>
+  );
+}
+
+function OrderDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { refresh: refreshStrip } = useActiveOrder();
   const [order, setOrder] = useState<PharmacyOrder | null>(null);

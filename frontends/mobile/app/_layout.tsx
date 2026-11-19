@@ -9,6 +9,7 @@ import {
 // Registers the Partner background task before anything renders (must be top-level).
 import '@/lib/partnerOnline';
 import { AuthProvider } from '@/lib/auth';
+import { CartProvider } from '@/lib/cart';
 import { DialogHost } from '@/lib/dialog';
 import { LangProvider } from '@/lib/i18n';
 import { LoadingScreen } from '@/lib/LoadingScreen';
@@ -39,6 +40,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <LangProvider>
         <AuthProvider>
+        <CartProvider>
           <EasyModeProvider>
           <LiveProvider>
           <StatusBar style={IS_DARK ? 'light' : 'dark'} />
@@ -74,6 +76,8 @@ export default function RootLayout() {
             <Stack.Screen name="labs/order/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="order/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="rx/[id]" options={{ headerShown: false, animation: 'fade' }} />
+            <Stack.Screen name="pharmacy-search" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
+            <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="addresses" options={{ headerShown: false }} />
             <Stack.Screen name="map" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
             <Stack.Screen name="chat/index" options={{ headerShown: false }} />
@@ -95,6 +99,7 @@ export default function RootLayout() {
           <DialogHost />
           </LiveProvider>
           </EasyModeProvider>
+        </CartProvider>
         </AuthProvider>
       </LangProvider>
     </SafeAreaProvider>
