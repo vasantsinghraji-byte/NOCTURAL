@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { searchMedicines, scoreMedicine } from './medicineSearch.ts';
+import { exactSaltOf, saltOf, searchMedicines, scoreMedicine } from './medicineSearch.ts';
 
 const CATALOG = [
   { name: 'Dolo 650 Tablet', genericName: 'Paracetamol 650mg', brand: 'Dolo', manufacturer: 'Micro Labs' },
@@ -39,4 +39,11 @@ test('maker, mixed case and punctuation work; nonsense finds nothing', () => {
   assert.deepEqual(names('  ORS!! '), ['ORS Powder Sachet']);
   assert.deepEqual(names('xyzzy'), []);
   assert.deepEqual(names(''), []);
+});
+
+test('same salt family ignores strength; a like-for-like swap needs the same strength', () => {
+  assert.equal(saltOf('Paracetamol 650mg'), saltOf('Paracetamol 500 mg'));
+  assert.notEqual(exactSaltOf('Paracetamol 650mg'), exactSaltOf('Paracetamol 500mg'));
+  assert.equal(exactSaltOf('Paracetamol 500 mg'), exactSaltOf('paracetamol  500mg'));
+  assert.notEqual(saltOf('Ibuprofen 400mg + Paracetamol 325mg'), saltOf('Paracetamol 500mg'));
 });

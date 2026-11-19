@@ -51,7 +51,7 @@ export default function PharmacySearch() {
     remember(q || it.medicine.name);
     router.push({ pathname: '/product/[id]', params: { id: it.medicine._id, store: String(store), storeName: storeName || '' } });
   };
-  const toCart = () => router.navigate({ pathname: '/pharmacy', params: { openCart: String(Date.now()) } });
+  const toCart = () => router.dismissTo({ pathname: '/pharmacy', params: { openCart: String(Date.now()) } });
 
   return (
     <View style={[s.screen, { paddingTop: insets.top + 8 }]}>

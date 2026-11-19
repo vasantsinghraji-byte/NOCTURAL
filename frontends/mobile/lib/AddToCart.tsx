@@ -10,19 +10,22 @@ import { C, F, R, depth } from './theme';
  * ADD → − 1 + in one control. Adding the first unit morphs the button into the
  * stepper; every change makes the number bounce, so the tap is felt and seen.
  * Haptics come from the cart (lib/cart.tsx). Respects the system "reduce motion".
+ * Pass `still` inside a Modal: Reanimated enter/exit animations there can lay the
+ * whole modal out at 0,0 on Android when it is reopened.
  */
-export function AddToCart({ qty, name, onAdd, onRemove, disabled, size = 'md', style }: {
-  qty: number; name: string; onAdd: () => void; onRemove: () => void; disabled?: boolean; size?: 'md' | 'lg'; style?: StyleProp<ViewStyle>;
+export function AddToCart({ qty, name, onAdd, onRemove, disabled, size = 'md', style, still }: {
+  qty: number; name: string; onAdd: () => void; onRemove: () => void; disabled?: boolean; size?: 'md' | 'lg'; style?: StyleProp<ViewStyle>; still?: boolean;
 }) {
-  const reduce = useReducedMotion();
+  const reduceMotion = useReducedMotion();
+  const reduce = reduceMotion || !!still;
   const bump = useSharedValue(1);
   const last = useRef(qty);
   useEffect(() => {
-    if (qty !== last.current && qty > 0 && !reduce) {
+    if (qty !== last.current && qty > 0 && !reduceMotion) {
       bump.value = withSequence(withTiming(1.28, { duration: 90 }), withSpring(1, { damping: 9, stiffness: 260 }));
     }
     last.current = qty;
-  }, [qty, reduce, bump]);
+  }, [qty, reduceMotion, bump]);
   const qtyStyle = useAnimatedStyle(() => ({ transform: [{ scale: bump.value }] }));
   const h = size === 'lg' ? 48 : 36;
 

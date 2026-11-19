@@ -59,3 +59,8 @@ export function searchMedicines<T>(items: T[], query: string, get: (t: T) => Sea
     .sort((a, b) => b.s - a.s)
     .map((x) => x.t);
 }
+
+/** Salt without the strength, so "Paracetamol 650mg" and "Paracetamol 500mg" count as the same salt family. */
+export const saltOf = (g?: string) => (g || '').toLowerCase().replace(/\d+(\.\d+)?\s*(mg|mcg|g|ml|%|iu)\b/g, '').replace(/\s+/g, ' ').trim();
+/** Salt and strength, so only a true like-for-like ("Paracetamol 500mg" = "paracetamol 500 mg") counts as the same medicine. */
+export const exactSaltOf = (g?: string) => (g || '').toLowerCase().replace(/(\d)\s+(mg|mcg|g|ml|%|iu)\b/g, '$1$2').replace(/\s+/g, ' ').trim();

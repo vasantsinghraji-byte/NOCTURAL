@@ -11,13 +11,11 @@ import { useCart } from '@/lib/cart';
 import { MedicineArt } from '@/lib/MedicineArt';
 import { AddToCart } from '@/lib/AddToCart';
 import { ProductRow } from '@/lib/ProductRow';
+import { exactSaltOf, saltOf } from '@/lib/medicineSearch';
 import { Empty, Btn, TopBar } from '@/lib/marketUI';
 import { Skeleton } from '@/lib/motion';
 import { inr } from '@/lib/market';
 import { C, F, R, depth } from '@/lib/theme';
-
-/** Salt without the strength, so "Paracetamol 650mg" and "Paracetamol 500mg" count as the same salt family. */
-const saltOf = (g?: string) => (g || '').toLowerCase().replace(/\d+(\.\d+)?\s*(mg|mcg|g|ml|%|iu)\b/g, '').replace(/\s+/g, ' ').trim();
 
 /** One medicine at one store: what it is, its price, same-salt options and what goes with it. */
 export default function ProductDetail() {
@@ -34,17 +32,21 @@ export default function ProductDetail() {
 
   const item = items?.find((it) => it.medicine._id === id);
   const related = useMemo(() => {
-    if (!items || !item) return { salt: [] as StorefrontItem[], with: [] as StorefrontItem[] };
+    if (!items || !item) return { salt: [] as StorefrontItem[], strengths: [] as StorefrontItem[], with: [] as StorefrontItem[] };
     const salt = saltOf(item.medicine.genericName);
-    const same = salt ? items.filter((it) => it.medicine._id !== id && saltOf(it.medicine.genericName) === salt) : [];
-    const sameIds = new Set(same.map((x) => x.medicine._id));
-    const goesWith = items.filter((it) => it.medicine._id !== id && !sameIds.has(it.medicine._id) && it.inStock
+    const exact = exactSaltOf(item.medicine.genericName);
+    const family = salt ? items.filter((it) => it.medicine._id !== id && saltOf(it.medicine.genericName) === salt) : [];
+    // A different strength is not a swap: shown separately, with a warning and no "cheaper" nudge.
+    const same = family.filter((it) => exactSaltOf(it.medicine.genericName) === exact);
+    const strengths = family.filter((it) => exactSaltOf(it.medicine.genericName) !== exact);
+    const familyIds = new Set(family.map((x) => x.medicine._id));
+    const goesWith = items.filter((it) => it.medicine._id !== id && !familyIds.has(it.medicine._id) && it.inStock
       && !it.medicine.requiresPrescription && it.medicine.category === item.medicine.category).slice(0, 4);
-    return { salt: same.sort((a, b) => a.sellingPrice - b.sellingPrice), with: goesWith };
+    return { salt: same.sort((a, b) => a.sellingPrice - b.sellingPrice), strengths, with: goesWith };
   }, [items, item, id]);
 
   const open = (mid: string) => router.push({ pathname: '/product/[id]', params: { id: mid, store: String(store), storeName: storeName || '' } });
-  const toCart = () => router.navigate({ pathname: '/pharmacy', params: { openCart: String(Date.now()) } });
+  const toCart = () => router.dismissTo({ pathname: '/pharmacy', params: { openCart: String(Date.now()) } });
 
   if (error) {
     return <View style={s.screen}><TopBar title="Medicine" /><Empty title="Couldn’t load this medicine" text={error} action={<Btn label="Go back" onPress={() => router.back()} />} /></View>;
@@ -113,10 +115,20 @@ export default function ProductDetail() {
         {related.salt.length ? (
           <View style={s.section}>
             <Text style={s.sectionTitle}>Same salt, other brands</Text>
-            <Text style={s.meta}>Same medicine, different maker. Check with your doctor if your prescription names a brand.</Text>
+            <Text style={s.meta}>Same salt and strength, different maker. Check with your doctor if your prescription names a brand.</Text>
             {related.salt.map((x) => (
               <ProductRow key={x.inventoryId} item={x} qty={cart[x.medicine._id] || 0} onAdd={() => add(x.medicine._id)} onRemove={() => remove(x.medicine._id)} onOpen={() => open(x.medicine._id)}
                 note={x.sellingPrice < item.sellingPrice ? `${inr(item.sellingPrice - x.sellingPrice)} cheaper` : undefined} />
+            ))}
+          </View>
+        ) : null}
+
+        {related.strengths.length ? (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Same salt, different strength</Text>
+            <Text style={s.meta}>Not a direct swap. Ask your doctor or pharmacist before changing the strength.</Text>
+            {related.strengths.map((x) => (
+              <ProductRow key={x.inventoryId} item={x} qty={cart[x.medicine._id] || 0} onAdd={() => add(x.medicine._id)} onRemove={() => remove(x.medicine._id)} onOpen={() => open(x.medicine._id)} />
             ))}
           </View>
         ) : null}
@@ -146,7 +158,7 @@ export default function ProductDetail() {
           {item.inStock ? <AddToCart qty={qty} name={m.name} onAdd={() => add(m._id)} onRemove={() => remove(m._id)} size="lg" /> : <Text style={s.meta}>Out of stock</Text>}
         </View>
         {count > 0 ? (
-          <Pressable onPress={toCart} style={({ pressed }) => [s.cartBtn, pressed && { opacity: 0.85 }]} accessibilityRole="button" accessibilityLabel={`View cart, ${count} items`}>
+          <Pressable onPress={toCart} style={({ pressed }) => [s.cartBtn, pressed && { opacity: 0.85 }]} accessibilityRole="button" accessibilityLabel={`View cart, ${count} item${count === 1 ? '' : 's'}`}>
             <Text style={s.cartBtnText}>Cart · {count}</Text>
             <ChevronRight size={16} color={C.onBrand} />
           </Pressable>

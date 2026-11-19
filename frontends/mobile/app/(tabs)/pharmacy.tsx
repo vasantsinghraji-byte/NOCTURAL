@@ -69,7 +69,7 @@ export default function Pharmacy() {
   const [active, setActive] = useState<PharmacyVendor | null>(null);
   const [items, setItems] = useState<StorefrontItem[]>([]);
   // The cart is shared with the search and product screens (lib/cart.tsx).
-  const { cart, setCart, add, remove, selectStore } = useCart();
+  const { cart, setCart, add, remove, selectStore, storeId: cartStore } = useCart();
   const [shelf, setShelf] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +97,9 @@ export default function Pharmacy() {
       try {
         const res = await api.getNearbyVendors({ ...coords, radiusKm: 10 });
         setVendors(res.vendors);
-        if (res.vendors[0]) selectVendor(res.vendors[0]);
+        // Keep the store the cart already belongs to, so a remount never empties it.
+        const start = res.vendors.find((v) => v._id === cartStore) || res.vendors[0];
+        if (start) selectVendor(start);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load pharmacies');
       } finally {
@@ -463,7 +465,7 @@ export default function Pharmacy() {
             </View>
           ) : null}
           <Pressable style={({ pressed }) => [styles.cartBar, pressed ? depth.pressed : depth.button]} onPress={() => setCartOpen(true)} accessibilityRole="button"
-            accessibilityLabel={`${cartCount} items, ${inr(payable)}. View cart`}>
+            accessibilityLabel={`${cartCount} item${cartCount === 1 ? '' : 's'}, ${inr(payable)}. View cart`}>
             <Gloss radius={R.lg} />
             <View style={{ flex: 1 }}>
               <Text style={styles.cartCount}>{cartCount} item{cartCount === 1 ? '' : 's'}</Text>
@@ -485,7 +487,7 @@ export default function Pharmacy() {
                   <Text style={styles.tileMeta}>{it.medicine.packSize || it.medicine.form}</Text>
                 </View>
                 <View style={{ width: 96 }}>
-                  <AddToCart qty={cart[it.medicine._id]} name={it.medicine.name} onAdd={() => add(it.medicine._id)} onRemove={() => remove(it.medicine._id)} />
+                  <AddToCart qty={cart[it.medicine._id]} name={it.medicine.name} onAdd={() => add(it.medicine._id)} onRemove={() => remove(it.medicine._id)} still />
                 </View>
                 <Text style={styles.linePrice}>{inr(it.sellingPrice * cart[it.medicine._id])}</Text>
               </View>
