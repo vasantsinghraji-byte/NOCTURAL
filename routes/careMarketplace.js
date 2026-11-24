@@ -15,6 +15,7 @@ const { protect, authorize, requireRecentAuth } = require('../middleware/auth');
 const { adminSection } = require('../middleware/adminAccess');
 const { protectBoth } = require('../middleware/patientAuth');
 const idempotency = require('../middleware/idempotency');
+const replayRules = require('../utils/replayRules');
 const careStoreService = require('../services/careStoreService');
 const carePlanService = require('../services/carePlanService');
 const labOrderService = require('../services/labOrderService');
@@ -377,7 +378,7 @@ router.post('/labs/quote', patient, labOrderValidation, validate, wrap(async (re
   res.json({ success: true, quote: await labOrderService.quoteLabOrder(req.user._id || req.user.id, req.body) });
 }));
 
-router.post('/labs/orders', patient, [...labOrderValidation, body('expectedTotal').optional().isFloat({ min: 0 })], validate, idempotency({ route: 'marketplace/labs/orders' }), wrap(async (req, res) => {
+router.post('/labs/orders', patient, [...labOrderValidation, body('expectedTotal').optional().isFloat({ min: 0 })], validate, idempotency({ route: 'marketplace/labs/orders', isOver: replayRules.labOrder }), wrap(async (req, res) => {
   const pid = req.user._id || req.user.id;
   const order = await labOrderService.bookLabOrder(pid, req.body);
   adService.attributeBooking(pid, req.body.storeId).catch(() => undefined);

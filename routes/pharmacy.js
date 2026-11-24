@@ -12,6 +12,7 @@ const { adminSection } = require('../middleware/adminAccess');
 const { protect, authorize, requireRecentAuth } = require('../middleware/auth');
 const { protectPatient } = require('../middleware/patientAuth');
 const idempotency = require('../middleware/idempotency');
+const replayRules = require('../utils/replayRules');
 const { uploadPrescription } = require('../middleware/upload');
 const {
   PHARMACY_ORDER_STATUSES,
@@ -293,8 +294,8 @@ router.post('/delivery-quote', protectPatient, [
   body('lat').optional({ values: 'null' }).isFloat({ min: -90, max: 90 }),
   body('lng').optional({ values: 'null' }).isFloat({ min: -180, max: 180 })
 ], validate, ctrl.quoteDelivery);
-router.post('/orders', protectPatient, createOrderValidation, validate, idempotency({ route: 'pharmacy/orders/create' }), ctrl.createOrder);
-router.post('/checkouts', protectPatient, splitCheckoutValidation, validate, idempotency({ route: 'pharmacy/checkouts/create' }), ctrl.createSplitCheckout);
+router.post('/orders', protectPatient, createOrderValidation, validate, idempotency({ route: 'pharmacy/orders/create', isOver: replayRules.pharmacyOrder }), ctrl.createOrder);
+router.post('/checkouts', protectPatient, splitCheckoutValidation, validate, idempotency({ route: 'pharmacy/checkouts/create', isOver: replayRules.pharmacyCheckout }), ctrl.createSplitCheckout);
 router.get('/checkouts/:id', protectPatient, mongoIdParam('id'), validate, ctrl.getCheckout);
 router.post('/medicines/:id/notify-me', protectPatient, mongoIdParam('id'), body('lat').isFloat({ min: -90, max: 90 }), body('lng').isFloat({ min: -180, max: 180 }), validate, ctrl.subscribeStockAlert);
 router.delete('/medicines/:id/notify-me', protectPatient, mongoIdParam('id'), validate, ctrl.unsubscribeStockAlert);

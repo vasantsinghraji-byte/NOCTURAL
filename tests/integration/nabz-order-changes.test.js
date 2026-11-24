@@ -204,4 +204,30 @@ describe('Customer order changes, rider contact and prescription links (real Mon
     expect(body.url).toBe(`/api/v1/pharmacy/vendor/orders/${id}/prescription`);
     expect((await request(app).get(`/api/v1/pharmacy/orders/${id}/prescription/link`).set(auth(tokens.other))).status).toBe(403);
   });
+
+  it('ordering the same basket again after cancelling makes a new order; while it is live it is a repeat', async () => {
+    if (!db) return;
+    const key = `again-${RUN}`;
+    const again = () => place().set('Idempotency-Key', key);
+    const first = await again();
+    expect(first.status).toBe(201);
+    const repeat = await again(); // double tap or lost reply
+    expect(repeat.body.order._id).toBe(first.body.order._id);
+    expect(repeat.headers['idempotent-replayed']).toBe('true');
+
+    await request(app).post(`/api/v1/pharmacy/orders/${first.body.order._id}/cancel`).set(auth(tokens.patient)).send({ reason: 'Changed my mind' });
+    const before = await stock(otc);
+    // Two taps at once on the reorder: one new order, the other is told it's in progress.
+    const both = await Promise.all([again(), again()]);
+    const made = both.filter((r) => r.status === 201);
+    expect(made.length).toBeGreaterThanOrEqual(1);
+    expect(new Set(made.map((r) => r.body.order._id)).size).toBe(1);
+    expect(both.every((r) => [201, 409].includes(r.status))).toBe(true);
+    const id = made[0].body.order._id;
+    expect(id).not.toBe(first.body.order._id);
+    expect(made[0].body.order.status).toBe('PLACED');
+    expect(await stock(otc)).toBe(before - 2);
+    expect(await PharmacyOrder.countDocuments({ patient: patient._id, status: 'PLACED', _id: id })).toBe(1);
+    expect((await again()).body.order._id).toBe(id); // and the new one is protected again
+  });
 });
