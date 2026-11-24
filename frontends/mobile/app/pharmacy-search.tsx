@@ -3,7 +3,6 @@ import { FlatList, Keyboard, Pressable, StyleSheet, TextInput, View } from 'reac
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { ArrowLeft, ChevronRight, Clock, Search, TrendingUp, X } from 'lucide-react-native';
 import type { StorefrontItem } from '@medrush/shared';
 import { Text } from '@/lib/T';
@@ -11,7 +10,7 @@ import { api, describeNetworkError } from '@/lib/api';
 import { useCart } from '@/lib/cart';
 import { ProductRow } from '@/lib/ProductRow';
 import { searchMedicines } from '@/lib/medicineSearch';
-import { Skeleton } from '@/lib/motion';
+import { FadeInView, Skeleton, SlideUp } from '@/lib/motion';
 import { C, F, R, depth } from '@/lib/theme';
 
 const RECENT_KEY = 'nabz.pharmacy.recentSearches';
@@ -68,7 +67,7 @@ export default function PharmacySearch() {
       {error ? <Text style={s.error}>{error}</Text> : !items ? (
         <View style={{ padding: 16, gap: 12 }}>{[0, 1, 2, 3].map((i) => <Skeleton key={i} height={64} radius={14} />)}</View>
       ) : !q.trim() ? (
-        <Animated.View entering={FadeIn.duration(180)} style={{ padding: 16, gap: 20 }}>
+        <FadeInView duration={180} style={{ padding: 16, gap: 20 }}>
           {recent.length ? (
             <View style={{ gap: 10 }}>
               <View style={s.headRow}>
@@ -93,7 +92,7 @@ export default function PharmacySearch() {
             </View>
           ) : null}
           <Text style={s.hint}>Tip: search by salt too, e.g. “paracetamol” finds every brand that has it.</Text>
-        </Animated.View>
+        </FadeInView>
       ) : (
         <FlatList
           data={results}
@@ -115,13 +114,13 @@ export default function PharmacySearch() {
       )}
 
       {count > 0 ? (
-        <Animated.View entering={SlideInDown.springify().damping(18)} style={[s.cartWrap, { bottom: 12 + insets.bottom }]}>
+        <SlideUp style={[s.cartWrap, { bottom: 12 + insets.bottom }]}>
           <Pressable onPress={toCart} style={({ pressed }) => [s.cartBar, pressed && { opacity: 0.9 }]} accessibilityRole="button" accessibilityLabel={`${count} items in cart. View cart`}>
             <Text style={s.cartText}>{count} item{count === 1 ? '' : 's'} in cart</Text>
             <Text style={s.cartCta}>View cart</Text>
             <ChevronRight size={18} color={C.onBrand} />
           </Pressable>
-        </Animated.View>
+        </SlideUp>
       ) : null}
     </View>
   );

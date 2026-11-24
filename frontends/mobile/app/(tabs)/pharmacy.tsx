@@ -8,8 +8,7 @@ import {
 import { MedicineArt } from '@/lib/MedicineArt';
 import { AddToCart } from '@/lib/AddToCart';
 import { useCart } from '@/lib/cart';
-import { Skeleton } from '@/lib/motion';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import { FadeInView, Skeleton, SlideUp } from '@/lib/motion';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTabBarSpace } from '@/lib/PillTabBar';
@@ -422,7 +421,7 @@ export default function Pharmacy() {
           const off = it.mrp > it.sellingPrice ? Math.round(((it.mrp - it.sellingPrice) / it.mrp) * 100) : 0;
           const qty = cart[it.medicine._id] || 0;
           return (
-            <Animated.View entering={FadeIn.duration(220)} style={styles.tile}>
+            <FadeInView duration={220} style={styles.tile}>
               <Pressable onPress={() => openProduct(it.medicine._id)} accessibilityRole="button" accessibilityLabel={`${it.medicine.name}, ${inr(it.sellingPrice)}. Open details`} style={{ gap: 3 }}>
               <View style={styles.tileImage}>
                 <MedicineArt name={it.medicine.name} form={it.medicine.form} category={it.medicine.category} height={76} style={StyleSheet.absoluteFill} />
@@ -445,14 +444,14 @@ export default function Pharmacy() {
                   <AddToCart qty={qty} name={it.medicine.name} onAdd={() => add(it.medicine._id)} onRemove={() => remove(it.medicine._id)} />
                 )}
               </View>
-            </Animated.View>
+            </FadeInView>
           );
         }}
       />
 
       {/* Cart bar: what's in the bag and what it costs, one tap to the bill */}
       {cartCount > 0 && (
-        <Animated.View entering={SlideInDown.springify().damping(18).stiffness(220)} style={[styles.cartDock, { bottom: tabSpace - 4 }]}>
+        <SlideUp style={[styles.cartDock, { bottom: tabSpace - 4 }]}>
           {toFree > 0 ? (
             <View style={styles.nudge}>
               <Truck size={14} color={C.mint} />
@@ -474,7 +473,7 @@ export default function Pharmacy() {
             <Text style={styles.cartCta}>View cart</Text>
             <ChevronRight size={18} color={C.onBrand} />
           </Pressable>
-        </Animated.View>
+        </SlideUp>
       )}
 
       <BottomSheet visible={cartOpen} onClose={() => setCartOpen(false)} title={active ? `Your cart · ${active.name}` : 'Your cart'}>
@@ -487,7 +486,7 @@ export default function Pharmacy() {
                   <Text style={styles.tileMeta}>{it.medicine.packSize || it.medicine.form}</Text>
                 </View>
                 <View style={{ width: 96 }}>
-                  <AddToCart qty={cart[it.medicine._id]} name={it.medicine.name} onAdd={() => add(it.medicine._id)} onRemove={() => remove(it.medicine._id)} still />
+                  <AddToCart qty={cart[it.medicine._id]} name={it.medicine.name} onAdd={() => add(it.medicine._id)} onRemove={() => remove(it.medicine._id)} />
                 </View>
                 <Text style={styles.linePrice}>{inr(it.sellingPrice * cart[it.medicine._id])}</Text>
               </View>

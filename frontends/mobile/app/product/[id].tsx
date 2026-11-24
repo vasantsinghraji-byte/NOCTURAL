@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown, SlideInDown } from 'react-native-reanimated';
 import { ChevronRight, FileText, ShieldCheck, Snowflake, Store } from 'lucide-react-native';
 import type { StorefrontItem } from '@medrush/shared';
 import { Text } from '@/lib/T';
@@ -13,7 +12,7 @@ import { AddToCart } from '@/lib/AddToCart';
 import { ProductRow } from '@/lib/ProductRow';
 import { exactSaltOf, saltOf } from '@/lib/medicineSearch';
 import { Empty, Btn, TopBar } from '@/lib/marketUI';
-import { Skeleton } from '@/lib/motion';
+import { Skeleton, Rise, SlideUp } from '@/lib/motion';
 import { inr } from '@/lib/market';
 import { C, F, R, depth } from '@/lib/theme';
 
@@ -71,22 +70,22 @@ export default function ProductDetail() {
     <View style={s.screen}>
       <TopBar title={storeName ? storeName.split(' · ')[0] : 'Medicine'} />
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 120 + insets.bottom }}>
-        <Animated.View entering={FadeInDown.duration(250)}>
+        <Rise>
           <View>
             <MedicineArt name={m.name} form={m.form} category={m.category} height={220} style={{ borderRadius: 20 }} />
             {off >= 5 ? <Text style={s.offBadge}>{off}% OFF</Text> : null}
             {m.requiresPrescription ? <Text style={s.rxBadge}>Rx</Text> : null}
           </View>
-        </Animated.View>
+        </Rise>
 
-        <Animated.View entering={FadeInDown.delay(40).duration(250)} style={{ gap: 4 }}>
+        <Rise delay={40} style={{ gap: 4 }}>
           <Text style={s.title}>{m.name}</Text>
           <Text style={s.meta}>{[m.packSize, m.strength].filter(Boolean).join(' · ') || m.form}</Text>
           {m.genericName ? <Text style={s.salt}>Salt: <Text style={s.saltStrong}>{m.genericName}</Text></Text> : null}
           {m.manufacturer ? <Text style={s.meta}>By {m.manufacturer}</Text> : null}
-        </Animated.View>
+        </Rise>
 
-        <Animated.View entering={FadeInDown.delay(80).duration(250)} style={s.priceCard}>
+        <Rise delay={80} style={s.priceCard}>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
             <Text style={s.price}>{inr(item.sellingPrice)}</Text>
             {off >= 5 ? <Text style={s.mrp}>MRP {inr(item.mrp)}</Text> : null}
@@ -97,7 +96,7 @@ export default function ProductDetail() {
             <Store size={14} color={item.inStock ? C.mint : C.muted} />
             <Text style={[s.stock, { color: item.inStock ? C.mint : C.muted }]}>{item.inStock ? `In stock at ${storeName || 'this store'}` : 'Out of stock here right now'}</Text>
           </View>
-        </Animated.View>
+        </Rise>
 
         {m.requiresPrescription ? (
           <View style={s.note}>
@@ -149,7 +148,7 @@ export default function ProductDetail() {
       </ScrollView>
 
       {/* Sticky buy bar */}
-      <Animated.View entering={SlideInDown.springify().damping(18)} style={[s.bar, { paddingBottom: 12 + insets.bottom }]}>
+      <SlideUp style={[s.bar, { paddingBottom: 12 + insets.bottom }]}>
         <View style={{ flex: 1 }}>
           <Text style={s.barPrice}>{inr(item.sellingPrice)}</Text>
           {cheapest ? <Text style={s.barHint} numberOfLines={1}>Same salt from {inr(cheapest.sellingPrice)} below</Text> : <Text style={s.meta} numberOfLines={1}>{m.packSize || m.form}</Text>}
@@ -163,7 +162,7 @@ export default function ProductDetail() {
             <ChevronRight size={16} color={C.onBrand} />
           </Pressable>
         ) : null}
-      </Animated.View>
+      </SlideUp>
     </View>
   );
 }

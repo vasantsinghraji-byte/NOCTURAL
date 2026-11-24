@@ -1,5 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { C } from './theme';
 
@@ -7,6 +7,41 @@ import { C } from './theme';
 export const tap = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined); };
 export const success = () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined); };
 export const warn = () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined); };
+
+// All motion here uses React Native's own Animated. Don't add react-native-reanimated:
+// on RN 0.76 with the new architecture it makes every Modal open collapsed in the
+// top-left corner (reanimated issue 6659). lib/motionGuard.test.ts enforces this.
+
+// Read once at start, then kept up to date: mount animations need the answer straight away.
+let reduceMotion = false;
+AccessibilityInfo.isReduceMotionEnabled().then((v) => { reduceMotion = v; }).catch(() => undefined);
+AccessibilityInfo.addEventListener('reduceMotionChanged', (v) => { reduceMotion = v; });
+
+/** Whether the person asked their phone for less movement. */
+export function useReducedMotion(): boolean {
+  const [v, setV] = useState(reduceMotion);
+  useEffect(() => {
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setV);
+    return () => sub.remove();
+  }, []);
+  return v;
+}
+
+/** Fades in on mount. */
+export function FadeInView({ children, duration = 200, style }: { children: ReactNode; duration?: number; style?: StyleProp<ViewStyle> }) {
+  const reduce = useReducedMotion();
+  const v = useRef(new Animated.Value(reduce ? 1 : 0)).current;
+  useEffect(() => { Animated.timing(v, { toValue: 1, duration, useNativeDriver: true }).start(); }, [v, duration]);
+  return <Animated.View style={[style, { opacity: v }]}>{children}</Animated.View>;
+}
+
+/** Springs up from below on mount (cart bars, sticky buy bars). */
+export function SlideUp({ children, distance = 120, style }: { children: ReactNode; distance?: number; style?: StyleProp<ViewStyle> }) {
+  const reduce = useReducedMotion();
+  const v = useRef(new Animated.Value(reduce ? 0 : distance)).current;
+  useEffect(() => { Animated.spring(v, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 220, mass: 1 }).start(); }, [v]);
+  return <Animated.View style={[style, { transform: [{ translateY: v }] }]}>{children}</Animated.View>;
+}
 
 const OUTER_KEYS = new Set([
   'flex', 'flexGrow', 'flexShrink', 'flexBasis', 'alignSelf', 'width', 'minWidth', 'maxWidth',
