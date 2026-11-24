@@ -249,7 +249,7 @@ function Refunds({ sensitive }: { sensitive: Sensitive }) {
     const reference = online ? undefined : await promptDialog({ title: `Refund ${inr(r.amount)} by bank transfer`, label: 'Transfer reference (UTR)', minLength: 4, maxLength: 80 });
     if (!online && !reference) return;
     if (online && !(await confirmDialog({ title: `Refund ${inr(r.amount)} through Razorpay?`, confirmLabel: 'Refund' }))) return;
-    sensitive(async () => { const out = await api.adminProcessRefund({ type: r.type, id: r.id, reference: reference || undefined }); setNotice(`Refunded ${inr(out.amount)} (${out.refundId}).`); await load(); });
+    sensitive(async () => { const out = await api.adminProcessRefund({ type: r.type, id: r.id, entryId: r.entryId, reference: reference || undefined }); setNotice(`Refunded ${inr(out.amount)} (${out.refundId}).`); await load(); });
   };
   if (!rows) return <div className="mk-skel" />;
   return (
@@ -257,10 +257,13 @@ function Refunds({ sensitive }: { sensitive: Sensitive }) {
       {notice && <p className="mk-note green" role="status">{notice}</p>}
       {rows.length === 0 && <p className="mk-meta">No refunds waiting.</p>}
       {rows.map((r) => (
-        <article key={`${r.type}-${r.id}`} className="mk-card" style={{ padding: 14 }}>
+        <article key={`${r.type}-${r.id}-${r.entryId || ''}`} className="mk-card" style={{ padding: 14 }}>
           <div className="mk-row" style={{ flexWrap: 'wrap' }}>
             <span className="mk-tile"><BadgeIndianRupee size={20} aria-hidden="true" /></span>
-            <div className="grow"><p className="mk-title">{inr(r.amount)} to {r.customer} <span className="mk-badge">{r.type === 'LAB' ? 'Lab order' : 'Care plan'}</span></p><p className="mk-meta" style={{ margin: 0 }}>{r.shop} · {r.reason} · since {fmtDay(r.since)}</p></div>
+            <div className="grow"><p className="mk-title">{inr(r.amount)} to {r.customer} <span className="mk-badge">{r.type === 'LAB' ? 'Lab order' : r.type === 'PLAN' ? 'Care plan' : `Medicines ${r.orderNumber || ''}${r.entryId ? ' · one item' : ''}`}</span></p><p className="mk-meta" style={{ margin: 0 }}>{r.shop} · {r.reason} · since {fmtDay(r.since)}</p>
+              {r.type === 'PHARMACY' && (r.stopped
+                ? <p className="mk-meta" style={{ margin: 0 }}><span className="mk-badge red">Needs you</span> Automatic tries stopped. {r.error}</p>
+                : r.error && <p className="mk-meta" style={{ margin: 0 }}>Trying again automatically. Last problem: {r.error}</p>)}</div>
             {r.paymentId?.startsWith('pay_') && <button type="button" className="mk-btn small" onClick={() => pay(r, true)}>Refund Online</button>}
             <button type="button" className="mk-btn ghost small" onClick={() => pay(r, false)}>Mark Bank Transfer</button>
           </div>

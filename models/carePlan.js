@@ -83,7 +83,8 @@ const CarePlanSchema = new mongoose.Schema({
     reason: String,
     requestedAt: Date,
     processedAt: Date,
-    refundId: String
+    refundId: String,
+    lockedUntil: Date // one admin pays at a time
   },
 
   status: { type: String, enum: CARE_PLAN_STATUSES, default: 'ACTIVE' },

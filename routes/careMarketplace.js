@@ -21,6 +21,7 @@ const labOrderService = require('../services/labOrderService');
 const walletService = require('../services/walletService');
 const adService = require('../services/adService');
 const careAdminService = require('../services/careAdminService');
+const securityAuditService = require('../services/securityAuditService');
 const settingsService = require('../services/settingsService');
 const storageConfig = require('../config/storage');
 const { uploadLabReport } = require('../middleware/upload');
@@ -554,8 +555,14 @@ router.get('/admin/refunds', area("care"), wrap(async (req, res) => {
   res.json({ success: true, refunds: await careAdminService.refundQueue() });
 }));
 
-router.post('/admin/refunds', areaSensitive("care"), [body('type').isIn(['PLAN', 'LAB']), body('id').isMongoId(), body('reference').optional().isString().isLength({ max: 80 })], validate, wrap(async (req, res) => {
-  res.json({ success: true, ...(await careAdminService.processRefund(req.user._id, req.body)) });
+router.post('/admin/refunds', areaSensitive("care"), [body('type').isIn(['PLAN', 'LAB', 'PHARMACY']), body('id').isMongoId(), body('entryId').optional().isMongoId(), body('reference').optional().isString().trim().isLength({ min: 4, max: 80 })], validate, wrap(async (req, res) => {
+  const { type, id: targetId, entryId, reference } = req.body;
+  const paid = await careAdminService.processRefund(req.user._id, req.body);
+  await securityAuditService.record({
+    event: 'admin_refund_processed', actorId: req.user._id, actorType: 'user', targetType: type.toLowerCase(), targetId, req,
+    metadata: { amount: paid.amount, refundId: paid.refundId, entryId, method: reference ? 'BANK' : 'GATEWAY' }
+  });
+  res.json({ success: true, ...paid });
 }));
 
 router.get('/admin/reports', area("care"), wrap(async (req, res) => {

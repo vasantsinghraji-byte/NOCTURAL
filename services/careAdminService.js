@@ -14,6 +14,8 @@ const RateCardItem = require('../models/rateCardItem');
 const AdCampaign = require('../models/adCampaign');
 const { SettingChange } = require('../models/platformSetting');
 const walletService = require('./walletService');
+const pharmacyPaymentService = require('./pharmacyPaymentService');
+const gateway = require('../utils/razorpayGateway');
 const careSlotService = require('./careSlotService');
 const { round2 } = require('./pricingService');
 const { STORE_KINDS } = require('../constants/marketplace');
@@ -29,10 +31,11 @@ const maskName = (name) => {
 /** Numbers for the admin overview cards. */
 async function overview() {
   const todayStart = new Date(`${careSlotService.todayIst()}T00:00:00Z`);
-  const [shopsPending, refundsPlans, refundsLabs, reports, needsAction, todaySessions, labLate, labToday, adsPending, settingsPending, offersPending, callbacksOpen] = await Promise.all([
+  const [shopsPending, refundsPlans, refundsLabs, refundsMedicines, reports, needsAction, todaySessions, labLate, labToday, adsPending, settingsPending, offersPending, callbacksOpen] = await Promise.all([
     CareStore.countDocuments({ status: 'PENDING' }),
     CarePlan.countDocuments({ 'refund.status': 'PENDING' }),
     LabOrder.countDocuments({ 'payment.status': 'REFUND_PENDING' }),
+    pharmacyPaymentService.owedRefunds().then((r) => r.length),
     NurseBooking.countDocuments({ flagged: true }),
     NurseBooking.countDocuments({ 'marketplace.plan': { $exists: true }, status: 'REQUESTED', 'dispatch.status': 'NO_STAFF' }),
     NurseBooking.countDocuments({ 'marketplace.plan': { $exists: true }, scheduledDate: todayStart, status: { $ne: 'CANCELLED' } }),
@@ -43,50 +46,91 @@ async function overview() {
     RateCardItem.countDocuments({ 'offer.status': 'PENDING' }),
     require('../models/callbackRequest').countDocuments({ status: 'OPEN' })
   ]);
-  return { shopsPending, refundsPending: refundsPlans + refundsLabs, reports, needsAction, todaySessions, labLate, labToday, adsPending, settingsPending, offersPending, callbacksOpen };
+  return { shopsPending, refundsPending: refundsPlans + refundsLabs + refundsMedicines, reports, needsAction, todaySessions, labLate, labToday, adsPending, settingsPending, offersPending, callbacksOpen };
 }
 
-/** Plans and lab orders with money to give back. */
+/** Plans, lab orders and medicine orders with money to give back. */
 async function refundQueue() {
-  const [plans, labs] = await Promise.all([
+  const [plans, labs, medicines] = await Promise.all([
     CarePlan.find({ 'refund.status': 'PENDING' }).populate('patient', 'name').populate('store', 'name').sort({ 'refund.requestedAt': 1 }).limit(100).lean(),
-    LabOrder.find({ 'payment.status': 'REFUND_PENDING' }).populate('patient', 'name').populate('store', 'name').sort({ updatedAt: 1 }).limit(100).lean()
+    LabOrder.find({ 'payment.status': 'REFUND_PENDING' }).populate('patient', 'name').populate('store', 'name').sort({ updatedAt: 1 }).limit(100).lean(),
+    pharmacyPaymentService.owedRefunds()
   ]);
   return [
     ...plans.map((p) => ({ type: 'PLAN', id: p._id, customer: maskName(p.patient && p.patient.name), shop: p.store && p.store.name, amount: p.refund.amount, reason: p.refund.reason, paymentId: p.payment && p.payment.paymentId, since: p.refund.requestedAt })),
-    ...labs.map((o) => ({ type: 'LAB', id: o._id, customer: maskName(o.patient && o.patient.name), shop: o.store && o.store.name, amount: o.payment.amount, reason: (o.cancellation && o.cancellation.reason) || 'Cancelled', paymentId: o.payment.paymentId, since: o.updatedAt }))
+    ...labs.map((o) => ({ type: 'LAB', id: o._id, customer: maskName(o.patient && o.patient.name), shop: o.store && o.store.name, amount: o.payment.amount, reason: (o.cancellation && o.cancellation.reason) || 'Cancelled', paymentId: o.payment.paymentId, since: o.updatedAt })),
+    ...medicines.map(({ patient, vendor, ...r }) => ({ type: 'PHARMACY', ...r, customer: maskName(patient && patient.name), shop: vendor && vendor.name }))
   ];
 }
 
+// Where each kind keeps its refund, and the notes that identify it on Razorpay.
+const CARE_REFUNDS = {
+  PLAN: {
+    Model: CarePlan,
+    pending: { 'refund.status': 'PENDING' },
+    lock: 'refund.lockedUntil',
+    amount: (d) => d.refund.amount,
+    // A plan can be refunded again later, so the request time is part of its key.
+    notes: (d) => ({ planId: String(d._id), planRefund: `${d._id}:${d.refund.requestedAt ? new Date(d.refund.requestedAt).getTime() : 0}` }),
+    key: 'planRefund',
+    done: (refundId, now) => ({ $set: { 'refund.status': 'PROCESSED', 'refund.processedAt': now, 'refund.refundId': refundId } })
+  },
+  LAB: {
+    Model: LabOrder,
+    pending: { 'payment.status': 'REFUND_PENDING' },
+    lock: 'payment.refundLockedUntil',
+    amount: (d) => d.payment.amount,
+    notes: (d) => ({ labOrderId: String(d._id) }),
+    key: 'labOrderId',
+    done: (refundId, now) => ({ $set: { 'payment.status': 'REFUNDED' }, $push: { timeline: { status: 'REFUNDED', at: now, by: 'ADMIN', note: refundId } } })
+  }
+};
+const CARE_REFUND_LOCK_MS = 60 * 1000;
+
 /**
  * Pay a refund back: through Razorpay when the keys are set and the payment
- * was online, else mark it paid by bank transfer with a reference.
+ * was online, else mark it paid by bank transfer with a reference. Claimed
+ * before any money moves, so two admins on the same row pay it once; Razorpay
+ * is asked about earlier tries first.
  */
-async function processRefund(adminId, { type, id, reference } = {}) {
-  const Model = type === 'LAB' ? LabOrder : CarePlan;
-  const doc = await Model.findById(id);
-  if (!doc) throw new NotFoundError('Refund');
-  const pending = type === 'LAB' ? doc.payment.status === 'REFUND_PENDING' : doc.refund.status === 'PENDING';
-  if (!pending) throw new ConflictError('This refund is already done');
-  const amount = type === 'LAB' ? doc.payment.amount : doc.refund.amount;
-  const paymentId = doc.payment && doc.payment.paymentId;
-  let refundId = reference ? String(reference).slice(0, 80) : null;
-  const keys = process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET && process.env.RAZORPAY_ENABLED !== 'false';
-  if (!refundId) {
-    if (!keys || !paymentId || !/^pay_/.test(paymentId)) throw new PaymentError('Enter the bank transfer reference (online refund needs Razorpay and an online payment)');
-    const Razorpay = require('razorpay');
-    const refund = await new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET })
-      .payments.refund(paymentId, { amount: Math.round(amount * 100), notes: { [type === 'LAB' ? 'labOrderId' : 'planId']: String(doc._id) } });
-    refundId = refund.id;
+async function processRefund(adminId, { type, id, entryId, reference } = {}) {
+  if (type === 'PHARMACY') {
+    const paid = await pharmacyPaymentService.settleRefund(id, { adminId, entryId, reference });
+    logger.info('Medicine refund processed', { id: String(id), entryId: entryId && String(entryId), amount: paid.amount, by: String(adminId), refundId: paid.refundId });
+    return paid;
   }
+  const kind = CARE_REFUNDS[type === 'LAB' ? 'LAB' : 'PLAN'];
   const now = new Date();
-  if (type === 'LAB') {
-    await LabOrder.updateOne({ _id: doc._id, 'payment.status': 'REFUND_PENDING' }, { $set: { 'payment.status': 'REFUNDED' }, $push: { timeline: { status: 'REFUNDED', at: now, by: 'ADMIN', note: refundId } } });
-  } else {
-    await CarePlan.updateOne({ _id: doc._id, 'refund.status': 'PENDING' }, { $set: { 'refund.status': 'PROCESSED', 'refund.processedAt': now, 'refund.refundId': refundId } });
+  const doc = await kind.Model.findOneAndUpdate(
+    { _id: id, ...kind.pending, $or: [{ [kind.lock]: null }, { [kind.lock]: { $lte: now } }] },
+    { $set: { [kind.lock]: new Date(now.getTime() + CARE_REFUND_LOCK_MS) } },
+    { returnDocument: 'after' }
+  );
+  if (!doc) {
+    if (!(await kind.Model.exists({ _id: id }))) throw new NotFoundError('Refund');
+    throw new ConflictError('This refund is already done, or another admin is paying it right now');
   }
-  logger.info('Care refund processed', { type, id: String(id), amount, by: String(adminId), refundId });
-  return { amount, refundId };
+  try {
+    const amount = kind.amount(doc);
+    const paymentId = doc.payment && doc.payment.paymentId;
+    const online = gateway.isEnabled() && paymentId && /^pay_/.test(paymentId);
+    if (!reference && !online) throw new PaymentError('Enter the bank transfer reference (online refund needs Razorpay and an online payment)');
+    const notes = kind.notes(doc);
+    let sent = null;
+    if (online) {
+      sent = await gateway.findRefund(gateway.getClient(), paymentId, (n) => n[kind.key] === notes[kind.key])
+        .catch(() => { throw new PaymentError('Razorpay can’t be reached to check whether it already paid this refund. Try again shortly'); });
+    }
+    const already = !!sent;
+    if (!sent && !reference) sent = await gateway.getClient().payments.refund(paymentId, { amount: gateway.toPaise(amount), notes });
+    const refundId = sent ? sent.id : String(reference).slice(0, 80);
+    await kind.Model.updateOne({ _id: doc._id, ...kind.pending }, kind.done(refundId, new Date()));
+    logger.info('Care refund processed', { type, id: String(id), amount, by: String(adminId), refundId });
+    if (already && reference) throw new ConflictError('Razorpay has already refunded this, so it is marked done. Don’t send a bank transfer');
+    return { amount, refundId };
+  } finally {
+    await kind.Model.updateOne({ _id: doc._id }, { $unset: { [kind.lock]: 1 } });
+  }
 }
 
 /** Visits customers reported (extra cash, no-show) and visits started far from the address. */

@@ -75,7 +75,8 @@ const LabOrderSchema = new mongoose.Schema({
     collectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     // Pay at collection: what the lab actually took (the bill is PAID only when it covers it).
     collectedAmount: Number,
-    holdUntil: Date
+    holdUntil: Date,
+    refundLockedUntil: Date // one admin pays a refund at a time
   },
 
   status: { type: String, enum: LAB_ORDER_STATUSES, default: 'SCHEDULED' },

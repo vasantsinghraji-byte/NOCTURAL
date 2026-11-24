@@ -62,6 +62,7 @@ async function runTick(now = new Date()) {
   await step('dispatch', () => require('./dispatchService').sweep(), results);
   await step('pharmacyAcceptance', () => require('./pharmacyAssignmentService').sweepAcceptanceTimeouts(), results);
   await step('pharmacyRefunds', () => require('./pharmacyPaymentService').retryPartialRefunds(), results);
+  await step('pharmacyFullRefunds', () => require('./pharmacyPaymentService').retryFullRefunds(), results);
   await step('pharmacyUnpaid', () => require('./pharmacyPaymentService').expireUnpaidOrders(), results);
   await step('pharmacyHousekeeping', () => require('./pharmacyAssignmentService').housekeeping(), results);
   await step('careRefundOutbox', () => require('./paymentService').processRefundOutboxBatch(), results);

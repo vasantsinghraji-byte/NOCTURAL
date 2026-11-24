@@ -90,7 +90,9 @@ const RefundSchema = new mongoose.Schema({
   amount: { type: Number, required: true, min: 0 },
   reason: { type: String, maxlength: 200 },
   status: { type: String, enum: ['PENDING', 'DONE', 'FAILED'], default: 'PENDING' },
-  refundId: String,
+  refundId: String, // Razorpay refund, or the bank transfer reference
+  method: { type: String, enum: ['GATEWAY', 'BANK'], default: 'GATEWAY' },
+  by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // admin, for a bank transfer
   error: { type: String, maxlength: 300 },
   attempts: { type: Number, default: 0 },
   lockedUntil: Date, // one sender at a time (caller vs retry worker)
@@ -315,9 +317,14 @@ const PharmacyOrderSchema = new mongoose.Schema({
     paymentId: String,
     paidAt: Date,
     failureReason: String,
-    refundId: String,
+    refundId: String, // Razorpay refund, or the bank transfer reference
+    refundMethod: { type: String, enum: ['GATEWAY', 'BANK'] },
+    refundedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // admin, for a bank transfer
     refundedAt: Date,
-    refundError: String
+    refundReason: { type: String, maxlength: 200 },
+    refundError: String,
+    refundAttempts: { type: Number, default: 0 },
+    refundLockedUntil: Date // one sender at a time, then the wait before the next try
   }
 }, {
   timestamps: true
@@ -336,6 +343,8 @@ PharmacyOrderSchema.index({ deliveryGeohash: 1, createdAt: -1 });
 // Acceptance-timeout sweep (services/pharmacyAssignmentService.js)
 PharmacyOrderSchema.index({ status: 1, acceptBy: 1 }, { partialFilterExpression: { acceptBy: { $exists: true } } });
 PharmacyOrderSchema.index({ 'refunds.status': 1 }, { sparse: true });
+// Full refunds still owed (retry sweep and the admin queue): only ever a handful.
+PharmacyOrderSchema.index({ updatedAt: 1 }, { name: 'refund_pending', partialFilterExpression: { paymentStatus: 'REFUND_PENDING' } });
 // Monthly per-patient caps and the H1 register / recall lookups.
 PharmacyOrderSchema.index({ patient: 1, 'items.medicine': 1, createdAt: -1 });
 PharmacyOrderSchema.index({ 'items.batches.batchNumber': 1 }, { sparse: true });

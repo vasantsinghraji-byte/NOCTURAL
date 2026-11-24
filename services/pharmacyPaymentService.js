@@ -322,56 +322,225 @@ async function recordPaymentFailure(orderId, patientId, reason) {
   return updated || order;
 }
 
-/**
- * Refund a PAID order in full. Never throws: a gateway failure leaves the
- * order in REFUND_PENDING (with refundError) for manual reconciliation.
- */
-async function refundOrderPayment(order, reason = 'Order cancelled') {
-  if (!order || order.paymentMode !== 'PREPAID' || order.paymentStatus !== 'PAID') return order;
+// ── Full refunds ─────────────────────────────────────────────────────────
+//
+// PAID → REFUND_PENDING → REFUNDED. Whoever holds razorpay.refundLockedUntil
+// talks to Razorpay. Every attempt after the first asks Razorpay whether an
+// earlier one went through; if it can't be asked, nothing is paid. A failed
+// attempt waits longer each time (1 min … 6 h), then stops for an admin.
 
-  // Lock PAID → REFUND_PENDING so only one caller ever hits the refund API.
-  const locked = await PharmacyOrder.findOneAndUpdate(
-    { _id: order._id, paymentStatus: 'PAID' },
-    { $set: { paymentStatus: 'REFUND_PENDING' } },
-    { new: true }
-  );
-  if (!locked) return PharmacyOrder.findById(order._id);
+const REFUND_LOCK_MS = 60 * 1000;
+const MAX_FULL_REFUND_ATTEMPTS = 12;
+const REFUND_BACKOFF_CAP_MS = 6 * 60 * 60 * 1000;
+const refundBackoffMs = (attempts) => Math.min(REFUND_BACKOFF_CAP_MS, 60 * 1000 * (2 ** Math.max(0, attempts - 1)));
+const lockFree = (now) => [{ 'razorpay.refundLockedUntil': null }, { 'razorpay.refundLockedUntil': { $lte: now } }];
 
+const markRefunded = (orderId, refundId, extra = {}) => PharmacyOrder.findOneAndUpdate(
+  { _id: orderId, paymentStatus: 'REFUND_PENDING' },
+  {
+    $set: {
+      paymentStatus: 'REFUNDED',
+      'razorpay.refundId': refundId,
+      'razorpay.refundMethod': 'GATEWAY',
+      'razorpay.refundedAt': new Date(),
+      ...extra
+    },
+    $unset: { 'razorpay.refundError': 1, 'razorpay.refundLockedUntil': 1 }
+  },
+  { new: true }
+);
+
+/** The full refund already sent for this order (partial ones carry a refundEntryId). */
+const findFullRefund = (order) => gateway.findRefund(
+  gateway.getClient(),
+  order.razorpay.paymentId,
+  (notes) => notes.pharmacyOrderId === String(order._id) && !notes.refundEntryId
+);
+
+/** Pay an order whose refund lock the caller holds. Never throws. */
+async function sendFullRefund(locked, { checkFirst, now = new Date() }) {
   try {
-    const razorpay = gateway.getClient();
-    const refund = await razorpay.payments.refund(locked.razorpay.paymentId, {
+    if (!gateway.isEnabled() || !locked.razorpay?.paymentId) throw new Error('Payment gateway unavailable');
+    if (checkFirst) {
+      const existing = await findFullRefund(locked);
+      if (existing) return (await markRefunded(locked._id, existing.id)) || locked;
+    }
+    const refund = await gateway.getClient().payments.refund(locked.razorpay.paymentId, {
       amount: gateway.toPaise(locked.amounts.total),
-      notes: { pharmacyOrderId: String(locked._id), reason: String(reason).slice(0, 200) }
+      notes: { pharmacyOrderId: String(locked._id), reason: String(locked.razorpay.refundReason || 'Order cancelled').slice(0, 200) }
     });
-    const refunded = await PharmacyOrder.findOneAndUpdate(
-      { _id: locked._id, paymentStatus: 'REFUND_PENDING' },
-      {
-        $set: {
-          paymentStatus: 'REFUNDED',
-          'razorpay.refundId': refund.id,
-          'razorpay.refundedAt': new Date()
-        },
-        $unset: { 'razorpay.refundError': 1 }
-      },
-      { new: true }
-    );
+    const refunded = await markRefunded(locked._id, refund.id);
     logger.info('Pharmacy order refunded', {
       orderId: String(locked._id), refundId: refund.id, amount: locked.amounts.total
     });
     return refunded || locked;
   } catch (err) {
     logger.error('Pharmacy refund failed — order left in REFUND_PENDING', {
-      orderId: String(locked._id), paymentId: locked.razorpay?.paymentId, error: err.message
+      orderId: String(locked._id), paymentId: locked.razorpay?.paymentId, attempts: locked.razorpay?.refundAttempts, error: err.message
     });
     monitoring.triggerAlert('pharmacy_refund_failed', 1, {
       orderId: String(locked._id), paymentId: locked.razorpay?.paymentId
     });
     await PharmacyOrder.updateOne(
-      { _id: locked._id },
-      { $set: { 'razorpay.refundError': String(err.message || 'Refund failed').slice(0, 300) } }
+      { _id: locked._id, paymentStatus: 'REFUND_PENDING' },
+      {
+        $set: {
+          'razorpay.refundError': String(err.message || 'Refund failed').slice(0, 300),
+          'razorpay.refundLockedUntil': new Date(now.getTime() + refundBackoffMs(locked.razorpay?.refundAttempts || 1))
+        }
+      }
     ).catch(() => {});
     return locked;
   }
+}
+
+/**
+ * Refund a PAID order in full. Never throws: a gateway failure leaves the order
+ * in REFUND_PENDING (with refundError) for retryFullRefunds and the admin queue.
+ */
+async function refundOrderPayment(order, reason = 'Order cancelled') {
+  if (!order || order.paymentMode !== 'PREPAID' || order.paymentStatus !== 'PAID') return order;
+
+  // Lock PAID → REFUND_PENDING so only one caller ever hits the refund API.
+  const now = new Date();
+  const locked = await PharmacyOrder.findOneAndUpdate(
+    { _id: order._id, paymentStatus: 'PAID' },
+    {
+      $set: {
+        paymentStatus: 'REFUND_PENDING',
+        'razorpay.refundReason': String(reason).slice(0, 200),
+        'razorpay.refundAttempts': 1,
+        'razorpay.refundLockedUntil': new Date(now.getTime() + REFUND_LOCK_MS)
+      }
+    },
+    { new: true }
+  );
+  if (!locked) return PharmacyOrder.findById(order._id);
+  return sendFullRefund(locked, { checkFirst: false, now });
+}
+
+/**
+ * Take the refund lock on an order still owed its money (null = someone else has
+ * it, or it's done). Clears the last error: an order with an error is waiting for
+ * its next try, one without is being sent, and only the first may be hurried.
+ */
+const claimFullRefund = (orderId, { now, ignoreLimit = false }) => PharmacyOrder.findOneAndUpdate(
+  {
+    _id: orderId,
+    paymentMode: 'PREPAID',
+    paymentStatus: 'REFUND_PENDING',
+    ...(ignoreLimit ? {} : { 'razorpay.refundAttempts': { $not: { $gte: MAX_FULL_REFUND_ATTEMPTS } } }),
+    $or: lockFree(now)
+  },
+  {
+    $set: { 'razorpay.refundLockedUntil': new Date(now.getTime() + REFUND_LOCK_MS) },
+    $unset: { 'razorpay.refundError': 1 },
+    $inc: { 'razorpay.refundAttempts': 1 }
+  },
+  { new: true }
+);
+
+/** Worker: full refunds that failed or were interrupted. */
+async function retryFullRefunds({ now = new Date(), limit = 20 } = {}) {
+  const due = await PharmacyOrder.find({
+    paymentMode: 'PREPAID',
+    paymentStatus: 'REFUND_PENDING',
+    'razorpay.refundAttempts': { $not: { $gte: MAX_FULL_REFUND_ATTEMPTS } },
+    $or: lockFree(now)
+  }).select('_id').sort({ updatedAt: 1 }).limit(limit).lean();
+  let retried = 0;
+  for (const { _id } of due) {
+    const locked = await claimFullRefund(_id, { now });
+    if (!locked) continue;
+    await sendFullRefund(locked, { checkFirst: true, now });
+    retried += 1;
+  }
+  return { retried };
+}
+
+const busy = () => new ConflictError('This refund is already done, or is being sent right now. Refresh in a minute');
+
+/**
+ * Admin: pay an owed refund now. With a bank transfer `reference` nothing is
+ * sent to Razorpay, but Razorpay is asked first so the customer isn't paid twice.
+ * Covers the full refund, or one partial refund (`entryId`).
+ */
+async function settleRefund(orderId, { adminId, entryId, reference, now = new Date() } = {}) {
+  if (entryId) return settlePartialRefund(orderId, { adminId, entryId, reference, now });
+  // An admin doesn't have to sit out the wait between retries, only a send in progress.
+  await PharmacyOrder.updateOne(
+    { _id: orderId, paymentStatus: 'REFUND_PENDING', 'razorpay.refundError': { $exists: true } },
+    { $unset: { 'razorpay.refundLockedUntil': 1, 'razorpay.refundError': 1 } }
+  );
+  const locked = await claimFullRefund(orderId, { now, ignoreLimit: true });
+  if (!locked) throw busy();
+  const amount = locked.amounts.total;
+  if (!reference) {
+    const done = await sendFullRefund(locked, { checkFirst: true, now });
+    if (done.paymentStatus !== 'REFUNDED') throw new PaymentError('Razorpay could not send this refund. It stays in the queue');
+    return { amount, refundId: done.razorpay.refundId };
+  }
+  const existing = await alreadySent(() => findFullRefund(locked), locked, () => PharmacyOrder.updateOne({ _id: locked._id }, { $unset: { 'razorpay.refundLockedUntil': 1 } }));
+  if (existing) {
+    await markRefunded(locked._id, existing.id);
+    throw new ConflictError('Razorpay has already refunded this order, so it is marked done. Don’t send a bank transfer');
+  }
+  await markRefunded(locked._id, String(reference).slice(0, 80), { 'razorpay.refundMethod': 'BANK', 'razorpay.refundedBy': adminId });
+  return { amount, refundId: String(reference).slice(0, 80) };
+}
+
+/** Before recording a bank transfer: did Razorpay already pay? Refuses if Razorpay can't answer. */
+async function alreadySent(find, order, release) {
+  if (!gateway.isEnabled() || !order.razorpay?.paymentId) return null;
+  try {
+    return await find();
+  } catch {
+    await release();
+    throw new PaymentError('Razorpay can’t be reached to check whether it already paid this refund. Try again shortly');
+  }
+}
+
+async function settlePartialRefund(orderId, { adminId, entryId, reference, now }) {
+  await PharmacyOrder.updateOne(
+    { _id: orderId, refunds: { $elemMatch: { _id: entryId, status: 'FAILED' } } },
+    { $unset: { 'refunds.$.lockedUntil': 1 } }
+  );
+  if (!reference) {
+    const done = await processPartialRefund(orderId, entryId, now, { ignoreLimit: true });
+    const entry = done && done.refunds.id(entryId);
+    if (!entry) throw new NotFoundError('Refund');
+    if (entry.status !== 'DONE') throw entry.status === 'FAILED' ? new PaymentError('Razorpay could not send this refund. It stays in the queue') : busy();
+    return { amount: entry.amount, refundId: entry.refundId };
+  }
+  const locked = await claimPartialRefund(orderId, entryId, now, { ignoreLimit: true });
+  if (!locked) throw busy();
+  const entry = locked.refunds.id(entryId);
+  const existing = await alreadySent(
+    () => findExistingGatewayRefund(locked.razorpay.paymentId, entryId), locked,
+    () => PharmacyOrder.updateOne({ _id: orderId, 'refunds._id': entryId }, { $set: { 'refunds.$.status': 'FAILED' }, $unset: { 'refunds.$.lockedUntil': 1 } })
+  );
+  await markPartialDone(orderId, entry, existing ? existing.id : String(reference).slice(0, 80), existing ? {} : { 'refunds.$.method': 'BANK', 'refunds.$.by': adminId });
+  if (existing) throw new ConflictError('Razorpay has already refunded this item, so it is marked done. Don’t send a bank transfer');
+  return { amount: entry.amount, refundId: String(reference).slice(0, 80) };
+}
+
+/** Admin queue: medicine refunds still owed (full, and single items), oldest first. */
+async function owedRefunds(limit = 100) {
+  const rows = await PharmacyOrder.find({
+    $or: [{ paymentStatus: 'REFUND_PENDING' }, { 'refunds.status': { $in: ['PENDING', 'FAILED'] } }]
+  }).select('orderNumber patient vendor amounts paymentStatus razorpay refunds updatedAt')
+    .populate('patient', 'name').populate('vendor', 'name').sort({ updatedAt: 1 }).limit(limit).lean();
+  return rows.flatMap((o) => {
+    const base = { id: o._id, orderNumber: o.orderNumber, patient: o.patient, vendor: o.vendor, paymentId: o.razorpay && o.razorpay.paymentId };
+    const full = o.paymentStatus === 'REFUND_PENDING' ? [{
+      ...base, amount: o.amounts.total, reason: (o.razorpay && o.razorpay.refundReason) || 'Order cancelled', since: o.updatedAt,
+      error: o.razorpay && o.razorpay.refundError, stopped: ((o.razorpay && o.razorpay.refundAttempts) || 0) >= MAX_FULL_REFUND_ATTEMPTS
+    }] : [];
+    const items = (o.refunds || []).filter((r) => r.status !== 'DONE').map((r) => ({
+      ...base, entryId: r._id, amount: r.amount, reason: r.reason || 'Item unavailable', since: r.createdAt, error: r.error, stopped: (r.attempts || 0) >= MAX_REFUND_ATTEMPTS
+    }));
+    return [...full, ...items];
+  });
 }
 
 // ── Partial refunds (items the store couldn't supply) ─────────────────────
@@ -382,7 +551,6 @@ async function refundOrderPayment(order, reason = 'Order cancelled') {
 //   retry first asks the gateway whether an earlier attempt already went
 //   through (DB write lost after a successful refund), so we never pay twice.
 
-const REFUND_LOCK_MS = 60 * 1000;
 const MAX_REFUND_ATTEMPTS = 8;
 
 /** Queue a partial refund on a PAID order and try it once. Returns the order. */
@@ -399,44 +567,42 @@ async function requestPartialRefund(orderId, amount, reason) {
   return processPartialRefund(queued._id, entry._id);
 }
 
-async function findExistingGatewayRefund(paymentId, entryId) {
-  const razorpay = gateway.getClient();
-  if (!razorpay.payments || typeof razorpay.payments.fetchMultipleRefund !== 'function') return null;
-  const list = await razorpay.payments.fetchMultipleRefund(paymentId, { count: 100 });
-  const items = (list && list.items) || [];
-  return items.find((r) => r && r.notes && r.notes.refundEntryId === String(entryId)) || null;
-}
+const findExistingGatewayRefund = (paymentId, entryId) => gateway.findRefund(gateway.getClient(), paymentId, (notes) => notes.refundEntryId === String(entryId));
+
+const claimPartialRefund = (orderId, entryId, now, { ignoreLimit = false } = {}) => PharmacyOrder.findOneAndUpdate(
+  {
+    _id: orderId,
+    refunds: {
+      $elemMatch: {
+        _id: entryId,
+        status: { $in: ['PENDING', 'FAILED'] },
+        ...(ignoreLimit ? {} : { attempts: { $lt: MAX_REFUND_ATTEMPTS } }),
+        $or: [{ lockedUntil: null }, { lockedUntil: { $lte: now } }]
+      }
+    }
+  },
+  // PENDING while it is being sent: only a FAILED entry may be hurried by an admin.
+  { $set: { 'refunds.$.status': 'PENDING', 'refunds.$.lockedUntil': new Date(now.getTime() + REFUND_LOCK_MS) }, $inc: { 'refunds.$.attempts': 1 } },
+  { new: true }
+);
+
+const markPartialDone = (orderId, entry, refundId, extra = {}) => PharmacyOrder.findOneAndUpdate(
+  { _id: orderId, refunds: { $elemMatch: { _id: entry._id, status: { $ne: 'DONE' } } } },
+  {
+    $set: { 'refunds.$.status': 'DONE', 'refunds.$.refundId': refundId, 'refunds.$.doneAt': new Date(), ...extra },
+    $unset: { 'refunds.$.error': 1, 'refunds.$.lockedUntil': 1 },
+    $inc: { 'amounts.refunded': entry.amount }
+  },
+  { new: true }
+);
 
 /** Send one queued refund entry to the gateway (lock, dedupe, refund, record). */
-async function processPartialRefund(orderId, entryId, now = new Date()) {
-  const locked = await PharmacyOrder.findOneAndUpdate(
-    {
-      _id: orderId,
-      refunds: {
-        $elemMatch: {
-          _id: entryId,
-          status: { $in: ['PENDING', 'FAILED'] },
-          attempts: { $lt: MAX_REFUND_ATTEMPTS },
-          $or: [{ lockedUntil: null }, { lockedUntil: { $lte: now } }]
-        }
-      }
-    },
-    { $set: { 'refunds.$.lockedUntil': new Date(now.getTime() + REFUND_LOCK_MS) }, $inc: { 'refunds.$.attempts': 1 } },
-    { new: true }
-  );
+async function processPartialRefund(orderId, entryId, now = new Date(), { ignoreLimit = false } = {}) {
+  const locked = await claimPartialRefund(orderId, entryId, now, { ignoreLimit });
   if (!locked) return PharmacyOrder.findById(orderId);
   const entry = locked.refunds.id(entryId);
   const paymentId = locked.razorpay && locked.razorpay.paymentId;
-
-  const markDone = (refundId) => PharmacyOrder.findOneAndUpdate(
-    { _id: orderId, refunds: { $elemMatch: { _id: entryId, status: { $ne: 'DONE' } } } },
-    {
-      $set: { 'refunds.$.status': 'DONE', 'refunds.$.refundId': refundId, 'refunds.$.doneAt': new Date() },
-      $unset: { 'refunds.$.error': 1, 'refunds.$.lockedUntil': 1 },
-      $inc: { 'amounts.refunded': entry.amount }
-    },
-    { new: true }
-  );
+  const markDone = (refundId) => markPartialDone(orderId, entry, refundId);
 
   try {
     if (!gateway.isEnabled() || !paymentId) throw new Error('Payment gateway unavailable');
@@ -604,6 +770,9 @@ module.exports = {
   verifyPayment,
   recordPaymentFailure,
   refundOrderPayment,
+  retryFullRefunds,
+  settleRefund,
+  owedRefunds,
   requestPartialRefund,
   processPartialRefund,
   retryPartialRefunds,

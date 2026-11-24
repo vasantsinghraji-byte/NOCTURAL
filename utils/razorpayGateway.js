@@ -49,6 +49,16 @@ function getClient() {
 }
 
 /**
+ * The refund already sent on a payment whose notes match, if any. Used before a
+ * retry, so a refund that went through (reply lost) is never paid twice. Refunds
+ * Razorpay itself marked failed don't count. Throws if Razorpay can't be asked.
+ */
+async function findRefund(razorpay, paymentId, matches) {
+  const list = await razorpay.payments.fetchMultipleRefund(paymentId, { count: 100 });
+  return ((list && list.items) || []).find((r) => r && r.status !== 'failed' && matches(r.notes || {})) || null;
+}
+
+/**
  * Verify the checkout handler signature: HMAC-SHA256(order_id|payment_id, secret).
  * Constant-time comparison so the signature can't be probed byte-by-byte.
  */
@@ -74,6 +84,7 @@ function resetClient() {
 }
 
 module.exports = {
+  findRefund,
   isEnabled,
   getPublicKeyId,
   getClient,

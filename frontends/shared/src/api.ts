@@ -1646,10 +1646,10 @@ export class MedRushApi {
   }
 
   adminRefunds() {
-    return this.request<{ success: true; refunds: { type: 'PLAN' | 'LAB'; id: string; customer: string; shop: string; amount: number; reason?: string; paymentId?: string; since: string }[] }>('GET', '/marketplace/admin/refunds');
+    return this.request<{ success: true; refunds: { type: 'PLAN' | 'LAB' | 'PHARMACY'; id: string; entryId?: string; orderNumber?: string; customer: string; shop: string; amount: number; reason?: string; paymentId?: string; since: string; error?: string; stopped?: boolean }[] }>('GET', '/marketplace/admin/refunds');
   }
 
-  adminProcessRefund(body: { type: 'PLAN' | 'LAB'; id: string; reference?: string }) {
+  adminProcessRefund(body: { type: 'PLAN' | 'LAB' | 'PHARMACY'; id: string; entryId?: string; reference?: string }) {
     return this.request<{ success: true; amount: number; refundId: string }>('POST', '/marketplace/admin/refunds', { body });
   }
 
