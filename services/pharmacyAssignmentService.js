@@ -291,7 +291,7 @@ async function moveOrCancel(order, {
       };
     });
     const itemsSubtotal = round2(items.filter((i) => (i.status || 'AVAILABLE') === 'AVAILABLE').reduce((s, i) => s + i.lineTotal, 0));
-    const { total, discount } = pharmacyTotals({ itemsSubtotal, deliveryFee: order.amounts.deliveryFee, tax: order.amounts.tax, discount: order.amounts.discount });
+    const { total, discount, credit } = pharmacyTotals({ itemsSubtotal, deliveryFee: order.amounts.deliveryFee, tax: order.amounts.tax, discount: order.amounts.discount, credit: order.amounts.credit });
     const priceDrop = round2(order.amounts.total - total);
     const storeName = next.vendor.name || 'another pharmacy';
     const moveNote = outcome === 'TIMED_OUT'
@@ -306,6 +306,7 @@ async function moveOrCancel(order, {
         'amounts.itemsSubtotal': itemsSubtotal,
         'amounts.total': total,
         'amounts.discount': discount,
+        'amounts.credit': credit,
         distanceKm: next.vendor.distanceKm,
         eta: next.vendor.eta,
         acceptBy: new Date(now.getTime() + ops.acceptSlaSeconds * 1000),
@@ -454,14 +455,14 @@ async function markItemsUnavailable(orderId, { vendorId, actorUserId, medicineId
     return plain;
   });
   const itemsSubtotal = round2(items.filter((i) => (i.status || 'AVAILABLE') === 'AVAILABLE').reduce((s, i) => s + i.lineTotal, 0));
-  const { total, discount } = pharmacyTotals({ itemsSubtotal, deliveryFee: order.amounts.deliveryFee, tax: order.amounts.tax, discount: order.amounts.discount });
+  const { total, discount, credit } = pharmacyTotals({ itemsSubtotal, deliveryFee: order.amounts.deliveryFee, tax: order.amounts.tax, discount: order.amounts.discount, credit: order.amounts.credit });
   const removed = round2(order.amounts.total - total);
   const names = hits.map((i) => i.name).join(', ');
 
   const updated = await PharmacyOrder.findOneAndUpdate(
     { _id: order._id, vendor: vendorId, status: order.status, 'amounts.total': order.amounts.total },
     {
-      $set: { items, 'amounts.itemsSubtotal': itemsSubtotal, 'amounts.total': total, 'amounts.discount': discount },
+      $set: { items, 'amounts.itemsSubtotal': itemsSubtotal, 'amounts.total': total, 'amounts.discount': discount, 'amounts.credit': credit },
       $push: { timeline: { status: order.status, at: now, note: `Not available: ${names}`, by: actorUserId } }
     },
     { new: true }

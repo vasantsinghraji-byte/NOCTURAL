@@ -410,6 +410,8 @@ export interface DeliveryQuote {
   serviceable: boolean;
   minOrderValue: number;
   belowMinimum: boolean;
+  /** Customer's Nabz credit, used automatically at checkout. */
+  creditAvailable?: number;
 }
 
 export interface OrderAmounts {
@@ -420,6 +422,8 @@ export interface OrderAmounts {
   total: number;
   originalTotal?: number;
   refunded?: number;
+  /** Nabz credit taken off the bill (total is what is left to pay). */
+  credit?: number;
 }
 
 export interface PharmacyOrder {

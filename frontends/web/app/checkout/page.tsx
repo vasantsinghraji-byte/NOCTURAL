@@ -73,7 +73,10 @@ export default function CheckoutPage() {
   }, [patient, cart.vendorId, cart.subtotal]);
   // Discount code: off the items, checked again by the server when the order is placed.
   const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
-  const payable = Math.max(0, (quote ? quote.total : cart.subtotal) - (coupon?.discount || 0));
+  const beforeCredit = Math.max(0, (quote ? quote.total : cart.subtotal) - (coupon?.discount || 0));
+  // Nabz credit pays first (the server applies it; this shows the same sum).
+  const creditUse = Math.min(quote?.creditAvailable || 0, beforeCredit);
+  const payable = Math.round((beforeCredit - creditUse) * 100) / 100;
 
   const lines = useMemo(() => Object.values(cart.lines), [cart.lines]);
   const set = (k: keyof typeof addr) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -186,6 +189,9 @@ export default function CheckoutPage() {
         )}
         {coupon && (
           <div className="row" style={{ padding: '3px 0' }}><span className="muted">Coupon {coupon.code}</span><span style={{ color: 'var(--mint)', fontWeight: 700 }}>−{rupees(coupon.discount)}</span></div>
+        )}
+        {creditUse > 0 && (
+          <div className="row" style={{ padding: '3px 0' }}><span className="muted">Nabz credit</span><span style={{ color: 'var(--mint)', fontWeight: 700 }}>−{rupees(creditUse)}</span></div>
         )}
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '10px 0' }} />
         <div className="row"><b>To pay</b><b>{rupees(payable)}</b></div>

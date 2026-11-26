@@ -176,10 +176,16 @@ function quoteCarePlan({ listPrice, sessions, mode, travelPerSession = 0, discou
  * A pharmacy order's total. A coupon never takes off more than the items
  * (delivery stays payable), also after items are removed or swapped.
  */
-function pharmacyTotals({ itemsSubtotal, deliveryFee = 0, tax = 0, discount = 0 }) {
+/**
+ * A medicine bill: discount comes off the items, Nabz credit off what is left.
+ * `total` is what the customer pays; credit never takes it below zero.
+ */
+function pharmacyTotals({ itemsSubtotal, deliveryFee = 0, tax = 0, discount = 0, credit = 0 }) {
   const items = round2(itemsSubtotal);
   const off = Math.min(round2(discount), items);
-  return { discount: off, total: round2(items + round2(deliveryFee) + round2(tax) - off) };
+  const bill = round2(items + round2(deliveryFee) + round2(tax) - off);
+  const used = Math.min(Math.max(0, round2(credit)), bill);
+  return { discount: off, credit: used, total: round2(bill - used) };
 }
 
 /** Who earns what on a delivered pharmacy order. */

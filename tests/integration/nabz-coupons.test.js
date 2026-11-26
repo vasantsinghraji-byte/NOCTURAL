@@ -275,7 +275,7 @@ describe('Discount coupons on medicine orders (real MongoDB)', () => {
   });
 
   it('a discount never exceeds the items left after some are removed', () => {
-    expect(pricing.pharmacyTotals({ itemsSubtotal: 30, deliveryFee: 25, discount: 50 })).toEqual({ discount: 30, total: 25 });
-    expect(pricing.pharmacyTotals({ itemsSubtotal: 300, deliveryFee: 25, discount: 50 })).toEqual({ discount: 50, total: 275 });
+    expect(pricing.pharmacyTotals({ itemsSubtotal: 30, deliveryFee: 25, discount: 50 })).toMatchObject({ discount: 30, total: 25 });
+    expect(pricing.pharmacyTotals({ itemsSubtotal: 300, deliveryFee: 25, discount: 50 })).toMatchObject({ discount: 50, total: 275 });
   });
 });

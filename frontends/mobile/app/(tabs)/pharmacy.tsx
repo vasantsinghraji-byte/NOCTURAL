@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Text } from '@/lib/T';
 import {
@@ -8,6 +8,7 @@ import {
 import { MedicineArt } from '@/lib/MedicineArt';
 import { AddToCart } from '@/lib/AddToCart';
 import { useCart } from '@/lib/cart';
+import { keepListed } from '@/lib/cartStore';
 import { FadeInView, Skeleton, SlideUp } from '@/lib/motion';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -69,6 +70,9 @@ export default function Pharmacy() {
   const [items, setItems] = useState<StorefrontItem[]>([]);
   // The cart is shared with the search and product screens (lib/cart.tsx).
   const { cart, setCart, add, remove, selectStore, storeId: cartStore } = useCart();
+  // Latest value for the slow first load below (a saved cart can arrive meanwhile).
+  const cartStoreRef = useRef(cartStore);
+  cartStoreRef.current = cartStore;
   const [shelf, setShelf] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +101,7 @@ export default function Pharmacy() {
         const res = await api.getNearbyVendors({ ...coords, radiusKm: 10 });
         setVendors(res.vendors);
         // Keep the store the cart already belongs to, so a remount never empties it.
-        const start = res.vendors.find((v) => v._id === cartStore) || res.vendors[0];
+        const start = res.vendors.find((v) => v._id === cartStoreRef.current) || res.vendors[0];
         if (start) selectVendor(start);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load pharmacies');
@@ -116,6 +120,8 @@ export default function Pharmacy() {
     try {
       const res = await api.getVendorStorefront(v._id);
       setItems(res.items);
+      // A kept cart may hold medicines the store no longer lists.
+      setCart((c) => keepListed(c, res.items.map((i) => i.medicine._id)));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load storefront');
     }
@@ -354,7 +360,10 @@ export default function Pharmacy() {
   const fee = quote?.deliveryFee;
   const toFree = quote && quote.deliveryFee > 0 ? quote.breakdown.amountToFreeDelivery : 0;
   const freeAt = quote?.breakdown.freeDeliveryAbove || 0;
-  const payable = Math.max(0, (quote ? quote.total : subtotal) - (coupon?.discount || 0));
+  const beforeCredit = Math.max(0, (quote ? quote.total : subtotal) - (coupon?.discount || 0));
+  // Nabz credit pays first (the server applies it; this shows the same sum).
+  const creditUse = Math.min(quote?.creditAvailable || 0, beforeCredit);
+  const payable = Math.round((beforeCredit - creditUse) * 100) / 100;
 
   return (
     <View style={styles.screen}>
@@ -515,6 +524,7 @@ export default function Pharmacy() {
               </Text>
             ) : null}
             {coupon ? <BillRow label={`Coupon ${coupon.code}`} value={`−${inr(coupon.discount)}`} good /> : null}
+            {creditUse > 0 ? <BillRow label="Nabz credit" value={`−${inr(creditUse)}`} good /> : null}
             <View style={styles.billDivider} />
             <BillRow label="To pay" value={inr(payable)} strong />
             {isPatient ? <CouponField service="PHARMACY" amount={subtotal} value={coupon} onChange={setCoupon} /> : null}

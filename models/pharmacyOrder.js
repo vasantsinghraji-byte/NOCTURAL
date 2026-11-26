@@ -274,7 +274,11 @@ const PharmacyOrderSchema = new mongoose.Schema({
     total: { type: Number, required: true, min: 0 },
     // What the customer was first charged; total drops when items are removed.
     originalTotal: { type: Number, min: 0 },
-    refunded: { type: Number, default: 0, min: 0 }
+    refunded: { type: Number, default: 0, min: 0 },
+    // Nabz credit (services/pharmacyCreditService.js): still applied, taken, given back.
+    credit: { type: Number, min: 0 },
+    creditSpent: { type: Number, min: 0 },
+    creditReturned: { type: Number, min: 0 }
   },
   // Discount code used at checkout (services/couponService.js); Nabz pays the discount.
   coupon: {
@@ -343,6 +347,8 @@ PharmacyOrderSchema.index({ deliveryGeohash: 1, createdAt: -1 });
 // Acceptance-timeout sweep (services/pharmacyAssignmentService.js)
 PharmacyOrderSchema.index({ status: 1, acceptBy: 1 }, { partialFilterExpression: { acceptBy: { $exists: true } } });
 PharmacyOrderSchema.index({ 'refunds.status': 1 }, { sparse: true });
+// Orders that used Nabz credit (the credit sweep): a small share of orders.
+PharmacyOrderSchema.index({ updatedAt: 1 }, { name: 'credit_used', partialFilterExpression: { 'amounts.creditSpent': { $gt: 0 } } });
 // Full refunds still owed (retry sweep and the admin queue): only ever a handful.
 PharmacyOrderSchema.index({ updatedAt: 1 }, { name: 'refund_pending', partialFilterExpression: { paymentStatus: 'REFUND_PENDING' } });
 // Monthly per-patient caps and the H1 register / recall lookups.

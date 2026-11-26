@@ -13,6 +13,7 @@ const { authorize } = require('@nocturnal/shared').auth;
 const { adminSection } = require('@nocturnal/shared').adminAccess;
 const { protectBoth } = require('../middleware/patientAuth');
 const idempotency = require('@nocturnal/shared').idempotency;
+const replayRules = require('@nocturnal/shared').replayRules;
 const { queryCache } = require('@nocturnal/shared').queryCache;
 const { CACHE_TTL } = require('../constants');
 const { BOOKING_SERVICE_TYPES, BOOKING_STATUSES, CARE_SUPPLY_SOURCES } = require('../constants/enums');
@@ -284,7 +285,7 @@ router.post(
   body('allowSubstitute').optional().isBoolean(),
   body('couponCode').optional({ values: 'falsy' }).isString().trim().isLength({ max: 30 }).withMessage('That code is not valid'),
   validate,
-  idempotency({ route: 'bookings/package' }),
+  idempotency({ route: 'bookings/package', isOver: replayRules.bookingPackage }),
   bookPackage
 );
 
@@ -303,7 +304,7 @@ router.post(
   '/',
   createBookingValidation,
   validate,
-  idempotency({ route: 'bookings/create' }),
+  idempotency({ route: 'bookings/create', isOver: replayRules.booking }),
   createBooking
 );
 

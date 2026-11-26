@@ -242,11 +242,13 @@ function OrderDetail() {
           lines={[
             ...order.items.map((i) => ({ label: `${i.name} × ${i.quantity}${i.status === 'UNAVAILABLE' ? ' (not available)' : ''}`, amount: i.status === 'UNAVAILABLE' ? 0 : i.lineTotal })),
             { label: 'Delivery', amount: order.amounts.deliveryFee ? order.amounts.deliveryFee : 'Free' },
-            ...(order.amounts.discount > 0 ? [{ label: order.coupon?.code ? `Coupon ${order.coupon.code}` : 'Discount', amount: -order.amounts.discount }] : [])
+            ...(order.amounts.discount > 0 ? [{ label: order.coupon?.code ? `Coupon ${order.coupon.code}` : 'Discount', amount: -order.amounts.discount }] : []),
+            ...(order.amounts.credit && !cancelled ? [{ label: 'Nabz credit', amount: -order.amounts.credit }] : [])
           ]}
           total={order.amounts.total}
           totalLabel={cancelled ? (order.paymentStatus === 'REFUND_PENDING' || order.paymentStatus === 'REFUNDED' ? 'Being refunded' : 'Cancelled · nothing to pay') : order.paymentMode === 'COD' ? 'Pay on delivery' : order.paymentStatus === 'PAID' ? 'Paid' : 'To pay'}
         />
+        {cancelled && order.amounts.credit ? <Meta>Your Nabz credit is back in your wallet.</Meta> : null}
         {cancelled ? null : <Meta>{order.paymentMode === 'COD' ? 'Cash or UPI to the rider' : `Paid online${order.paymentStatus === 'PAID' ? '' : ` (${order.paymentStatus.toLowerCase().replace('_', ' ')})`}`}</Meta>}
       </Card>
 

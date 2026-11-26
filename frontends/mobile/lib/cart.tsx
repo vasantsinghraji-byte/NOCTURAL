@@ -1,4 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import * as SecureStore from 'expo-secure-store';
+import { useAuth } from './auth';
+import { CART_KEY, cartOwner, decodeCart, encodeCart } from './cartStore';
 import { tap } from './motion';
 
 /**
@@ -45,6 +48,43 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }, []);
   const count = useMemo(() => Object.values(cart).reduce((a, b) => a + b, 0), [cart]);
+
+  // Keep the cart if Android closes the app (lib/cartStore.ts): same account, one day.
+  const { ready, session } = useAuth();
+  const owner = cartOwner(session);
+  const [loadedFor, setLoadedFor] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!ready) return undefined;
+    // A different account (or signed out): start empty, never show the last person's cart.
+    current.current = null;
+    setStoreId(null);
+    setCart({});
+    if (!owner) {
+      SecureStore.deleteItemAsync(CART_KEY).catch(() => undefined);
+      setLoadedFor(null);
+      return undefined;
+    }
+    let live = true;
+    SecureStore.getItemAsync(CART_KEY)
+      .then((raw) => {
+        const saved = decodeCart(raw, owner, Date.now());
+        // Only if nothing was picked meanwhile.
+        if (live && saved && current.current === null) {
+          current.current = saved.storeId;
+          setStoreId(saved.storeId);
+          setCart(saved.cart);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => { if (live) setLoadedFor(owner); });
+    return () => { live = false; };
+  }, [ready, owner]);
+  useEffect(() => {
+    // Not before the saved cart was read: saving the empty start would erase it.
+    if (!owner || loadedFor !== owner) return;
+    const raw = encodeCart(owner, storeId, cart, Date.now());
+    (raw ? SecureStore.setItemAsync(CART_KEY, raw) : SecureStore.deleteItemAsync(CART_KEY)).catch(() => undefined);
+  }, [owner, loadedFor, storeId, cart]);
 
   const value = useMemo(() => ({ storeId, cart, setCart, selectStore, add, remove, count }), [storeId, cart, selectStore, add, remove, count]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

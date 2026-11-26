@@ -29,6 +29,8 @@ const razorpayGateway = require('../utils/razorpayGateway');
 const pharmacyPaymentService = require('./pharmacyPaymentService');
 const pharmacyNotificationService = require('./pharmacyNotificationService');
 const pricingService = require('./pricingService');
+const walletService = require('./walletService');
+const pharmacyCreditService = require('./pharmacyCreditService');
 const membershipService = require('./membershipService');
 const couponService = require('./couponService');
 const settlementService = require('./settlementService');
@@ -407,6 +409,13 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
     if (mode === 'PREPAID' && total < 1) {
       throw new ValidationError('With this code there is nothing to pay online. Choose Cash on Delivery', 'couponCode');
     }
+    // Nabz credit pays first (not on nurse pickups: those are billed with the visit).
+    // An online payment needs at least ₹1 left to pay.
+    const creditBalance = isStaffPickup ? 0 : await walletService.balance(patientId);
+    const creditMax = mode === 'PREPAID' ? Math.max(0, pricingService.round2(total - 1)) : total;
+    if (mode === 'PREPAID' && creditBalance > 0 && creditBalance >= creditMax) {
+      throw new ValidationError('Your Nabz credit covers this order. Choose Cash on delivery: there is nothing to pay', 'paymentMode');
+    }
     const isCod = mode === 'COD';
 
     const order = await PharmacyOrder.create({
@@ -450,13 +459,14 @@ async function createOrder(patientId, payload = {}, { fulfilment = 'DELIVERY', c
       order: order._id,
       actor: { kind: 'PATIENT', id: patientId }
     })));
+    const placed = creditBalance > 0 ? await pharmacyCreditService.applyToNewOrder(order, creditMax) : order;
 
     // COD orders are actionable now; PREPAID ones alert the store once paid.
     if (isCod) {
       await PharmacyVendor.updateOne({ _id: vendorId }, { $inc: { 'reliability.offered': 1 } }).catch(() => {});
-      pharmacyNotificationService.notifyVendorNewOrder(order);
+      pharmacyNotificationService.notifyVendorNewOrder(placed);
     }
-    return order;
+    return placed;
   } catch (err) {
     // Order build failed after reservation: return stock (and batches), and the coupon use.
     await rollbackReservation(vendorId, reserved);
@@ -582,6 +592,8 @@ async function cancelOrderByPatient(orderId, patientId, reason) {
   if (!cancelled) throw new ConflictError('This order just changed. Refresh to see its latest status');
 
   await restockOrder(cancelled, { kind: 'PATIENT', id: patientId, reason: 'Cancelled by patient' });
+  // Credit back now; the minute sweep would do it otherwise.
+  await pharmacyCreditService.settle(cancelled).catch(() => undefined);
   return pharmacyPaymentService.refundOrderPayment(cancelled, note);
 }
 
@@ -660,8 +672,8 @@ async function addItemsByPatient(orderId, patientId, { items: rawItems, prescrip
     const fee = pricingService.quoteDeliveryFee({
       vendor, zone, itemsSubtotal, distanceKm: order.distanceKm, isMember: await membershipService.isMember(patientId), now
     });
-    const { total, discount } = pricingService.pharmacyTotals({
-      itemsSubtotal, deliveryFee: fee.deliveryFee, tax: order.amounts.tax || 0, discount: order.amounts.discount || 0
+    const { total, discount, credit } = pricingService.pharmacyTotals({
+      itemsSubtotal, deliveryFee: fee.deliveryFee, tax: order.amounts.tax || 0, discount: order.amounts.discount || 0, credit: order.amounts.credit || 0
     });
     const added = reserved.reduce((n, r) => n + r.quantity, 0);
     const note = `Customer added ${added} item(s)`;
@@ -676,6 +688,7 @@ async function addItemsByPatient(orderId, patientId, { items: rawItems, prescrip
           'amounts.itemsSubtotal': itemsSubtotal,
           'amounts.deliveryFee': fee.deliveryFee,
           'amounts.discount': discount,
+          'amounts.credit': credit,
           'amounts.total': total,
           'amounts.originalTotal': total,
           feeBreakdown: fee.breakdown
@@ -991,7 +1004,9 @@ async function quoteDelivery(patientId, { vendorId, itemsSubtotal, lat, lng } = 
     breakdown: fee.breakdown,
     serviceable: delivery.serviceable !== false,
     minOrderValue,
-    belowMinimum: minOrderValue > 0 && subtotal < minOrderValue
+    belowMinimum: minOrderValue > 0 && subtotal < minOrderValue,
+    // Paid automatically at checkout (pharmacyCreditService).
+    creditAvailable: patientId ? await walletService.balance(patientId) : 0
   };
 }
 

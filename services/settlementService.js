@@ -43,6 +43,8 @@ async function recordPharmacyOrder(order) {
       { source, party: { kind: 'PLATFORM' }, type: 'COMMISSION', amount: split.commission, basis: split.itemsSubtotal, rate: split.commissionRate, occurredAt, status: 'PAID' },
       { source, party: { kind: 'PLATFORM' }, type: 'DELIVERY_FEE', amount: split.deliveryFee, occurredAt, status: 'PAID' },
       ...(order.amounts && order.amounts.discount > 0 ? [{ source, party: { kind: 'PLATFORM' }, type: 'COUPON_DISCOUNT', amount: pricing.round2(order.amounts.discount), occurredAt, status: 'PAID' }] : []),
+      // Nabz credit: Nabz pays it, like a discount code.
+      ...(order.amounts && order.amounts.credit > 0 ? [{ source, party: { kind: 'PLATFORM' }, type: 'CREDIT_USED', amount: pricing.round2(order.amounts.credit), occurredAt, status: 'PAID' }] : []),
       ...(storeTookCash ? [{ source, party: { kind: 'VENDOR', id: order.vendor }, type: 'CASH_COLLECTED', amount: pricing.round2(order.amounts.total), occurredAt }] : [])
     ], { orderId: String(order._id) });
   } catch (err) {
@@ -165,6 +167,7 @@ async function getSummary({ from, to } = {}) {
   const byLine = { PHARMACY_ORDER: 0, CARE_BOOKING: 0, MEMBERSHIP: 0 };
   let platformRevenue = 0;
   let couponDiscounts = 0;
+  let creditsUsed = 0;
   let pendingPayouts = 0;
   let cashWithPartners = 0;
   for (const r of rows) {
@@ -174,9 +177,10 @@ async function getSummary({ from, to } = {}) {
       if (status === 'PENDING') cashWithPartners += r.amount;
       continue;
     }
-    // Nabz pays for discount codes: they come off platform revenue.
-    if (type === 'COUPON_DISCOUNT') {
-      couponDiscounts += r.amount;
+    // Nabz pays for discount codes and customer credit: they come off platform revenue.
+    if (type === 'COUPON_DISCOUNT' || type === 'CREDIT_USED') {
+      if (type === 'COUPON_DISCOUNT') couponDiscounts += r.amount;
+      else creditsUsed += r.amount;
       platformRevenue -= r.amount;
       if (byLine[source] !== undefined) byLine[source] = pricing.round2(byLine[source] - r.amount);
       continue;
@@ -194,6 +198,7 @@ async function getSummary({ from, to } = {}) {
     to: to || null,
     platformRevenue: pricing.round2(platformRevenue),
     couponDiscounts: pricing.round2(couponDiscounts),
+    creditsUsed: pricing.round2(creditsUsed),
     partnerEarnings: pricing.round2(partnerEarnings),
     // Gross value that flowed through the platform (excludes GST).
     grossValue: pricing.round2(platformRevenue + partnerEarnings),

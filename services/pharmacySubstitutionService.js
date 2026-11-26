@@ -173,12 +173,12 @@ async function respond(orderId, medicineId, accept, { patientId, by = 'CUSTOMER'
     };
   });
   const itemsSubtotal = round2(items.filter((i) => (i.status || 'AVAILABLE') === 'AVAILABLE').reduce((s, i) => s + i.lineTotal, 0));
-  const { total, discount } = pharmacyTotals({ itemsSubtotal, deliveryFee: fresh.amounts.deliveryFee, tax: fresh.amounts.tax, discount: fresh.amounts.discount });
+  const { total, discount, credit } = pharmacyTotals({ itemsSubtotal, deliveryFee: fresh.amounts.deliveryFee, tax: fresh.amounts.tax, discount: fresh.amounts.discount, credit: fresh.amounts.credit });
   const lower = round2(fresh.amounts.total - total);
   const updated = await PharmacyOrder.findOneAndUpdate(
     { _id: fresh._id, 'amounts.total': fresh.amounts.total },
     {
-      $set: { items, 'amounts.itemsSubtotal': itemsSubtotal, 'amounts.total': total, 'amounts.discount': discount },
+      $set: { items, 'amounts.itemsSubtotal': itemsSubtotal, 'amounts.total': total, 'amounts.discount': discount, 'amounts.credit': credit },
       $push: { timeline: { status: fresh.status, at: now, note: `Customer accepted ${sub.name} in place of ${item.name}` } }
     },
     { new: true }
