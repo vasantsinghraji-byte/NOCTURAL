@@ -27,7 +27,13 @@ describe('@nocturnal/shared lazy-load facade', () => {
     const shared = require('@nocturnal/shared');
     const afterPackageRequire = cacheEntriesRelativeToRepo();
 
-    expect(Object.keys(shared)).toHaveLength(30);
+    // The facade grows as modules move behind it; what must hold is that every
+    // export is a getter (loaded on first use), so requiring it loads nothing.
+    const exportNames = Object.keys(shared);
+    expect(exportNames.length).toBeGreaterThanOrEqual(30);
+    for (const name of exportNames) {
+      expect(typeof Object.getOwnPropertyDescriptor(shared, name).get).toBe('function');
+    }
     expect(newCacheEntries(beforeRequire)).toEqual(['packages/shared/src/index.js']);
 
     // Accessing one export may load its own dependency tree, but not unrelated subsystems.

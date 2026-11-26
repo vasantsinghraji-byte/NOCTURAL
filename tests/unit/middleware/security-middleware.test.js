@@ -137,14 +137,12 @@ describe('security middleware CORS origin policy', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalAllowedOrigins = process.env.ALLOWED_ORIGINS;
   const originalAppUrl = process.env.APP_URL;
-  const originalRenderExternalUrl = process.env.RENDER_EXTERNAL_URL;
   const originalFrontendUrl = process.env.FRONTEND_URL;
 
   afterEach(() => {
     process.env.NODE_ENV = originalNodeEnv;
     process.env.ALLOWED_ORIGINS = originalAllowedOrigins;
     process.env.APP_URL = originalAppUrl;
-    process.env.RENDER_EXTERNAL_URL = originalRenderExternalUrl;
     process.env.FRONTEND_URL = originalFrontendUrl;
     jest.clearAllMocks();
   });
@@ -179,34 +177,30 @@ describe('security middleware CORS origin policy', () => {
     expect(callback).toHaveBeenCalledWith(null, true);
   });
 
-  it('allows same-origin Render API requests in production even when ALLOWED_ORIGINS is incomplete', () => {
+  it('no longer trusts retired Render hosts', () => {
     process.env.NODE_ENV = 'production';
-    process.env.ALLOWED_ORIGINS = 'http://localhost:5000';
+    process.env.ALLOWED_ORIGINS = 'https://app.example.com';
     const callback = jest.fn();
 
     corsConfig().origin('https://nocturnal-api.onrender.com', callback);
 
-    expect(callback).toHaveBeenCalledWith(null, true);
+    expect(callback).not.toHaveBeenCalledWith(null, true);
   });
 
   it('adds configured public service origins to the production allowlist', () => {
     process.env.NODE_ENV = 'production';
     process.env.ALLOWED_ORIGINS = 'https://frontend.example.com';
     process.env.APP_URL = 'https://api.example.com';
-    process.env.RENDER_EXTERNAL_URL = 'https://render-service.example.com';
     process.env.FRONTEND_URL = 'https://www.example-healthcare.com';
 
     const corsOptions = corsConfig();
     const appCallback = jest.fn();
-    const renderCallback = jest.fn();
     const frontendCallback = jest.fn();
 
     corsOptions.origin('https://api.example.com', appCallback);
-    corsOptions.origin('https://render-service.example.com', renderCallback);
     corsOptions.origin('https://www.example-healthcare.com', frontendCallback);
 
     expect(appCallback).toHaveBeenCalledWith(null, true);
-    expect(renderCallback).toHaveBeenCalledWith(null, true);
     expect(frontendCallback).toHaveBeenCalledWith(null, true);
   });
 });

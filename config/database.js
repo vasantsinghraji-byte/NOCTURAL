@@ -265,11 +265,14 @@ const connectDB = async (options = {}) => {
       retryWrites: true,
       retryReads: true,
       writeConcern: { w: 'majority', j: true, wtimeout: 10000 },
-      // Default to primaryPreferred to match render.yaml and give read-after-write
+      // Default to primaryPreferred for read-after-write
       // consistency for health data. Set MONGODB_READ_PREFERENCE=secondaryPreferred
       // to offload reads on a true replica set when eventual consistency is acceptable.
       readPreference: process.env.MONGODB_READ_PREFERENCE || 'primaryPreferred'
     };
+    // Atlas "Drivers" strings often have no database path (…mongodb.net/?appName=…),
+    // which silently means the "test" database. MONGODB_DB_NAME picks it explicitly.
+    if (process.env.MONGODB_DB_NAME) options.dbName = process.env.MONGODB_DB_NAME;
 
     await mongoose.connect(process.env.MONGODB_URI, options);
     await ensureIdempotencyIndexes();

@@ -4,6 +4,7 @@ const { encrypt, decrypt } = require('../utils/encryptionV2');
 const logger = require('../utils/logger');
 
 const MAX_KEY_LENGTH = 255;
+const START_AGAIN = Symbol('start again');
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
 
@@ -38,7 +39,11 @@ const getIdentity = (req) => {
  *   - caches only successful (2xx) responses, encrypted, and releases the claim
  *     on failure so the client may retry.
  *
- * @param {{ route: string, required?: boolean }} options - stable route identifier for scoping.
+ * @param {{ route: string, required?: boolean, isOver?: (body: object) => Promise<boolean> }} options
+ *   route: stable identifier for scoping.
+ *   isOver: given the saved response, true when what it created has since been
+ *   cancelled. The same request is then a new one (the customer is ordering
+ *   again), not a repeat: replaying would show a cancelled order as placed.
  */
 module.exports = function idempotency(options = {}) {
   const route = options.route;
@@ -71,10 +76,12 @@ module.exports = function idempotency(options = {}) {
       await IdempotencyKey.create({ scope, requestHash, status: 'processing' });
     } catch (error) {
       if (error && error.code === 11000) {
-        return handleDuplicate({ res, next, scope, requestHash, route });
+        const replayed = await handleDuplicate({ res, next, scope, requestHash, route, isOver: options.isOver });
+        if (replayed !== START_AGAIN) return replayed;
+      } else {
+        logger.error('Idempotency claim failed', { route, error: error.message });
+        return next(error);
       }
-      logger.error('Idempotency claim failed', { route, error: error.message });
-      return next(error);
     }
 
     // 2) Capture the response so a future duplicate can replay it.
@@ -95,7 +102,7 @@ module.exports = function idempotency(options = {}) {
   };
 };
 
-async function handleDuplicate({ res, next, scope, requestHash, route }) {
+async function handleDuplicate({ res, next, scope, requestHash, route, isOver }) {
   const existing = await IdempotencyKey.findOne({ scope });
   if (!existing) {
     // Record expired/removed between claim attempt and lookup — treat as new.
@@ -116,6 +123,15 @@ async function handleDuplicate({ res, next, scope, requestHash, route }) {
     } catch (error) {
       logger.error('Idempotency replay decode failed', { route, error: error.message });
       return res.status(409).json({ success: false, message: 'Idempotent response is unavailable' });
+    }
+    if (isOver && await isOver(body).catch(() => false)) {
+      // Take the key over for a fresh run; only one of several repeats can.
+      const taken = await IdempotencyKey.findOneAndUpdate(
+        { scope, status: 'completed', responseBody: existing.responseBody },
+        { $set: { status: 'processing', createdAt: new Date() }, $unset: { responseStatus: 1, responseBody: 1 } }
+      );
+      if (taken) return START_AGAIN;
+      return res.status(409).json({ success: false, message: 'A request with this Idempotency-Key is already being processed' });
     }
     res.set('Idempotent-Replayed', 'true');
     return res.status(existing.responseStatus || 200).json(body);

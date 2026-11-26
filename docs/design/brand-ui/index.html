@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nabz Brand UI Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: a single reading column for the plan, a wide gallery for the screens. */
+:root {
+  --brand: #b83a50;
+  --brand-deep: #a82f45;
+  --brand-soft: #fbeef0;
+  --coral: #ff5a3c;
+  --ink: #2a2523;
+  --muted: #6f6660;
+  --line: #ece6e3;
+  --bg: #f7f3f2;
+  --card: #ffffff;
+  --display: 'Outfit', 'Segoe UI', sans-serif;
+  --body: 'Manrope', 'Segoe UI', sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --brand: #e06a80; --brand-deep: #c9536a; --brand-soft: #3a1c22; --ink: #f3eeec; --muted: #b9afaa; --line: #3a3330; --bg: #1a1615; --card: #24201e; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --brand: #e06a80; --brand-deep: #c9536a; --brand-soft: #3a1c22; --ink: #f3eeec; --muted: #b9afaa; --line: #3a3330; --bg: #1a1615; --card: #24201e; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 500 16px/1.6 var(--body); }
+main { max-width: 1120px; margin: 0 auto; padding: 32px 20px 64px; }
+header.top { display: flex; gap: 16px; align-items: center; }
+header.top .logo { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(160deg, #d9556b, #a82f45); flex: none; display: grid; place-items: center; }
+h1 { font: 700 clamp(28px, 4vw, 40px)/1.1 var(--display); letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+h1 .dot, h2 .dot { color: var(--coral); }
+.lede { color: var(--muted); max-width: 70ch; margin: 6px 0 0; }
+h2 { font: 700 26px/1.2 var(--display); letter-spacing: -.01em; margin: 56px 0 6px; text-wrap: balance; }
+h3 { font: 700 17px var(--body); margin: 24px 0 6px; }
+p, li { max-width: 72ch; }
+.sub { color: var(--muted); margin: 0 0 18px; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 24px; }
+.summary div { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+.summary b { display: block; font: 700 15px var(--body); margin-bottom: 4px; }
+.summary span { color: var(--muted); font-size: 14px; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 22px; }
+figure { margin: 0; }
+figure img { width: 100%; height: auto; display: block; border-radius: 18px; }
+figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; }
+figcaption b { color: var(--ink); display: block; font-size: 15px; }
+.wide img { border-radius: 18px; border: 1px solid var(--line); }
+.tbl { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 700 12px var(--body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 6px; border: 1px solid rgba(0,0,0,.08); }
+.yes { color: #0b7a44; font-weight: 700; }
+.no { color: #b42318; font-weight: 700; }
+.phases { display: grid; gap: 12px; }
+.phase { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--brand); border-radius: 12px; padding: 14px 16px; }
+.phase b { font: 700 16px var(--body); }
+.phase p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.phase code, li code, td code { font-size: 13px; background: var(--brand-soft); color: var(--brand); padding: 1px 6px; border-radius: 6px; }
+.callout { background: var(--brand-soft); border-radius: 14px; padding: 14px 16px; margin-top: 16px; }
+.callout b { color: var(--brand); }
+a { color: var(--brand); }
+a:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="logo"><svg width="42" height="42" viewBox="0 0 512 512" aria-hidden="true"><path d="M256 84c-86 0-156 67-156 150 0 108 156 196 156 196s156-88 156-196c0-83-70-150-156-150z" fill="#fff"/><polyline points="146,238 204,238 228,186 262,292 290,214 306,238 350,238" fill="none" stroke="#b83a50" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/><circle cx="366" cy="238" r="17" fill="#ff5a3c"/></svg></div>
+    <div>
+      <h1>Nabz brand UI plan<span class="dot">.</span></h1>
+      <p class="lede">A bold, brand-coloured look for the Nabz and Nabz Partner apps. It follows the quick-commerce playbook: the logo colour fills the header, every button and badge has one job, and the cart is always one tap away. Proposal for approval, 2 November 2026.</p>
+    </div>
+  </header>
+
+  <div class="summary">
+    <div><b>Use the logo's own colours</b><span>Today the app uses a bright red (#C8102E) that isn't in the logo. The plan switches to the logo's raspberry, with its coral pulse dot as the live accent.</span></div>
+    <div><b>Brand on top, calm below</b><span>A raspberry header with the delivery promise and search, then white cards on a warm neutral background, like Blinkit's yellow and Zepto's purple.</span></div>
+    <div><b>Two apps, two identities</b><span>Customers get raspberry. Partners (riders, nurses, stores) get the green of the Partner icon, so nobody confuses the apps.</span></div>
+    <div><b>One system, enforced</b><span>A fixed type scale, spacing scale and component set replace 84 hard-coded colours, 49 hand-built buttons and 16 ad hoc text sizes.</span></div>
+  </div>
+
+  <h2>What you'll get</h2>
+  <p class="sub">Rendered mockups at phone size with real Nabz content. Each one shows the target, not the current app.</p>
+  <div class="gallery">
+    <figure><img src="home.png" alt="Home screen: raspberry header with delivery in 30 minutes, address, search and category chips; four service icons; Buy again products with ADD buttons; raspberry cart bar; tab bar"><figcaption><b>Home</b>The delivery promise is the headline. Search and services sit inside the brand header. Repeat orders are one tap.</figcaption></figure>
+    <figure><img src="pharmacy.png" alt="Pharmacy screen: raspberry header with 28 minute badge and search; category chips; verified store card; product grid with discount, Rx and add states"><figcaption><b>Pharmacy</b>Product cards carry discount, delivery time, Rx and stock states. ADD turns into a quantity stepper.</figcaption></figure>
+    <figure><img src="checkout.png" alt="Checkout: free delivery progress bar, items with steppers, bill details with savings in green, address, cash on delivery and a raspberry place order button"><figcaption><b>Checkout</b>A progress bar to free delivery, savings shown in green, and one big button with the amount on it.</figcaption></figure>
+    <figure><img src="track.png" alt="Order tracking: raspberry header saying arriving in 18 minutes with a four-step progress line, map with rider dot, rider card with call button, delivery code"><figcaption><b>Order tracking</b>Live time in the header, a four-step progress line, the rider one tap away, and the delivery code up front.</figcaption></figure>
+    <figure><img src="partner.png" alt="Partner rider home in green: online switch, earnings tiles, busy areas card, trip card with ready in 6 min and cold chain chips and navigate and at store buttons"><figcaption><b>Nabz Partner (rider)</b>The same system in Partner green: online switch, earnings, busy areas, and the trip in progress.</figcaption></figure>
+    <figure><img src="welcome.png" alt="Welcome and sign in: raspberry screen with logo and headline, white sheet with phone number field, get code button and continue with Google"><figcaption><b>Welcome and sign in</b>The logo and promise on brand colour; sign-in on a white sheet, phone first.</figcaption></figure>
+  </div>
+
+  <h2>The kit</h2>
+  <p class="sub">Colours, type, buttons, add-to-cart, badges, inputs, cart bar and tab bar. Every screen is built only from these.</p>
+  <figure class="wide"><img src="system.png" alt="Nabz brand UI kit: six colour swatches with contrast ratios, type ramp, button states, add and stepper, badges and chips, cart bar and tab bar"></figure>
+
+  <h2>Colour: one job each</h2>
+  <p class="sub">Contrast is measured against the WCAG AA rule (4.5:1 for normal text).</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Colour</th><th>Use for</th><th>Never use for</th><th>Contrast</th></tr></thead>
+    <tbody>
+      <tr><td><span class="sw" style="background:#b83a50"></span>Raspberry <code>#B83A50</code></td><td>Brand header, primary button, ADD / stepper, active tab, links, cart bar</td><td>Errors, decoration, large card fills</td><td class="num">White on it 5.6:1 <span class="yes">AA</span></td></tr>
+      <tr><td><span class="sw" style="background:#fbeef0"></span>Blush <code>#FBEEF0</code></td><td>Selected chip, active-tab pill, soft buttons, delivery-code boxes</td><td>Page background</td><td class="num">Raspberry on it 5.1:1 <span class="yes">AA</span></td></tr>
+      <tr><td><span class="sw" style="background:#ff5a3c"></span>Coral pulse <code>#FF5A3C</code></td><td>"Live", ETA badges, the full stop in headlines, the rider dot</td><td>Small text on white (3.1:1)</td><td class="num">Ink on it 4.9:1 <span class="yes">AA</span></td></tr>
+      <tr><td><span class="sw" style="background:#2a2523"></span>Ink <code>#2A2523</code></td><td>All text, the Plus banner</td><td>Buttons</td><td class="num">On white 15:1 <span class="yes">AA</span></td></tr>
+      <tr><td><span class="sw" style="background:#6f6660"></span>Muted <code>#6F6660</code></td><td>Secondary text (pack size, distance)</td><td>Anything that must be read first</td><td class="num">On white 5.6:1 <span class="yes">AA</span></td></tr>
+      <tr><td><span class="sw" style="background:#0b7a44"></span>Savings green <code>#0B7A44</code></td><td>% OFF, savings, "free delivery", verified</td><td>Buttons in the customer app</td><td class="num">White on it 5.4:1 <span class="yes">AA</span></td></tr>
+      <tr><td><span class="sw" style="background:#f2c14e"></span>Plus gold <code>#F2C14E</code></td><td>Nabz Plus only</td><td>Anything else</td><td class="num">Ink on it 9.0:1 <span class="yes">AA</span></td></tr>
+      <tr><td><span class="sw" style="background:#2f7d5b"></span>Partner green <code>#2F7D5B</code></td><td>Partner app: header, primary button, active tab</td><td>The customer app</td><td class="num">White on it 5.0:1 <span class="yes">AA</span></td></tr>
+      <tr><td><span class="sw" style="background:#f7f3f2"></span>Warm neutral <code>#F7F3F2</code></td><td>Page background under white cards</td><td>Text</td><td class="num">—</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout"><b>Red is not the error colour any more.</b> Errors use a separate red-orange (<code>#B42318</code>) with an icon and a sentence, so "something went wrong" never looks like "tap here".</div>
+
+  <h2>Type, spacing and shape</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Token</th><th>Value</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr><td>Display</td><td class="num">Outfit 700 · 30</td><td>Header promise ("30 minutes."), tracking time, partner greeting</td></tr>
+      <tr><td>Title</td><td class="num">Outfit 600 · 22</td><td>Screen titles</td></tr>
+      <tr><td>Headline</td><td class="num">Outfit 600 · 17–19</td><td>Section titles, card titles</td></tr>
+      <tr><td>Body</td><td class="num">Manrope 600 · 15</td><td>Product names, list rows, buttons (800)</td></tr>
+      <tr><td>Subhead</td><td class="num">Manrope 500 · 13</td><td>Pack size, distance, helper text</td></tr>
+      <tr><td>Caption</td><td class="num">Manrope 800 · 11, caps</td><td>Badges: 28 MINS, 8% OFF, Rx</td></tr>
+      <tr><td>Spacing</td><td class="num">4 · 8 · 12 · 16 · 20 · 24 · 32</td><td>16 is the screen edge; gaps between cards 10–12</td></tr>
+      <tr><td>Radius</td><td class="num">8 · 12 · 16 · 28</td><td>Badges and ADD 8, buttons and inputs 12, cards 16, sheets 28</td></tr>
+      <tr><td>Elevation</td><td class="num">hairline · raised · floating</td><td>Cards use a 1 px line; the cart bar and rider card float with a soft brand-tinted shadow</td></tr>
+      <tr><td>Touch target</td><td class="num">≥ 44 px</td><td>The ADD button is drawn at 32 px tall but its hit area is padded to 44</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Components</h2>
+  <ul>
+    <li><b>Button</b>: primary (raspberry), secondary (outline), quiet (blush), destructive, partner. Sizes sm, md, lg. Pressed (deeper raspberry), disabled (grey, with the reason in its label, e.g. "Add ₹6 more to continue") and loading (spinner plus "Placing order…").</li>
+    <li><b>Add / Stepper</b>: ADD outline turns into a filled − 1 + stepper. A light haptic on each tap; the count animates; Notify me when out of stock.</li>
+    <li><b>Brand header</b>: logo-gradient band with status-bar padding, the promise line, address picker, search and optional chips. Customer app only.</li>
+    <li><b>Cart bar</b>: floats above the tab bar whenever the cart has items. Thumbnails, count, total, and progress to free delivery.</li>
+    <li><b>Product card</b>: image tile, discount ribbon, delivery-time badge, name (2 lines max), pack size, price with MRP struck through, Add.</li>
+    <li><b>Chips and badges</b>: ETA (coral), % OFF (green), Rx (raspberry outline), Verified (green), Cold chain (blue), Plus (gold).</li>
+    <li><b>Inputs</b>: 50 px tall, raspberry focus ring, errors in words under the field.</li>
+    <li><b>Tab bar</b>: icon plus label; the active tab gets a blush pill and raspberry label (green in the Partner app).</li>
+    <li><b>Loading and empty states</b>: shimmer placeholders in the card's shape instead of full-screen spinners; empty states with one line and one action.</li>
+  </ul>
+
+  <h2>Screen by screen</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Screen</th><th>Change</th></tr></thead>
+    <tbody>
+      <tr><td>Welcome, sign in, phone code</td><td>Brand screen with the logo; sign-in on a white sheet; Google as secondary</td></tr>
+      <tr><td>Home</td><td>Brand header with promise, address and search; four service icons; Buy again; Plus; cart bar</td></tr>
+      <tr><td>Pharmacy, search, product</td><td>Compact brand header; category chips; verified store card; 2-column product grid; Rx and stock states</td></tr>
+      <tr><td>Cart and checkout</td><td>Free-delivery progress, steppers, bill with savings, address, payment, big amount button</td></tr>
+      <tr><td>Order tracking</td><td>Live header with time and steps; map; rider card; delivery code</td></tr>
+      <tr><td>Care, labs, nurse booking</td><td>Same header pattern; provider cards with rating and price; time-slot chips</td></tr>
+      <tr><td>Bookings, account, addresses</td><td>White app bar (no brand band); grouped list rows instead of one card per row</td></tr>
+      <tr><td>Partner: rider, nurse, store, lab</td><td>Partner-green header with online switch and earnings; job cards with state chips; green primary buttons</td></tr>
+      <tr><td>Website (follow-up)</td><td>The same tokens mirrored in <code>frontends/web/app/globals.css</code>, so web and app match</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Rollout</h2>
+  <div class="phases">
+    <div class="phase"><b>1. Tokens</b><p>Update <code>lib/theme.ts</code> to the logo palette with a Partner palette chosen by <code>APP_VARIANT</code>; add the type ramp and spacing scale; keep the existing names so every screen picks up the new colours at once.</p></div>
+    <div class="phase"><b>2. Components</b><p>Button variants, Add/Stepper, BrandHeader, CartBar, ProductCard, Chip and a Text component in <code>lib/marketUI.tsx</code>, each with pressed, disabled and loading states and accessibility labels.</p></div>
+    <div class="phase"><b>3. Customer screens</b><p>Welcome, home, pharmacy, cart, checkout, tracking, then care and labs. Replace the 49 hand-built buttons and the hard-coded colours as each screen is touched.</p></div>
+    <div class="phase"><b>4. Partner screens</b><p>Rider, nurse, store and lab tabs in Partner green; the earnings and online header.</p></div>
+    <div class="phase"><b>5. Website</b><p>Mirror the tokens in the web CSS so the website and app match.</p></div>
+    <div class="phase"><b>6. Check and ship</b><p>Type-check, the app's unit tests, screenshots of every screen on the Android emulator (light and dark), contrast checks, then new APKs.</p></div>
+  </div>
+
+  <h2>Decisions for you</h2>
+  <ol>
+    <li><b>Brand colour:</b> switch to the logo's raspberry (recommended), or keep the current bright red and recolour the logo to match?</li>
+    <li><b>Partner app:</b> use Partner green, as in the mockup and its icon, or the same raspberry as the customer app?</li>
+    <li><b>Home layout:</b> four service icons (shown), or bigger tiles with a line of description each?</li>
+  </ol>
+  <p class="sub">Once you choose, phases 1–2 change the whole app's look in one go; phases 3–6 refine each screen.</p>
+</main>
+</body>
+</html>

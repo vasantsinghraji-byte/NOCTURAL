@@ -38,6 +38,9 @@ jest.mock('../../../utils/errors', () => ({
   },
   NotFoundError: class NotFoundError extends Error {
     constructor(t, _id) { super(`${t} not found`); this.name = 'NotFoundError'; }
+  },
+  ConflictError: class ConflictError extends Error {
+    constructor(m) { super(m); this.name = 'ConflictError'; }
   }
 }));
 jest.mock('../../../services/healthIntakeService', () => ({ startIntakeProcess: jest.fn() }));
@@ -124,11 +127,16 @@ describe('Authorization Unit: duty and booking access rules', () => {
         save: jest.fn().mockResolvedValue(true)
       };
       NurseBooking.findById.mockResolvedValue(mockBooking);
+      NurseBooking.findOneAndUpdate.mockImplementation(async (_filter, update) => ({ ...mockBooking, ...update.$set }));
 
       // userId doesn't match provider, but userRole = 'admin'
       await bookingService.updateStatus(BOOKING_ID, 'IN_PROGRESS', ADMIN_ID, '', 'admin');
 
-      expect(mockBooking.save).toHaveBeenCalled();
+      // Admins aren't pinned to the assigned provider in the compare-and-set filter.
+      const [filter, update] = NurseBooking.findOneAndUpdate.mock.calls[0];
+      expect(filter).toEqual(expect.objectContaining({ status: 'EN_ROUTE' }));
+      expect(filter.serviceProvider).toBeUndefined();
+      expect(update.$set.status).toBe('IN_PROGRESS');
       // Verify no User.findById call was needed for role checking
       // User.findById should NOT have been called during updateStatus
       // (It may have been called elsewhere, but updateStatus doesn't call it)

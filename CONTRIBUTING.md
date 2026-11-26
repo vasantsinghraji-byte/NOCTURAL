@@ -75,7 +75,7 @@ Before manually deploying the production API:
 render deploys list <service-id> --output json
 render deploys cancel <service-id> <stale-deploy-id> --confirm
 render deploys create <service-id> --commit <main-commit-sha> --wait --confirm
-curl -i https://nocturnal-api.onrender.com/api/v1/health
+curl -i https://<api host>/api/v1/health
 ```
 
 If a deployment reports `update_failed` without reaching checkout, build, or application startup logs, treat it as a Render platform/service-update failure rather than an application failure. Preserve the last healthy deployment, retry the exact current `main` commit after the queue is drained, and verify the live response.

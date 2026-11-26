@@ -38,19 +38,19 @@ describe('App Integration: GET /api/v1/health and core API mount', () => {
     expect(res.body).toHaveProperty('timestamp');
   });
 
-  test('GET /api/v1/health exposes the Render deployment commit when available', async () => {
-    const originalCommit = process.env.RENDER_GIT_COMMIT;
-    process.env.RENDER_GIT_COMMIT = 'a5c44c5d0477cf7a41b8fc46aafcd8ceb14b5cdc';
+  test('GET /api/v1/health exposes the deployment commit when available', async () => {
+    const originalCommit = process.env.DEPLOYMENT_COMMIT;
+    process.env.DEPLOYMENT_COMMIT = 'a5c44c5d0477cf7a41b8fc46aafcd8ceb14b5cdc';
 
     try {
       const versioned = await request(app).get('/api/v1/health');
 
-      expect(versioned.body).toHaveProperty('deploymentCommit', process.env.RENDER_GIT_COMMIT);
+      expect(versioned.body).toHaveProperty('deploymentCommit', process.env.DEPLOYMENT_COMMIT);
     } finally {
       if (originalCommit === undefined) {
-        delete process.env.RENDER_GIT_COMMIT;
+        delete process.env.DEPLOYMENT_COMMIT;
       } else {
-        process.env.RENDER_GIT_COMMIT = originalCommit;
+        process.env.DEPLOYMENT_COMMIT = originalCommit;
       }
     }
   });
@@ -80,11 +80,20 @@ describe('App Integration: GET /api/v1/health and core API mount', () => {
     expect(res.headers['x-api-version']).toBe('v1');
   });
 
-  test('Unknown API routes return 404 or redirect', async () => {
+  test('Unknown API routes return a JSON 404 (not the default HTML page)', async () => {
     const res = await request(app).get('/api/v1/nonexistent-route-xyz');
 
-    // Express default 404 or custom error handler
-    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.body).toMatchObject({ success: false });
+    expect(res.text).not.toMatch(/<html|Cannot GET/i);
+  });
+
+  test('Unknown POST API routes are a JSON 404 too', async () => {
+    const res = await request(app).post('/api/v1/nonexistent-route-xyz').send({});
+
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
   });
 
   test('Auth routes are mounted (POST /api/v1/auth/login returns 400 without body)', async () => {
@@ -103,18 +112,18 @@ describe('App Integration: GET /api/v1/health and core API mount', () => {
   test('CORS headers are set on non-preflight API POSTs with an allowed Origin', async () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
-      .set('Origin', 'https://nocturnal-api.onrender.com')
+      .set('Origin', 'https://localhost')
       .send({});
 
-    expect(res.headers['access-control-allow-origin']).toBe('https://nocturnal-api.onrender.com');
+    expect(res.headers['access-control-allow-origin']).toBe('https://localhost');
     expect(res.headers['access-control-allow-credentials']).toBe('true');
   });
 
   test('CORS headers are set on API GETs with an allowed Origin', async () => {
     const res = await request(app)
       .get('/api/v1/auth/me')
-      .set('Origin', 'https://nocturnal-api.onrender.com');
+      .set('Origin', 'https://localhost');
 
-    expect(res.headers['access-control-allow-origin']).toBe('https://nocturnal-api.onrender.com');
+    expect(res.headers['access-control-allow-origin']).toBe('https://localhost');
   });
 });

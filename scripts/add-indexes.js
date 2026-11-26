@@ -15,7 +15,9 @@ console.log('=== MongoDB Index Migration ===\n');
 async function addIndexes() {
     try {
         console.log('Connecting to MongoDB...');
-        await mongoose.connect(MONGODB_URI);
+        // autoIndex off: this script creates every index explicitly (and
+        // concurrent automatic builds can stall explicit createIndexes).
+        await mongoose.connect(MONGODB_URI, { autoIndex: false });
         console.log('✓ Connected successfully\n');
 
         const db = mongoose.connection.db;
@@ -290,6 +292,29 @@ async function addIndexes() {
             console.log('   security notification outbox, WebAuthn, and recovery-code indexes created');
         } catch (err) {
             console.log('   Security notification/WebAuthn indexes could not be created:', err.message);
+        }
+
+        // MedRush marketplace: build the schema-declared indexes up front
+        // (2dsphere for nearby-vendor $near queries, text search, payment
+        // sweeper, unique vendor×medicine). Not wrapped in try/catch on
+        // purpose: a missing geo index breaks discovery, so fail the deploy.
+        console.log('\nMedRush marketplace collections:');
+        // One index at a time: Model.createIndexes() stops at the first conflict,
+        // and users.email is already indexed above as email_unique_idx, which used
+        // to skip every later User index (incl. the currentLocation 2dsphere).
+        for (const modelPath of ['../models/pharmacyVendor', '../models/serviceZone', '../models/medicine', '../models/vendorInventory', '../models/inventoryMovement', '../models/pharmacyOrder', '../models/user', '../models/nurseBooking', '../models/otpChallenge', '../models/partnerApplication', '../models/settlementEntry', '../models/membership', '../models/pharmacyDemandSignal', '../models/inventoryBatch', '../models/stockAlert', '../models/pharmacyCheckout', '../models/pharmacyInventoryImport']) {
+            const Model = require(modelPath);
+            await Model.init().catch(() => undefined); // ensure the collection exists
+            for (const [keys, options] of Model.schema.indexes()) {
+                try {
+                    await Model.collection.createIndex(keys, { background: true, ...options });
+                } catch (err) {
+                    // Same keys already indexed under another name: equivalent, keep going.
+                    if (err && (err.code === 85 || err.codeName === 'IndexOptionsConflict')) continue;
+                    throw err;
+                }
+            }
+            console.log(`   ✓ ${Model.collection.collectionName} indexes ensured`);
         }
 
         // List all indexes

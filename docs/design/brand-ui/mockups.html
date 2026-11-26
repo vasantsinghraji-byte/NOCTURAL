@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nabz brand UI mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Nabz brand tokens, taken from the logo (raspberry pin, coral pulse dot, warm ink). */
+:root {
+  --brand: #b83a50;        /* Nabz raspberry: headers, primary buttons, active state */
+  --brand-light: #d9556b;  /* logo gradient start */
+  --brand-deep: #a82f45;   /* logo gradient end, pressed */
+  --brand-soft: #fbeef0;   /* tints, selected chips */
+  --brand-soft-2: #f6dde1;
+  --coral: #ff5a3c;        /* the pulse dot: live, ETA, offers (never small text on white) */
+  --coral-soft: #ffe9e3;
+  --ink: #2a2523;          /* warm ink from the wordmark */
+  --ink-2: #4a423e;
+  --muted: #6f6660;        /* 5.6:1 on white */
+  --line: #ece6e3;
+  --bg: #f7f3f2;           /* warm neutral page */
+  --card: #ffffff;
+  --success: #0b7a44;
+  --success-soft: #e7f4ec;
+  --gold: #f2c14e;         /* Nabz Plus */
+  --partner: #2f7d5b;      /* Nabz Partner green (partner icon) */
+  --partner-light: #3a8f69;
+  --partner-deep: #245c45;
+  --partner-soft: #e6f2ec;
+  --display: 'Outfit', 'Segoe UI', sans-serif;
+  --body: 'Manrope', 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #e9e4e2; font-family: var(--body); color: var(--ink); padding: 24px; display: flex; flex-wrap: wrap; gap: 32px; }
+.shot { padding: 20px; background: #e9e4e2; }
+.phone { width: 390px; height: 844px; border-radius: 44px; overflow: hidden; position: relative; background: var(--bg); box-shadow: 0 0 0 10px #1c1917, 0 30px 60px rgba(42,37,35,.25); display: flex; flex-direction: column; }
+svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.status { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; font: 600 15px var(--body); color: #fff; flex: none; }
+.status .r { display: flex; gap: 6px; align-items: center; }
+.status .bat { width: 24px; height: 11px; border: 1.5px solid currentColor; border-radius: 3px; position: relative; }
+.status .bat::after { content: ''; position: absolute; inset: 1.5px; right: 6px; background: currentColor; border-radius: 1px; }
+.dark-status .status { color: var(--ink); }
+.scroll { flex: 1; overflow: hidden; position: relative; }
+
+/* Brand header (customer): the logo gradient, white text */
+.bhead { background: linear-gradient(160deg, var(--brand-light) 0%, var(--brand) 45%, var(--brand-deep) 100%); color: #fff; padding: 0 16px 16px; position: relative; }
+.bhead .eta-label { font: 600 12px var(--body); letter-spacing: .06em; text-transform: uppercase; opacity: .85; display: flex; align-items: center; gap: 6px; }
+.bhead .eta { font: 700 30px/1.1 var(--display); letter-spacing: -.5px; margin-top: 2px; }
+.bhead .eta .dot { color: var(--coral); }
+.bhead .addr { display: flex; align-items: center; gap: 4px; font: 600 14px var(--body); margin-top: 6px; opacity: .95; }
+.bhead .top { display: flex; justify-content: space-between; align-items: flex-start; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.5); display: grid; place-items: center; color: #fff; }
+.search { margin-top: 14px; background: #fff; border-radius: 12px; height: 48px; display: flex; align-items: center; gap: 10px; padding: 0 14px; color: var(--muted); font: 500 15px var(--body); box-shadow: 0 2px 8px rgba(42,37,35,.12); }
+.search b { color: var(--ink); font-weight: 600; }
+.search .mic { margin-left: auto; color: var(--brand); border-left: 1px solid var(--line); padding-left: 10px; display: flex; }
+.chips-on-brand { display: flex; gap: 8px; margin-top: 14px; overflow: hidden; }
+.chips-on-brand span { flex: none; padding: 7px 12px; border-radius: 999px; background: rgba(255,255,255,.16); color: #fff; font: 700 13px var(--body); border: 1px solid rgba(255,255,255,.28); }
+.chips-on-brand span.on { background: #fff; color: var(--brand); border-color: #fff; }
+.livepill { display: inline-flex; align-items: center; gap: 6px; background: var(--coral); color: var(--ink); font: 800 12px var(--body); padding: 4px 9px; border-radius: 999px; }
+
+/* Sections */
+.pad { padding: 16px; }
+.sec { display: flex; justify-content: space-between; align-items: baseline; margin: 18px 16px 10px; }
+.sec h3 { font: 600 19px var(--display); letter-spacing: -.2px; }
+.sec a { font: 700 13px var(--body); color: var(--brand); text-decoration: none; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px; }
+.tile { background: var(--card); border-radius: 16px; padding: 14px; border: 1px solid var(--line); min-height: 112px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
+.tile .ic { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; }
+.tile h4 { font: 700 15px var(--body); margin-top: 10px; }
+.tile p { font: 500 12px var(--body); color: var(--muted); margin-top: 2px; }
+.tile .tag { position: absolute; top: 12px; right: 12px; }
+.svc { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 0 16px; }
+.svc div { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font: 700 12px/1.25 var(--body); color: var(--ink); position: relative; }
+.svc .ic { width: 72px; height: 72px; border-radius: 20px; display: grid; place-items: center; border: 1px solid var(--line); }
+.svc .ic svg.i { width: 30px; height: 30px; stroke-width: 1.8; }
+.svc .chip { position: absolute; top: -6px; right: -2px; padding: 2px 6px; font-size: 10px; }
+.ic.brand { background: var(--brand-soft); color: var(--brand); }
+.ic.coral { background: var(--coral-soft); color: #c2391f; }
+.ic.green { background: var(--success-soft); color: var(--success); }
+.ic.ink { background: #f1ecea; color: var(--ink); }
+
+.plus { margin: 16px 16px 0; border-radius: 16px; padding: 14px 16px; background: var(--ink); color: #fff; display: flex; align-items: center; gap: 12px; }
+.plus .badge { background: var(--gold); color: var(--ink); font: 800 11px var(--body); padding: 3px 8px; border-radius: 6px; letter-spacing: .04em; }
+.plus h4 { font: 700 15px var(--body); }
+.plus p { font: 500 12px var(--body); opacity: .8; margin-top: 2px; }
+.plus .go { margin-left: auto; background: var(--gold); color: var(--ink); border-radius: 10px; padding: 8px 12px; font: 800 13px var(--body); }
+
+/* Products */
+.hrow { display: flex; gap: 10px; padding: 0 16px; overflow: hidden; }
+.prod { flex: none; width: 128px; background: var(--card); border-radius: 14px; border: 1px solid var(--line); padding: 8px; position: relative; }
+.grid .prod { width: auto; }
+.prod .img { height: 84px; border-radius: 10px; background: #f8f4f3; display: grid; place-items: center; position: relative; }
+.prod .off { position: absolute; top: 0; left: 0; background: var(--success); color: #fff; font: 800 10px/1 var(--body); padding: 5px 6px; border-radius: 10px 0 8px 0; }
+.prod .rx { position: absolute; top: 6px; right: 6px; background: #fff; color: var(--brand); border: 1px solid var(--brand-soft-2); font: 800 10px var(--body); padding: 2px 5px; border-radius: 5px; }
+.prod .eta { display: inline-flex; align-items: center; gap: 3px; font: 700 10px var(--body); color: var(--ink-2); background: #f3eeec; padding: 2px 6px; border-radius: 5px; margin-top: 8px; }
+.prod h5 { font: 700 13px/1.3 var(--body); margin-top: 6px; height: 34px; overflow: hidden; }
+.prod .pack { font: 500 11px var(--body); color: var(--muted); margin-top: 2px; }
+.prod .row { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 8px; }
+.price b { font: 800 14px var(--body); display: block; }
+.price s { font: 500 11px var(--body); color: var(--muted); }
+.add { border: 1.5px solid var(--brand); color: var(--brand); background: #fff; font: 800 13px var(--body); border-radius: 8px; height: 32px; min-width: 60px; display: grid; place-items: center; letter-spacing: .04em; }
+.step { background: var(--brand); color: #fff; border-radius: 8px; height: 32px; min-width: 72px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; font: 800 14px var(--body); }
+.step svg.i { width: 14px; height: 14px; stroke-width: 3; }
+.notify { border: 1.5px solid var(--line); color: var(--muted); background: #fff; font: 700 11px var(--body); border-radius: 8px; height: 32px; padding: 0 8px; display: grid; place-items: center; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px; }
+
+/* Cart bar + tab bar */
+.cartbar { position: absolute; left: 12px; right: 12px; bottom: 92px; background: var(--brand); color: #fff; border-radius: 14px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; box-shadow: 0 8px 20px rgba(168,47,69,.35); z-index: 3; }
+.cartbar .thumbs { display: flex; }
+.cartbar .thumbs span { width: 32px; height: 32px; border-radius: 8px; background: #fff; border: 2px solid var(--brand); margin-left: -8px; display: grid; place-items: center; }
+.cartbar .thumbs span:first-child { margin-left: 0; }
+.cartbar b { font: 800 14px var(--body); display: block; }
+.cartbar small { font: 600 11px var(--body); opacity: .9; }
+.cartbar .go { margin-left: auto; font: 800 14px var(--body); display: flex; align-items: center; gap: 2px; }
+.tabbar { flex: none; height: 84px; background: #fff; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(5, 1fr); padding: 8px 4px 22px; position: relative; z-index: 2; }
+.tab { display: flex; flex-direction: column; align-items: center; gap: 4px; font: 600 11px var(--body); color: var(--muted); position: relative; }
+.tab.on { color: var(--brand); font-weight: 800; }
+.tab.on .pillbg { background: var(--brand-soft); border-radius: 999px; padding: 4px 16px; display: flex; }
+.tab .pillbg { padding: 4px 16px; display: flex; }
+
+/* White app bar */
+.appbar { background: #fff; display: flex; align-items: center; gap: 12px; padding: 4px 16px 12px; border-bottom: 1px solid var(--line); }
+.appbar h2 { font: 600 20px var(--display); }
+.card { background: var(--card); border-radius: 16px; border: 1px solid var(--line); padding: 14px; margin: 12px 16px 0; }
+.btn { background: var(--brand); color: #fff; border-radius: 12px; height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; font: 800 16px var(--body); }
+.btn.ghost { background: #fff; color: var(--brand); border: 1.5px solid var(--brand); }
+.btn.quiet { background: var(--brand-soft); color: var(--brand); }
+.btn.dis { background: #e9e3e1; color: #9c938e; }
+.btn.partner { background: var(--partner); }
+.sticky { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--line); padding: 12px 16px 28px; z-index: 3; }
+.progress { height: 6px; background: var(--brand-soft); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+.progress span { display: block; height: 100%; background: linear-gradient(90deg, var(--brand), var(--coral)); border-radius: 999px; }
+.line { display: flex; justify-content: space-between; font: 500 14px var(--body); color: var(--ink-2); padding: 5px 0; }
+.line.total { font: 800 16px var(--body); color: var(--ink); border-top: 1px dashed var(--line); margin-top: 6px; padding-top: 10px; }
+.green { color: var(--success); font-weight: 700; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; font: 700 12px var(--body); }
+.chip.brand { background: var(--brand-soft); color: var(--brand); }
+.chip.green { background: var(--success-soft); color: var(--success); }
+.chip.coral { background: var(--coral); color: var(--ink); }
+.chip.ink { background: #f1ecea; color: var(--ink-2); }
+.item { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.item:last-child { border-bottom: 0; }
+.item .th { width: 48px; height: 48px; border-radius: 10px; background: #f8f4f3; display: grid; place-items: center; flex: none; }
+.item h5 { font: 700 14px var(--body); }
+.item p { font: 500 12px var(--body); color: var(--muted); }
+.item .r { margin-left: auto; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+/* Tracking */
+.steps { display: flex; align-items: center; margin-top: 14px; }
+.steps .s { width: 22px; height: 22px; border-radius: 50%; background: #fff; color: var(--brand); display: grid; place-items: center; flex: none; }
+.steps .s svg.i { width: 13px; height: 13px; stroke-width: 3.5; }
+.steps .s.now { background: var(--coral); box-shadow: 0 0 0 5px rgba(255,90,60,.3); }
+.steps .s.todo { background: rgba(255,255,255,.25); }
+.steps .bar { flex: 1; height: 3px; background: #fff; }
+.steps .bar.todo { background: rgba(255,255,255,.25); }
+.steplabels { display: flex; justify-content: space-between; font: 700 11px var(--body); margin-top: 6px; opacity: .9; }
+.map { height: 220px; background: #efe9e6; position: relative; overflow: hidden; }
+.code { display: flex; gap: 8px; margin-top: 8px; }
+.code span { width: 46px; height: 54px; border-radius: 10px; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; font: 700 26px var(--display); }
+
+/* Partner */
+.phead { background: linear-gradient(160deg, var(--partner-light), var(--partner) 50%, var(--partner-deep)); color: #fff; padding: 0 16px 18px; }
+.toggle { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); border-radius: 14px; padding: 12px 14px; margin-top: 14px; }
+.switch { width: 52px; height: 30px; border-radius: 999px; background: #fff; position: relative; margin-left: auto; }
+.switch::after { content: ''; position: absolute; right: 4px; top: 4px; width: 22px; height: 22px; border-radius: 50%; background: var(--partner); }
+.ptiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.ptiles div { background: #fff; color: var(--ink); border-radius: 12px; padding: 10px; }
+.ptiles b { font: 700 17px var(--display); display: block; }
+.ptiles small { font: 600 11px var(--body); color: var(--muted); }
+.heat { width: 12px; height: 34px; border-radius: 4px; flex: none; }
+.ptab.on { color: var(--partner); }
+.ptab.on .pillbg { background: var(--partner-soft); }
+
+/* Design board */
+.board { width: 1180px; background: #fff; border-radius: 24px; padding: 32px; color: var(--ink); }
+.board h1 { font: 700 30px var(--display); letter-spacing: -.5px; }
+.board h2 { font: 600 17px var(--display); margin: 26px 0 12px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .08em; font-size: 13px; }
+.sw { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.sw div { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+.sw .c { height: 72px; display: flex; align-items: flex-end; padding: 8px; font: 800 12px var(--body); }
+.sw .m { padding: 8px 10px; font: 600 11px var(--body); color: var(--muted); }
+.sw .m b { display: block; color: var(--ink); font-size: 13px; }
+.cols { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 28px; }
+.ramp div { display: flex; align-items: baseline; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+.ramp span { font: 600 11px var(--body); color: var(--muted); width: 92px; flex: none; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.rowx { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.input { height: 50px; border-radius: 12px; border: 1px solid var(--line); display: flex; align-items: center; padding: 0 14px; font: 500 15px var(--body); color: var(--muted); }
+.input.focus { border: 2px solid var(--brand); color: var(--ink); box-shadow: 0 0 0 4px var(--brand-soft); }
+.input.err { border: 2px solid #c62f1d; color: var(--ink); }
+.errtext { font: 600 12px var(--body); color: #b42318; margin-top: -4px; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="pin" viewBox="0 0 24 24"><path d="M20 10c0 5-5.5 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.5 20.2 4 15 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="home" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .7-1.5l7-6a2 2 0 0 1 2.6 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="pill" viewBox="0 0 24 24"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></symbol>
+    <symbol id="flask" viewBox="0 0 24 24"><path d="M14.5 2v17.5a2.5 2.5 0 0 1-5 0V2"/><path d="M8.5 2h7"/><path d="M14.5 16h-5"/></symbol>
+    <symbol id="pulse" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+    <symbol id="syringe" viewBox="0 0 24 24"><path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3a2.4 2.4 0 0 1-3.4 0l-.6-.6a2.4 2.4 0 0 1 0-3.4L15 5"/><path d="m9 11 4 4"/><path d="m5 19-3 3"/><path d="m14 4 6 6"/></symbol>
+    <symbol id="heart" viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/></symbol>
+    <symbol id="cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+    <symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></symbol>
+    <symbol id="bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></symbol>
+    <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="phone" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.9.6 2.8.7a2 2 0 0 1 1.7 2z"/></symbol>
+    <symbol id="nav" viewBox="0 0 24 24"><path d="M3 11 22 2l-9 19-2-8z"/></symbol>
+    <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+    <symbol id="minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></symbol>
+    <symbol id="store" viewBox="0 0 24 24"><path d="M3 9h18l-1.5-5h-15z"/><path d="M5 9v11h14V9"/><path d="M10 20v-5h4v5"/></symbol>
+    <symbol id="wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol>
+    <symbol id="box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></symbol>
+    <symbol id="flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.4-2.3 1-3.3a2.5 2.5 0 0 0 2.5 2.8z"/></symbol>
+    <symbol id="snow" viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19"/></symbol>
+    <symbol id="file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></symbol>
+    <symbol id="cash" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></symbol>
+    <symbol id="tag" viewBox="0 0 24 24"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r=".5"/></symbol>
+    <!-- product art -->
+    <symbol id="p-strip" viewBox="0 0 64 64"><rect x="8" y="16" width="48" height="32" rx="6" fill="#e7dcd9"/><g fill="#fff" stroke="#d3c5c1" stroke-width="1.5"><circle cx="20" cy="26" r="5"/><circle cx="32" cy="26" r="5"/><circle cx="44" cy="26" r="5"/><circle cx="20" cy="38" r="5"/><circle cx="32" cy="38" r="5"/><circle cx="44" cy="38" r="5"/></g></symbol>
+    <symbol id="p-bottle" viewBox="0 0 64 64"><rect x="24" y="8" width="16" height="9" rx="2" fill="#b83a50"/><rect x="18" y="16" width="28" height="40" rx="7" fill="#f3e6e3"/><rect x="18" y="28" width="28" height="14" fill="#fff"/><rect x="22" y="32" width="20" height="3" rx="1.5" fill="#d9556b"/></symbol>
+    <symbol id="p-box" viewBox="0 0 64 64"><path d="M14 22 32 14l18 8v22l-18 8-18-8z" fill="#ffe1d9"/><path d="M14 22l18 8 18-8M32 30v22" stroke="#f0a593" stroke-width="2" fill="none"/></symbol>
+    <symbol id="p-spray" viewBox="0 0 64 64"><rect x="26" y="8" width="12" height="8" rx="2" fill="#2a2523"/><rect x="22" y="16" width="20" height="40" rx="6" fill="#dff0e6"/><rect x="22" y="30" width="20" height="10" fill="#0b7a44" opacity=".75"/></symbol>
+    <symbol id="p-sachet" viewBox="0 0 64 64"><path d="M16 12h32l-3 40H19z" fill="#fff0c9"/><rect x="22" y="24" width="20" height="10" rx="3" fill="#f2c14e"/></symbol>
+    <symbol id="logo" viewBox="0 0 512 512"><path d="M256 84c-86 0-156 67-156 150 0 108 156 196 156 196s156-88 156-196c0-83-70-150-156-150z" fill="#fff"/><polyline points="146,238 204,238 228,186 262,292 290,214 306,238 350,238" fill="none" stroke="#b83a50" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/><circle cx="366" cy="238" r="17" fill="#ff5a3c"/></symbol>
+  </defs>
+</svg>
+
+<!-- 1. HOME -->
+<div class="shot" id="s-home"><div class="phone">
+  <div class="bhead">
+    <div class="status"><span>9:41</span><span class="r">●●● <span class="bat"></span></span></div>
+    <div class="top">
+      <div>
+        <div class="eta-label"><svg class="i" style="width:14px;height:14px"><use href="#clock"/></svg>Delivery in</div>
+        <div class="eta">30 minutes<span class="dot">.</span></div>
+        <div class="addr"><svg class="i" style="width:16px;height:16px"><use href="#pin"/></svg>Home · C-Scheme, Jaipur<svg class="i" style="width:16px;height:16px"><use href="#down"/></svg></div>
+      </div>
+      <div class="avatar"><svg class="i"><use href="#user"/></svg></div>
+    </div>
+    <div class="search"><svg class="i"><use href="#search"/></svg>Search <b>"paracetamol"</b><span class="mic"><svg class="i"><use href="#mic"/></svg></span></div>
+    <div class="chips-on-brand"><span class="on">All</span><span>Medicines</span><span>Lab tests</span><span>Nurse</span><span>Physio</span></div>
+  </div>
+  <div class="scroll">
+    <div class="sec"><h3>What do you need?</h3></div>
+    <div class="svc">
+      <div><span class="ic brand"><svg class="i"><use href="#pill"/></svg></span><span class="chip coral">30 min</span>Pharmacy</div>
+      <div><span class="ic green"><svg class="i"><use href="#flask"/></svg></span>Lab tests</div>
+      <div><span class="ic coral"><svg class="i"><use href="#syringe"/></svg></span>Nurse at home</div>
+      <div><span class="ic ink"><svg class="i"><use href="#pulse"/></svg></span>Physio &amp; care</div>
+    </div>
+    <div class="sec"><h3>Buy again</h3><a>See all</a></div>
+    <div class="hrow">
+      <div class="prod"><div class="img"><span class="off">8% OFF</span><svg width="64" height="64"><use href="#p-strip"/></svg></div><span class="eta"><svg class="i" style="width:10px;height:10px"><use href="#clock"/></svg>28 MINS</span><h5>Paracetamol 650 mg</h5><div class="pack">Strip of 15 tablets</div><div class="row"><div class="price"><b>₹31</b><s>₹34</s></div><div class="step"><svg class="i"><use href="#minus"/></svg>1<svg class="i"><use href="#plus"/></svg></div></div></div>
+      <div class="prod"><div class="img"><svg width="64" height="64"><use href="#p-sachet"/></svg></div><span class="eta"><svg class="i" style="width:10px;height:10px"><use href="#clock"/></svg>28 MINS</span><h5>ORS orange drink</h5><div class="pack">4 × 200 ml</div><div class="row"><div class="price"><b>₹88</b></div><div class="add">ADD</div></div></div>
+      <div class="prod"><div class="img"><span class="off">15% OFF</span><svg width="64" height="64"><use href="#p-bottle"/></svg></div><span class="eta"><svg class="i" style="width:10px;height:10px"><use href="#clock"/></svg>28 MINS</span><h5>Vitamin C 500 mg</h5><div class="pack">60 chewables</div><div class="row"><div class="price"><b>₹212</b><s>₹249</s></div><div class="add">ADD</div></div></div>
+    </div>
+    <div class="plus"><span class="badge">PLUS</span><div><h4>Free delivery on every order</h4><p>No fees on visits · ₹99/month</p></div><span class="go">Try free</span></div>
+  </div>
+  <div class="cartbar"><div class="thumbs"><span><svg width="22" height="22"><use href="#p-strip"/></svg></span><span><svg width="22" height="22"><use href="#p-bottle"/></svg></span></div><div><b>2 items · ₹243</b><small>Add ₹6 more for free delivery</small></div><span class="go">View cart<svg class="i" style="width:18px;height:18px"><use href="#right"/></svg></span></div>
+  <div class="tabbar">
+    <div class="tab on"><span class="pillbg"><svg class="i"><use href="#home"/></svg></span>Home</div>
+    <div class="tab"><span class="pillbg"><svg class="i"><use href="#heart"/></svg></span>Care</div>
+    <div class="tab"><span class="pillbg"><svg class="i"><use href="#pill"/></svg></span>Pharmacy</div>
+    <div class="tab"><span class="pillbg"><svg class="i"><use href="#cal"/></svg></span>Bookings</div>
+    <div class="tab"><span class="pillbg"><svg class="i"><use href="#user"/></svg></span>Account</div>
+  </div>
+</div></div>
+
+<!-- 2. PHARMACY -->
+<div class="shot" id="s-pharmacy"><div class="phone">
+  <div class="bhead" style="padding-bottom:12px">
+    <div class="status"><span>9:41</span><span class="r">●●● <span class="bat"></span></span></div>
+    <div class="top" style="align-items:center"><div style="font:600 22px var(--display)">Pharmacy</div><span class="livepill"><svg class="i" style="width:12px;height:12px"><use href="#clock"/></svg>28 MIN</span></div>
+    <div class="search" style="margin-top:12px"><svg class="i"><use href="#search"/></svg>Medicine, salt or brand<span class="mic"><svg class="i"><use href="#mic"/></svg></span></div>
+  </div>
+  <div style="background:#fff;border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:8px;overflow:hidden">
+    <span class="chip brand" style="flex:none;padding:7px 12px">Fever &amp; pain</span><span class="chip ink" style="flex:none;padding:7px 12px">Diabetes</span><span class="chip ink" style="flex:none;padding:7px 12px">Vitamins</span><span class="chip ink" style="flex:none;padding:7px 12px">Stomach</span><span class="chip ink" style="flex:none;padding:7px 12px">Skin</span>
+  </div>
+  <div class="scroll">
+    <div class="card" style="display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px">
+      <div class="ic brand" style="width:36px;height:36px;border-radius:10px;display:grid;place-items:center"><svg class="i" style="width:18px;height:18px"><use href="#store"/></svg></div>
+      <div style="flex:1"><div style="font:700 14px var(--body)">Sharma Medicos</div><div style="font:500 12px var(--body);color:var(--muted)">1.2 km · Pharmacist on duty · till 11 pm</div></div>
+      <span class="chip green"><svg class="i" style="width:12px;height:12px"><use href="#shield"/></svg>Verified</span>
+    </div>
+    <div class="sec" style="margin-top:14px"><h3>Fever &amp; pain</h3><a>Sort</a></div>
+    <div class="grid">
+      <div class="prod"><div class="img"><span class="off">8% OFF</span><svg width="70" height="70"><use href="#p-strip"/></svg></div><span class="eta"><svg class="i" style="width:10px;height:10px"><use href="#clock"/></svg>28 MINS</span><h5>Paracetamol 650 mg</h5><div class="pack">Strip of 15 tablets</div><div class="row"><div class="price"><b>₹31</b><s>₹34</s></div><div class="step"><svg class="i"><use href="#minus"/></svg>2<svg class="i"><use href="#plus"/></svg></div></div></div>
+      <div class="prod"><div class="img"><svg width="70" height="70"><use href="#p-spray"/></svg></div><span class="eta"><svg class="i" style="width:10px;height:10px"><use href="#clock"/></svg>28 MINS</span><h5>Pain relief spray</h5><div class="pack">55 g can</div><div class="row"><div class="price"><b>₹165</b></div><div class="add">ADD</div></div></div>
+      <div class="prod"><div class="img"><span class="rx">Rx</span><svg width="70" height="70"><use href="#p-box"/></svg></div><span class="eta"><svg class="i" style="width:10px;height:10px"><use href="#clock"/></svg>28 MINS</span><h5>Aceclofenac + Paracetamol</h5><div class="pack">Strip of 10 · needs prescription</div><div class="row"><div class="price"><b>₹58</b><s>₹64</s></div><div class="add">ADD</div></div></div>
+      <div class="prod" style="opacity:.92"><div class="img" style="filter:grayscale(1);opacity:.6"><svg width="70" height="70"><use href="#p-bottle"/></svg></div><span class="eta" style="color:var(--muted)">OUT OF STOCK</span><h5>Ibuprofen syrup 100 ml</h5><div class="pack">Bottle</div><div class="row"><div class="price"><b>₹42</b></div><div class="notify">Notify me</div></div></div>
+    </div>
+  </div>
+  <div class="cartbar"><div class="thumbs"><span><svg width="22" height="22"><use href="#p-strip"/></svg></span></div><div><b>2 items · ₹62</b><small>Add ₹187 more for free delivery</small></div><span class="go">View cart<svg class="i" style="width:18px;height:18px"><use href="#right"/></svg></span></div>
+  <div class="tabbar">
+    <div class="tab"><span class="pillbg"><svg class="i"><use href="#home"/></svg></span>Home</div>
+    <div class="tab"><span class="pillbg"><svg class="i"><use href="#heart"/></svg></span>Care</div>
+    <div class="tab on"><span class="pillbg"><svg class="i"><use href="#pill"/></svg></span>Pharmacy</div>
+    <div class="tab"><span class="pillbg"><svg class="i"><use href="#cal"/></svg></span>Bookings</div>
+    <div class="tab"><span class="pillbg"><svg class="i"><use href="#user"/></svg></span>Account</div>
+  </div>
+</div></div>
+
+<!-- 3. CHECKOUT -->
+<div class="shot dark-status" id="s-checkout"><div class="phone" style="background:var(--bg)">
+  <div style="background:#fff"><div class="status"><span>9:41</span><span class="r">●●● <span class="bat"></span></span></div>
+  <div class="appbar"><svg class="i"><use href="#left"/></svg><h2>Checkout</h2><span class="chip coral" style="margin-left:auto"><svg class="i" style="width:12px;height:12px"><use href="#clock"/></svg>28 min</span></div></div>
+  <div class="scroll">
+    <div class="card" style="background:var(--brand-soft);border-color:var(--brand-soft-2)">
+      <div style="font:700 14px var(--body);color:var(--brand)">Add ₹6 more for FREE delivery</div>
+      <div class="progress"><span style="width:97%"></span></div>
+      <div style="font:500 12px var(--body);color:var(--ink-2);margin-top:6px">Delivery fee now ₹20 · free from ₹249</div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:8px;font:700 14px var(--body)"><svg class="i" style="width:18px;height:18px;color:var(--brand)"><use href="#store"/></svg>From Sharma Medicos · 1.2 km</div>
+      <div class="item"><div class="th"><svg width="40" height="40"><use href="#p-strip"/></svg></div><div><h5>Paracetamol 650 mg</h5><p>Strip of 15 tablets</p></div><div class="r"><div class="step" style="height:30px;min-width:68px"><svg class="i"><use href="#minus"/></svg>1<svg class="i"><use href="#plus"/></svg></div><b style="font:800 14px var(--body)">₹31</b></div></div>
+      <div class="item"><div class="th"><svg width="40" height="40"><use href="#p-bottle"/></svg></div><div><h5>Vitamin C 500 mg</h5><p>60 chewables</p></div><div class="r"><div class="step" style="height:30px;min-width:68px"><svg class="i"><use href="#minus"/></svg>1<svg class="i"><use href="#plus"/></svg></div><b style="font:800 14px var(--body)">₹212</b></div></div>
+    </div>
+    <div class="card">
+      <div style="font:600 17px var(--display);margin-bottom:6px">Bill details</div>
+      <div class="line"><span>Item total</span><span><s style="color:var(--muted)">₹283</s> ₹243</span></div>
+      <div class="line"><span>Delivery fee (1.2 km)</span><span>₹20</span></div>
+      <div class="line"><span>Savings</span><span class="green">− ₹40</span></div>
+      <div class="line total"><span>To pay</span><span>₹263</span></div>
+    </div>
+    <div class="card" style="display:flex;align-items:center;gap:10px">
+      <div class="ic ink" style="width:36px;height:36px;border-radius:10px;display:grid;place-items:center"><svg class="i" style="width:18px;height:18px"><use href="#pin"/></svg></div>
+      <div style="flex:1"><div style="font:700 14px var(--body)">Deliver to Home</div><div style="font:500 12px var(--body);color:var(--muted)">12 Ashok Marg, C-Scheme, Jaipur</div></div>
+      <span style="font:800 13px var(--body);color:var(--brand)">Change</span>
+    </div>
+  </div>
+  <div class="sticky">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font:600 13px var(--body)"><svg class="i" style="width:18px;height:18px;color:var(--success)"><use href="#cash"/></svg>Pay on delivery (cash or UPI)<span style="margin-left:auto;font-weight:800;color:var(--brand)">Change</span></div>
+    <div class="btn">Place order · ₹263<svg class="i"><use href="#right"/></svg></div>
+  </div>
+</div></div>
+
+<!-- 4. TRACKING -->
+<div class="shot" id="s-track"><div class="phone">
+  <div class="bhead" style="padding-bottom:18px">
+    <div class="status"><span>9:41</span><span class="r">●●● <span class="bat"></span></span></div>
+    <div style="display:flex;align-items:center;gap:10px"><svg class="i"><use href="#left"/></svg><span style="font:600 14px var(--body);opacity:.9">Order #NZ4821</span><span class="livepill" style="margin-left:auto">● LIVE</span></div>
+    <div class="eta" style="margin-top:10px">Arriving in 18 min<span class="dot">.</span></div>
+    <div style="font:600 14px var(--body);opacity:.92;margin-top:4px">Ravi has picked up your order</div>
+    <div class="steps"><span class="s"><svg class="i"><use href="#check"/></svg></span><span class="bar"></span><span class="s"><svg class="i"><use href="#check"/></svg></span><span class="bar"></span><span class="s now"></span><span class="bar todo"></span><span class="s todo"></span></div>
+    <div class="steplabels"><span>Accepted</span><span>Packed</span><span>On the way</span><span>Delivered</span></div>
+  </div>
+  <div class="map">
+    <svg width="390" height="250" viewBox="0 0 390 250"><g stroke="#e2dad6" stroke-width="10" fill="none"><path d="M0 60h390M0 170h390M80 0v250M230 0v250M320 0v250"/></g><g stroke="#ebe4e1" stroke-width="4"><path d="M0 115h390M150 0v250M280 0v250"/></g><path d="M80 210 V170 H230 V60 H300" stroke="#b83a50" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray="1 0"/><circle cx="300" cy="60" r="10" fill="#b83a50"/><circle cx="300" cy="60" r="4" fill="#fff"/><circle cx="230" cy="120" r="16" fill="#ff5a3c" opacity=".25"/><circle cx="230" cy="120" r="9" fill="#ff5a3c" stroke="#fff" stroke-width="3"/><rect x="62" y="196" width="36" height="28" rx="8" fill="#2a2523"/><path d="M72 204h16v12H72z" fill="#fff" opacity=".9"/></svg>
+  </div>
+  <div class="scroll" style="background:var(--bg)">
+    <div class="card" style="display:flex;align-items:center;gap:12px;box-shadow:0 8px 20px rgba(42,37,35,.12)">
+      <div class="avatar" style="background:var(--brand-soft);border:0;color:var(--brand);width:44px;height:44px"><svg class="i"><use href="#user"/></svg></div>
+      <div style="flex:1"><div style="font:700 15px var(--body)">Ravi · Nabz rider</div><div style="font:500 12px var(--body);color:var(--muted)">★ 4.9 · 1,240 deliveries</div></div>
+      <div style="width:44px;height:44px;border-radius:12px;background:var(--brand);color:#fff;display:grid;place-items:center"><svg class="i"><use href="#phone"/></svg></div>
+    </div>
+    <div class="card">
+      <div style="font:700 14px var(--body)">Delivery code</div>
+      <div style="font:500 12px var(--body);color:var(--muted)">Share it only when your order is in your hands</div>
+      <div class="code"><span>4</span><span>7</span><span>2</span><span>9</span></div>
+    </div>
+    <div class="card" style="display:flex;align-items:center;gap:10px"><span class="chip green"><svg class="i" style="width:12px;height:12px"><use href="#shield"/></svg>Pharmacist checked</span><span style="font:500 12px var(--body);color:var(--muted)">2 items · ₹263 · cash on delivery</span></div>
+  </div>
+</div></div>
+
+<!-- 5. PARTNER RIDER -->
+<div class="shot" id="s-partner"><div class="phone">
+  <div class="phead">
+    <div class="status"><span>9:41</span><span class="r">●●● <span class="bat"></span></span></div>
+    <div style="font:600 14px var(--body);opacity:.85">Good evening,</div>
+    <div style="font:700 30px var(--display);letter-spacing:-.5px">Arjun<span style="color:var(--coral)">.</span></div>
+    <div class="toggle"><div><div style="font:800 15px var(--body)">You're online</div><div style="font:500 12px var(--body);opacity:.85">Stores near you can send orders</div></div><span class="switch"></span></div>
+    <div class="ptiles"><div><b>₹640</b><small>Today · 9 drops</small></div><div><b>₹3,980</b><small>This week</small></div><div><b>₹420</b><small>Cash to deposit</small></div></div>
+  </div>
+  <div class="scroll">
+    <div class="card" style="margin-top:14px">
+      <div style="display:flex;align-items:center;gap:8px"><svg class="i" style="color:#c2391f"><use href="#flame"/></svg><b style="font:600 17px var(--display)">Busy near you</b></div>
+      <div style="font:500 12px var(--body);color:var(--muted);margin:2px 0 10px">More orders than riders here right now</div>
+      <div style="display:flex;align-items:center;gap:10px;background:#f8f4f3;border-radius:12px;padding:10px"><span class="heat" style="background:#a50d26"></span><div style="flex:1"><div style="font:700 14px var(--body)">Busiest · 6 orders</div><div style="font:500 12px var(--body);color:var(--muted)">1.4 km · about 6 min away</div></div><svg class="i" style="color:var(--partner)"><use href="#nav"/></svg></div>
+      <div style="display:flex;align-items:center;gap:10px;background:#f8f4f3;border-radius:12px;padding:10px;margin-top:8px"><span class="heat" style="background:#f19aa8"></span><div style="flex:1"><div style="font:700 14px var(--body)">Busy · 3 orders</div><div style="font:500 12px var(--body);color:var(--muted)">2.8 km · about 11 min away</div></div><svg class="i" style="color:var(--partner)"><use href="#nav"/></svg></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px"><div class="ic" style="width:40px;height:40px;border-radius:12px;background:var(--partner-soft);color:var(--partner);display:grid;place-items:center"><svg class="i"><use href="#store"/></svg></div><div style="flex:1"><div style="font:700 15px var(--body)">Sharma Medicos</div><div style="font:500 12px var(--body);color:var(--muted)">C-Scheme · 2 drops · ₹96 for this trip</div></div></div>
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap"><span class="chip coral"><svg class="i" style="width:12px;height:12px"><use href="#clock"/></svg>Ready in 6 min</span><span class="chip" style="background:#e6f0f5;color:#1f6f99"><svg class="i" style="width:12px;height:12px"><use href="#snow"/></svg>Cold chain</span><span class="chip ink"><svg class="i" style="width:12px;height:12px"><use href="#cash"/></svg>Collect ₹263</span></div>
+      <div style="display:flex;gap:8px;margin-top:12px"><div class="btn ghost" style="flex:1;height:44px;font-size:14px;color:var(--partner);border-color:var(--partner)"><svg class="i" style="width:16px;height:16px"><use href="#nav"/></svg>Navigate</div><div class="btn partner" style="flex:1;height:44px;font-size:14px">I'm at the store</div></div>
+    </div>
+  </div>
+  <div class="tabbar" style="grid-template-columns:repeat(4,1fr)">
+    <div class="tab ptab on"><span class="pillbg"><svg class="i"><use href="#bag"/></svg></span>Trips</div>
+    <div class="tab ptab"><span class="pillbg"><svg class="i"><use href="#wallet"/></svg></span>Earnings</div>
+    <div class="tab ptab"><span class="pillbg"><svg class="i"><use href="#box"/></svg></span>Shop</div>
+    <div class="tab ptab"><span class="pillbg"><svg class="i"><use href="#user"/></svg></span>Me</div>
+  </div>
+</div></div>
+
+<!-- 6. WELCOME / SIGN IN -->
+<div class="shot" id="s-welcome"><div class="phone" style="background:linear-gradient(170deg,var(--brand-light),var(--brand) 40%,var(--brand-deep))">
+  <div class="status"><span>9:41</span><span class="r">●●● <span class="bat"></span></span></div>
+  <div style="padding:36px 24px 0;color:#fff;flex:1">
+    <div style="display:flex;align-items:center;gap:10px"><svg width="56" height="56" style="background:rgba(255,255,255,.14);border-radius:16px"><use href="#logo"/></svg><span style="font:800 34px var(--body);letter-spacing:-1.5px">nabz<span style="color:var(--coral)">.</span></span></div>
+    <div style="font:700 34px/1.12 var(--display);letter-spacing:-.6px;margin-top:40px">Medicines, nurses<br>and lab tests,<br>at your door<span style="color:var(--coral)">.</span></div>
+    <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap">
+      <span class="chip" style="background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3);padding:6px 10px"><svg class="i" style="width:13px;height:13px"><use href="#clock"/></svg>Medicines in 30 min</span>
+      <span class="chip" style="background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3);padding:6px 10px"><svg class="i" style="width:13px;height:13px"><use href="#shield"/></svg>Verified nurses</span>
+    </div>
+  </div>
+  <div style="background:#fff;border-radius:28px 28px 0 0;padding:24px 20px 34px">
+    <div style="font:600 21px var(--display)">Sign in or create an account</div>
+    <div style="font:500 13px var(--body);color:var(--muted);margin-top:4px">We'll text you a 6-digit code</div>
+    <div class="input" style="margin-top:16px;color:var(--ink);font-weight:600"><span style="color:var(--muted);border-right:1px solid var(--line);padding-right:10px;margin-right:10px">+91</span>98290 12345</div>
+    <div class="btn" style="margin-top:12px">Get code</div>
+    <div style="display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--muted);font:600 12px var(--body)"><span style="flex:1;height:1px;background:var(--line)"></span>or<span style="flex:1;height:1px;background:var(--line)"></span></div>
+    <div class="btn" style="background:#fff;color:var(--ink);border:1.5px solid var(--line)"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Continue with Google</div>
+  </div>
+</div></div>
+
+<!-- 7. DESIGN SYSTEM BOARD -->
+<div class="shot" id="s-system"><div class="board">
+  <div style="display:flex;align-items:center;gap:14px"><svg width="52" height="52" style="background:linear-gradient(160deg,var(--brand-light),var(--brand-deep));border-radius:14px"><use href="#logo"/></svg><div><h1>Nabz brand UI kit</h1><div style="font:500 14px var(--body);color:var(--muted)">Every colour comes from the logo. Raspberry leads, coral is the live spark, ink carries text.</div></div></div>
+
+  <h2>Colour</h2>
+  <div class="sw">
+    <div><div class="c" style="background:linear-gradient(160deg,var(--brand-light),var(--brand-deep));color:#fff">Aa 5.6:1</div><div class="m"><b>Raspberry</b>#B83A50 · headers, buttons</div></div>
+    <div><div class="c" style="background:var(--brand-soft);color:var(--brand)">Aa 5.1:1</div><div class="m"><b>Blush</b>#FBEEF0 · selected, tints</div></div>
+    <div><div class="c" style="background:var(--coral);color:var(--ink)">Aa 4.9:1</div><div class="m"><b>Coral pulse</b>#FF5A3C · live, ETA, offers</div></div>
+    <div><div class="c" style="background:var(--ink);color:#fff">Aa 15:1</div><div class="m"><b>Ink</b>#2A2523 · text, Plus</div></div>
+    <div><div class="c" style="background:var(--success);color:#fff">Aa 5.4:1</div><div class="m"><b>Savings green</b>#0B7A44 · % off, free</div></div>
+    <div><div class="c" style="background:linear-gradient(160deg,var(--partner-light),var(--partner-deep));color:#fff">Aa 5.0:1</div><div class="m"><b>Partner green</b>#2F7D5B · Partner app</div></div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <h2>Type (Outfit headings · Manrope text)</h2>
+      <div class="ramp">
+        <div><span>Display 30 / Outfit 700</span><b style="font:700 30px var(--display);letter-spacing:-.5px">30 minutes<span style="color:var(--coral)">.</span></b></div>
+        <div><span>Title 22 / Outfit 600</span><b style="font:600 22px var(--display)">Pharmacy</b></div>
+        <div><span>Headline 17 / Outfit 600</span><b style="font:600 17px var(--display)">Bill details</b></div>
+        <div><span>Body 15 / Manrope 600</span><span style="font:600 15px var(--body);color:var(--ink);width:auto">Paracetamol 650 mg</span></div>
+        <div><span>Subhead 13 / Manrope 500</span><span style="font:500 13px var(--body);color:var(--muted);width:auto">Strip of 15 tablets</span></div>
+        <div><span>Caption 11 / Manrope 800</span><span style="font:800 11px var(--body);letter-spacing:.06em;color:var(--ink-2);width:auto">28 MINS · 8% OFF</span></div>
+      </div>
+      <h2>Inputs</h2>
+      <div class="stack">
+        <div class="input">Search "paracetamol"</div>
+        <div class="input focus">98290 12345</div>
+        <div class="input err">9829</div><div class="errtext">Enter all 10 digits of your phone number</div>
+      </div>
+    </div>
+    <div>
+      <h2>Buttons</h2>
+      <div class="stack">
+        <div class="btn">Place order · ₹263</div>
+        <div class="btn" style="background:var(--brand-deep)">Pressed</div>
+        <div class="btn ghost">Change address</div>
+        <div class="btn quiet">Add a prescription</div>
+        <div class="btn dis">Add ₹6 more to continue</div>
+        <div class="btn" style="gap:10px"><span style="width:18px;height:18px;border-radius:50%;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff"></span>Placing order…</div>
+      </div>
+    </div>
+    <div>
+      <h2>Add to cart</h2>
+      <div class="rowx"><div class="add">ADD</div><svg class="i" style="color:var(--muted)"><use href="#right"/></svg><div class="step"><svg class="i"><use href="#minus"/></svg>1<svg class="i"><use href="#plus"/></svg></div><div class="notify">Notify me</div></div>
+      <h2>Badges &amp; chips</h2>
+      <div class="rowx">
+        <span class="chip coral"><svg class="i" style="width:12px;height:12px"><use href="#clock"/></svg>28 min</span>
+        <span class="prod" style="padding:0;border:0;width:auto;position:static"><span class="off" style="position:static;border-radius:6px;display:inline-block">8% OFF</span></span>
+        <span class="chip brand">Rx needed</span>
+        <span class="chip green"><svg class="i" style="width:12px;height:12px"><use href="#shield"/></svg>Verified</span>
+        <span class="chip" style="background:#e6f0f5;color:#1f6f99"><svg class="i" style="width:12px;height:12px"><use href="#snow"/></svg>Cold chain</span>
+        <span class="chip" style="background:var(--gold);color:var(--ink)">PLUS</span>
+      </div>
+      <h2>Cart bar</h2>
+      <div class="cartbar" style="position:static"><div class="thumbs"><span><svg width="22" height="22"><use href="#p-strip"/></svg></span></div><div><b>2 items · ₹243</b><small>Add ₹6 for free delivery</small></div><span class="go">View cart<svg class="i" style="width:18px;height:18px"><use href="#right"/></svg></span></div>
+      <h2>Tab bar</h2>
+      <div class="tabbar" style="border:1px solid var(--line);border-radius:14px;height:64px;padding:8px 4px">
+        <div class="tab on"><span class="pillbg"><svg class="i"><use href="#home"/></svg></span>Home</div>
+        <div class="tab"><span class="pillbg"><svg class="i"><use href="#heart"/></svg></span>Care</div>
+        <div class="tab"><span class="pillbg"><svg class="i"><use href="#pill"/></svg></span>Pharmacy</div>
+        <div class="tab"><span class="pillbg"><svg class="i"><use href="#cal"/></svg></span>Bookings</div>
+        <div class="tab"><span class="pillbg"><svg class="i"><use href="#user"/></svg></span>Account</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+</body>
+</html>
