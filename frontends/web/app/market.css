@@ -300,7 +300,7 @@ button.prod-tile:active { transform: scale(.98); }
 .chat-call { align-self: center; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: var(--card-alt); font-size: 13px; font-weight: 600; color: var(--ink-soft); }
 .chat-call.bad { color: var(--rose-ink); background: var(--accent-soft); }
 .chat-call time { font-weight: 500; color: var(--muted); }
-.chat-compose { position: sticky; bottom: 0; display: flex; gap: 8px; align-items: flex-end; padding: 10px 0 12px; background: var(--bg); }
+.chat-compose { position: sticky; bottom: 0; display: flex; gap: 8px; align-items: flex-end; padding: 10px 0 calc(12px + env(safe-area-inset-bottom)); background: var(--bg); }
 .chat-compose textarea { resize: none; min-height: 48px; max-height: 140px; padding: 12px 14px; line-height: 1.4; }
 .chat-compose .mk-btn { min-width: 52px; min-height: 48px; padding: 0; justify-content: center; }
 .call-panel { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; justify-content: space-between; padding: max(48px, env(safe-area-inset-top)) 24px max(40px, env(safe-area-inset-bottom));
@@ -320,7 +320,7 @@ button.prod-tile:active { transform: scale(.98); }
 .call-btn.answer { background: #1f9d6b; }
 .call-btn.big { width: 72px; height: 72px; }
 .call-btn[disabled] { opacity: .5; cursor: not-allowed; }
-.call-toast { position: fixed; z-index: 70; left: 50%; top: 16px; transform: translateX(-50%); width: min(440px, calc(100vw - 24px)); display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px;
+.call-toast { position: fixed; z-index: 70; left: 50%; top: calc(16px + env(safe-area-inset-top)); transform: translateX(-50%); width: min(440px, calc(100vw - 24px)); display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px;
   background: #14171c; color: #fff; box-shadow: 0 24px 50px -18px rgba(16,24,40,.5); }
 .call-toast .call-btn { width: 48px; height: 48px; }
 .call-toast-sub { font-size: 13px; opacity: .8; }

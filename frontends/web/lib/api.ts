@@ -1,4 +1,4 @@
-import { createApiClient, MedRushApi } from '@medrush/shared';
+import { connection, createApiClient, MedRushApi } from '@medrush/shared';
 
 /**
  * Base URL of the Express API. Configure via NEXT_PUBLIC_API_BASE_URL.
@@ -12,5 +12,7 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://loca
  */
 export const api: MedRushApi = createApiClient({
   baseUrl: API_BASE_URL,
-  credentials: 'include'
+  credentials: 'include',
+  // Feeds the offline banner (app/_components/OfflineBanner.tsx).
+  fetchImpl: connection.trackFetch((input, init) => fetch(input, init))
 });

@@ -7,7 +7,7 @@ import { PEOPLE_PARTNER_KINDS, type PartnerApplicationInput, type PartnerKind } 
 import { api } from '@/lib/api';
 import AuthShell from '../_components/AuthShell';
 
-// Lab and delivery partners join a waitlist: their dashboards aren't built yet (audit M7).
+// PRP technicians and hospitals join a waitlist: they have no partner flow yet (audit M7).
 // Waitlist kinds have no partner flow yet, so approving them creates no login.
 const WAITLIST: PartnerKind[] = ['PRP_TECHNICIAN', 'HOSPITAL'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

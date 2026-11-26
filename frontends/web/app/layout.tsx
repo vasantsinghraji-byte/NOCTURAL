@@ -9,6 +9,7 @@ import Providers from './_components/Providers';
 import { DialogHost } from './_components/Dialog';
 import SiteNav from './_components/SiteNav';
 import SiteFooter from './_components/SiteFooter';
+import OfflineBanner from './_components/OfflineBanner';
 import AppTabBar from './_components/AppTabBar';
 
 // Self-hosted at build time (no request to Google from visitors' browsers).
@@ -39,7 +40,10 @@ export const viewport: Viewport = {
     { media: '(prefers-color-scheme: dark)', color: '#131014' }
   ],
   width: 'device-width',
-  initialScale: 1
+  initialScale: 1,
+  // Edge to edge on phones with a notch or gesture bar: the header, bottom nav and
+  // other fixed bars pad themselves with env(safe-area-inset-*).
+  viewportFit: 'cover'
 };
 
 // Every page renders per request so it can carry that request's CSP nonce
@@ -54,6 +58,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Providers>
           <header className="header">
             <SiteNav />
+            <OfflineBanner />
           </header>
           <main id="main" className="container main" tabIndex={-1}>{children}</main>
           <SiteFooter />

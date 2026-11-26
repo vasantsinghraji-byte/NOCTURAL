@@ -22,7 +22,8 @@ const PORTALS: Record<LoginPortal, { icon: LucideIcon; fg: string; title: string
 const SWITCH: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: '/login', label: 'Customer', icon: UserRound },
   { href: '/staff/login', label: 'Medical staff', icon: Stethoscope },
-  { href: '/vendor/login', label: 'Pharmacy', icon: Store }
+  { href: '/vendor/login', label: 'Pharmacy', icon: Store },
+  { href: '/lab/login', label: 'Path lab', icon: FlaskConical }
 ];
 
 /** One login screen per partner type; the server rejects accounts of other types. */

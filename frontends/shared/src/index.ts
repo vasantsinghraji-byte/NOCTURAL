@@ -3,3 +3,4 @@ export * from './api';
 export * from './payments';
 export * from './marketplace';
 export * from './realtime';
+export * from './connection';

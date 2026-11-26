@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowLeftRight, BadgeCheck, FileSignature, FileText, HeartPulse, Images, IndianRupee, Megaphone, PhoneCall, Pill, Radar, ScrollText, ShieldCheck, Sparkles, Store, TicketPercent, Users, type LucideIcon } from 'lucide-react';
 import RevenuePanel from './RevenuePanel';
 import ApplicationsPanel from './ApplicationsPanel';
 import WithdrawalsPanel from './WithdrawalsPanel';
@@ -32,24 +33,24 @@ type View = AdminSection | 'team';
  * Sections of the console, grouped as in the sidebar. The server decides who
  * may open which (constants/adminAccess.js); this only labels and lays them out.
  */
-const SECTIONS: Array<{ key: View; label: string; group: string; hint: string; icon: string }> = [
-  { key: 'tower', label: 'Control tower', group: 'Operations', hint: 'Live demand and supply map, zone surge', icon: '◎' },
-  { key: 'care', label: 'Care marketplace', group: 'Operations', hint: 'Visits, plans, lab orders, refunds, catalogue', icon: '✚' },
-  { key: 'support', label: 'Call-back requests', group: 'Operations', hint: 'Customers who asked Nabz to call', icon: '☎' },
-  { key: 'users', label: 'Users', group: 'People', hint: 'Customers and partners, suspend or restore', icon: '◉' },
-  { key: 'partners', label: 'Partner applications', group: 'Verification', hint: 'Approve or reject people who applied to join', icon: '✎' },
-  { key: 'documents', label: 'Partner documents', group: 'Verification', hint: 'ID, licence and registration documents', icon: '▤' },
-  { key: 'verification', label: 'Staff checks', group: 'Verification', hint: 'Nurse and physio badges: ID, police, council', icon: '✓' },
-  { key: 'vendors', label: 'Pharmacies', group: 'Pharmacy', hint: 'Stores, delivery zones and surge, flagged orders, H1 register', icon: '⌂' },
-  { key: 'medicines', label: 'Medicines', group: 'Pharmacy', hint: 'Master catalogue: edit, merge duplicates, recall a batch', icon: '℞' },
-  { key: 'payments', label: 'Payments & revenue', group: 'Money', hint: 'Revenue and the payment log', icon: '₹' },
-  { key: 'withdrawals', label: 'Withdrawals', group: 'Money', hint: 'Partner payout requests', icon: '⇄' },
-  { key: 'plans', label: 'Plans & coupons', group: 'Money', hint: 'Nabz Plus plans and discount codes', icon: '%' },
-  { key: 'campaigns', label: 'Campaigns', group: 'Growth', hint: 'Offers and announcements', icon: '✦' },
-  { key: 'ads', label: 'Ads & settings', group: 'Growth', hint: 'Sponsored listings and marketplace settings', icon: '◆' },
-  { key: 'posts', label: 'Partner posts', group: 'Growth', hint: 'Photos and videos partners post', icon: '▣' },
-  { key: 'logs', label: 'Live logs', group: 'System', hint: 'Server logs (redacted)', icon: '≡' },
-  { key: 'team', label: 'Team & access', group: 'Admin', hint: 'Who can open what', icon: '⚑' }
+const SECTIONS: Array<{ key: View; label: string; group: string; hint: string; icon: LucideIcon }> = [
+  { key: 'tower', label: 'Control tower', group: 'Operations', hint: 'Live demand and supply map, zone surge', icon: Radar },
+  { key: 'care', label: 'Care marketplace', group: 'Operations', hint: 'Visits, plans, lab orders, refunds, catalogue', icon: HeartPulse },
+  { key: 'support', label: 'Call-back requests', group: 'Operations', hint: 'Customers who asked Nabz to call', icon: PhoneCall },
+  { key: 'users', label: 'Users', group: 'People', hint: 'Customers and partners, suspend or restore', icon: Users },
+  { key: 'partners', label: 'Partner applications', group: 'Verification', hint: 'Approve or reject people who applied to join', icon: FileSignature },
+  { key: 'documents', label: 'Partner documents', group: 'Verification', hint: 'ID, licence and registration documents', icon: FileText },
+  { key: 'verification', label: 'Staff checks', group: 'Verification', hint: 'Nurse and physio badges: ID, police, council', icon: BadgeCheck },
+  { key: 'vendors', label: 'Pharmacies', group: 'Pharmacy', hint: 'Stores, delivery zones and surge, flagged orders, H1 register', icon: Store },
+  { key: 'medicines', label: 'Medicines', group: 'Pharmacy', hint: 'Master catalogue: edit, merge duplicates, recall a batch', icon: Pill },
+  { key: 'payments', label: 'Payments & revenue', group: 'Money', hint: 'Revenue and the payment log', icon: IndianRupee },
+  { key: 'withdrawals', label: 'Withdrawals', group: 'Money', hint: 'Partner payout requests', icon: ArrowLeftRight },
+  { key: 'plans', label: 'Plans & coupons', group: 'Money', hint: 'Nabz Plus plans and discount codes', icon: TicketPercent },
+  { key: 'campaigns', label: 'Campaigns', group: 'Growth', hint: 'Offers and announcements', icon: Megaphone },
+  { key: 'ads', label: 'Ads & settings', group: 'Growth', hint: 'Sponsored listings and marketplace settings', icon: Sparkles },
+  { key: 'posts', label: 'Partner posts', group: 'Growth', hint: 'Photos and videos partners post', icon: Images },
+  { key: 'logs', label: 'Live logs', group: 'System', hint: 'Server logs (redacted)', icon: ScrollText },
+  { key: 'team', label: 'Team & access', group: 'Admin', hint: 'Who can open what', icon: ShieldCheck }
 ];
 
 const ROLE_LABEL: Record<string, string> = { platform_admin: 'Main admin', ops_admin: 'Team member', admin: 'Admin', onboarding_reviewer: 'Onboarding reviewer' };
@@ -173,7 +174,7 @@ export default function AdminConsole() {
               <span className="admin-nav-title">{g.group}</span>
               {g.items.map((s) => (
                 <button key={s.key} className={`admin-nav-item ${view === s.key ? 'on' : ''}`} aria-current={view === s.key ? 'page' : undefined} onClick={() => open(s.key)}>
-                  <span className="admin-nav-icon" aria-hidden>{s.icon}</span>{s.label}
+                  <span className="admin-nav-icon" aria-hidden><s.icon size={16} /></span>{s.label}
                 </button>
               ))}
             </div>

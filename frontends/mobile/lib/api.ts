@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { createApiClient, type MedRushApi } from '@medrush/shared';
+import { connection, createApiClient, type MedRushApi } from '@medrush/shared';
 
 const extra = (Constants.expoConfig?.extra ?? {}) as { apiBaseUrl?: string; allowServerOverride?: boolean };
 
@@ -28,7 +28,9 @@ export const api: MedRushApi = createApiClient({
   credentials: 'omit',
   // Tells the API this is the native app, so login returns bearer tokens.
   headers: { 'X-Nocturnal-Mobile': 'expo' },
-  getToken: () => authToken
+  getToken: () => authToken,
+  // Feeds the offline banner (lib/OfflineBanner.tsx).
+  fetchImpl: connection.trackFetch((input, init) => fetch(input, init))
 });
 
 export function normalizeServerUrl(input: string): string {

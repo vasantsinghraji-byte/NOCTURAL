@@ -16,6 +16,7 @@ import { LoadingScreen } from '@/lib/LoadingScreen';
 import { EasyModeProvider } from '@/lib/easyMode';
 import { LiveProvider } from '@/lib/live';
 import { C, F, IS_DARK } from '@/lib/theme';
+import { OfflineBanner } from '@/lib/OfflineBanner';
 import { BrandGradient, LightStatusBar } from '@/lib/BrandHeader';
 
 /** Native headers (Sign in, Permissions, Join Nabz Partner) on the logo gradient like the rest of the app. */
@@ -96,6 +97,7 @@ export default function RootLayout() {
             <Stack.Screen name="partner-account" options={{ headerShown: false }} />
             <Stack.Screen name="verification" options={{ headerShown: false }} />
           </Stack>
+          <OfflineBanner />
           <DialogHost />
           </LiveProvider>
           </EasyModeProvider>
